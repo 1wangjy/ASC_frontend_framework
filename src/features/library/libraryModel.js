@@ -29,11 +29,35 @@ export function toggleYearPartition(selected = [], partition) {
 }
 
 export function calculateLibraryMetrics(documents = []) {
+  const years = documents
+    .map(document => Number(document.year))
+    .filter(Number.isFinite)
+
+  if (years.length === 0) {
+    return {
+      total: documents.length,
+      expertSelected: documents.filter(document => document.expertSelected).length,
+      recentThreeYears: 0,
+      recentYearRange: '—',
+      yearRange: '—'
+    }
+  }
+
+  const earliestYear = Math.min(...years)
+  const latestYear = Math.max(...years)
+  const recentStartYear = latestYear - 2
+
   return {
     total: documents.length,
     expertSelected: documents.filter(document => document.expertSelected).length,
-    parsed: documents.filter(document => document.parsingStatus !== 'parsing').length,
-    qaIndexed: documents.filter(document => document.qaIndexed).length
+    recentThreeYears: documents.filter(document => {
+      const year = Number(document.year)
+      return Number.isFinite(year) && year >= recentStartYear && year <= latestYear
+    }).length,
+    recentYearRange: `${recentStartYear}–${latestYear}`,
+    yearRange: earliestYear === latestYear
+      ? String(latestYear)
+      : `${earliestYear}–${latestYear}`
   }
 }
 

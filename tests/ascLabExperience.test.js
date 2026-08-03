@@ -369,13 +369,35 @@ test('toggles one year partition without changing the other selections', () => {
   )
 })
 
-test('calculates all four library counters from document state', () => {
+test('calculates reader-facing library metrics from document years and curation', () => {
   assert.deepEqual(library.calculateLibraryMetrics?.(libraryData.documents), {
     total: 5,
     expertSelected: 3,
-    parsed: 4,
-    qaIndexed: 3
+    recentThreeYears: 3,
+    recentYearRange: '2022–2024',
+    yearRange: '2018–2024'
   })
+})
+
+test('library metrics have useful empty-state values', () => {
+  assert.deepEqual(library.calculateLibraryMetrics?.([]), {
+    total: 0,
+    expertSelected: 0,
+    recentThreeYears: 0,
+    recentYearRange: '—',
+    yearRange: '—'
+  })
+})
+
+test('library summary cards show retrieval-oriented metrics instead of processing state', async () => {
+  const source = await readFile(
+    new URL('../src/views/DocumentLibraryView.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /近三年文献/)
+  assert.match(source, /覆盖年份/)
+  assert.doesNotMatch(source, /完成解析|进入 QA 索引|正文与索引已提取|可引用证据可用/)
 })
 
 test('keeps literature curation separate from answer evaluation scores', async () => {
