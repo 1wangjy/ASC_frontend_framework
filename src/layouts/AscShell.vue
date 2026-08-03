@@ -1,0 +1,123 @@
+<template>
+  <div class="app-shell">
+    <AscSidebar
+      :mobile-open="mobileNavOpen"
+      @close="mobileNavOpen = false"
+      @new-chat="startNewChat"
+      @open-conversation="openConversation"
+    />
+
+    <button
+      v-if="mobileNavOpen"
+      class="nav-scrim"
+      type="button"
+      aria-label="关闭导航"
+      @click="mobileNavOpen = false"
+    />
+
+    <div class="app-shell__body">
+      <header class="mobile-header">
+        <button type="button" aria-label="打开导航" @click="mobileNavOpen = true">
+          <AscIcon name="menu" />
+        </button>
+        <span class="mobile-header__mark">ASC</span>
+        <strong>{{ route.meta.title || 'ASC LAB' }}</strong>
+      </header>
+      <slot />
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import AscSidebar from '../components/navigation/AscSidebar.vue'
+import AscIcon from '../components/ui/AscIcon.vue'
+
+const route = useRoute()
+const router = useRouter()
+const mobileNavOpen = ref(false)
+
+function startNewChat() {
+  mobileNavOpen.value = false
+  router.push({ path: '/', query: { new: Date.now().toString() } })
+}
+
+function openConversation(conversation) {
+  mobileNavOpen.value = false
+  router.push({ path: '/', query: { conversation: conversation.id } })
+}
+</script>
+
+<style scoped>
+.app-shell {
+  min-height: 100vh;
+}
+
+.app-shell__body {
+  min-height: 100vh;
+  margin-left: var(--asc-sidebar-width);
+}
+
+.mobile-header {
+  display: none;
+}
+
+.nav-scrim {
+  position: fixed;
+  z-index: 35;
+  inset: 0;
+  border: 0;
+  background: rgba(4, 28, 49, 0.45);
+}
+
+@media (max-width: 760px) {
+  .app-shell__body {
+    margin-left: 0;
+    padding-top: 56px;
+  }
+
+  .mobile-header {
+    position: fixed;
+    z-index: 30;
+    inset: 0 0 auto;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--asc-border);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+  }
+
+  .mobile-header button {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 6px;
+    background: var(--asc-primary-soft);
+    color: var(--asc-primary);
+    font-size: 21px;
+  }
+
+  .mobile-header__mark {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--asc-primary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .mobile-header strong {
+    color: var(--asc-heading);
+    font-size: 14px;
+  }
+}
+</style>
