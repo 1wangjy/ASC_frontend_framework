@@ -215,6 +215,43 @@ test('LLM evaluation exposes idle loading error retry and success states', async
   assert.match(source, /保存 LLM 评估结果/)
 })
 
+test('answer text selection is routed into the evaluation workspace', async () => {
+  const [conversation, view] = await Promise.all([
+    readFile(new URL('../src/features/qa/ConversationPanel.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
+  ])
+
+  assert.match(conversation, /answer-selection/)
+  assert.match(conversation, /window\.getSelection/)
+  assert.match(conversation, /answerCard\.value\.contains/)
+  assert.match(view, /@answer-selection=/)
+  assert.match(view, /selectedExcerpt/)
+})
+
+test('evidence shell keeps sources and removes legacy scoring UI', async () => {
+  const source = await readFile(
+    new URL('../src/features/qa/EvidencePanel.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /引用来源/)
+  assert.match(source, /人工评估/)
+  assert.match(source, /LLM 评估/)
+  assert.match(source, /ManualEvaluationPanel/)
+  assert.match(source, /LlmEvaluationPanel/)
+  assert.doesNotMatch(source, /专家评分|LLM Judge|score-summary|metric__track/)
+})
+
+test('QA view keeps evaluation state outside the evidence drawer', async () => {
+  const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /:evaluation="qaState\.evaluation"/)
+  assert.match(source, /updateAnswerEvaluation/)
+  assert.match(source, /saveManualEvaluation/)
+  assert.match(source, /runLlmEvaluation/)
+  assert.match(source, /saveLlmEvaluation/)
+})
+
 test('offers domestic LLM and version pairs with DeepSeek V4 Flash as default', () => {
   const state = qa.createQaState?.()
 

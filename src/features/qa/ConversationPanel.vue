@@ -17,7 +17,12 @@
 
     <div v-else-if="state.answer" class="message-row">
       <div class="avatar avatar--asc">ASC</div>
-      <article class="answer-card">
+      <article
+        ref="answerCard"
+        class="answer-card"
+        @mouseup="captureAnswerSelection"
+        @keyup="captureAnswerSelection"
+      >
         <header>
           <div>
             <span>ASC QA</span>
@@ -61,7 +66,9 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import AscIcon from '../../components/ui/AscIcon.vue'
+import { normalizeAnswerExcerpt } from './answerEvaluationModel.js'
 
 defineProps({
   state: {
@@ -70,7 +77,20 @@ defineProps({
   }
 })
 
-defineEmits(['citation', 'open-evidence'])
+const emit = defineEmits(['citation', 'open-evidence', 'answer-selection'])
+const answerCard = ref(null)
+
+function captureAnswerSelection() {
+  const selection = window.getSelection()
+  if (!selection || selection.isCollapsed || !answerCard.value) return
+  if (
+    !answerCard.value.contains(selection.anchorNode)
+    || !answerCard.value.contains(selection.focusNode)
+  ) return
+
+  const excerpt = normalizeAnswerExcerpt(selection.toString())
+  if (excerpt) emit('answer-selection', excerpt)
+}
 </script>
 
 <style scoped>

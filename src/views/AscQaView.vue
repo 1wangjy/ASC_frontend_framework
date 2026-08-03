@@ -36,6 +36,7 @@
           :state="qaState"
           @citation="chooseCitation"
           @open-evidence="qaState = { ...qaState, evidenceOpen: true }"
+          @answer-selection="captureEvaluationExcerpt"
         />
 
         <QuestionComposer
@@ -53,8 +54,13 @@
       v-if="qaState.evidenceOpen"
       :references="qaState.references"
       :selected-citation-id="qaState.selectedCitationId"
+      :evaluation="qaState.evaluation"
       @close="qaState = { ...qaState, evidenceOpen: false }"
       @select="chooseCitation"
+      @update:evaluation="patchEvaluation"
+      @save-manual="saveManualEvaluation"
+      @run-llm="runLlmEvaluation"
+      @save-llm="saveLlmEvaluation"
     />
   </div>
 </template>
@@ -66,12 +72,23 @@ import QuestionComposer from '../features/qa/QuestionComposer.vue'
 import TaskShortcuts from '../features/qa/TaskShortcuts.vue'
 import ConversationPanel from '../features/qa/ConversationPanel.vue'
 import EvidencePanel from '../features/qa/EvidencePanel.vue'
+import { judgeQAWithLLM, submitQAFeedback } from '../api/graph.js'
+import {
+  createAnswerEvaluationService,
+  getAnswerEvaluationErrorMessage
+} from '../features/qa/answerEvaluationService.js'
+import {
+  normalizeAnswerExcerpt,
+  patchAnswerEvaluation,
+  setManualVerdict
+} from '../features/qa/answerEvaluationModel.js'
 import {
   completeMockAnswer,
   createQaState,
   resetConversation,
   selectCitation,
   submitQuestion,
+  updateAnswerEvaluation,
   updateQaSettings
 } from '../features/qa/qaDemoModel.js'
 import {
@@ -83,6 +100,10 @@ const route = useRoute()
 const qaState = ref(createQaState())
 const draft = ref('')
 const questionGuides = ref(createQuestionGuideState())
+const evaluationService = createAnswerEvaluationService({
+  mode: import.meta.env.VITE_QA_EVALUATION_API === 'true' ? 'api' : 'demo',
+  api: { judgeQAWithLLM, submitQAFeedback }
+})
 let completionTimer = null
 
 function sendQuestion() {
@@ -103,6 +124,105 @@ function updateSettings(patch) {
 
 function chooseCitation(citationId) {
   qaState.value = selectCitation(qaState.value, citationId)
+}
+
+function patchEvaluation(patch) {
+  qaState.value = updateAnswerEvaluation(qaState.value, patch)
+}
+
+function captureEvaluationExcerpt(value) {
+  const selectedExcerpt = normalizeAnswerExcerpt(value)
+  if (!selectedExcerpt || !qaState.value.answer) return
+
+  qaState.value = updateAnswerEvaluation(qaState.value, current => {
+    const inaccurate = setManualVerdict(current, 'inaccurate')
+    return patchAnswerEvaluation(inaccurate, {
+      mode: 'manual',
+      manual: { selectedExcerpt, saveStatus: 'idle', errorMessage: '' }
+    })
+  })
+  qaState.value = { ...qaState.value, evidenceOpen: true }
+}
+
+function getEvaluationContext() {
+  const currentAnswer = qaState.value.answer
+  if (!currentAnswer) return null
+
+  return {
+    question: qaState.value.question,
+    answerText: [
+      currentAnswer.summary,
+      ...currentAnswer.sections.map(section => `${section.title}：${section.body}`)
+    ].join('\n'),
+    citationIds: [...currentAnswer.citationIds]
+  }
+}
+
+async function saveManualEvaluation() {
+  const context = getEvaluationContext()
+  const manual = qaState.value.evaluation.manual
+  if (!context || !manual.verdict || manual.saveStatus === 'saving') return
+
+  patchEvaluation({ manual: { saveStatus: 'saving', errorMessage: '' } })
+  try {
+    await evaluationService.saveManual(context, manual)
+    patchEvaluation({ manual: { saveStatus: 'success', errorMessage: '' } })
+  } catch (error) {
+    patchEvaluation({
+      manual: {
+        saveStatus: 'error',
+        errorMessage: getAnswerEvaluationErrorMessage(error)
+      }
+    })
+  }
+}
+
+async function runLlmEvaluation() {
+  const context = getEvaluationContext()
+  const llm = qaState.value.evaluation.llm
+  if (!context || llm.runStatus === 'loading') return
+
+  patchEvaluation({
+    mode: 'llm',
+    llm: {
+      runStatus: 'loading',
+      result: null,
+      errorMessage: '',
+      saveStatus: 'idle',
+      saveErrorMessage: ''
+    }
+  })
+  try {
+    const result = await evaluationService.runLlm(context)
+    patchEvaluation({ llm: { runStatus: 'success', result, errorMessage: '' } })
+  } catch (error) {
+    patchEvaluation({
+      llm: {
+        runStatus: 'error',
+        result: null,
+        errorMessage: getAnswerEvaluationErrorMessage(error)
+      }
+    })
+  }
+}
+
+async function saveLlmEvaluation() {
+  const context = getEvaluationContext()
+  const llm = qaState.value.evaluation.llm
+  if (!context || !llm.result || llm.saveStatus === 'saving') return
+
+  patchEvaluation({ llm: { saveStatus: 'saving', saveErrorMessage: '' } })
+  try {
+    await evaluationService.saveLlm(context, llm.result)
+    patchEvaluation({ llm: { saveStatus: 'success', saveErrorMessage: '' } })
+  } catch (error) {
+    patchEvaluation({
+      llm: {
+        saveStatus: 'error',
+        saveErrorMessage: getAnswerEvaluationErrorMessage(error)
+      }
+    })
+  }
 }
 
 function refreshGuide(categoryId) {
@@ -148,7 +268,7 @@ onBeforeUnmount(() => window.clearTimeout(completionTimer))
 }
 
 .qa-layout--evidence {
-  grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-columns: minmax(0, 1fr) 390px;
 }
 
 .qa-main {

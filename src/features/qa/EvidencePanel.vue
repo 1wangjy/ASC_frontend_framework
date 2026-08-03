@@ -2,74 +2,98 @@
   <aside class="evidence-panel">
     <header class="evidence-panel__header">
       <div>
+        <span>ASC REVIEW</span>
         <h2>证据与评估</h2>
-        <p>引用来源 · {{ references.length }}</p>
       </div>
       <button type="button" aria-label="关闭证据面板" @click="$emit('close')">
         <AscIcon name="close" />
       </button>
     </header>
 
-    <div class="reference-list">
-      <button
-        v-for="reference in references"
-        :key="reference.id"
-        type="button"
-        class="reference-card"
-        :class="{ 'reference-card--active': selectedCitationId === reference.id }"
-        @click="$emit('select', reference.id)"
-      >
-        <span>{{ reference.id }}</span>
+    <section class="evidence-sources" aria-labelledby="evidence-source-title">
+      <div class="section-heading">
         <div>
-          <strong>{{ reference.title }}</strong>
-          <small>{{ reference.authors }} · {{ reference.source }} · {{ reference.year }} · {{ reference.locator }}</small>
+          <h3 id="evidence-source-title">引用来源</h3>
+          <span>{{ references.length }} 条证据</span>
         </div>
-      </button>
-    </div>
-
-    <div class="evaluation-switch">
-      <button
-        type="button"
-        :class="{ active: evaluationMode === 'expert' }"
-        @click="evaluationMode = 'expert'"
-      >
-        专家评分
-      </button>
-      <button
-        type="button"
-        :class="{ active: evaluationMode === 'llm' }"
-        @click="evaluationMode = 'llm'"
-      >
-        LLM Judge
-      </button>
-    </div>
-
-    <div class="score-summary">
-      <strong>{{ evaluationMode === 'expert' ? '9.1' : '8.9' }}</strong>
-      <span>/ 10</span>
-      <p>{{ evaluationMode === 'expert' ? '专家精选证据整体可靠' : '模型判定引用与结论一致' }}</p>
-    </div>
-
-    <div class="metrics">
-      <div v-for="metric in metrics" :key="metric.label" class="metric">
-        <div>
-          <span>{{ metric.label }}</span>
-          <strong>{{ metric.value }}%</strong>
-        </div>
-        <div class="metric__track"><span :style="{ width: `${metric.value}%` }" /></div>
+        <small>点击定位引用</small>
       </div>
-    </div>
 
-    <div v-if="selectedReference" class="excerpt">
-      <span>可引用片段 · {{ selectedReference.id }}</span>
-      <p>{{ selectedReference.excerpt }}</p>
-    </div>
+      <div v-if="references.length" class="reference-list">
+        <button
+          v-for="reference in references"
+          :key="reference.id"
+          type="button"
+          class="reference-card"
+          :class="{ 'reference-card--active': selectedCitationId === reference.id }"
+          @click="$emit('select', reference.id)"
+        >
+          <span>{{ reference.id }}</span>
+          <div>
+            <strong>{{ reference.title }}</strong>
+            <small>{{ reference.authors }} · {{ reference.source }} · {{ reference.year }}</small>
+          </div>
+        </button>
+      </div>
+      <p v-else class="reference-empty">本次回答暂无引用证据</p>
+
+      <div v-if="selectedReference" class="source-excerpt">
+        <span>{{ selectedReference.id }} · {{ selectedReference.locator }}</span>
+        <p>{{ selectedReference.excerpt }}</p>
+      </div>
+    </section>
+
+    <section class="evaluation-workspace" aria-label="回答评估工作台">
+      <div class="evaluation-switch" role="tablist" aria-label="评估方式">
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="evaluation.mode === 'manual'"
+          :class="{ active: evaluation.mode === 'manual' }"
+          @click="setMode('manual')"
+        >
+          人工评估
+        </button>
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="evaluation.mode === 'llm'"
+          :class="{ active: evaluation.mode === 'llm' }"
+          @click="setMode('llm')"
+        >
+          LLM 评估
+        </button>
+      </div>
+
+      <ManualEvaluationPanel
+        v-if="evaluation.mode === 'manual'"
+        :evaluation="evaluation.manual"
+        @patch="patchManual"
+        @set-verdict="selectVerdict"
+        @toggle-issue="toggleIssue"
+        @clear-excerpt="patchManual({ selectedExcerpt: '', saveStatus: 'idle', errorMessage: '' })"
+        @save="$emit('save-manual')"
+      />
+
+      <LlmEvaluationPanel
+        v-else
+        :evaluation="evaluation.llm"
+        @run="$emit('run-llm')"
+        @save="$emit('save-llm')"
+      />
+    </section>
   </aside>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import AscIcon from '../../components/ui/AscIcon.vue'
+import LlmEvaluationPanel from './LlmEvaluationPanel.vue'
+import ManualEvaluationPanel from './ManualEvaluationPanel.vue'
+import {
+  setManualVerdict,
+  toggleManualIssue
+} from './answerEvaluationModel.js'
 
 const props = defineProps({
   references: {
@@ -79,22 +103,41 @@ const props = defineProps({
   selectedCitationId: {
     type: String,
     default: ''
+  },
+  evaluation: {
+    type: Object,
+    required: true
   }
 })
 
-defineEmits(['close', 'select'])
-
-const evaluationMode = ref('expert')
-const metrics = [
-  { label: '证据覆盖度', value: 92 },
-  { label: '来源一致性', value: 89 },
-  { label: '本体一致性', value: 88 },
-  { label: '结论可信度', value: 90 }
-]
+const emit = defineEmits([
+  'close',
+  'select',
+  'update:evaluation',
+  'save-manual',
+  'run-llm',
+  'save-llm'
+])
 
 const selectedReference = computed(
   () => props.references.find(reference => reference.id === props.selectedCitationId) || props.references[0]
 )
+
+function setMode(mode) {
+  emit('update:evaluation', { mode })
+}
+
+function patchManual(patch) {
+  emit('update:evaluation', { manual: patch })
+}
+
+function selectVerdict(verdict) {
+  emit('update:evaluation', setManualVerdict(props.evaluation, verdict))
+}
+
+function toggleIssue(issueId) {
+  emit('update:evaluation', toggleManualIssue(props.evaluation, issueId))
+}
 </script>
 
 <style scoped>
@@ -102,30 +145,36 @@ const selectedReference = computed(
   position: sticky;
   top: 0;
   height: 100vh;
-  padding: 24px 20px;
+  padding: 0 20px 24px;
   overflow-y: auto;
   border-left: 1px solid var(--asc-border);
   background: #fff;
 }
 
 .evidence-panel__header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  padding-bottom: 16px;
+  padding: 20px 0 15px;
   border-bottom: 1px solid var(--asc-border);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(10px);
+}
+
+.evidence-panel__header span {
+  color: var(--asc-primary);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
 }
 
 .evidence-panel h2 {
-  margin: 0;
+  margin: 3px 0 0;
   color: var(--asc-heading);
   font-size: 17px;
-}
-
-.evidence-panel__header p {
-  margin: 5px 0 0;
-  color: var(--asc-muted);
-  font-size: 11px;
 }
 
 .evidence-panel__header button {
@@ -134,24 +183,55 @@ const selectedReference = computed(
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 6px;
-  background: transparent;
+  border-radius: 7px;
+  background: #f3f7fa;
   color: var(--asc-text);
   font-size: 18px;
 }
 
+.evidence-sources {
+  padding: 16px 0 18px;
+  border-bottom: 1px solid var(--asc-border);
+}
+
+.section-heading,
+.section-heading > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.section-heading h3 {
+  margin: 0;
+  color: var(--asc-heading);
+  font-size: 12px;
+}
+
+.section-heading span,
+.section-heading > small {
+  color: var(--asc-muted);
+  font-size: 9px;
+}
+
+.section-heading > small {
+  white-space: nowrap;
+}
+
 .reference-list {
   display: grid;
-  gap: 8px;
-  margin-top: 15px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 11px;
 }
 
 .reference-card {
-  width: 100%;
+  min-width: 0;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 7px;
-  padding: 10px;
+  grid-template-columns: 25px minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+  padding: 9px 7px;
   border: 1px solid var(--asc-border);
   border-radius: 7px;
   background: #fff;
@@ -160,135 +240,101 @@ const selectedReference = computed(
 
 .reference-card:hover,
 .reference-card--active {
-  border-color: #79b4d8;
-  background: #f5fbff;
+  border-color: #78b5d9;
+  background: #f2f9fd;
+  box-shadow: inset 0 0 0 1px #b8dced;
 }
 
 .reference-card > span {
   color: var(--asc-primary);
-  font-size: 12px;
-  font-weight: 850;
+  font-size: 10px;
+  font-weight: 900;
 }
 
 .reference-card strong,
 .reference-card small {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .reference-card strong {
   color: var(--asc-heading);
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 9px;
 }
 
 .reference-card small {
-  margin-top: 5px;
+  margin-top: 4px;
   color: var(--asc-muted);
+  font-size: 8px;
+}
+
+.reference-empty {
+  margin: 11px 0 0;
+  padding: 12px;
+  border-radius: 7px;
+  background: #f6f8fa;
+  color: var(--asc-muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.source-excerpt {
+  margin-top: 10px;
+  padding: 10px 11px;
+  border-left: 3px solid #5aa6d3;
+  border-radius: 0 7px 7px 0;
+  background: #f6fafc;
+}
+
+.source-excerpt span {
+  color: var(--asc-primary);
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.source-excerpt p {
+  margin: 5px 0 0;
+  color: var(--asc-text);
   font-size: 9px;
-  line-height: 1.4;
+  line-height: 1.55;
+}
+
+.evaluation-workspace {
+  padding-top: 18px;
 }
 
 .evaluation-switch {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  margin-top: 22px;
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 4px;
   border: 1px solid var(--asc-border);
-  border-radius: 7px;
-  overflow: hidden;
+  border-radius: 9px;
+  background: #f3f6f8;
 }
 
 .evaluation-switch button {
-  min-height: 36px;
+  min-height: 35px;
   border: 0;
-  background: #fff;
+  border-radius: 6px;
+  background: transparent;
   color: var(--asc-muted);
   font-size: 11px;
-  font-weight: 750;
-}
-
-.evaluation-switch button + button {
-  border-left: 1px solid var(--asc-border);
+  font-weight: 760;
 }
 
 .evaluation-switch button.active {
-  background: var(--asc-primary-soft);
+  background: #fff;
   color: var(--asc-primary);
+  box-shadow: 0 1px 5px rgba(25, 68, 96, 0.1);
 }
 
-.score-summary {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 16px 0 20px;
-}
-
-.score-summary strong {
-  color: var(--asc-heading);
-  font-size: 26px;
-}
-
-.score-summary span {
-  color: var(--asc-muted);
-  font-size: 11px;
-}
-
-.score-summary p {
-  width: 100%;
-  margin: 2px 0 0;
-  color: var(--asc-muted);
-  font-size: 10px;
-}
-
-.metrics {
-  display: grid;
-  gap: 14px;
-}
-
-.metric > div:first-child {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-  color: var(--asc-text);
-  font-size: 10px;
-}
-
-.metric strong {
-  color: var(--asc-heading);
-}
-
-.metric__track {
-  height: 6px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #e7eef4;
-}
-
-.metric__track span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: #2c91c8;
-}
-
-.excerpt {
-  margin-top: 22px;
-  padding: 12px;
-  border-left: 3px solid #4ba2d3;
-  background: #f5f9fc;
-}
-
-.excerpt span {
-  color: var(--asc-primary);
-  font-size: 9px;
-  font-weight: 800;
-}
-
-.excerpt p {
-  margin: 7px 0 0;
-  color: var(--asc-text);
-  font-size: 10px;
-  line-height: 1.6;
+button:focus-visible {
+  outline: 2px solid #59a8d8;
+  outline-offset: 2px;
 }
 
 @media (max-width: 1180px) {
@@ -296,8 +342,19 @@ const selectedReference = computed(
     position: fixed;
     z-index: 32;
     inset: 0 0 0 auto;
-    width: min(360px, 92vw);
+    width: min(420px, 94vw);
     box-shadow: var(--asc-shadow);
+  }
+}
+
+@media (max-width: 430px) {
+  .reference-list {
+    grid-template-columns: 1fr;
+  }
+
+  .reference-card strong,
+  .reference-card small {
+    white-space: normal;
   }
 }
 </style>
