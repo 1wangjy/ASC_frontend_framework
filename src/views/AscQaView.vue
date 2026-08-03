@@ -27,6 +27,7 @@
         <TaskShortcuts
           :guides="questionGuides"
           @select="draft = $event"
+          @refresh="refreshGuide"
         />
       </section>
 
@@ -73,12 +74,15 @@ import {
   submitQuestion,
   updateQaSettings
 } from '../features/qa/qaDemoModel.js'
-import { createQuestionGuideState } from '../features/qa/questionGuideModel.js'
+import {
+  createQuestionGuideState,
+  refreshQuestionGuide
+} from '../features/qa/questionGuideModel.js'
 
 const route = useRoute()
 const qaState = ref(createQaState())
 const draft = ref('')
-const questionGuides = createQuestionGuideState()
+const questionGuides = ref(createQuestionGuideState())
 let completionTimer = null
 
 function sendQuestion() {
@@ -101,10 +105,15 @@ function chooseCitation(citationId) {
   qaState.value = selectCitation(qaState.value, citationId)
 }
 
+function refreshGuide(categoryId) {
+  questionGuides.value = refreshQuestionGuide(questionGuides.value, categoryId)
+}
+
 function reset() {
   window.clearTimeout(completionTimer)
   qaState.value = resetConversation()
   draft.value = ''
+  questionGuides.value = createQuestionGuideState()
 }
 
 watch(
@@ -213,14 +222,20 @@ onBeforeUnmount(() => window.clearTimeout(completionTimer))
 .qa-empty h1 {
   margin: 0;
   color: var(--asc-heading);
-  font-size: clamp(30px, 4vw, 46px);
-  letter-spacing: -0.04em;
+  font-family: "STZhongsong", "Songti SC", "Noto Serif CJK SC", "SimSun", serif;
+  font-size: clamp(32px, 4vw, 46px);
+  font-weight: 700;
+  line-height: 1.16;
+  letter-spacing: 0.015em;
+  text-wrap: balance;
 }
 
 .qa-empty__intro p {
-  margin: 9px 0 0;
-  color: var(--asc-muted);
+  margin: 11px 0 0;
+  color: #5f7890;
   font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 .qa-session {

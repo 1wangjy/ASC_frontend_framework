@@ -4,6 +4,15 @@
       <header class="shortcut__header">
         <span class="shortcut__icon"><AscIcon :name="item.icon" /></span>
         <strong>{{ item.title }}</strong>
+        <button
+          class="shortcut__refresh"
+          type="button"
+          :aria-label="`刷新${item.title}经典问题`"
+          title="换一组经典问题"
+          @click.stop="$emit('refresh', item.id)"
+        >
+          <AscIcon name="refresh" />
+        </button>
       </header>
       <ul class="shortcut__questions" :aria-label="`${item.title}经典问题`">
         <li v-for="question in item.questions" :key="question">
@@ -27,7 +36,7 @@ defineProps({
   }
 })
 
-defineEmits(['select'])
+defineEmits(['select', 'refresh'])
 </script>
 
 <style scoped>
@@ -40,11 +49,11 @@ defineEmits(['select'])
 
 .shortcut {
   min-width: 0;
-  min-height: 184px;
+  min-height: 210px;
   display: grid;
   align-content: start;
-  gap: 6px;
-  padding: 12px;
+  gap: 8px;
+  padding: 13px;
   border: 1px solid var(--asc-border);
   border-radius: var(--asc-radius);
   background: #fff;
@@ -79,11 +88,41 @@ defineEmits(['select'])
 .shortcut__header strong {
   min-width: 0;
   display: block;
+  flex: 1;
   color: var(--asc-heading);
   overflow: hidden;
-  font-size: 12px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.shortcut__refresh {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #8aa3b6;
+  font-size: 13px;
+  opacity: 0.72;
+  transition: color var(--asc-transition), background var(--asc-transition), opacity var(--asc-transition), transform var(--asc-transition);
+}
+
+.shortcut:hover .shortcut__refresh,
+.shortcut__refresh:focus-visible {
+  opacity: 1;
+}
+
+.shortcut__refresh:hover,
+.shortcut__refresh:focus-visible {
+  background: var(--asc-primary-soft);
+  color: var(--asc-primary);
+  outline: none;
+  transform: rotate(18deg);
 }
 
 .shortcut__questions {
@@ -96,7 +135,7 @@ defineEmits(['select'])
 
 .shortcut__questions button {
   width: 100%;
-  min-height: 36px;
+  min-height: 43px;
   display: grid;
   grid-template-columns: 5px minmax(0, 1fr);
   align-items: start;
@@ -105,15 +144,15 @@ defineEmits(['select'])
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--asc-muted);
+  color: #4f687d;
   text-align: left;
   transition: background var(--asc-transition), color var(--asc-transition);
 }
 
 .shortcut__questions button > span {
-  width: 4px;
-  height: 4px;
-  margin-top: 6px;
+  width: 5px;
+  height: 5px;
+  margin-top: 7px;
   border-radius: 50%;
   background: #82b9d9;
 }
@@ -121,8 +160,9 @@ defineEmits(['select'])
 .shortcut__questions small {
   display: -webkit-box;
   overflow: hidden;
-  font-size: 10px;
-  line-height: 1.45;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -143,6 +183,10 @@ defineEmits(['select'])
 @media (max-width: 560px) {
   .shortcut-grid {
     grid-template-columns: 1fr;
+  }
+
+  .shortcut {
+    min-height: 204px;
   }
 }
 </style>
