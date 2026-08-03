@@ -1,9 +1,20 @@
+export const domesticModelOptions = Object.freeze([
+  'DeepSeek · V4 Flash',
+  'DeepSeek · V4 Pro',
+  '通义千问 · Qwen 3.7 Plus',
+  '通义千问 · Qwen 3.7 Max',
+  'ASC Local · V1.0'
+])
+
+export const frameworkOptions = Object.freeze(['Hybrid RAG', 'NEXUS'])
+export const reasoningOptions = Object.freeze(['Auto', 'CoT', 'ToT'])
+
 const defaultSettings = Object.freeze({
-  knowledgeBase: 'ASC 文献库',
-  model: 'Auto',
+  model: domesticModelOptions[0],
   framework: 'Hybrid RAG',
   reasoning: 'Auto',
-  ontologyEnabled: true
+  ontologyEnabled: true,
+  ontologyLocked: false
 })
 
 const references = Object.freeze([
@@ -125,11 +136,23 @@ export function selectCitation(state, citationId) {
 export function updateQaSettings(state, updates) {
   if (!state) return state
 
+  const allowedKeys = ['model', 'framework', 'reasoning', 'ontologyEnabled']
+  const safeUpdates = Object.fromEntries(
+    Object.entries(updates ?? {}).filter(([key]) => allowedKeys.includes(key))
+  )
+  const framework = safeUpdates.framework ?? state.settings.framework
+  const nexusSelected = framework === 'NEXUS'
+
   return {
     ...state,
     settings: {
       ...state.settings,
-      ...updates
+      ...safeUpdates,
+      framework,
+      ontologyEnabled: nexusSelected
+        ? true
+        : (safeUpdates.ontologyEnabled ?? state.settings.ontologyEnabled),
+      ontologyLocked: nexusSelected
     }
   }
 }

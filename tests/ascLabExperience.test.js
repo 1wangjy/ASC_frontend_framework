@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 
 const navigation = await import('../src/features/navigation/appNavigation.js').catch(() => ({}))
 const qa = await import('../src/features/qa/qaDemoModel.js').catch(() => ({}))
+const guides = await import('../src/features/qa/questionGuideModel.js').catch(() => ({}))
 const library = await import('../src/features/library/libraryModel.js').catch(() => ({}))
 const libraryData = await import('../src/features/library/libraryData.js').catch(() => ({}))
 const routes = await import('../src/config/ascRoutes.js').catch(() => ({}))
@@ -41,6 +42,61 @@ test('empty questions do not start a mock answer', () => {
   const initial = qa.createQaState?.()
   assert.ok(initial)
   assert.deepEqual(qa.submitQuestion?.(initial, '   '), initial)
+})
+
+test('offers domestic LLM and version pairs with DeepSeek V4 Flash as default', () => {
+  const state = qa.createQaState?.()
+
+  assert.equal(state.settings.model, 'DeepSeek · V4 Flash')
+  assert.deepEqual(qa.domesticModelOptions, [
+    'DeepSeek · V4 Flash',
+    'DeepSeek · V4 Pro',
+    '通义千问 · Qwen 3.7 Plus',
+    '通义千问 · Qwen 3.7 Max',
+    'ASC Local · V1.0'
+  ])
+  assert.deepEqual(qa.frameworkOptions, ['Hybrid RAG', 'NEXUS'])
+  assert.deepEqual(qa.reasoningOptions, ['Auto', 'CoT', 'ToT'])
+})
+
+test('NEXUS forces ontology on and locks it until Hybrid RAG is restored', () => {
+  const nexus = qa.updateQaSettings?.(qa.createQaState(), {
+    framework: 'NEXUS',
+    ontologyEnabled: false
+  })
+
+  assert.equal(nexus.settings.ontologyEnabled, true)
+  assert.equal(nexus.settings.ontologyLocked, true)
+
+  const ignoredToggle = qa.updateQaSettings?.(nexus, { ontologyEnabled: false })
+  assert.equal(ignoredToggle.settings.ontologyEnabled, true)
+  assert.equal(ignoredToggle.settings.ontologyLocked, true)
+
+  const hybrid = qa.updateQaSettings?.(nexus, { framework: 'Hybrid RAG' })
+  assert.equal(hybrid.settings.ontologyEnabled, true)
+  assert.equal(hybrid.settings.ontologyLocked, false)
+})
+
+test('initializes one question from each of the four approved categories', () => {
+  const state = guides.createQuestionGuideState?.(() => 0)
+
+  assert.deepEqual(state?.map(item => item.id), [
+    'materials',
+    'processing',
+    'characterization',
+    'service'
+  ])
+  assert.equal(state?.[0].question, 'ASC 各组分分别起什么作用？')
+})
+
+test('refreshing one guide never changes the other three guides', () => {
+  const initial = guides.createQuestionGuideState?.(() => 0)
+  const refreshed = guides.refreshQuestionGuide?.(initial, 'processing', () => 0.99)
+
+  assert.equal(refreshed?.[0], initial?.[0])
+  assert.notEqual(refreshed?.[1].question, initial?.[1].question)
+  assert.equal(refreshed?.[2], initial?.[2])
+  assert.equal(refreshed?.[3], initial?.[3])
 })
 
 test('selecting an inline citation reopens evidence and selects the matching source', () => {
@@ -96,10 +152,9 @@ test('defines the five active ASC LAB routes and redirects unknown paths home', 
 
 test('keeps QA selector choices through answer completion', () => {
   const configured = qa.updateQaSettings?.(qa.createQaState(), {
-    knowledgeBase: '个人文献',
-    model: 'ASC 专业模型',
-    framework: '知识图谱 RAG',
-    reasoning: '深度分析',
+    model: '通义千问 · Qwen 3.7 Max',
+    framework: 'Hybrid RAG',
+    reasoning: 'ToT',
     ontologyEnabled: false
   })
   const answered = qa.completeMockAnswer(
@@ -107,11 +162,11 @@ test('keeps QA selector choices through answer completion', () => {
   )
 
   assert.deepEqual(answered.settings, {
-    knowledgeBase: '个人文献',
-    model: 'ASC 专业模型',
-    framework: '知识图谱 RAG',
-    reasoning: '深度分析',
-    ontologyEnabled: false
+    model: '通义千问 · Qwen 3.7 Max',
+    framework: 'Hybrid RAG',
+    reasoning: 'ToT',
+    ontologyEnabled: false,
+    ontologyLocked: false
   })
 })
 
