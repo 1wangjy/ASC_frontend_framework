@@ -1,5 +1,11 @@
 <template>
-  <div class="qa-layout" :class="{ 'qa-layout--evidence': qaState.evidenceOpen }">
+  <div
+    class="qa-layout"
+    :class="{
+      'qa-layout--recent': !qaState.evidenceOpen,
+      'qa-layout--evidence': qaState.evidenceOpen
+    }"
+  >
     <main class="qa-main">
       <header class="qa-topbar">
         <div>
@@ -50,6 +56,12 @@
       </section>
     </main>
 
+    <RecentConversationsPanel
+      v-if="!qaState.evidenceOpen"
+      :conversations="recentConversations"
+      @select="openConversation"
+    />
+
     <EvidencePanel
       v-if="qaState.evidenceOpen"
       :references="qaState.references"
@@ -67,12 +79,15 @@
 
 <script setup>
 import { onBeforeUnmount, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import QuestionComposer from '../features/qa/QuestionComposer.vue'
 import TaskShortcuts from '../features/qa/TaskShortcuts.vue'
 import ConversationPanel from '../features/qa/ConversationPanel.vue'
 import EvidencePanel from '../features/qa/EvidencePanel.vue'
+import RecentConversationsPanel from '../features/qa/RecentConversationsPanel.vue'
 import { judgeQAWithLLM, submitQAFeedback } from '../api/graph.js'
+import { recentConversations } from '../features/navigation/appNavigation.js'
+import { findRecentConversation } from '../features/navigation/recentConversationModel.js'
 import {
   createAnswerEvaluationService,
   getAnswerEvaluationErrorMessage
@@ -97,6 +112,7 @@ import {
 } from '../features/qa/questionGuideModel.js'
 
 const route = useRoute()
+const router = useRouter()
 const qaState = ref(createQaState())
 const draft = ref('')
 const questionGuides = ref(createQuestionGuideState())
@@ -236,6 +252,21 @@ function reset() {
   questionGuides.value = createQuestionGuideState()
 }
 
+function loadConversation(conversation) {
+  reset()
+  draft.value = conversation.question
+  sendQuestion()
+}
+
+function openConversation(conversation) {
+  if (route.query.conversation === conversation.id) {
+    loadConversation(conversation)
+    return
+  }
+
+  router.push({ path: '/', query: { conversation: conversation.id } })
+}
+
 watch(
   () => route.query.new,
   () => reset()
@@ -243,15 +274,10 @@ watch(
 
 watch(
   () => route.query.conversation,
-  conversation => {
-    if (!conversation) return
-    reset()
-    draft.value = conversation === 'oxidation'
-      ? '分析 ASC 耐火材料中复合抗氧化剂的作用机理。'
-      : conversation === 'slag-corrosion'
-        ? '梳理高炉出铁沟耐火材料的渣铁侵蚀路径。'
-        : '分析 ASC Al₂O₃-SiC-C 材料体系的热震稳定性及主要影响因素。'
-    sendQuestion()
+  conversationId => {
+    if (!conversationId) return
+    const conversation = findRecentConversation(recentConversations, conversationId)
+    if (conversation) loadConversation(conversation)
   },
   { immediate: true }
 )
@@ -269,6 +295,10 @@ onBeforeUnmount(() => window.clearTimeout(completionTimer))
 
 .qa-layout--evidence {
   grid-template-columns: minmax(0, 1fr) 390px;
+}
+
+.qa-layout--recent {
+  grid-template-columns: minmax(0, 1fr) 176px;
 }
 
 .qa-main {
@@ -384,6 +414,12 @@ onBeforeUnmount(() => window.clearTimeout(completionTimer))
 
 @media (max-width: 1180px) {
   .qa-layout--evidence {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1120px) {
+  .qa-layout--recent {
     grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -82,6 +82,20 @@ test('recent conversations panel provides quiet expandable history controls', as
   assert.match(source, /overflow-y:\s*auto/)
 })
 
+test('QA owns recent conversations and hides them beside evidence', async () => {
+  const [view, sidebar, shell] = await Promise.all([
+    readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/navigation/AscSidebar.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/layouts/AscShell.vue', import.meta.url), 'utf8')
+  ])
+
+  assert.match(view, /RecentConversationsPanel/)
+  assert.match(view, /v-if="!qaState\.evidenceOpen"/)
+  assert.match(view, /findRecentConversation/)
+  assert.doesNotMatch(sidebar, /最近会话|recentConversations|open-conversation/)
+  assert.doesNotMatch(shell, /open-conversation|openConversation/)
+})
+
 test('submitting a question opens the evidence report after mock completion', () => {
   const initial = qa.createQaState?.()
   const loading = qa.submitQuestion?.(initial, '  ASC Al₂O₃-SiC-C 材料体系的热震稳定性如何？  ')

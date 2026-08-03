@@ -6,7 +6,6 @@
       @close="mobileNavOpen = false"
       @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
       @new-chat="startNewChat"
-      @open-conversation="openConversation"
     />
 
     <button
@@ -46,10 +45,6 @@ function startNewChat() {
   router.push({ path: '/', query: { new: Date.now().toString() } })
 }
 
-function openConversation(conversation) {
-  mobileNavOpen.value = false
-  router.push({ path: '/', query: { conversation: conversation.id } })
-}
 </script>
 
 <style scoped>

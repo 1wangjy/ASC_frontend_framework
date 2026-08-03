@@ -50,25 +50,12 @@
       </router-link>
     </nav>
 
-    <section class="recent">
-      <p class="sidebar-label">最近会话</p>
-      <button
-        v-for="conversation in recentConversations"
-        :key="conversation.id"
-        type="button"
-        class="recent__item"
-        @click="$emit('open-conversation', conversation)"
-      >
-        <span>{{ conversation.title }}</span>
-      </button>
-    </section>
-
   </aside>
 </template>
 
 <script setup>
 import AscIcon from '../ui/AscIcon.vue'
-import { primaryNavigation, recentConversations } from '../../features/navigation/appNavigation.js'
+import { primaryNavigation } from '../../features/navigation/appNavigation.js'
 
 defineProps({
   mobileOpen: {
@@ -81,7 +68,7 @@ defineProps({
   }
 })
 
-defineEmits(['close', 'toggle-collapse', 'new-chat', 'open-conversation'])
+defineEmits(['close', 'toggle-collapse', 'new-chat'])
 </script>
 
 <style scoped>
@@ -216,38 +203,6 @@ defineEmits(['close', 'toggle-collapse', 'new-chat', 'open-conversation'])
   box-shadow: inset 3px 0 0 #63c4eb;
 }
 
-.recent {
-  margin-top: 24px;
-}
-
-.sidebar-label {
-  margin: 0 10px 8px;
-  color: #8db5d0;
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-}
-
-.recent__item {
-  width: 100%;
-  padding: 8px 10px;
-  overflow: hidden;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #c9deec;
-  font-size: 12px;
-  line-height: 1.35;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.recent__item:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: #fff;
-}
-
 @media (min-width: 761px) {
   .sidebar--collapsed {
     width: var(--asc-sidebar-collapsed-width);
@@ -265,8 +220,7 @@ defineEmits(['close', 'toggle-collapse', 'new-chat', 'open-conversation'])
 
   .sidebar--collapsed .brand__name,
   .sidebar--collapsed .new-question span,
-  .sidebar--collapsed .nav-item span,
-  .sidebar--collapsed .recent {
+  .sidebar--collapsed .nav-item span {
     display: none;
   }
 
