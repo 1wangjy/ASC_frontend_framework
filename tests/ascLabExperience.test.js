@@ -359,7 +359,7 @@ test('waits for the graph launch API and normalizes its returned page address', 
         graph_session_id: '42'
       }
     },
-    currentOrigin: 'http://localhost'
+    currentUrl: 'http://localhost/knowledge'
   })
 
   assert.deepEqual(requestedEndpoints, ['/api/graph/launch'])
@@ -373,7 +373,7 @@ test('routes every same-origin relative graph address through Vue Router', () =>
   assert.deepEqual(
     launcher.getGraphNavigationTarget?.(
       'knowledge/explorer?session=42#material:sic',
-      'http://localhost'
+      'http://localhost/knowledge'
     ),
     {
       kind: 'internal',
@@ -383,11 +383,28 @@ test('routes every same-origin relative graph address through Vue Router', () =>
   assert.deepEqual(
     launcher.getGraphNavigationTarget?.(
       'https://graph.example.com/session/42',
-      'http://localhost'
+      'http://localhost/knowledge'
     ),
     {
       kind: 'external',
       target: 'https://graph.example.com/session/42'
+    }
+  )
+})
+
+test('keeps the current graph entry path for query-only and hash-only redirects', () => {
+  assert.deepEqual(
+    launcher.getGraphNavigationTarget?.('?session=42', 'http://localhost/knowledge'),
+    {
+      kind: 'internal',
+      target: '/knowledge?session=42'
+    }
+  )
+  assert.deepEqual(
+    launcher.getGraphNavigationTarget?.('#material:sic', 'http://localhost/knowledge'),
+    {
+      kind: 'internal',
+      target: '/knowledge#material:sic'
     }
   )
 })
@@ -462,6 +479,7 @@ test('shows a guarded loading state and retry action while launching the graph',
   assert.match(view, /正在进入…/)
   assert.match(view, /:disabled="launching"/)
   assert.match(view, /if \(launching\.value\) return/)
+  assert.match(view, /currentUrl:\s*window\.location\.href/)
   assert.match(view, />重试<\/button>/)
 })
 

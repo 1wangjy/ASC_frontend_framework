@@ -1,10 +1,10 @@
-export function getGraphNavigationTarget(value, currentOrigin = 'http://localhost') {
+export function getGraphNavigationTarget(value, currentUrl = 'http://localhost/') {
   const candidate = String(value ?? '').trim()
   if (!candidate) return null
 
   try {
-    const base = new URL(currentOrigin)
-    const resolved = new URL(candidate, currentOrigin)
+    const base = new URL(currentUrl)
+    const resolved = new URL(candidate, base)
     if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') return null
 
     if (resolved.origin === base.origin) {
@@ -23,8 +23,8 @@ export function getGraphNavigationTarget(value, currentOrigin = 'http://localhos
   }
 }
 
-export function isSafeGraphRedirect(value, currentOrigin = 'http://localhost') {
-  return Boolean(getGraphNavigationTarget(value, currentOrigin))
+export function isSafeGraphRedirect(value, currentUrl = 'http://localhost/') {
+  return Boolean(getGraphNavigationTarget(value, currentUrl))
 }
 
 export function getGraphRedirectUrl(payload = {}) {
@@ -49,7 +49,7 @@ export function getGraphLaunchErrorMessage(error) {
 export async function requestGraphLaunch({
   endpoint = '/api/graph/launch',
   launchApi,
-  currentOrigin = 'http://localhost'
+  currentUrl = 'http://localhost/'
 } = {}) {
   if (typeof launchApi !== 'function') {
     throw new Error('当前浏览器无法连接图谱服务')
@@ -58,7 +58,7 @@ export async function requestGraphLaunch({
   const normalizedEndpoint = String(endpoint ?? '').trim() || '/api/graph/launch'
   const payload = await launchApi(normalizedEndpoint)
   const redirectUrl = getGraphRedirectUrl(payload)
-  if (!isSafeGraphRedirect(redirectUrl, currentOrigin)) {
+  if (!isSafeGraphRedirect(redirectUrl, currentUrl)) {
     throw new Error('无效的图谱跳转地址')
   }
 

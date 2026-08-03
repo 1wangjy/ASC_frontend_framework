@@ -49,9 +49,9 @@ async function launchGraph() {
     const result = await requestGraphLaunch({
       endpoint: import.meta.env.VITE_GRAPH_LAUNCH_API || '/api/graph/launch',
       launchApi: launchKnowledgeGraph,
-      currentOrigin: window.location.origin
+      currentUrl: window.location.href
     })
-    const navigation = getGraphNavigationTarget(result.redirectUrl, window.location.origin)
+    const navigation = getGraphNavigationTarget(result.redirectUrl, window.location.href)
 
     if (!navigation) {
       throw new Error('无效的图谱跳转地址')
