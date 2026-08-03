@@ -72,21 +72,57 @@
     </div>
 
     <footer class="table-footer">
-      <span>共 {{ documents.length }} 条</span>
-      <div>
-        <button type="button" disabled>‹</button>
-        <button type="button" class="active">1</button>
-        <button type="button" disabled>›</button>
-      </div>
-      <span>10 条/页</span>
+      <span>共 {{ total }} 条</span>
+      <nav class="pagination" aria-label="文献分页">
+        <button type="button" :disabled="page <= 1" aria-label="第一页" @click="$emit('change-page', 1)">
+          <span class="double-chevron">
+            <AscIcon class="pagination-icon pagination-icon--back" name="chevron" />
+            <AscIcon class="pagination-icon pagination-icon--back" name="chevron" />
+          </span>
+        </button>
+        <button
+          type="button"
+          :disabled="page <= 1"
+          aria-label="上一页"
+          @click="$emit('change-page', page - 1)"
+        >
+          <AscIcon class="pagination-icon pagination-icon--back" name="chevron" />
+        </button>
+        <button
+          v-for="pageNumber in pageNumbers"
+          :key="pageNumber"
+          type="button"
+          :class="{ active: pageNumber === page }"
+          :aria-current="pageNumber === page ? 'page' : undefined"
+          @click="$emit('change-page', pageNumber)"
+        >
+          {{ pageNumber }}
+        </button>
+        <button
+          type="button"
+          :disabled="page >= pageCount"
+          aria-label="下一页"
+          @click="$emit('change-page', page + 1)"
+        >
+          <AscIcon class="pagination-icon" name="chevron" />
+        </button>
+      </nav>
+      <label class="page-size">
+        每页
+        <select :value="pageSize" aria-label="每页文献数量" @change="$emit('change-page-size', Number($event.target.value))">
+          <option v-for="size in pageSizes" :key="size" :value="size">{{ size }}</option>
+        </select>
+        条
+      </label>
     </footer>
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import AscIcon from '../../components/ui/AscIcon.vue'
 
-defineProps({
+const props = defineProps({
   documents: {
     type: Array,
     required: true
@@ -94,10 +130,37 @@ defineProps({
   selectedId: {
     type: String,
     default: ''
+  },
+  page: {
+    type: Number,
+    default: 1
+  },
+  pageCount: {
+    type: Number,
+    default: 1
+  },
+  pageSize: {
+    type: Number,
+    default: 20
+  },
+  pageSizes: {
+    type: Array,
+    default: () => [20, 50, 100]
+  },
+  total: {
+    type: Number,
+    default: 0
   }
 })
 
-defineEmits(['select', 'reset'])
+defineEmits(['select', 'reset', 'change-page', 'change-page-size'])
+
+const pageNumbers = computed(() => {
+  const start = Math.max(1, props.page - 2)
+  const end = Math.min(props.pageCount, start + 4)
+  const adjustedStart = Math.max(1, end - 4)
+  return Array.from({ length: end - adjustedStart + 1 }, (_, index) => adjustedStart + index)
+})
 </script>
 
 <style scoped>
@@ -133,6 +196,9 @@ td {
 }
 
 th {
+  position: sticky;
+  z-index: 2;
+  top: 0;
   height: 45px;
   background: #fbfcfe;
   color: var(--asc-muted);
@@ -309,12 +375,12 @@ td small {
   font-size: 10px;
 }
 
-.table-footer div {
+.pagination {
   display: flex;
   gap: 5px;
 }
 
-.table-footer button {
+.pagination button {
   width: 27px;
   height: 27px;
   border: 1px solid var(--asc-border);
@@ -324,9 +390,63 @@ td small {
   font-size: 10px;
 }
 
-.table-footer button.active {
+.pagination button.active {
   border-color: var(--asc-primary);
   background: var(--asc-primary);
   color: #fff;
+}
+
+.pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.pagination-icon {
+  display: block;
+}
+
+.pagination-icon--back {
+  transform: rotate(180deg);
+}
+
+.double-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -3px;
+}
+
+.double-chevron .pagination-icon + .pagination-icon {
+  margin-left: -6px;
+}
+
+.page-size {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.page-size select {
+  height: 28px;
+  border: 1px solid var(--asc-border);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--asc-text);
+  font-size: 10px;
+}
+
+@media (max-width: 560px) {
+  .table-footer {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding-block: 10px;
+  }
+
+  .pagination {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
 }
 </style>

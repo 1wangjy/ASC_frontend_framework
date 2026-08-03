@@ -27,16 +27,24 @@
 
         <LibraryToolbar
           :filters="filters"
-          :years="years"
+          :year-partitions="yearPartitions"
+          :result-count="filteredDocuments.length"
           @update:filters="Object.assign(filters, $event)"
           @reset="resetFilters"
         />
 
         <DocumentTable
-          :documents="filteredDocuments"
+          :documents="pagination.items"
           :selected-id="selectedDocumentId"
+          :page="pagination.page"
+          :page-count="pagination.pageCount"
+          :page-size="pagination.pageSize"
+          :page-sizes="pagination.pageSizes"
+          :total="pagination.total"
           @select="selectedDocumentId = $event"
           @reset="resetFilters"
+          @change-page="page = $event"
+          @change-page-size="changePageSize"
         />
       </div>
 
@@ -44,8 +52,6 @@
         v-if="selectedDocument"
         :document="selectedDocument"
         @close="selectedDocumentId = ''"
-        @preview="showToast('PDF 预览将在接入文件服务后打开。')"
-        @add-to-qa="addToQa"
       />
     </section>
 
@@ -65,7 +71,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import AscIcon from '../components/ui/AscIcon.vue'
 import LibraryToolbar from '../features/library/LibraryToolbar.vue'
 import DocumentTable from '../features/library/DocumentTable.vue'
@@ -73,9 +79,10 @@ import DocumentDetails from '../features/library/DocumentDetails.vue'
 import DocumentImportModal from '../features/library/DocumentImportModal.vue'
 import { documents as seedDocuments } from '../features/library/libraryData.js'
 import {
-  addDocumentToQa,
   createLibraryFilters,
-  filterDocuments
+  filterDocuments,
+  getYearPartitions,
+  paginateDocuments
 } from '../features/library/libraryModel.js'
 
 const documentRows = ref(seedDocuments.map(document => ({ ...document })))
@@ -83,10 +90,17 @@ const filters = reactive(createLibraryFilters())
 const selectedDocumentId = ref(seedDocuments[0].id)
 const importMode = ref('')
 const toastMessage = ref('')
+const page = ref(1)
+const pageSize = ref(20)
 let toastTimer = null
 
-const years = [...new Set(seedDocuments.map(document => document.year))].sort((a, b) => b - a)
+const yearPartitions = getYearPartitions(seedDocuments, 4)
 const filteredDocuments = computed(() => filterDocuments(documentRows.value, filters))
+const pagination = computed(() => paginateDocuments(
+  filteredDocuments.value,
+  page.value,
+  pageSize.value
+))
 const selectedDocument = computed(
   () => documentRows.value.find(document => document.id === selectedDocumentId.value) || null
 )
@@ -102,9 +116,9 @@ function resetFilters() {
   Object.assign(filters, createLibraryFilters())
 }
 
-function addToQa(documentId) {
-  documentRows.value = addDocumentToQa(documentRows.value, documentId)
-  showToast('文献已加入 QA 证据库。')
+function changePageSize(size) {
+  pageSize.value = size
+  page.value = 1
 }
 
 function showToast(message) {
@@ -114,6 +128,29 @@ function showToast(message) {
     toastMessage.value = ''
   }, 2600)
 }
+
+watch(
+  () => [filters.query, filters.type, filters.yearPartition],
+  () => {
+    page.value = 1
+  }
+)
+
+watch(
+  () => pagination.value.page,
+  correctedPage => {
+    if (page.value !== correctedPage) page.value = correctedPage
+  }
+)
+
+watch(
+  filteredDocuments,
+  documents => {
+    if (!documents.some(document => document.id === selectedDocumentId.value)) {
+      selectedDocumentId.value = documents[0]?.id ?? ''
+    }
+  }
+)
 </script>
 
 <style scoped>
@@ -217,7 +254,7 @@ function showToast(message) {
 }
 
 .library-workspace--detail {
-  grid-template-columns: minmax(0, 1fr) 310px;
+  grid-template-columns: minmax(0, 1fr) 330px;
 }
 
 .library-primary {
