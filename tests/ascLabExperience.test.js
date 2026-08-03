@@ -156,13 +156,14 @@ test('adding a literature record to QA changes only the selected record', () => 
   assert.equal(libraryData.documents.find(item => item.id === 'DOC-2022-003').qaIndexed, false)
 })
 
-test('defines the five active ASC LAB routes and redirects unknown paths home', () => {
+test('defines the six active ASC LAB routes and redirects unknown paths home', () => {
   assert.deepEqual(
     routes.ascRouteDefinitions?.map(route => [route.name, route.path]),
     [
       ['AscQa', '/'],
       ['Documents', '/documents'],
       ['Knowledge', '/knowledge'],
+      ['KnowledgeExplorer', '/knowledge/explorer'],
       ['DataPlatform', '/data'],
       ['Models', '/models']
     ]

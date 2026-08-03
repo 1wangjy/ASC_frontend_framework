@@ -18,6 +18,12 @@ export const ascRouteDefinitions = [
     meta: { title: '知识图谱' }
   },
   {
+    path: '/knowledge/explorer',
+    name: 'KnowledgeExplorer',
+    component: () => import('../views/KnowledgeExplorerView.vue'),
+    meta: { title: '知识图谱工作区' }
+  },
+  {
     path: '/data',
     name: 'DataPlatform',
     component: () => import('../views/DataPlatformView.vue'),

@@ -59,6 +59,10 @@
       <path d="M4 18v-5h5" />
       <path d="M18.2 9A7 7 0 0 0 6.5 6.5L4 9M5.8 15A7 7 0 0 0 17.5 17.5L20 15" />
     </template>
+    <template v-else-if="name === 'expand'">
+      <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
+      <path d="m3 8 6-6M21 8l-6-6M3 16l6 6M21 16l-6 6" />
+    </template>
     <template v-else-if="name === 'chevron'">
       <path d="m9 18 6-6-6-6" />
     </template>
