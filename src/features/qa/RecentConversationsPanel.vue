@@ -3,9 +3,10 @@
     class="recent-conversations"
     :class="{ 'recent-conversations--compact-open': compactOpen }"
     aria-label="最近会话"
-    @keydown.esc="compactOpen = false"
+    @keydown.esc.stop="closeCompactPanel"
   >
     <button
+      ref="compactToggle"
       class="recent-conversations__compact-toggle"
       type="button"
       :aria-expanded="compactOpen"
@@ -53,7 +54,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import AscIcon from '../../components/ui/AscIcon.vue'
 import {
   DEFAULT_VISIBLE_CONVERSATIONS,
@@ -70,6 +71,7 @@ const props = defineProps({
 const emit = defineEmits(['select'])
 const expanded = ref(false)
 const compactOpen = ref(false)
+const compactToggle = ref(null)
 
 const visibleConversations = computed(() => (
   getVisibleRecentConversations(props.conversations, expanded.value)
@@ -83,13 +85,22 @@ function selectConversation(conversation) {
   compactOpen.value = false
   emit('select', conversation)
 }
+
+function closeCompactPanel() {
+  if (!compactOpen.value) return
+  compactOpen.value = false
+  nextTick(() => compactToggle.value?.focus())
+}
 </script>
 
 <style scoped>
 .recent-conversations {
+  --recent-text: #496a7f;
+  --recent-heading: #42647a;
+  --recent-muted: #557286;
   min-width: 0;
   padding: 92px 20px 28px 2px;
-  color: #6d899d;
+  color: var(--recent-text);
 }
 
 .recent-conversations__compact-toggle {
@@ -102,14 +113,14 @@ function selectConversation(conversation) {
   justify-content: space-between;
   gap: 8px;
   margin: 0 8px 10px;
-  color: #7893a6;
+  color: var(--recent-heading);
   font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.08em;
 }
 
 .recent-conversations__heading small {
-  color: #9bafbd;
+  color: var(--recent-muted);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0;
@@ -135,7 +146,7 @@ function selectConversation(conversation) {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #718da0;
+  color: var(--recent-text);
   font-size: 11px;
   line-height: 1.4;
   text-align: left;
@@ -163,7 +174,7 @@ function selectConversation(conversation) {
   padding: 5px 0;
   border: 0;
   background: transparent;
-  color: #8aa1b0;
+  color: var(--recent-muted);
   font-size: 10px;
   font-weight: 650;
 }
@@ -185,12 +196,15 @@ function selectConversation(conversation) {
 
 @media (max-width: 1120px) {
   .recent-conversations {
-    position: fixed;
+    position: relative;
     z-index: 24;
-    top: 70px;
-    right: 18px;
-    width: auto;
-    padding: 0;
+    grid-row: 1;
+    width: 100%;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 7px 18px;
   }
 
   .recent-conversations__compact-toggle {
@@ -203,7 +217,7 @@ function selectConversation(conversation) {
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.9);
     box-shadow: 0 5px 16px rgba(13, 65, 98, 0.08);
-    color: #6d899d;
+    color: var(--recent-text);
     font-size: 11px;
     font-weight: 650;
     backdrop-filter: blur(10px);
@@ -211,8 +225,8 @@ function selectConversation(conversation) {
 
   .recent-conversations__content {
     position: absolute;
-    top: 42px;
-    right: 0;
+    top: calc(100% - 2px);
+    right: 18px;
     width: min(230px, calc(100vw - 32px));
     display: none;
     padding: 13px 10px 11px;
@@ -230,7 +244,11 @@ function selectConversation(conversation) {
 
 @media (max-width: 760px) {
   .recent-conversations {
-    top: 66px;
+    min-height: 46px;
+    padding: 6px 12px;
+  }
+
+  .recent-conversations__content {
     right: 12px;
   }
 }

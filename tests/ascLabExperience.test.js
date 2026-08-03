@@ -16,6 +16,22 @@ const launcher = await import('../src/features/knowledge/knowledgeGraphLauncher.
 const graphData = await import('../src/features/knowledge/graphExplorerData.js').catch(() => ({}))
 const graph = await import('../src/features/knowledge/graphExplorerModel.js').catch(() => ({}))
 
+function contrastRatio(foreground, background) {
+  const luminance = hex => {
+    const channels = hex.match(/[a-f\d]{2}/gi).map(value => parseInt(value, 16) / 255)
+    const linear = channels.map(value => (
+      value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+    ))
+    return (0.2126 * linear[0]) + (0.7152 * linear[1]) + (0.0722 * linear[2])
+  }
+  const foregroundLuminance = luminance(foreground)
+  const backgroundLuminance = luminance(background)
+  return (
+    (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) /
+    (Math.min(foregroundLuminance, backgroundLuminance) + 0.05)
+  )
+}
+
 test('defines the five ASC LAB destinations in product order', () => {
   assert.deepEqual(
     navigation.primaryNavigation?.map(item => [item.label, item.path]),
@@ -94,6 +110,43 @@ test('QA owns recent conversations and hides them beside evidence', async () => 
   assert.match(view, /findRecentConversation/)
   assert.doesNotMatch(sidebar, /最近会话|recentConversations|open-conversation/)
   assert.doesNotMatch(shell, /open-conversation|openConversation/)
+})
+
+test('compact recent conversations reserve their own row instead of covering QA content', async () => {
+  const [panel, view] = await Promise.all([
+    readFile(new URL('../src/features/qa/RecentConversationsPanel.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
+  ])
+
+  assert.doesNotMatch(panel, /position:\s*fixed/)
+  assert.match(panel, /grid-row:\s*1/)
+  assert.match(
+    view,
+    /@media \(max-width: 1120px\)[\s\S]*?\.qa-layout--recent \.qa-main\s*\{[^}]*grid-row:\s*2/
+  )
+})
+
+test('quiet recent conversation text still meets normal-text contrast', async () => {
+  const panel = await readFile(
+    new URL('../src/features/qa/RecentConversationsPanel.vue', import.meta.url),
+    'utf8'
+  )
+  const colors = [...panel.matchAll(/--recent-(?:text|heading|muted):\s*(#[\da-f]{6})/gi)]
+    .map(match => match[1])
+
+  assert.equal(colors.length, 3)
+  colors.forEach(color => assert.equal(contrastRatio(color, '#f3f7fb') >= 4.5, true))
+})
+
+test('closing compact recent conversations returns focus to its trigger', async () => {
+  const panel = await readFile(
+    new URL('../src/features/qa/RecentConversationsPanel.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(panel, /ref="compactToggle"/)
+  assert.match(panel, /@keydown\.esc\.stop="closeCompactPanel"/)
+  assert.match(panel, /compactToggle\.value\?\.focus\(\)/)
 })
 
 test('submitting a question opens the evidence report after mock completion', () => {

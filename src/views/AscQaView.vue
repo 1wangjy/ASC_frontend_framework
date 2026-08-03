@@ -422,6 +422,10 @@ onBeforeUnmount(() => window.clearTimeout(completionTimer))
   .qa-layout--recent {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .qa-layout--recent .qa-main {
+    grid-row: 2;
+  }
 }
 
 @media (max-width: 760px) {
