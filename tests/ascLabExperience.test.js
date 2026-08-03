@@ -17,7 +17,7 @@ test('defines the five ASC LAB destinations in product order', () => {
   assert.deepEqual(
     navigation.primaryNavigation?.map(item => [item.label, item.path]),
     [
-      ['QA 首页', '/'],
+      ['问答首页', '/'],
       ['文献管理', '/documents'],
       ['知识图谱', '/knowledge'],
       ['数据平台', '/data'],
@@ -246,6 +246,10 @@ test('defines the six active ASC LAB routes and redirects unknown paths home', (
     path: '/:pathMatch(.*)*',
     redirect: '/'
   })
+  assert.equal(
+    routes.ascRouteDefinitions?.find(route => route.name === 'AscQa')?.meta.title,
+    '问答首页'
+  )
 })
 
 test('keeps QA selector choices through answer completion', () => {

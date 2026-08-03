@@ -1,5 +1,5 @@
 export const primaryNavigation = [
-  { label: 'QA 首页', path: '/', icon: 'home' },
+  { label: '问答首页', path: '/', icon: 'home' },
   { label: '文献管理', path: '/documents', icon: 'document' },
   { label: '知识图谱', path: '/knowledge', icon: 'graph' },
   { label: '数据平台', path: '/data', icon: 'database' },

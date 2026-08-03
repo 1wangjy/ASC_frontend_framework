@@ -198,6 +198,9 @@ onBeforeUnmount(() => window.clearTimeout(completionTimer))
 }
 
 .qa-empty__intro {
+  width: 100%;
+  display: grid;
+  justify-items: center;
   text-align: center;
 }
 
@@ -206,7 +209,7 @@ onBeforeUnmount(() => window.clearTimeout(completionTimer))
   height: 56px;
   display: grid;
   place-items: center;
-  margin: 0 auto 14px;
+  margin: 0 0 14px;
   border: 1px solid #b9d8eb;
   border-radius: 50%;
   background: #fff;
@@ -214,12 +217,15 @@ onBeforeUnmount(() => window.clearTimeout(completionTimer))
 }
 
 .asc-orbit span {
+  display: block;
   color: var(--asc-primary);
   font-size: 12px;
   font-weight: 900;
+  line-height: 1;
 }
 
 .qa-empty h1 {
+  width: 100%;
   margin: 0;
   color: var(--asc-heading);
   font-family: "STZhongsong", "Songti SC", "Noto Serif CJK SC", "SimSun", serif;
@@ -227,15 +233,19 @@ onBeforeUnmount(() => window.clearTimeout(completionTimer))
   font-weight: 700;
   line-height: 1.16;
   letter-spacing: 0.015em;
+  text-align: center;
   text-wrap: balance;
+  transform: translateX(0.18em);
 }
 
 .qa-empty__intro p {
+  width: 100%;
   margin: 11px 0 0;
   color: #5f7890;
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.01em;
+  text-align: center;
 }
 
 .qa-session {

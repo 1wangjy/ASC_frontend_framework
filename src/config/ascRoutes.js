@@ -3,7 +3,7 @@ export const ascRouteDefinitions = [
     path: '/',
     name: 'AscQa',
     component: () => import('../views/AscQaView.vue'),
-    meta: { title: 'ASC QA' }
+    meta: { title: '问答首页' }
   },
   {
     path: '/documents',
