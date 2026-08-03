@@ -349,11 +349,11 @@ test('defines route-complete supporting modules without generated research resul
 })
 
 test('waits for the graph launch API and normalizes its returned page address', async () => {
-  let requestedEndpoint = ''
+  const requestedEndpoints = []
   const result = await launcher.requestGraphLaunch?.({
     endpoint: '/api/graph/launch',
     launchApi: async endpoint => {
-      requestedEndpoint = endpoint
+      requestedEndpoints.push(endpoint)
       return {
         redirect_url: 'https://graph.example.com/session/42',
         graph_session_id: '42'
@@ -362,11 +362,34 @@ test('waits for the graph launch API and normalizes its returned page address', 
     currentOrigin: 'http://localhost'
   })
 
-  assert.equal(requestedEndpoint, '/api/graph/launch')
+  assert.deepEqual(requestedEndpoints, ['/api/graph/launch'])
   assert.deepEqual(result, {
     redirectUrl: 'https://graph.example.com/session/42',
     graphSessionId: '42'
   })
+})
+
+test('routes every same-origin relative graph address through Vue Router', () => {
+  assert.deepEqual(
+    launcher.getGraphNavigationTarget?.(
+      'knowledge/explorer?session=42#material:sic',
+      'http://localhost'
+    ),
+    {
+      kind: 'internal',
+      target: '/knowledge/explorer?session=42#material:sic'
+    }
+  )
+  assert.deepEqual(
+    launcher.getGraphNavigationTarget?.(
+      'https://graph.example.com/session/42',
+      'http://localhost'
+    ),
+    {
+      kind: 'external',
+      target: 'https://graph.example.com/session/42'
+    }
+  )
 })
 
 test('rejects an unsafe graph redirect returned by the launch API', async () => {
@@ -401,12 +424,35 @@ test('keeps the launch API failure available to the retry UI', async () => {
   )
 })
 
+test('turns technical graph launch failures into actionable Chinese messages', () => {
+  const timeoutError = Object.assign(new Error('timeout of 900000ms exceeded'), {
+    code: 'ECONNABORTED'
+  })
+
+  assert.equal(
+    launcher.getGraphLaunchErrorMessage?.(timeoutError),
+    '图谱准备时间过长，请稍后重试'
+  )
+  assert.equal(
+    launcher.getGraphLaunchErrorMessage?.(new Error('Request failed with status code 500')),
+    '图谱服务暂时不可用，请稍后重试'
+  )
+  assert.equal(
+    launcher.getGraphLaunchErrorMessage?.(new Error('图谱构建失败，请重试')),
+    '图谱构建失败，请重试'
+  )
+})
+
 test('uses the shared API client for one long graph launch request', async () => {
   const graphApi = await readFile(new URL('../src/api/graph.js', import.meta.url), 'utf8')
+  const launchApiFunction = graphApi.match(
+    /export function launchKnowledgeGraph[\s\S]*?\r?\n}\r?\n/
+  )?.[0] ?? ''
 
-  assert.match(graphApi, /export function launchKnowledgeGraph/)
-  assert.match(graphApi, /method:\s*['"]post['"]/)
-  assert.match(graphApi, /timeout:\s*15\s*\*\s*60\s*\*\s*1000/)
+  assert.match(launchApiFunction, /export function launchKnowledgeGraph/)
+  assert.match(launchApiFunction, /method:\s*['"]post['"]/)
+  assert.match(launchApiFunction, /timeout:\s*15\s*\*\s*60\s*\*\s*1000/)
+  assert.doesNotMatch(launchApiFunction, /requestWithRetry/)
 })
 
 test('shows a guarded loading state and retry action while launching the graph', async () => {

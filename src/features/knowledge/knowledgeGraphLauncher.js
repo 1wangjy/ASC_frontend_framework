@@ -1,18 +1,49 @@
-export function isSafeGraphRedirect(value, currentOrigin = 'http://localhost') {
+export function getGraphNavigationTarget(value, currentOrigin = 'http://localhost') {
   const candidate = String(value ?? '').trim()
-  if (!candidate) return false
+  if (!candidate) return null
 
   try {
+    const base = new URL(currentOrigin)
     const resolved = new URL(candidate, currentOrigin)
-    return resolved.protocol === 'http:' || resolved.protocol === 'https:'
+    if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') return null
+
+    if (resolved.origin === base.origin) {
+      return {
+        kind: 'internal',
+        target: `${resolved.pathname}${resolved.search}${resolved.hash}`
+      }
+    }
+
+    return {
+      kind: 'external',
+      target: resolved.href
+    }
   } catch {
-    return false
+    return null
   }
+}
+
+export function isSafeGraphRedirect(value, currentOrigin = 'http://localhost') {
+  return Boolean(getGraphNavigationTarget(value, currentOrigin))
 }
 
 export function getGraphRedirectUrl(payload = {}) {
   if (!payload || typeof payload !== 'object') return ''
   return String(payload.redirectUrl ?? payload.redirect_url ?? payload.url ?? '').trim()
+}
+
+export function getGraphLaunchErrorMessage(error) {
+  const message = error instanceof Error ? error.message.trim() : ''
+
+  if (error?.code === 'ECONNABORTED' || /timeout/i.test(message)) {
+    return '图谱准备时间过长，请稍后重试'
+  }
+
+  if (!message || message === 'Network Error' || /^Request failed with status code \d+$/i.test(message)) {
+    return '图谱服务暂时不可用，请稍后重试'
+  }
+
+  return message
 }
 
 export async function requestGraphLaunch({

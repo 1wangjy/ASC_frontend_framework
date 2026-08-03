@@ -29,7 +29,11 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { launchKnowledgeGraph } from '../api/graph.js'
 import AscIcon from '../components/ui/AscIcon.vue'
-import { requestGraphLaunch } from '../features/knowledge/knowledgeGraphLauncher.js'
+import {
+  getGraphLaunchErrorMessage,
+  getGraphNavigationTarget,
+  requestGraphLaunch
+} from '../features/knowledge/knowledgeGraphLauncher.js'
 
 const router = useRouter()
 const launching = ref(false)
@@ -47,14 +51,19 @@ async function launchGraph() {
       launchApi: launchKnowledgeGraph,
       currentOrigin: window.location.origin
     })
+    const navigation = getGraphNavigationTarget(result.redirectUrl, window.location.origin)
 
-    if (result.redirectUrl.startsWith('/') && !result.redirectUrl.startsWith('//')) {
-      await router.push(result.redirectUrl)
+    if (!navigation) {
+      throw new Error('无效的图谱跳转地址')
+    }
+
+    if (navigation.kind === 'internal') {
+      await router.push(navigation.target)
     } else {
-      window.location.assign(result.redirectUrl)
+      window.location.assign(navigation.target)
     }
   } catch (error) {
-    launchError.value = error instanceof Error ? error.message : '图谱服务暂时不可用，请稍后重试'
+    launchError.value = getGraphLaunchErrorMessage(error)
   } finally {
     launching.value = false
   }
