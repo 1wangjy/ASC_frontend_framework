@@ -41,10 +41,6 @@
       </button>
     </section>
 
-    <div class="sidebar__status">
-      <div><span class="status-dot" />知识库状态 <strong>正常</strong></div>
-      <p>本地知识库演示模式</p>
-    </div>
   </aside>
 </template>
 
@@ -195,37 +191,6 @@ defineEmits(['close', 'new-chat', 'open-conversation'])
 .recent__item:hover {
   background: rgba(255, 255, 255, 0.07);
   color: #fff;
-}
-
-.sidebar__status {
-  margin-top: auto;
-  padding: 16px 7px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
-  color: #d7e7f2;
-  font-size: 11px;
-}
-
-.sidebar__status div {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.sidebar__status strong {
-  margin-left: auto;
-  color: #a8e6c5;
-}
-
-.sidebar__status p {
-  margin: 7px 0 0;
-  color: #8db5d0;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #43d18f;
 }
 
 @media (max-width: 760px) {

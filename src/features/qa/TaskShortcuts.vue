@@ -1,53 +1,37 @@
 <template>
-  <div class="shortcut-grid">
-    <button
-      v-for="item in shortcuts"
-      :key="item.title"
-      type="button"
-      class="shortcut"
-      @click="$emit('select', item.prompt)"
-    >
-      <span class="shortcut__icon"><AscIcon :name="item.icon" /></span>
-      <span>
-        <strong>{{ item.title }}</strong>
-        <small>{{ item.description }}</small>
-      </span>
-      <AscIcon class="shortcut__arrow" name="chevron" />
-    </button>
+  <div class="shortcut-grid" aria-label="耐火材料问题分类">
+    <article v-for="item in guides" :key="item.id" class="shortcut">
+      <button class="shortcut__main" type="button" @click="$emit('select', item.question)">
+        <span class="shortcut__icon"><AscIcon :name="item.icon" /></span>
+        <span class="shortcut__copy">
+          <strong>{{ item.title }}</strong>
+          <small>{{ item.question }}</small>
+        </span>
+      </button>
+      <button
+        class="shortcut__refresh"
+        type="button"
+        :aria-label="`刷新${item.title}示例问题`"
+        title="换一个问题"
+        @click.stop="$emit('refresh', item.id)"
+      >
+        <AscIcon name="refresh" />
+      </button>
+    </article>
   </div>
 </template>
 
 <script setup>
 import AscIcon from '../../components/ui/AscIcon.vue'
 
-defineEmits(['select'])
-
-const shortcuts = [
-  {
-    title: '宏观性能分析',
-    description: '分析热震、抗侵蚀与氧化行为',
-    prompt: '分析 ASC Al₂O₃-SiC-C 材料体系的热震稳定性及主要影响因素。',
-    icon: 'model'
-  },
-  {
-    title: '配方与工艺映射',
-    description: '比较原料比例和烧成制度',
-    prompt: '比较不同 SiC 和碳含量对 ASC 耐火材料性能的影响。',
-    icon: 'database'
-  },
-  {
-    title: '机理与物相分析',
-    description: '解释相组成、界面和反应路径',
-    prompt: '梳理 ASC 耐火材料氧化过程中的物相演变和保护层形成机理。',
-    icon: 'graph'
-  },
-  {
-    title: '文献证据检索',
-    description: '检索可靠文献并生成引用',
-    prompt: '检索近十年关于 Al₂O₃-SiC-C 耐火材料抗热震性能的核心文献。',
-    icon: 'document'
+defineProps({
+  guides: {
+    type: Array,
+    required: true
   }
-]
+})
+
+defineEmits(['select', 'refresh'])
 </script>
 
 <style scoped>
@@ -55,20 +39,19 @@ const shortcuts = [
   width: 100%;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .shortcut {
+  position: relative;
   min-width: 0;
+  height: 76px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 13px;
   border: 1px solid var(--asc-border);
   border-radius: var(--asc-radius);
   background: #fff;
   color: var(--asc-text);
-  text-align: left;
   transition: border-color var(--asc-transition), transform var(--asc-transition);
 }
 
@@ -77,9 +60,23 @@ const shortcuts = [
   transform: translateY(-2px);
 }
 
+.shortcut__main {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 36px 10px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
 .shortcut__icon {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -89,6 +86,10 @@ const shortcuts = [
   font-size: 17px;
 }
 
+.shortcut__copy {
+  min-width: 0;
+}
+
 .shortcut strong,
 .shortcut small {
   display: block;
@@ -96,7 +97,10 @@ const shortcuts = [
 
 .shortcut strong {
   color: var(--asc-heading);
+  overflow: hidden;
   font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shortcut small {
@@ -108,9 +112,25 @@ const shortcuts = [
   white-space: nowrap;
 }
 
-.shortcut__arrow {
-  margin-left: auto;
-  color: #91a8ba;
+.shortcut__refresh {
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #7c99ad;
+  transform: translateY(-50%);
+}
+
+.shortcut__refresh:hover {
+  background: var(--asc-primary-soft);
+  color: var(--asc-primary);
 }
 
 @media (max-width: 1050px) {

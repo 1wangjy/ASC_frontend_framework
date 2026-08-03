@@ -2,45 +2,18 @@
   <form class="composer" :class="{ 'composer--compact': compact }" @submit.prevent="$emit('submit')">
     <textarea
       :value="modelValue"
-      :placeholder="compact ? '继续追问…' : '输入耐火材料问题，或添加 PDF、实验记录与配方文件…'"
-      rows="compact ? 2 : 4"
+      :placeholder="compact ? '继续追问…' : '输入耐火材料问题，围绕配方、工艺、性能与服役机理展开研究…'"
+      :rows="compact ? 2 : 4"
       aria-label="研究问题"
       @input="$emit('update:modelValue', $event.target.value)"
       @keydown.enter.exact.prevent="$emit('submit')"
     />
 
-    <div v-if="attachmentName" class="attachment-notice">
-      <AscIcon name="paperclip" />
-      <span>{{ attachmentName }}</span>
-      <button type="button" @click="$emit('clear-attachment')">移除</button>
-    </div>
-
     <div class="composer__toolbar">
-      <label class="composer-control composer-control--file">
-        <AscIcon name="paperclip" />
-        <span>文件</span>
-        <input type="file" accept=".pdf,.doc,.docx,.csv,.xlsx,.png,.jpg,.jpeg" @change="handleFile" />
-      </label>
-
-      <label class="composer-control">
-        <span>知识库</span>
-        <select
-          :value="settings.knowledgeBase"
-          aria-label="知识库"
-          @change="updateSetting('knowledgeBase', $event.target.value)"
-        >
-          <option>ASC 文献库</option>
-          <option>个人文献</option>
-          <option>当前文件</option>
-        </select>
-      </label>
-
-      <label class="composer-control">
+      <label class="composer-control composer-control--model">
         <span>模型</span>
         <select :value="settings.model" aria-label="模型" @change="updateSetting('model', $event.target.value)">
-          <option>Auto</option>
-          <option>ASC 专业模型</option>
-          <option>通用模型</option>
+          <option v-for="model in domesticModelOptions" :key="model" :value="model">{{ model }}</option>
         </select>
       </label>
 
@@ -51,10 +24,9 @@
           aria-label="框架"
           @change="updateSetting('framework', $event.target.value)"
         >
-          <option>Auto</option>
-          <option>Hybrid RAG</option>
-          <option>知识图谱 RAG</option>
-          <option>纯文献检索</option>
+          <option v-for="framework in frameworkOptions" :key="framework" :value="framework">
+            {{ framework }}
+          </option>
         </select>
       </label>
 
@@ -65,9 +37,9 @@
           aria-label="推理模式"
           @change="updateSetting('reasoning', $event.target.value)"
         >
-          <option>Auto</option>
-          <option>快速</option>
-          <option>深度分析</option>
+          <option v-for="reasoning in reasoningOptions" :key="reasoning" :value="reasoning">
+            {{ reasoning }}
+          </option>
         </select>
       </label>
 
@@ -75,7 +47,10 @@
         class="ontology-toggle"
         :class="{ 'ontology-toggle--on': settings.ontologyEnabled }"
         type="button"
+        :disabled="settings.ontologyLocked"
         :aria-pressed="settings.ontologyEnabled"
+        :aria-disabled="settings.ontologyLocked"
+        :title="settings.ontologyLocked ? 'NEXUS 框架默认启用本体增强' : '切换本体增强'"
         @click="updateSetting('ontologyEnabled', !settings.ontologyEnabled)"
       >
         本体增强
@@ -92,6 +67,11 @@
 
 <script setup>
 import AscIcon from '../../components/ui/AscIcon.vue'
+import {
+  domesticModelOptions,
+  frameworkOptions,
+  reasoningOptions
+} from './qaDemoModel.js'
 
 defineProps({
   modelValue: {
@@ -109,30 +89,19 @@ defineProps({
   disabled: {
     type: Boolean,
     default: false
-  },
-  attachmentName: {
-    type: String,
-    default: ''
   }
 })
 
 const emit = defineEmits([
   'update:modelValue',
   'update:settings',
-  'submit',
-  'file',
-  'clear-attachment'
+  'submit'
 ])
 
 function updateSetting(key, value) {
   emit('update:settings', { [key]: value })
 }
 
-function handleFile(event) {
-  const [file] = event.target.files
-  if (file) emit('file', file)
-  event.target.value = ''
-}
 </script>
 
 <style scoped>
@@ -172,26 +141,6 @@ function handleFile(event) {
   color: #91a3b4;
 }
 
-.attachment-notice {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 0 8px 8px;
-  padding: 7px 9px;
-  border-radius: 6px;
-  background: var(--asc-primary-soft);
-  color: var(--asc-primary);
-  font-size: 12px;
-}
-
-.attachment-notice button {
-  margin-left: auto;
-  border: 0;
-  background: transparent;
-  color: var(--asc-muted);
-  font-size: 11px;
-}
-
 .composer__toolbar {
   display: flex;
   align-items: center;
@@ -215,7 +164,7 @@ function handleFile(event) {
 }
 
 .composer-control select {
-  max-width: 116px;
+  max-width: 136px;
   padding: 0 14px 0 0;
   border: 0;
   outline: 0;
@@ -225,16 +174,8 @@ function handleFile(event) {
   font-weight: 700;
 }
 
-.composer-control--file {
-  cursor: pointer;
-}
-
-.composer-control--file input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+.composer-control--model select {
+  max-width: 190px;
 }
 
 .ontology-toggle span {
@@ -249,6 +190,13 @@ function handleFile(event) {
 
 .ontology-toggle--on span {
   color: var(--asc-primary);
+}
+
+.ontology-toggle:disabled {
+  cursor: not-allowed;
+  border-color: #c8dce8;
+  background: #f1f7fb;
+  opacity: 0.78;
 }
 
 .send-button {

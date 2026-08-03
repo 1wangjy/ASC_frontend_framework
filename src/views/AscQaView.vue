@@ -6,10 +6,6 @@
           <span>ASC 耐火材料智能研究平台</span>
           <strong v-if="qaState.phase !== 'empty'">研究答疑 / 热震稳定性</strong>
         </div>
-        <div class="qa-topbar__status">
-          <span class="status-dot" />
-          本体增强已启用
-        </div>
       </header>
 
       <section v-if="qaState.phase === 'empty'" class="qa-empty">
@@ -24,14 +20,15 @@
         <QuestionComposer
           v-model="draft"
           :settings="qaState.settings"
-          :attachment-name="attachmentName"
           @update:settings="updateSettings"
           @submit="sendQuestion"
-          @file="attachFile"
-          @clear-attachment="attachmentName = ''"
         />
 
-        <TaskShortcuts @select="draft = $event" />
+        <TaskShortcuts
+          :guides="questionGuides"
+          @select="draft = $event"
+          @refresh="refreshGuide"
+        />
       </section>
 
       <section v-else class="qa-session">
@@ -46,11 +43,8 @@
           compact
           :disabled="qaState.phase === 'loading'"
           :settings="qaState.settings"
-          :attachment-name="attachmentName"
           @update:settings="updateSettings"
           @submit="sendQuestion"
-          @file="attachFile"
-          @clear-attachment="attachmentName = ''"
         />
       </section>
     </main>
@@ -80,11 +74,15 @@ import {
   submitQuestion,
   updateQaSettings
 } from '../features/qa/qaDemoModel.js'
+import {
+  createQuestionGuideState,
+  refreshQuestionGuide
+} from '../features/qa/questionGuideModel.js'
 
 const route = useRoute()
 const qaState = ref(createQaState())
 const draft = ref('')
-const attachmentName = ref('')
+const questionGuides = ref(createQuestionGuideState())
 let completionTimer = null
 
 function sendQuestion() {
@@ -107,15 +105,15 @@ function chooseCitation(citationId) {
   qaState.value = selectCitation(qaState.value, citationId)
 }
 
-function attachFile(file) {
-  attachmentName.value = file.name
+function refreshGuide(categoryId) {
+  questionGuides.value = refreshQuestionGuide(questionGuides.value, categoryId)
 }
 
 function reset() {
   window.clearTimeout(completionTimer)
   qaState.value = resetConversation()
   draft.value = ''
-  attachmentName.value = ''
+  questionGuides.value = createQuestionGuideState()
 }
 
 watch(
@@ -186,22 +184,6 @@ onBeforeUnmount(() => window.clearTimeout(completionTimer))
   border-left: 1px solid var(--asc-border);
   color: var(--asc-heading);
   font-size: 12px;
-}
-
-.qa-topbar__status {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--asc-success);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--asc-success);
 }
 
 .qa-empty {

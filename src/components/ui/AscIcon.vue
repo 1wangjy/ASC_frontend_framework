@@ -54,6 +54,11 @@
     <template v-else-if="name === 'check'">
       <path d="m5 12 4 4L19 6" />
     </template>
+    <template v-else-if="name === 'refresh'">
+      <path d="M20 6v5h-5" />
+      <path d="M4 18v-5h5" />
+      <path d="M18.2 9A7 7 0 0 0 6.5 6.5L4 9M5.8 15A7 7 0 0 0 17.5 17.5L20 15" />
+    </template>
     <template v-else-if="name === 'chevron'">
       <path d="m9 18 6-6-6-6" />
     </template>
