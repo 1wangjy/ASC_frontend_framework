@@ -172,6 +172,49 @@ test('turns answer evaluation failures into short retry messages', () => {
   )
 })
 
+test('manual review uses accurate and inaccurate as the only verdict labels', async () => {
+  const source = await readFile(
+    new URL('../src/features/qa/ManualEvaluationPanel.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /'accurate'/)
+  assert.match(source, /'inaccurate'/)
+  assert.match(source, />\s*准确\s*</)
+  assert.match(source, />\s*不准确\s*</)
+  assert.doesNotMatch(source, /正确|不正确/)
+  assert.match(source, /evaluation\.verdict === 'inaccurate'/)
+})
+
+test('manual diagnosis offers optional excerpt removal and retry-safe saving', async () => {
+  const source = await readFile(
+    new URL('../src/features/qa/ManualEvaluationPanel.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /问题片段/)
+  assert.match(source, /clear-excerpt/)
+  assert.match(source, /保存人工评估/)
+  assert.match(source, /重新保存/)
+  assert.match(source, /可在左侧回答中框选/)
+})
+
+test('LLM evaluation exposes idle loading error retry and success states', async () => {
+  const source = await readFile(
+    new URL('../src/features/qa/LlmEvaluationPanel.vue', import.meta.url),
+    'utf8'
+  )
+
+  for (const state of ['idle', 'loading', 'error', 'success']) {
+    assert.match(source, new RegExp(`'${state}'`))
+  }
+  assert.match(source, /开始 LLM 评估/)
+  assert.match(source, /正在评估回答与引用证据…/)
+  assert.match(source, /重新评估/)
+  assert.match(source, /演示数据/)
+  assert.match(source, /保存 LLM 评估结果/)
+})
+
 test('offers domestic LLM and version pairs with DeepSeek V4 Flash as default', () => {
   const state = qa.createQaState?.()
 
