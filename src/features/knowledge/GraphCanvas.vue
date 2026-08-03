@@ -49,8 +49,8 @@
             @click="$emit('focus', node.nodeId)"
             @keydown.enter="$emit('focus', node.nodeId)"
           >
-            <circle v-if="state.focusedNodeId === node.nodeId" class="focus-ring" r="41" />
-            <circle class="node-disc" r="30" :fill="nodeFill(node.type)" />
+            <circle v-if="state.focusedNodeId === node.nodeId" class="focus-ring" r="34" />
+            <circle class="node-disc" r="24" :fill="nodeFill(node.type)" />
             <text text-anchor="middle" dominant-baseline="middle">{{ node.label }}</text>
           </g>
         </g>
@@ -133,6 +133,7 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
 
 <style scoped>
 .canvas-shell {
+  height: calc(100vh - 186px);
   min-height: 0;
   display: grid;
   grid-template-rows: 47px minmax(0, 1fr);
@@ -190,15 +191,17 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
 
 .canvas-stage {
   position: relative;
-  min-height: 530px;
+  min-height: 0;
   overflow: hidden;
   background: #f3f8fb;
 }
 
 .graph-svg {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  min-height: 530px;
+  min-height: 0;
   display: block;
 }
 
@@ -342,6 +345,10 @@ onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFulls
 }
 
 @media (max-width: 760px) {
+  .canvas-shell {
+    height: auto;
+  }
+
   .canvas-stage {
     display: flex;
     min-height: 620px;

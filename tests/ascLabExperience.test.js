@@ -148,6 +148,14 @@ test('paginates with allowed page sizes and corrects an invalid page', () => {
   assert.deepEqual(result.pageSizes, [20, 50, 100])
 })
 
+test('opens the first literature detail on desktop but starts with the mobile list unobstructed', () => {
+  assert.equal(
+    library.initialSelectedDocumentId?.(libraryData.documents, false),
+    'DOC-2024-001'
+  )
+  assert.equal(library.initialSelectedDocumentId?.(libraryData.documents, true), '')
+})
+
 test('adding a literature record to QA changes only the selected record', () => {
   const updated = library.addDocumentToQa?.(libraryData.documents, 'DOC-2022-003')
 

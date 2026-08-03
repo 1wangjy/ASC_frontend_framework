@@ -74,7 +74,7 @@ export const graphNodes = [
     label: '颗粒级配',
     type: '工艺',
     aliases: ['粒度分布', '级配设计'],
-    x: 610,
+    x: 520,
     y: 125,
     relationshipCount: 3,
     evidenceCount: 16

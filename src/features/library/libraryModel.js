@@ -69,6 +69,10 @@ export function paginateDocuments(documents, requestedPage = 1, requestedPageSiz
   }
 }
 
+export function initialSelectedDocumentId(documents, compactView = false) {
+  return compactView ? '' : (documents[0]?.id ?? '')
+}
+
 export function addDocumentToQa(documents, documentId) {
   return documents.map(document => (
     document.id === documentId

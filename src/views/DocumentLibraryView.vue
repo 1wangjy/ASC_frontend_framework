@@ -82,12 +82,15 @@ import {
   createLibraryFilters,
   filterDocuments,
   getYearPartitions,
+  initialSelectedDocumentId,
   paginateDocuments
 } from '../features/library/libraryModel.js'
 
 const documentRows = ref(seedDocuments.map(document => ({ ...document })))
 const filters = reactive(createLibraryFilters())
-const selectedDocumentId = ref(seedDocuments[0].id)
+const compactView = typeof window !== 'undefined'
+  && window.matchMedia('(max-width: 1180px)').matches
+const selectedDocumentId = ref(initialSelectedDocumentId(seedDocuments, compactView))
 const importMode = ref('')
 const toastMessage = ref('')
 const page = ref(1)
