@@ -29,35 +29,15 @@ export function toggleYearPartition(selected = [], partition) {
 }
 
 export function calculateLibraryMetrics(documents = []) {
-  const years = documents
-    .map(document => Number(document.year))
-    .filter(Number.isFinite)
-
-  if (years.length === 0) {
-    return {
-      total: documents.length,
-      expertSelected: documents.filter(document => document.expertSelected).length,
-      recentThreeYears: 0,
-      recentYearRange: '—',
-      yearRange: '—'
-    }
-  }
-
-  const earliestYear = Math.min(...years)
-  const latestYear = Math.max(...years)
-  const recentStartYear = latestYear - 2
+  const academicPapers = documents.filter(document => (
+    document.type === 'journal' || document.type === 'conference'
+  )).length
 
   return {
     total: documents.length,
     expertSelected: documents.filter(document => document.expertSelected).length,
-    recentThreeYears: documents.filter(document => {
-      const year = Number(document.year)
-      return Number.isFinite(year) && year >= recentStartYear && year <= latestYear
-    }).length,
-    recentYearRange: `${recentStartYear}–${latestYear}`,
-    yearRange: earliestYear === latestYear
-      ? String(latestYear)
-      : `${earliestYear}–${latestYear}`
+    academicPapers,
+    professionalResources: documents.length - academicPapers
   }
 }
 

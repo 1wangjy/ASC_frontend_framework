@@ -3,7 +3,7 @@
     <header class="page-header">
       <div>
         <h1>文献管理</h1>
-        <p>管理 ASC 耐火材料文献、精选资料与年份检索</p>
+        <p>管理 ASC 耐火材料文献、精选资料与馆藏分类</p>
       </div>
       <div class="header-actions">
         <button type="button" @click="importMode = 'doi'">导入 DOI</button>
@@ -115,13 +115,8 @@ const metrics = computed(() => {
   return [
     { label: '文献总数', value: counts.total, note: '随文献库实时更新', success: true },
     { label: '专家精选', value: counts.expertSelected, note: '高质量研究源', success: true },
-    {
-      label: '近三年文献',
-      value: counts.recentThreeYears,
-      note: counts.recentYearRange === '—' ? '暂无年份信息' : `${counts.recentYearRange} 年收录`,
-      success: true
-    },
-    { label: '覆盖年份', value: counts.yearRange, note: '最早至最新出版年份', success: false }
+    { label: '学术论文', value: counts.academicPapers, note: '期刊论文 + 会议论文', success: true },
+    { label: '专业资料', value: counts.professionalResources, note: '专著、标准、专利等', success: false }
   ]
 })
 
@@ -251,11 +246,6 @@ watch(
   color: #123f67;
   font-size: 25px;
   line-height: 1.2;
-}
-
-.summary-grid article:last-child strong {
-  font-size: clamp(19px, 2vw, 25px);
-  letter-spacing: -0.02em;
 }
 
 .summary-grid small {

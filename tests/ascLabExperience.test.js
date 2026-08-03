@@ -369,23 +369,38 @@ test('toggles one year partition without changing the other selections', () => {
   )
 })
 
-test('calculates reader-facing library metrics from document years and curation', () => {
+test('calculates stable library composition metrics', () => {
   assert.deepEqual(library.calculateLibraryMetrics?.(libraryData.documents), {
     total: 5,
     expertSelected: 3,
-    recentThreeYears: 3,
-    recentYearRange: '2022–2024',
-    yearRange: '2018–2024'
+    academicPapers: 4,
+    professionalResources: 1
   })
 })
 
-test('library metrics have useful empty-state values', () => {
+test('counts conference papers with journals and keeps all other records complementary', () => {
+  const fixtures = [
+    { type: 'journal', expertSelected: false },
+    { type: 'conference', expertSelected: true },
+    { type: 'book', expertSelected: false },
+    { type: 'standard', expertSelected: false },
+    { type: '', expertSelected: false }
+  ]
+
+  assert.deepEqual(library.calculateLibraryMetrics?.(fixtures), {
+    total: 5,
+    expertSelected: 1,
+    academicPapers: 2,
+    professionalResources: 3
+  })
+})
+
+test('library composition metrics have zero-valued empty state', () => {
   assert.deepEqual(library.calculateLibraryMetrics?.([]), {
     total: 0,
     expertSelected: 0,
-    recentThreeYears: 0,
-    recentYearRange: '—',
-    yearRange: '—'
+    academicPapers: 0,
+    professionalResources: 0
   })
 })
 
@@ -395,9 +410,14 @@ test('library summary cards show retrieval-oriented metrics instead of processin
     'utf8'
   )
 
-  assert.match(source, /近三年文献/)
-  assert.match(source, /覆盖年份/)
-  assert.doesNotMatch(source, /完成解析|进入 QA 索引|正文与索引已提取|可引用证据可用/)
+  assert.match(source, /学术论文/)
+  assert.match(source, /专业资料/)
+  assert.match(source, /期刊论文 \+ 会议论文/)
+  assert.match(source, /专著、标准、专利等/)
+  assert.doesNotMatch(
+    source,
+    /近三年文献|近年文献|覆盖年份|完成解析|进入 QA 索引|正文与索引已提取|可引用证据可用/
+  )
 })
 
 test('keeps literature curation separate from answer evaluation scores', async () => {
