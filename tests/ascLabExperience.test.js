@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 const navigation = await import('../src/features/navigation/appNavigation.js').catch(() => ({}))
 const qa = await import('../src/features/qa/qaDemoModel.js').catch(() => ({}))
 const evaluation = await import('../src/features/qa/answerEvaluationModel.js').catch(() => ({}))
+const evaluationService = await import('../src/features/qa/answerEvaluationService.js').catch(() => ({}))
 const guides = await import('../src/features/qa/questionGuideModel.js').catch(() => ({}))
 const library = await import('../src/features/library/libraryModel.js').catch(() => ({}))
 const libraryData = await import('../src/features/library/libraryData.js').catch(() => ({}))
@@ -105,6 +106,70 @@ test('toggles one manual issue without duplicating it', () => {
   assert.deepEqual(selected.manual.issueTypes, ['evidence'])
   assert.deepEqual(cleared.manual.issueTypes, [])
   assert.equal(evaluation.toggleManualIssue?.(initial, 'unknown'), initial)
+})
+
+test('builds binary manual feedback without a document score', () => {
+  const payload = evaluationService.buildManualEvaluationPayload?.(
+    { question: '热震稳定性如何？', answerText: '回答正文', citationIds: ['R1'] },
+    {
+      verdict: 'inaccurate',
+      selectedExcerpt: '问题片段',
+      issueTypes: ['evidence'],
+      comment: '证据不足'
+    }
+  )
+
+  assert.deepEqual(payload, {
+    question: '热震稳定性如何？',
+    final_answer: '回答正文',
+    citation_ids: ['R1'],
+    verdict: 'inaccurate',
+    selected_excerpt: '问题片段',
+    error_types: ['evidence'],
+    comments: '证据不足'
+  })
+  assert.equal(Object.hasOwn(payload, 'score'), false)
+  assert.equal(Object.hasOwn(payload, 'scores'), false)
+})
+
+test('builds an LLM judge request from the current answer context', () => {
+  assert.deepEqual(
+    evaluationService.buildLlmEvaluationPayload?.({
+      question: '热震稳定性如何？',
+      answerText: '回答正文',
+      citationIds: ['R1', 'R2']
+    }),
+    {
+      question: '热震稳定性如何？',
+      final_answer: '回答正文',
+      qa_result: {
+        answer: '回答正文',
+        citation_ids: ['R1', 'R2']
+      }
+    }
+  )
+})
+
+test('demo evaluation service returns an explicitly marked LLM result', async () => {
+  const service = evaluationService.createAnswerEvaluationService?.({ mode: 'demo', delay: 0 })
+  const result = await service.runLlm({ question: 'Q', answerText: 'A', citationIds: ['R1'] })
+
+  assert.equal(result.isDemo, true)
+  assert.match(result.summary, /演示/)
+  assert.equal(result.dimensions.length, 3)
+})
+
+test('turns answer evaluation failures into short retry messages', () => {
+  assert.equal(
+    evaluationService.getAnswerEvaluationErrorMessage?.(
+      Object.assign(new Error('timeout of 300000ms exceeded'), { code: 'ECONNABORTED' })
+    ),
+    '评估等待时间过长，请重新尝试'
+  )
+  assert.equal(
+    evaluationService.getAnswerEvaluationErrorMessage?.(new Error('Request failed with status code 500')),
+    '评估服务暂时不可用，请稍后重试'
+  )
 })
 
 test('offers domestic LLM and version pairs with DeepSeek V4 Flash as default', () => {

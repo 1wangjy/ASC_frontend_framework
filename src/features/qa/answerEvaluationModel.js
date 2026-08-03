@@ -77,3 +77,27 @@ export function toggleManualIssue(state, issueId) {
     manual: { issueTypes, saveStatus: 'idle', errorMessage: '' }
   })
 }
+
+export function createDemoLlmResult() {
+  return {
+    isDemo: true,
+    summary: '演示评估：回答总体与引用证据一致，但部分结论仍可补充适用条件。',
+    confidenceLabel: '总体可信，建议补充边界条件',
+    model: 'ASC Evaluation Demo',
+    version: 'V1.0',
+    evaluatedAt: new Date().toISOString(),
+    dimensions: [
+      { label: '证据一致性', result: '良好' },
+      { label: '回答完整性', result: '需补充' },
+      { label: '表述严谨性', result: '良好' }
+    ],
+    risks: [
+      '提升策略未明确限定材料配比与服役温度范围。',
+      '部分建议需要实验数据进一步验证。'
+    ],
+    suggestions: [
+      '补充不同温度区间下的适用边界。',
+      '将残余强度保持率作为验证指标写入结论。'
+    ]
+  }
+}
