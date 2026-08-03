@@ -1,3 +1,8 @@
+import {
+  createAnswerEvaluationState,
+  patchAnswerEvaluation
+} from './answerEvaluationModel.js'
+
 export const domesticModelOptions = Object.freeze([
   'DeepSeek · V4 Flash',
   'DeepSeek · V4 Pro',
@@ -83,6 +88,7 @@ export function createQaState() {
     references: [],
     evidenceOpen: false,
     selectedCitationId: null,
+    evaluation: createAnswerEvaluationState(),
     settings: { ...defaultSettings }
   }
 }
@@ -98,7 +104,8 @@ export function submitQuestion(state, question) {
     answer: null,
     references: [],
     evidenceOpen: false,
-    selectedCitationId: null
+    selectedCitationId: null,
+    evaluation: createAnswerEvaluationState()
   }
 }
 
@@ -155,6 +162,18 @@ export function updateQaSettings(state, updates) {
       ontologyLocked: nexusSelected
     }
   }
+}
+
+export function updateAnswerEvaluation(state, patchOrUpdater) {
+  if (!state?.evaluation) return state
+
+  const nextEvaluation = typeof patchOrUpdater === 'function'
+    ? patchOrUpdater(state.evaluation)
+    : patchAnswerEvaluation(state.evaluation, patchOrUpdater)
+
+  return nextEvaluation === state.evaluation
+    ? state
+    : { ...state, evaluation: nextEvaluation }
 }
 
 export function resetConversation() {

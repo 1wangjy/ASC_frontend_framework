@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 
 const navigation = await import('../src/features/navigation/appNavigation.js').catch(() => ({}))
 const qa = await import('../src/features/qa/qaDemoModel.js').catch(() => ({}))
+const evaluation = await import('../src/features/qa/answerEvaluationModel.js').catch(() => ({}))
 const guides = await import('../src/features/qa/questionGuideModel.js').catch(() => ({}))
 const library = await import('../src/features/library/libraryModel.js').catch(() => ({}))
 const libraryData = await import('../src/features/library/libraryData.js').catch(() => ({}))
@@ -45,6 +46,65 @@ test('empty questions do not start a mock answer', () => {
   const initial = qa.createQaState?.()
   assert.ok(initial)
   assert.deepEqual(qa.submitQuestion?.(initial, '   '), initial)
+})
+
+test('creates an unanswered binary manual evaluation with an idle LLM review', () => {
+  assert.deepEqual(evaluation.createAnswerEvaluationState?.(), {
+    mode: 'manual',
+    manual: {
+      verdict: null,
+      selectedExcerpt: '',
+      issueTypes: [],
+      comment: '',
+      saveStatus: 'idle',
+      errorMessage: ''
+    },
+    llm: {
+      runStatus: 'idle',
+      result: null,
+      errorMessage: '',
+      saveStatus: 'idle',
+      saveErrorMessage: ''
+    }
+  })
+})
+
+test('manual evaluation accepts only accurate or inaccurate verdicts', () => {
+  const initial = evaluation.createAnswerEvaluationState?.()
+  assert.equal(evaluation.setManualVerdict?.(initial, 'accurate').manual.verdict, 'accurate')
+  assert.equal(evaluation.setManualVerdict?.(initial, 'inaccurate').manual.verdict, 'inaccurate')
+  assert.equal(evaluation.setManualVerdict?.(initial, 'correct'), initial)
+})
+
+test('switching an inaccurate review to accurate clears diagnosis fields', () => {
+  const inaccurate = evaluation.patchAnswerEvaluation?.(
+    evaluation.setManualVerdict?.(evaluation.createAnswerEvaluationState(), 'inaccurate'),
+    { manual: { selectedExcerpt: '问题片段', issueTypes: ['reasoning'], comment: '推理跳步' } }
+  )
+
+  assert.deepEqual(evaluation.setManualVerdict?.(inaccurate, 'accurate').manual, {
+    verdict: 'accurate',
+    selectedExcerpt: '',
+    issueTypes: [],
+    comment: '',
+    saveStatus: 'idle',
+    errorMessage: ''
+  })
+})
+
+test('normalizes and limits an optional selected answer excerpt', () => {
+  assert.equal(evaluation.normalizeAnswerExcerpt?.('  热震\n  稳定性  '), '热震 稳定性')
+  assert.equal(evaluation.normalizeAnswerExcerpt?.('123456', 4), '1234')
+})
+
+test('toggles one manual issue without duplicating it', () => {
+  const initial = evaluation.createAnswerEvaluationState?.()
+  const selected = evaluation.toggleManualIssue?.(initial, 'evidence')
+  const cleared = evaluation.toggleManualIssue?.(selected, 'evidence')
+
+  assert.deepEqual(selected.manual.issueTypes, ['evidence'])
+  assert.deepEqual(cleared.manual.issueTypes, [])
+  assert.equal(evaluation.toggleManualIssue?.(initial, 'unknown'), initial)
 })
 
 test('offers domestic LLM and version pairs with DeepSeek V4 Flash as default', () => {
