@@ -348,23 +348,75 @@ test('defines route-complete supporting modules without generated research resul
   )
 })
 
-test('uses the local graph explorer when no launch API is configured', async () => {
-  const result = await launcher.requestGraphLaunch?.({ endpoint: '' })
+test('waits for the graph launch API and normalizes its returned page address', async () => {
+  let requestedEndpoint = ''
+  const result = await launcher.requestGraphLaunch?.({
+    endpoint: '/api/graph/launch',
+    launchApi: async endpoint => {
+      requestedEndpoint = endpoint
+      return {
+        redirect_url: 'https://graph.example.com/session/42',
+        graph_session_id: '42'
+      }
+    },
+    currentOrigin: 'http://localhost'
+  })
 
-  assert.equal(result.redirectUrl, '/knowledge/explorer')
+  assert.equal(requestedEndpoint, '/api/graph/launch')
+  assert.deepEqual(result, {
+    redirectUrl: 'https://graph.example.com/session/42',
+    graphSessionId: '42'
+  })
 })
 
 test('rejects an unsafe graph redirect returned by the launch API', async () => {
   await assert.rejects(
     launcher.requestGraphLaunch?.({
       endpoint: '/api/graph/launch',
-      fetchImpl: async () => ({
-        ok: true,
-        json: async () => ({ redirectUrl: 'javascript:alert(1)' })
-      })
+      launchApi: async () => ({ url: 'javascript:alert(1)' })
     }),
     /无效的图谱跳转地址/
   )
+})
+
+test('rejects an empty graph launch response with a useful address error', async () => {
+  await assert.rejects(
+    launcher.requestGraphLaunch?.({
+      endpoint: '/api/graph/launch',
+      launchApi: async () => null
+    }),
+    /无效的图谱跳转地址/
+  )
+})
+
+test('keeps the launch API failure available to the retry UI', async () => {
+  await assert.rejects(
+    launcher.requestGraphLaunch?.({
+      endpoint: '/api/graph/launch',
+      launchApi: async () => {
+        throw new Error('图谱构建失败，请重试')
+      }
+    }),
+    /图谱构建失败，请重试/
+  )
+})
+
+test('uses the shared API client for one long graph launch request', async () => {
+  const graphApi = await readFile(new URL('../src/api/graph.js', import.meta.url), 'utf8')
+
+  assert.match(graphApi, /export function launchKnowledgeGraph/)
+  assert.match(graphApi, /method:\s*['"]post['"]/)
+  assert.match(graphApi, /timeout:\s*15\s*\*\s*60\s*\*\s*1000/)
+})
+
+test('shows a guarded loading state and retry action while launching the graph', async () => {
+  const view = await readFile(new URL('../src/views/KnowledgeView.vue', import.meta.url), 'utf8')
+
+  assert.match(view, /进入知识图谱/)
+  assert.match(view, /正在进入…/)
+  assert.match(view, /:disabled="launching"/)
+  assert.match(view, /if \(launching\.value\) return/)
+  assert.match(view, />重试<\/button>/)
 })
 
 test('searches graph nodes by label alias and stable node id', () => {
