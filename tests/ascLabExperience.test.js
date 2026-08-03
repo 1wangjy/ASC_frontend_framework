@@ -111,18 +111,38 @@ test('selecting an inline citation reopens evidence and selects the matching sou
   assert.equal(selected.references.find(item => item.id === 'R2').title.includes('气孔结构'), true)
 })
 
-test('filters literature by query and metadata using AND semantics', () => {
+test('finds a document by abstract or keyword and intersects it with year', () => {
   const result = library.filterDocuments?.(libraryData.documents, {
-    query: 'thermal shock',
-    type: 'journal',
-    year: '2024',
-    expertStatus: 'selected',
-    parsingStatus: 'indexed',
-    language: 'English'
+    query: 'residual strength',
+    type: '',
+    yearPartition: '2024'
   })
 
-  assert.equal(result.length, 1)
-  assert.equal(result[0].id, 'DOC-2024-001')
+  assert.deepEqual(result.map(item => item.id), ['DOC-2024-001'])
+})
+
+test('builds four exact years and an older partition', () => {
+  assert.deepEqual(library.getYearPartitions?.(libraryData.documents, 4), {
+    years: [2024, 2023, 2022, 2021],
+    olderBefore: 2021
+  })
+
+  const older = library.filterDocuments?.(libraryData.documents, {
+    query: '',
+    type: '',
+    yearPartition: 'older:2021'
+  })
+  assert.deepEqual(older.map(item => item.id), ['DOC-2018-004'])
+})
+
+test('paginates with allowed page sizes and corrects an invalid page', () => {
+  const rows = Array.from({ length: 45 }, (_, index) => ({ id: `D${index + 1}` }))
+  const result = library.paginateDocuments?.(rows, 9, 20)
+
+  assert.equal(result.page, 3)
+  assert.equal(result.pageCount, 3)
+  assert.equal(result.items.length, 5)
+  assert.deepEqual(result.pageSizes, [20, 50, 100])
 })
 
 test('adding a literature record to QA changes only the selected record', () => {
@@ -175,10 +195,7 @@ test('literature filters support no-result and full-reset states', () => {
   assert.deepEqual(filters, {
     query: '',
     type: '',
-    year: '',
-    expertStatus: '',
-    parsingStatus: '',
-    language: ''
+    yearPartition: ''
   })
   assert.equal(
     library.filterDocuments(libraryData.documents, { ...filters, query: '不存在的文献标题' }).length,

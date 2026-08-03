@@ -6,10 +6,19 @@ export function createLibraryFilters() {
   return {
     query: '',
     type: '',
-    year: '',
-    expertStatus: '',
-    parsingStatus: '',
-    language: ''
+    yearPartition: ''
+  }
+}
+
+export function getYearPartitions(documents, visibleCount = 4) {
+  const years = [...new Set(documents.map(document => Number(document.year)))]
+    .filter(Number.isFinite)
+    .sort((a, b) => b - a)
+    .slice(0, Math.max(1, visibleCount))
+
+  return {
+    years,
+    olderBefore: years.at(-1) ?? null
   }
 }
 
@@ -21,6 +30,7 @@ export function filterDocuments(documents, filters = {}) {
       document.title,
       document.doi,
       document.journal,
+      document.abstract,
       ...document.authors,
       ...document.keywords,
       ...document.tags
@@ -28,20 +38,35 @@ export function filterDocuments(documents, filters = {}) {
 
     const matchesQuery = !query || searchable.includes(query)
     const matchesType = !filters.type || document.type === filters.type
-    const matchesYear = !filters.year || String(document.year) === String(filters.year)
-    const matchesExpert = !filters.expertStatus
-      || (filters.expertStatus === 'selected' && document.expertSelected)
-      || (filters.expertStatus === 'unselected' && !document.expertSelected)
-    const matchesParsing = !filters.parsingStatus || document.parsingStatus === filters.parsingStatus
-    const matchesLanguage = !filters.language || document.language === filters.language
+    const yearPartition = String(filters.yearPartition ?? '')
+    const matchesYear = !yearPartition
+      || (yearPartition.startsWith('older:')
+        ? Number(document.year) < Number(yearPartition.split(':')[1])
+        : String(document.year) === yearPartition)
 
     return matchesQuery
       && matchesType
       && matchesYear
-      && matchesExpert
-      && matchesParsing
-      && matchesLanguage
   })
+}
+
+export function paginateDocuments(documents, requestedPage = 1, requestedPageSize = 20) {
+  const pageSizes = [20, 50, 100]
+  const pageSize = pageSizes.includes(Number(requestedPageSize))
+    ? Number(requestedPageSize)
+    : pageSizes[0]
+  const pageCount = Math.max(1, Math.ceil(documents.length / pageSize))
+  const page = Math.min(pageCount, Math.max(1, Math.trunc(Number(requestedPage)) || 1))
+  const start = (page - 1) * pageSize
+
+  return {
+    items: documents.slice(start, start + pageSize),
+    page,
+    pageCount,
+    pageSize,
+    pageSizes,
+    total: documents.length
+  }
 }
 
 export function addDocumentToQa(documents, documentId) {
