@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
 const navigation = await import('../src/features/navigation/appNavigation.js').catch(() => ({}))
+const recentConversation = await import('../src/features/navigation/recentConversationModel.js').catch(() => ({}))
 const qa = await import('../src/features/qa/qaDemoModel.js').catch(() => ({}))
 const evaluation = await import('../src/features/qa/answerEvaluationModel.js').catch(() => ({}))
 const evaluationService = await import('../src/features/qa/answerEvaluationService.js').catch(() => ({}))
@@ -25,6 +26,44 @@ test('defines the five ASC LAB destinations in product order', () => {
       ['数据平台', '/data'],
       ['专业模型', '/models']
     ]
+  )
+})
+
+test('shows three recent conversations by default and all after expansion', () => {
+  assert.deepEqual(
+    recentConversation.getVisibleRecentConversations?.(
+      navigation.recentConversations,
+      false
+    ).map(item => item.id),
+    ['thermal-shock', 'oxidation', 'slag-corrosion']
+  )
+  assert.deepEqual(
+    recentConversation.getVisibleRecentConversations?.(
+      navigation.recentConversations,
+      true
+    ).map(item => item.id),
+    [
+      'thermal-shock',
+      'oxidation',
+      'slag-corrosion',
+      'phase-design',
+      'preparation',
+      'characterization'
+    ]
+  )
+})
+
+test('finds the restorable question for a recent conversation', () => {
+  const record = recentConversation.findRecentConversation?.(
+    navigation.recentConversations,
+    'oxidation'
+  )
+
+  assert.equal(record?.id, 'oxidation')
+  assert.match(record?.question ?? '', /抗氧化剂/)
+  assert.equal(
+    recentConversation.findRecentConversation?.(navigation.recentConversations, 'missing'),
+    null
   )
 })
 
