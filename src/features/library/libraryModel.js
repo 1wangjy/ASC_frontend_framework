@@ -109,7 +109,7 @@ export function reconcileSelectedDocumentId(
 export function addDocumentToQa(documents, documentId) {
   return documents.map(document => (
     document.id === documentId
-      ? { ...document, qaIndexed: true, statusLabel: '已索引' }
+      ? { ...document, qaIndexed: true }
       : { ...document }
   ))
 }

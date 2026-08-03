@@ -173,6 +173,25 @@ test('calculates all four library counters from document state', () => {
   })
 })
 
+test('keeps literature curation separate from answer evaluation scores', async () => {
+  const table = await readFile(
+    new URL('../src/features/library/DocumentTable.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.doesNotMatch(table, /专家评分|处理状态|更新时间/)
+  assert.doesNotMatch(table, /document\.(expertScore|statusLabel|updatedAt)/)
+  assert.match(table, /document\.expertSelected/)
+  assert.equal(
+    libraryData.documents.every(document => (
+      !Object.hasOwn(document, 'expertScore')
+      && !Object.hasOwn(document, 'statusLabel')
+      && !Object.hasOwn(document, 'updatedAt')
+    )),
+    true
+  )
+})
+
 test('builds four exact years and an older partition', () => {
   assert.deepEqual(library.getYearPartitions?.(libraryData.documents, 4), {
     years: [2024, 2023, 2022, 2021],

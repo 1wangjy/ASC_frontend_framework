@@ -11,9 +11,6 @@
             <th>年份</th>
             <th>类型</th>
             <th>领域标签</th>
-            <th>专家评分</th>
-            <th>处理状态</th>
-            <th>更新时间</th>
           </tr>
         </thead>
         <tbody v-if="documents.length">
@@ -31,11 +28,14 @@
               </span>
             </td>
             <td class="document-cell">
-              <strong>{{ document.title }}</strong>
+              <div class="document-title-line">
+                <strong>{{ document.title }}</strong>
+                <span v-if="document.expertSelected" class="curated-badge">精选</span>
+              </div>
               <small>{{ document.journal }}</small>
             </td>
             <td class="doi-cell">{{ document.doi }}</td>
-            <td>
+            <td class="author-cell">
               <span>{{ document.authors[0] }}</span>
               <small v-if="document.authors.length > 1">+{{ document.authors.length - 1 }} 位</small>
             </td>
@@ -46,19 +46,6 @@
                 <span v-for="tag in document.tags.slice(0, 3)" :key="tag">{{ tag }}</span>
               </div>
             </td>
-            <td>
-              <strong v-if="document.expertScore" class="score" :class="{ 'score--warning': document.expertScore < 8 }">
-                {{ document.expertScore.toFixed(1) }} / 10
-              </strong>
-              <span v-else>—</span>
-            </td>
-            <td>
-              <span class="status" :class="`status--${document.parsingStatus}`">
-                <i />
-                {{ document.statusLabel }}
-              </span>
-            </td>
-            <td>{{ document.updatedAt }}</td>
           </tr>
         </tbody>
       </table>
@@ -180,17 +167,18 @@ const pageNumbers = computed(() => {
 
 table {
   width: 100%;
-  min-width: 1130px;
+  min-width: 940px;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
 th,
 td {
-  padding: 13px 10px;
+  padding: 15px 12px;
   border-bottom: 1px solid #e4ebf1;
   color: var(--asc-text);
-  font-size: 10px;
+  font-size: 12px;
+  line-height: 1.5;
   text-align: left;
   vertical-align: middle;
 }
@@ -202,20 +190,17 @@ th {
   height: 45px;
   background: #fbfcfe;
   color: var(--asc-muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   white-space: nowrap;
 }
 
-th:nth-child(2) { width: 240px; }
-th:nth-child(3) { width: 150px; }
-th:nth-child(4) { width: 105px; }
-th:nth-child(5) { width: 58px; }
-th:nth-child(6) { width: 76px; }
-th:nth-child(7) { width: 180px; }
-th:nth-child(8) { width: 88px; }
-th:nth-child(9) { width: 90px; }
-th:nth-child(10) { width: 92px; }
+th:nth-child(2) { width: 250px; }
+th:nth-child(3) { width: 170px; }
+th:nth-child(4) { width: 150px; }
+th:nth-child(5) { width: 64px; }
+th:nth-child(6) { width: 90px; }
+th:nth-child(7) { width: 170px; }
 
 tbody tr {
   cursor: pointer;
@@ -252,28 +237,50 @@ tbody tr.selected {
   background: var(--asc-primary);
 }
 
-.document-cell strong,
 .document-cell small,
 td small {
   display: block;
 }
 
-.document-cell strong {
+.document-title-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.document-title-line strong {
   color: #0a4778;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
+}
+
+.curated-badge {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  padding: 2px 6px;
+  border: 1px solid #9dcde6;
+  border-radius: 999px;
+  background: #eef8fd;
+  color: #1475aa;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.35;
 }
 
 .document-cell small,
 td small {
   margin-top: 4px;
   color: var(--asc-muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .doi-cell {
   overflow-wrap: anywhere;
   color: #45667f;
+}
+
+.author-cell {
+  color: #254d69;
 }
 
 .tag-list {
@@ -288,36 +295,7 @@ td small {
   border-radius: 4px;
   background: #eef7fc;
   color: #2c6b91;
-  font-size: 8px;
-}
-
-.score {
-  color: #118556;
   font-size: 10px;
-}
-
-.score--warning {
-  color: var(--asc-warning);
-}
-
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--asc-success);
-  white-space: nowrap;
-}
-
-.status i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.status--parsing,
-.status--reindex {
-  color: var(--asc-warning);
 }
 
 .empty-result {
