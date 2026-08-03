@@ -67,6 +67,21 @@ test('finds the restorable question for a recent conversation', () => {
   )
 })
 
+test('recent conversations panel provides quiet expandable history controls', async () => {
+  const source = await readFile(
+    new URL('../src/features/qa/RecentConversationsPanel.vue', import.meta.url),
+    'utf8'
+  ).catch(() => '')
+
+  assert.match(source, /最近会话/)
+  assert.match(source, /查看更多历史/)
+  assert.match(source, /收起历史/)
+  assert.match(source, /aria-expanded/)
+  assert.match(source, /getVisibleRecentConversations/)
+  assert.match(source, /text-overflow:\s*ellipsis/)
+  assert.match(source, /overflow-y:\s*auto/)
+})
+
 test('submitting a question opens the evidence report after mock completion', () => {
   const initial = qa.createQaState?.()
   const loading = qa.submitQuestion?.(initial, '  ASC Al₂O₃-SiC-C 材料体系的热震稳定性如何？  ')
