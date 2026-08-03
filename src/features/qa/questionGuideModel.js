@@ -45,36 +45,16 @@ export const questionCategories = Object.freeze([
   }
 ])
 
-function questionIndex(random, length) {
-  const sampled = Number(random?.() ?? Math.random())
-  return Math.min(length - 1, Math.max(0, Math.floor(sampled * length)))
-}
-
-function createGuide(category, random) {
+function createGuide(category) {
   return {
     id: category.id,
     title: category.title,
     icon: category.icon,
     backendCategories: [...category.backendCategories],
-    question: category.questions[questionIndex(random, category.questions.length)]
+    questions: [...category.questions]
   }
 }
 
-export function createQuestionGuideState(random = Math.random) {
-  return questionCategories.map(category => createGuide(category, random))
-}
-
-export function refreshQuestionGuide(state, categoryId, random = Math.random) {
-  const category = questionCategories.find(item => item.id === categoryId)
-  if (!category) return state
-
-  return state.map(guide => {
-    if (guide.id !== categoryId || category.questions.length < 2) return guide
-
-    const alternatives = category.questions.filter(question => question !== guide.question)
-    return {
-      ...guide,
-      question: alternatives[questionIndex(random, alternatives.length)]
-    }
-  })
+export function createQuestionGuideState() {
+  return questionCategories.map(createGuide)
 }

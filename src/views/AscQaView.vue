@@ -27,7 +27,6 @@
         <TaskShortcuts
           :guides="questionGuides"
           @select="draft = $event"
-          @refresh="refreshGuide"
         />
       </section>
 
@@ -74,15 +73,12 @@ import {
   submitQuestion,
   updateQaSettings
 } from '../features/qa/qaDemoModel.js'
-import {
-  createQuestionGuideState,
-  refreshQuestionGuide
-} from '../features/qa/questionGuideModel.js'
+import { createQuestionGuideState } from '../features/qa/questionGuideModel.js'
 
 const route = useRoute()
 const qaState = ref(createQaState())
 const draft = ref('')
-const questionGuides = ref(createQuestionGuideState())
+const questionGuides = createQuestionGuideState()
 let completionTimer = null
 
 function sendQuestion() {
@@ -105,15 +101,10 @@ function chooseCitation(citationId) {
   qaState.value = selectCitation(qaState.value, citationId)
 }
 
-function refreshGuide(categoryId) {
-  questionGuides.value = refreshQuestionGuide(questionGuides.value, categoryId)
-}
-
 function reset() {
   window.clearTimeout(completionTimer)
   qaState.value = resetConversation()
   draft.value = ''
-  questionGuides.value = createQuestionGuideState()
 }
 
 watch(

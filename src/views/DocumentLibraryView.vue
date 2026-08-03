@@ -79,11 +79,13 @@ import DocumentDetails from '../features/library/DocumentDetails.vue'
 import DocumentImportModal from '../features/library/DocumentImportModal.vue'
 import { documents as seedDocuments } from '../features/library/libraryData.js'
 import {
+  calculateLibraryMetrics,
   createLibraryFilters,
   filterDocuments,
   getYearPartitions,
   initialSelectedDocumentId,
-  paginateDocuments
+  paginateDocuments,
+  reconcileSelectedDocumentId
 } from '../features/library/libraryModel.js'
 
 const documentRows = ref(seedDocuments.map(document => ({ ...document })))
@@ -97,7 +99,7 @@ const page = ref(1)
 const pageSize = ref(20)
 let toastTimer = null
 
-const yearPartitions = getYearPartitions(seedDocuments, 4)
+const yearPartitions = computed(() => getYearPartitions(documentRows.value, 4))
 const filteredDocuments = computed(() => filterDocuments(documentRows.value, filters))
 const pagination = computed(() => paginateDocuments(
   filteredDocuments.value,
@@ -108,12 +110,15 @@ const selectedDocument = computed(
   () => documentRows.value.find(document => document.id === selectedDocumentId.value) || null
 )
 
-const metrics = computed(() => [
-  { label: '文献总数', value: 542, note: '500+ 原始资料', success: true },
-  { label: '专家精选', value: 38, note: '高质量研究源', success: true },
-  { label: '完成解析', value: 497, note: '正文与索引已提取', success: true },
-  { label: '进入 QA 索引', value: 486, note: '可引用证据可用', success: true }
-])
+const metrics = computed(() => {
+  const counts = calculateLibraryMetrics(documentRows.value)
+  return [
+    { label: '文献总数', value: counts.total, note: '随文献库实时更新', success: true },
+    { label: '专家精选', value: counts.expertSelected, note: '高质量研究源', success: true },
+    { label: '完成解析', value: counts.parsed, note: '正文与索引已提取', success: true },
+    { label: '进入 QA 索引', value: counts.qaIndexed, note: '可引用证据可用', success: true }
+  ]
+})
 
 function resetFilters() {
   Object.assign(filters, createLibraryFilters())
@@ -133,7 +138,7 @@ function showToast(message) {
 }
 
 watch(
-  () => [filters.query, filters.type, filters.yearPartition],
+  () => [filters.query, filters.type, filters.yearPartitions.join('|')],
   () => {
     page.value = 1
   }
@@ -149,9 +154,11 @@ watch(
 watch(
   filteredDocuments,
   documents => {
-    if (!documents.some(document => document.id === selectedDocumentId.value)) {
-      selectedDocumentId.value = documents[0]?.id ?? ''
-    }
+    selectedDocumentId.value = reconcileSelectedDocumentId(
+      documents,
+      selectedDocumentId.value,
+      compactView
+    )
   }
 )
 </script>

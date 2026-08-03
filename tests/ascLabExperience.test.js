@@ -80,8 +80,8 @@ test('NEXUS forces ontology on and locks it until Hybrid RAG is restored', () =>
   assert.equal(hybrid.settings.ontologyLocked, false)
 })
 
-test('initializes one question from each of the four approved categories', () => {
-  const state = guides.createQuestionGuideState?.(() => 0)
+test('exposes three classic questions for every approved category', () => {
+  const state = guides.createQuestionGuideState?.()
 
   assert.deepEqual(state?.map(item => item.id), [
     'materials',
@@ -89,17 +89,8 @@ test('initializes one question from each of the four approved categories', () =>
     'characterization',
     'service'
   ])
-  assert.equal(state?.[0].question, 'ASC 各组分分别起什么作用？')
-})
-
-test('refreshing one guide never changes the other three guides', () => {
-  const initial = guides.createQuestionGuideState?.(() => 0)
-  const refreshed = guides.refreshQuestionGuide?.(initial, 'processing', () => 0.99)
-
-  assert.equal(refreshed?.[0], initial?.[0])
-  assert.notEqual(refreshed?.[1].question, initial?.[1].question)
-  assert.equal(refreshed?.[2], initial?.[2])
-  assert.equal(refreshed?.[3], initial?.[3])
+  assert.equal(state?.every(item => item.questions.length === 3), true)
+  assert.equal(state?.[0].questions[0], 'ASC 各组分分别起什么作用？')
 })
 
 test('selecting an inline citation reopens evidence and selects the matching source', () => {
@@ -118,10 +109,54 @@ test('finds a document by abstract or keyword and intersects it with year', () =
   const result = library.filterDocuments?.(libraryData.documents, {
     query: 'residual strength',
     type: '',
-    yearPartition: '2024'
+    yearPartitions: ['2024']
   })
 
   assert.deepEqual(result.map(item => item.id), ['DOC-2024-001'])
+})
+
+test('combines multiple selected years with OR and keyword with AND', () => {
+  const sharedFields = {
+    type: 'journal',
+    doi: '',
+    journal: '',
+    abstract: 'thermal-shock study',
+    authors: [],
+    keywords: [],
+    tags: []
+  }
+  const fixtures = [
+    { ...sharedFields, id: 'Y2024', title: 'Study A', year: 2024 },
+    { ...sharedFields, id: 'Y2023', title: 'Study B', year: 2023 },
+    { ...sharedFields, id: 'Y2022', title: 'Study C', year: 2022 }
+  ]
+  const result = library.filterDocuments?.(fixtures, {
+    query: 'thermal-shock',
+    type: '',
+    yearPartitions: ['2024', '2023']
+  })
+
+  assert.deepEqual(result.map(item => item.id), ['Y2024', 'Y2023'])
+})
+
+test('toggles one year partition without changing the other selections', () => {
+  assert.deepEqual(
+    library.toggleYearPartition?.(['2024'], '2023'),
+    ['2024', '2023']
+  )
+  assert.deepEqual(
+    library.toggleYearPartition?.(['2024', '2023'], '2024'),
+    ['2023']
+  )
+})
+
+test('calculates all four library counters from document state', () => {
+  assert.deepEqual(library.calculateLibraryMetrics?.(libraryData.documents), {
+    total: 5,
+    expertSelected: 3,
+    parsed: 4,
+    qaIndexed: 3
+  })
 })
 
 test('builds four exact years and an older partition', () => {
@@ -133,7 +168,7 @@ test('builds four exact years and an older partition', () => {
   const older = library.filterDocuments?.(libraryData.documents, {
     query: '',
     type: '',
-    yearPartition: 'older:2021'
+    yearPartitions: ['older:2021']
   })
   assert.deepEqual(older.map(item => item.id), ['DOC-2018-004'])
 })
@@ -154,6 +189,23 @@ test('opens the first literature detail on desktop but starts with the mobile li
     'DOC-2024-001'
   )
   assert.equal(library.initialSelectedDocumentId?.(libraryData.documents, true), '')
+})
+
+test('keeps filtered literature details closed on mobile when the current row disappears', () => {
+  const filtered = libraryData.documents.filter(document => document.year === 2023)
+
+  assert.equal(
+    library.reconcileSelectedDocumentId?.(filtered, '', true),
+    ''
+  )
+  assert.equal(
+    library.reconcileSelectedDocumentId?.(filtered, 'DOC-2024-001', true),
+    ''
+  )
+  assert.equal(
+    library.reconcileSelectedDocumentId?.(filtered, 'DOC-2024-001', false),
+    'DOC-2023-002'
+  )
 })
 
 test('adding a literature record to QA changes only the selected record', () => {
@@ -207,7 +259,7 @@ test('literature filters support no-result and full-reset states', () => {
   assert.deepEqual(filters, {
     query: '',
     type: '',
-    yearPartition: ''
+    yearPartitions: []
   })
   assert.equal(
     library.filterDocuments(libraryData.documents, { ...filters, query: '不存在的文献标题' }).length,

@@ -27,12 +27,12 @@
 
     <div class="year-row">
       <span>年份</span>
-      <div class="year-options" role="group" aria-label="按年份分区">
+      <div class="year-options" role="group" aria-label="按年份多选">
         <button
           type="button"
-          :class="{ active: !filters.yearPartition }"
-          :aria-pressed="!filters.yearPartition"
-          @click="update('yearPartition', '')"
+          :class="{ active: filters.yearPartitions.length === 0 }"
+          :aria-pressed="filters.yearPartitions.length === 0"
+          @click="update('yearPartitions', [])"
         >
           全部
         </button>
@@ -40,18 +40,18 @@
           v-for="year in yearPartitions.years"
           :key="year"
           type="button"
-          :class="{ active: filters.yearPartition === String(year) }"
-          :aria-pressed="filters.yearPartition === String(year)"
-          @click="update('yearPartition', String(year))"
+          :class="{ active: filters.yearPartitions.includes(String(year)) }"
+          :aria-pressed="filters.yearPartitions.includes(String(year))"
+          @click="toggleYear(String(year))"
         >
           {{ year }}
         </button>
         <button
           v-if="yearPartitions.olderBefore"
           type="button"
-          :class="{ active: filters.yearPartition === `older:${yearPartitions.olderBefore}` }"
-          :aria-pressed="filters.yearPartition === `older:${yearPartitions.olderBefore}`"
-          @click="update('yearPartition', `older:${yearPartitions.olderBefore}`)"
+          :class="{ active: filters.yearPartitions.includes(`older:${yearPartitions.olderBefore}`) }"
+          :aria-pressed="filters.yearPartitions.includes(`older:${yearPartitions.olderBefore}`)"
+          @click="toggleYear(`older:${yearPartitions.olderBefore}`)"
         >
           更早
         </button>
@@ -60,8 +60,13 @@
 
     <div class="filter-summary" aria-live="polite">
       <div class="active-filters">
-        <button v-if="filters.yearPartition" type="button" @click="update('yearPartition', '')">
-          {{ yearLabel }} <AscIcon name="close" />
+        <button
+          v-for="partition in filters.yearPartitions"
+          :key="partition"
+          type="button"
+          @click="toggleYear(partition)"
+        >
+          {{ formatYearLabel(partition) }} <AscIcon name="close" />
         </button>
         <button v-if="filters.query" type="button" @click="update('query', '')">
           {{ filters.query }} <AscIcon name="close" />
@@ -78,6 +83,7 @@
 <script setup>
 import { computed } from 'vue'
 import AscIcon from '../../components/ui/AscIcon.vue'
+import { toggleYearPartition } from './libraryModel.js'
 
 const props = defineProps({
   filters: {
@@ -97,13 +103,7 @@ const props = defineProps({
 const emit = defineEmits(['update:filters', 'reset'])
 
 const hasFilters = computed(() => Boolean(
-  props.filters.query || props.filters.type || props.filters.yearPartition
-))
-
-const yearLabel = computed(() => (
-  String(props.filters.yearPartition).startsWith('older:')
-    ? '更早年份'
-    : props.filters.yearPartition
+  props.filters.query || props.filters.type || props.filters.yearPartitions.length
 ))
 
 const typeLabels = {
@@ -117,6 +117,17 @@ const typeLabel = computed(() => typeLabels[props.filters.type] ?? props.filters
 
 function update(key, value) {
   emit('update:filters', { [key]: value })
+}
+
+function toggleYear(partition) {
+  update(
+    'yearPartitions',
+    toggleYearPartition(props.filters.yearPartitions, partition)
+  )
+}
+
+function formatYearLabel(partition) {
+  return String(partition).startsWith('older:') ? '更早年份' : `${partition} 年`
 }
 </script>
 

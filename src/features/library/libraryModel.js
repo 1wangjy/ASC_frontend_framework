@@ -6,7 +6,25 @@ export function createLibraryFilters() {
   return {
     query: '',
     type: '',
-    yearPartition: ''
+    yearPartitions: []
+  }
+}
+
+export function toggleYearPartition(selected = [], partition) {
+  const normalized = String(partition ?? '')
+  if (!normalized) return [...selected]
+
+  return selected.includes(normalized)
+    ? selected.filter(item => item !== normalized)
+    : [...selected, normalized]
+}
+
+export function calculateLibraryMetrics(documents = []) {
+  return {
+    total: documents.length,
+    expertSelected: documents.filter(document => document.expertSelected).length,
+    parsed: documents.filter(document => document.parsingStatus !== 'parsing').length,
+    qaIndexed: documents.filter(document => document.qaIndexed).length
   }
 }
 
@@ -38,11 +56,15 @@ export function filterDocuments(documents, filters = {}) {
 
     const matchesQuery = !query || searchable.includes(query)
     const matchesType = !filters.type || document.type === filters.type
-    const yearPartition = String(filters.yearPartition ?? '')
-    const matchesYear = !yearPartition
-      || (yearPartition.startsWith('older:')
-        ? Number(document.year) < Number(yearPartition.split(':')[1])
-        : String(document.year) === yearPartition)
+    const yearPartitions = Array.isArray(filters.yearPartitions)
+      ? filters.yearPartitions.map(String)
+      : []
+    const matchesYear = yearPartitions.length === 0
+      || yearPartitions.some(partition => (
+        partition.startsWith('older:')
+          ? Number(document.year) < Number(partition.split(':')[1])
+          : String(document.year) === partition
+      ))
 
     return matchesQuery
       && matchesType
@@ -70,6 +92,17 @@ export function paginateDocuments(documents, requestedPage = 1, requestedPageSiz
 }
 
 export function initialSelectedDocumentId(documents, compactView = false) {
+  return compactView ? '' : (documents[0]?.id ?? '')
+}
+
+export function reconcileSelectedDocumentId(
+  documents,
+  currentDocumentId,
+  compactView = false
+) {
+  const currentExists = documents.some(document => document.id === currentDocumentId)
+  if (currentExists) return currentDocumentId
+
   return compactView ? '' : (documents[0]?.id ?? '')
 }
 
