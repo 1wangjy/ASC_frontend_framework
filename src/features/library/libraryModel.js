@@ -2,6 +2,15 @@ function normalize(value) {
   return String(value ?? '').trim().toLocaleLowerCase()
 }
 
+export function summarizeAuthors(authors = [], visibleCount = 2) {
+  const normalizedAuthors = Array.isArray(authors)
+    ? authors.map(author => String(author ?? '').trim()).filter(Boolean)
+    : []
+  const limit = Math.max(1, Math.trunc(Number(visibleCount)) || 2)
+
+  return normalizedAuthors.slice(0, limit).join(', ')
+}
+
 export function createLibraryFilters() {
   return {
     query: '',

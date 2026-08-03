@@ -1,16 +1,37 @@
 <template>
-  <aside class="sidebar" :class="{ 'sidebar--open': mobileOpen }">
+  <aside
+    class="sidebar"
+    :class="{
+      'sidebar--open': mobileOpen,
+      'sidebar--collapsed': collapsed
+    }"
+  >
     <div class="sidebar__head">
-      <router-link class="brand" to="/" @click="$emit('close')">
+      <router-link class="brand" to="/" title="ASC LAB" @click="$emit('close')">
         <span class="brand__mark">ASC</span>
-        <span>ASC LAB</span>
+        <span class="brand__name">ASC LAB</span>
       </router-link>
       <button class="sidebar__close" type="button" aria-label="关闭导航" @click="$emit('close')">
         <AscIcon name="close" />
       </button>
     </div>
 
-    <button class="new-question" type="button" @click="$emit('new-chat')">
+    <button
+      class="sidebar__toggle"
+      type="button"
+      :aria-label="collapsed ? '展开侧边栏' : '收起侧边栏'"
+      :title="collapsed ? '展开侧边栏' : '收起侧边栏'"
+      @click="$emit('toggle-collapse')"
+    >
+      <AscIcon name="chevron" :class="{ 'sidebar__toggle-icon--collapse': !collapsed }" />
+    </button>
+
+    <button
+      class="new-question"
+      type="button"
+      :title="collapsed ? '新建问答' : undefined"
+      @click="$emit('new-chat')"
+    >
       <AscIcon name="plus" />
       <span>新建问答</span>
     </button>
@@ -21,6 +42,7 @@
         :key="item.path"
         :to="item.path"
         class="nav-item"
+        :title="collapsed ? item.label : undefined"
         @click="$emit('close')"
       >
         <AscIcon :name="item.icon" />
@@ -52,10 +74,14 @@ defineProps({
   mobileOpen: {
     type: Boolean,
     default: false
+  },
+  collapsed: {
+    type: Boolean,
+    default: false
   }
 })
 
-defineEmits(['close', 'new-chat', 'open-conversation'])
+defineEmits(['close', 'toggle-collapse', 'new-chat', 'open-conversation'])
 </script>
 
 <style scoped>
@@ -70,6 +96,7 @@ defineEmits(['close', 'new-chat', 'open-conversation'])
   overflow-y: auto;
   background: var(--asc-sidebar);
   color: #fff;
+  transition: width var(--asc-transition), padding var(--asc-transition), transform var(--asc-transition);
 }
 
 .sidebar__head {
@@ -109,6 +136,34 @@ defineEmits(['close', 'new-chat', 'open-conversation'])
   background: transparent;
   color: #fff;
   font-size: 20px;
+}
+
+.sidebar__toggle {
+  position: fixed;
+  z-index: 45;
+  top: 26px;
+  left: calc(var(--asc-sidebar-width) - 15px);
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--asc-border-strong);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 5px 16px rgba(4, 45, 80, 0.18);
+  color: var(--asc-primary);
+  font-size: 16px;
+  transition: left var(--asc-transition), background var(--asc-transition), color var(--asc-transition);
+}
+
+.sidebar__toggle:hover {
+  background: var(--asc-primary-soft);
+  color: var(--asc-primary-hover);
+}
+
+.sidebar__toggle-icon--collapse {
+  transform: rotate(180deg);
 }
 
 .new-question {
@@ -193,6 +248,54 @@ defineEmits(['close', 'new-chat', 'open-conversation'])
   color: #fff;
 }
 
+@media (min-width: 761px) {
+  .sidebar--collapsed {
+    width: var(--asc-sidebar-collapsed-width);
+    padding-inline: 14px;
+    overflow-x: hidden;
+  }
+
+  .sidebar--collapsed .sidebar__head {
+    justify-content: center;
+  }
+
+  .sidebar--collapsed .brand {
+    justify-content: center;
+  }
+
+  .sidebar--collapsed .brand__name,
+  .sidebar--collapsed .new-question span,
+  .sidebar--collapsed .nav-item span,
+  .sidebar--collapsed .recent {
+    display: none;
+  }
+
+  .sidebar--collapsed .sidebar__toggle {
+    left: calc(var(--asc-sidebar-collapsed-width) - 15px);
+  }
+
+  .sidebar--collapsed .new-question {
+    width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    margin-inline: auto;
+    padding: 0;
+    font-size: 18px;
+  }
+
+  .sidebar--collapsed .primary-nav {
+    width: 44px;
+    margin-inline: auto;
+  }
+
+  .sidebar--collapsed .nav-item {
+    width: 44px;
+    justify-content: center;
+    padding: 0;
+    font-size: 18px;
+  }
+}
+
 @media (max-width: 760px) {
   .sidebar {
     width: min(286px, 86vw);
@@ -207,6 +310,10 @@ defineEmits(['close', 'new-chat', 'open-conversation'])
 
   .sidebar__close {
     display: grid;
+  }
+
+  .sidebar__toggle {
+    display: none;
   }
 }
 </style>

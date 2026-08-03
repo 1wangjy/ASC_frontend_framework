@@ -1,8 +1,10 @@
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'app-shell--sidebar-collapsed': sidebarCollapsed }">
     <AscSidebar
       :mobile-open="mobileNavOpen"
+      :collapsed="sidebarCollapsed"
       @close="mobileNavOpen = false"
+      @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
       @new-chat="startNewChat"
       @open-conversation="openConversation"
     />
@@ -37,6 +39,7 @@ import AscIcon from '../components/ui/AscIcon.vue'
 const route = useRoute()
 const router = useRouter()
 const mobileNavOpen = ref(false)
+const sidebarCollapsed = ref(false)
 
 function startNewChat() {
   mobileNavOpen.value = false
@@ -57,6 +60,11 @@ function openConversation(conversation) {
 .app-shell__body {
   min-height: 100vh;
   margin-left: var(--asc-sidebar-width);
+  transition: margin-left var(--asc-transition);
+}
+
+.app-shell--sidebar-collapsed .app-shell__body {
+  margin-left: var(--asc-sidebar-collapsed-width);
 }
 
 .mobile-header {
@@ -75,6 +83,10 @@ function openConversation(conversation) {
   .app-shell__body {
     margin-left: 0;
     padding-top: 56px;
+  }
+
+  .app-shell--sidebar-collapsed .app-shell__body {
+    margin-left: 0;
   }
 
   .mobile-header {

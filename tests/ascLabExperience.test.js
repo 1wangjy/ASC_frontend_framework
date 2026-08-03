@@ -192,6 +192,37 @@ test('keeps literature curation separate from answer evaluation scores', async (
   )
 })
 
+test('shows at most two literature authors without a remainder count', () => {
+  assert.equal(
+    library.summarizeAuthors?.(['Wang Y.', 'Li J.', 'Zhang H.']),
+    'Wang Y., Li J.'
+  )
+  assert.equal(
+    library.summarizeAuthors?.(['Wang Y.', 'Li J.']),
+    'Wang Y., Li J.'
+  )
+  assert.equal(
+    library.summarizeAuthors?.([]),
+    ''
+  )
+})
+
+test('provides a 72px desktop sidebar mode without replacing the mobile drawer', async () => {
+  const [shell, sidebar, tokens] = await Promise.all([
+    readFile(new URL('../src/layouts/AscShell.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/navigation/AscSidebar.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/styles/tokens.css', import.meta.url), 'utf8')
+  ])
+
+  assert.match(tokens, /--asc-sidebar-collapsed-width:\s*72px/)
+  assert.match(shell, /sidebarCollapsed/)
+  assert.match(shell, /app-shell--sidebar-collapsed/)
+  assert.match(sidebar, /toggle-collapse/)
+  assert.match(sidebar, /收起侧边栏/)
+  assert.match(sidebar, /展开侧边栏/)
+  assert.match(sidebar, /@media \(max-width: 760px\)/)
+})
+
 test('builds four exact years and an older partition', () => {
   assert.deepEqual(library.getYearPartitions?.(libraryData.documents, 4), {
     years: [2024, 2023, 2022, 2021],

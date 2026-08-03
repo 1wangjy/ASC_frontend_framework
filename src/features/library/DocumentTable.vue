@@ -36,8 +36,7 @@
             </td>
             <td class="doi-cell">{{ document.doi }}</td>
             <td class="author-cell">
-              <span>{{ document.authors[0] }}</span>
-              <small v-if="document.authors.length > 1">+{{ document.authors.length - 1 }} 位</small>
+              <span>{{ summarizeAuthors(document.authors) }}</span>
             </td>
             <td>{{ document.year }}</td>
             <td>{{ document.typeLabel }}</td>
@@ -108,6 +107,7 @@
 <script setup>
 import { computed } from 'vue'
 import AscIcon from '../../components/ui/AscIcon.vue'
+import { summarizeAuthors } from './libraryModel.js'
 
 const props = defineProps({
   documents: {
