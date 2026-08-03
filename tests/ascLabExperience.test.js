@@ -9,6 +9,9 @@ const library = await import('../src/features/library/libraryModel.js').catch(()
 const libraryData = await import('../src/features/library/libraryData.js').catch(() => ({}))
 const routes = await import('../src/config/ascRoutes.js').catch(() => ({}))
 const overview = await import('../src/features/overview/moduleCatalog.js').catch(() => ({}))
+const launcher = await import('../src/features/knowledge/knowledgeGraphLauncher.js').catch(() => ({}))
+const graphData = await import('../src/features/knowledge/graphExplorerData.js').catch(() => ({}))
+const graph = await import('../src/features/knowledge/graphExplorerModel.js').catch(() => ({}))
 
 test('defines the five ASC LAB destinations in product order', () => {
   assert.deepEqual(
@@ -214,6 +217,63 @@ test('defines route-complete supporting modules without generated research resul
     Object.values(overview.moduleCatalog || {}).every(module => module.items.length >= 3),
     true
   )
+})
+
+test('uses the local graph explorer when no launch API is configured', async () => {
+  const result = await launcher.requestGraphLaunch?.({ endpoint: '' })
+
+  assert.equal(result.redirectUrl, '/knowledge/explorer')
+})
+
+test('rejects an unsafe graph redirect returned by the launch API', async () => {
+  await assert.rejects(
+    launcher.requestGraphLaunch?.({
+      endpoint: '/api/graph/launch',
+      fetchImpl: async () => ({
+        ok: true,
+        json: async () => ({ redirectUrl: 'javascript:alert(1)' })
+      })
+    }),
+    /无效的图谱跳转地址/
+  )
+})
+
+test('searches graph nodes by label alias and stable node id', () => {
+  assert.equal(
+    graph.searchGraphNodes?.(graphData.graphNodes, '碳化硅')[0].nodeId,
+    'material:sic'
+  )
+  assert.equal(
+    graph.searchGraphNodes?.(graphData.graphNodes, 'reaction:sic-oxidation')[0].label,
+    'SiC 氧化'
+  )
+})
+
+test('focuses a node at viewport center and highlights direct neighbors', () => {
+  const focused = graph.focusGraphNode?.(
+    graph.createGraphExplorerState(),
+    graphData.graphNodes,
+    graphData.graphEdges,
+    'material:sic',
+    { width: 760, height: 520, scale: 1.2 }
+  )
+
+  assert.equal(focused.focusedNodeId, 'material:sic')
+  assert.deepEqual(focused.viewport, { x: 80, y: 44, scale: 1.2 })
+  assert.ok(focused.highlightedNodeIds.includes('material:alumina'))
+})
+
+test('keeps the current graph view when a search target does not exist', () => {
+  const state = graph.createGraphExplorerState?.()
+  assert.ok(state)
+  const unchanged = graph.focusGraphNode?.(
+    state,
+    graphData.graphNodes,
+    graphData.graphEdges,
+    'missing:node'
+  )
+
+  assert.equal(unchanged, state)
 })
 
 test('uses ASC LAB metadata in the application entry document', async () => {
