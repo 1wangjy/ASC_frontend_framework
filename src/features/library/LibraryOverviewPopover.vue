@@ -214,14 +214,16 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', handleOutsideP
 
 @media (max-width: 420px) {
   .library-overview__panel {
-    left: auto;
-    right: -76px;
-    width: min(344px, calc(100vw - 24px));
+    position: fixed;
+    top: 108px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-width: none;
   }
 
   .library-overview__panel::before {
-    right: 98px;
-    left: auto;
+    display: none;
   }
 }
 </style>
