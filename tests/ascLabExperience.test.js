@@ -537,6 +537,19 @@ test('library summary cards show retrieval-oriented metrics instead of processin
   )
 })
 
+test('library overview exposes hidden metrics with complete close controls', async () => {
+  const source = await readFile(
+    new URL('../src/features/library/LibraryOverviewPopover.vue', import.meta.url),
+    'utf8'
+  ).catch(() => '')
+
+  assert.match(source, /馆藏概览/)
+  assert.match(source, /aria-expanded/)
+  assert.match(source, /pointerdown/)
+  assert.match(source, /keydown\.esc/)
+  assert.match(source, /trigger\.value\?\.focus/)
+})
+
 test('keeps literature curation separate from answer evaluation scores', async () => {
   const table = await readFile(
     new URL('../src/features/library/DocumentTable.vue', import.meta.url),
