@@ -1,4 +1,5 @@
 import service, { requestWithRetry } from './index'
+import { buildReportStatusRequest } from './requestContracts'
 
 /**
  * 开始报告生成
@@ -10,10 +11,10 @@ export const generateReport = (data) => {
 
 /**
  * 获取报告生成状态
- * @param {string} reportId
+ * @param {Object} identifiers - { taskId?, simulationId? }
  */
-export const getReportStatus = (reportId) => {
-  return service.get(`/api/report/generate/status`, { params: { report_id: reportId } })
+export const getReportStatus = (identifiers = {}) => {
+  return service(buildReportStatusRequest(identifiers))
 }
 
 /**

@@ -1,4 +1,5 @@
 import service, { requestWithRetry } from './index'
+import { buildListProjectsRequest } from './requestContracts'
 
 const DEFAULT_GRAPH_LAUNCH_ENDPOINT = '/api/graph/launch'
 
@@ -139,6 +140,15 @@ export function getProject(projectId) {
     url: `/api/graph/project/${projectId}`,
     method: 'get'
   })
+}
+
+/**
+ * 获取当前用户可用的知识图谱项目。
+ * @param {Object} params - 后端支持的可选筛选参数
+ * @returns {Promise}
+ */
+export function listProjects(params = {}) {
+  return service(buildListProjectsRequest(params))
 }
 
 /**
