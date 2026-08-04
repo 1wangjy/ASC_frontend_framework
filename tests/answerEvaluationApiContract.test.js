@@ -88,4 +88,3 @@ test('turns an adapted judge result into valid feedback scores', () => {
   assert.equal(payload.verdict, 'accurate')
   assert.equal(payload.qa_run_id, 'qarun_1')
 })
-

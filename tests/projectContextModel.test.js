@@ -49,4 +49,3 @@ test('persists only the active project identifier', () => {
   rememberActiveProjectId(storage, '')
   assert.equal(readActiveProjectId(storage), null)
 })
-

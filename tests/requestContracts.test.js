@@ -29,4 +29,3 @@ test('posts a simulation identifier without placeholder fields', () => {
     data: { simulation_id: 'sim-3' }
   })
 })
-

@@ -143,4 +143,3 @@ Content-Type: application/json
 - 当前已有的其他前端 API 封装与后端路由的方法和路径一致。
 - 所有新增及现有前端测试通过，生产构建成功。
 - `docs/frontend-backend-api-contract.md` 覆盖所有前端 API，至少包含：模块、前端函数、HTTP 方法、URL、页面功能、后端文件/路由、完成状态、调用页面和限制说明。
-

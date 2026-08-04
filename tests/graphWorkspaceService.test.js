@@ -58,4 +58,3 @@ test('loads a newly selected project graph', async () => {
 
   assert.equal(graph.nodes[0].nodeId, 'g3')
 })
-

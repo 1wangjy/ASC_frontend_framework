@@ -76,4 +76,3 @@ test('accepts an axios backend envelope and object endpoints', () => {
   assert.equal(adapted.edges[0].source, 'source')
   assert.equal(adapted.edges[0].target, 'target')
 })
-

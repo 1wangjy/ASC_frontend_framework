@@ -130,4 +130,3 @@
 1. `GET /api/graph/project/list`
 2. 选择带 `graph_id` 的项目
 3. `GET /api/graph/data/:graphId`
-
