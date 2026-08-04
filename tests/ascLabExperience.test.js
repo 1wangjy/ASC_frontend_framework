@@ -429,6 +429,16 @@ test('refreshes one classic question without changing the other categories', () 
   assert.equal(refreshed?.[3], initial?.[3])
 })
 
+test('single-question cards use singular refresh wording', async () => {
+  const source = await readFile(
+    new URL('../src/features/qa/TaskShortcuts.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /换一个经典问题/)
+  assert.doesNotMatch(source, /换一组经典问题/)
+})
+
 test('selecting an inline citation reopens evidence and selects the matching source', () => {
   const answered = qa.completeMockAnswer?.(
     qa.submitQuestion?.(qa.createQaState?.(), '热震稳定性如何？')
@@ -559,6 +569,7 @@ test('library overview exposes hidden metrics with complete close controls', asy
   assert.match(source, /pointerdown/)
   assert.match(source, /keydown\.esc/)
   assert.match(source, /trigger\.value\?\.focus/)
+  assert.match(source, /@media \(max-width: 560px\)/)
 })
 
 test('keeps literature curation separate from answer evaluation scores', async () => {

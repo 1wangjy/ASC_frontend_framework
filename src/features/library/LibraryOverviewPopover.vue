@@ -212,7 +212,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', handleOutsideP
   transform: translateY(-4px) scale(0.98);
 }
 
-@media (max-width: 420px) {
+@media (max-width: 560px) {
   .library-overview__panel {
     position: fixed;
     top: 108px;

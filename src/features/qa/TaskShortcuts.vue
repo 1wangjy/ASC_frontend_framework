@@ -8,7 +8,7 @@
           class="shortcut__refresh"
           type="button"
           :aria-label="`刷新${item.title}经典问题`"
-          title="换一组经典问题"
+          title="换一个经典问题"
           @click.stop="$emit('refresh', item.id)"
         >
           <AscIcon name="refresh" />
