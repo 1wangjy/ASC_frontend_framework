@@ -2,7 +2,10 @@
   <main class="library-page">
     <header class="page-header">
       <div>
-        <h1>文献管理</h1>
+        <div class="page-title-row">
+          <h1>文献管理</h1>
+          <LibraryOverviewPopover :metrics="metrics" />
+        </div>
         <p>管理 ASC 耐火材料文献、精选资料与馆藏分类</p>
       </div>
       <div class="header-actions">
@@ -17,14 +20,6 @@
 
     <section class="library-workspace" :class="{ 'library-workspace--detail': selectedDocument }">
       <div class="library-primary">
-        <section class="summary-grid" aria-label="文献统计">
-          <article v-for="metric in metrics" :key="metric.label">
-            <span>{{ metric.label }}</span>
-            <strong>{{ metric.value }}</strong>
-            <small :class="{ success: metric.success }">{{ metric.note }}</small>
-          </article>
-        </section>
-
         <LibraryToolbar
           :filters="filters"
           :year-partitions="yearPartitions"
@@ -77,6 +72,7 @@ import LibraryToolbar from '../features/library/LibraryToolbar.vue'
 import DocumentTable from '../features/library/DocumentTable.vue'
 import DocumentDetails from '../features/library/DocumentDetails.vue'
 import DocumentImportModal from '../features/library/DocumentImportModal.vue'
+import LibraryOverviewPopover from '../features/library/LibraryOverviewPopover.vue'
 import { documents as seedDocuments } from '../features/library/libraryData.js'
 import {
   calculateLibraryMetrics,
@@ -188,6 +184,12 @@ watch(
   letter-spacing: -0.02em;
 }
 
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .page-header p {
   margin: 6px 0 0;
   color: var(--asc-muted);
@@ -218,43 +220,6 @@ watch(
   border-color: var(--asc-primary);
   background: var(--asc-primary);
   color: #fff;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.summary-grid article {
-  min-height: 105px;
-  display: grid;
-  align-content: center;
-  gap: 4px;
-  padding: 16px;
-  border: 1px solid var(--asc-border);
-  border-radius: var(--asc-radius);
-  background: #fff;
-}
-
-.summary-grid span {
-  color: var(--asc-muted);
-  font-size: 10px;
-}
-
-.summary-grid strong {
-  color: #123f67;
-  font-size: 25px;
-  line-height: 1.2;
-}
-
-.summary-grid small {
-  color: var(--asc-muted);
-  font-size: 9px;
-}
-
-.summary-grid small.success {
-  color: var(--asc-success);
 }
 
 .library-workspace {
@@ -327,10 +292,6 @@ watch(
   .header-actions button {
     justify-content: center;
     padding-inline: 8px;
-  }
-
-  .summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

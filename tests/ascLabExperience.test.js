@@ -521,7 +521,7 @@ test('library composition metrics have zero-valued empty state', () => {
   })
 })
 
-test('library summary cards show retrieval-oriented metrics instead of processing state', async () => {
+test('library overview uses retrieval-oriented metrics instead of processing state', async () => {
   const source = await readFile(
     new URL('../src/views/DocumentLibraryView.vue', import.meta.url),
     'utf8'
@@ -535,6 +535,17 @@ test('library summary cards show retrieval-oriented metrics instead of processin
     source,
     /近三年文献|近年文献|覆盖年份|完成解析|进入 QA 索引|正文与索引已提取|可引用证据可用/
   )
+})
+
+test('document library hides large metrics behind the title overview', async () => {
+  const source = await readFile(
+    new URL('../src/views/DocumentLibraryView.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /LibraryOverviewPopover/)
+  assert.match(source, /:metrics="metrics"/)
+  assert.doesNotMatch(source, /class="summary-grid"/)
 })
 
 test('library overview exposes hidden metrics with complete close controls', async () => {
