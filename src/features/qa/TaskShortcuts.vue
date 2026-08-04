@@ -16,7 +16,7 @@
       </header>
       <ul class="shortcut__questions" :aria-label="`${item.title}经典问题`">
         <li v-for="question in item.questions" :key="question">
-          <button type="button" @click="$emit('select', question)">
+          <button type="button" :title="question" @click="$emit('select', question)">
             <span aria-hidden="true"></span>
             <small>{{ question }}</small>
           </button>
@@ -49,7 +49,7 @@ defineEmits(['select', 'refresh'])
 
 .shortcut {
   min-width: 0;
-  min-height: 210px;
+  min-height: 126px;
   display: grid;
   align-content: start;
   gap: 8px;
@@ -186,7 +186,7 @@ defineEmits(['select', 'refresh'])
   }
 
   .shortcut {
-    min-height: 204px;
+    min-height: 126px;
   }
 }
 </style>

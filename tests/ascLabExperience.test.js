@@ -406,7 +406,7 @@ test('NEXUS forces ontology on and locks it until Hybrid RAG is restored', () =>
   assert.equal(hybrid.settings.ontologyLocked, false)
 })
 
-test('exposes three classic questions for every approved category', () => {
+test('exposes one classic question for every approved category', () => {
   const state = guides.createQuestionGuideState?.(() => 0)
 
   assert.deepEqual(state?.map(item => item.id), [
@@ -415,19 +415,15 @@ test('exposes three classic questions for every approved category', () => {
     'characterization',
     'service'
   ])
-  assert.equal(state?.every(item => item.questions.length === 3), true)
+  assert.equal(state?.every(item => item.questions.length === 1), true)
   assert.equal(state?.[0].questions[0], 'ASC 各组分分别起什么作用？')
 })
 
-test('refreshes one three-question group without changing the other categories', () => {
+test('refreshes one classic question without changing the other categories', () => {
   const initial = guides.createQuestionGuideState?.(() => 0)
   const refreshed = guides.refreshQuestionGuide?.(initial, 'processing', () => 0)
 
-  assert.deepEqual(refreshed?.[1].questions, [
-    '混炼顺序对浇注料性能有什么影响？',
-    '烧成制度应如何匹配材料组成？',
-    '振动成型参数如何影响坯体致密度？'
-  ])
+  assert.deepEqual(refreshed?.[1].questions, ['混炼顺序对浇注料性能有什么影响？'])
   assert.equal(refreshed?.[0], initial?.[0])
   assert.equal(refreshed?.[2], initial?.[2])
   assert.equal(refreshed?.[3], initial?.[3])

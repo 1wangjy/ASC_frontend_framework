@@ -62,7 +62,7 @@ function questionIndex(random, length) {
   return Math.min(length - 1, Math.max(0, Math.floor(sampled * length)))
 }
 
-function questionGroup(questions, startIndex, count = 3) {
+function questionGroup(questions, startIndex, count = 1) {
   return Array.from(
     { length: Math.min(count, questions.length) },
     (_, offset) => questions[(startIndex + offset) % questions.length]
