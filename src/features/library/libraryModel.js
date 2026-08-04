@@ -42,7 +42,9 @@ export function calculateLibraryMetrics(documents = []) {
 }
 
 export function getYearPartitions(documents, visibleCount = 4) {
-  const years = [...new Set(documents.map(document => Number(document.year)))]
+  const years = [...new Set(documents
+    .filter(document => document.year !== null && document.year !== undefined && document.year !== '')
+    .map(document => Number(document.year)))]
     .filter(Number.isFinite)
     .sort((a, b) => b - a)
     .slice(0, Math.max(1, visibleCount))

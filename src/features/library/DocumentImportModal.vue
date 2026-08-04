@@ -4,7 +4,7 @@
       <header>
         <div>
           <h2 :id="titleId">{{ title }}</h2>
-          <p>{{ description }}</p>
+          <p>{{ modalDescription }}</p>
         </div>
         <button type="button" aria-label="关闭导入窗口" @click="$emit('close')">
           <AscIcon name="close" />
@@ -12,33 +12,36 @@
       </header>
 
       <form @submit.prevent="complete">
-        <label v-if="mode === 'doi'">
-          <span>DOI</span>
-          <input v-model="value" required placeholder="例如 10.1016/j.ceramint.2024.12.001" />
-        </label>
-
-        <label v-else class="file-drop">
+        <label class="file-drop">
           <AscIcon name="paperclip" />
-          <strong>{{ value || (mode === 'batch' ? '选择 BibTeX / CSV 文件' : '选择 PDF 文献') }}</strong>
-          <span>{{ mode === 'batch' ? '支持 .bib、.csv' : '支持单篇或多篇 PDF' }}</span>
+          <strong>{{ selectedFileNames || '选择 PDF 文献' }}</strong>
+          <span>支持一次选择单篇或多篇 PDF</span>
           <input
             type="file"
-            :accept="mode === 'batch' ? '.bib,.csv' : '.pdf'"
-            :multiple="mode === 'upload'"
+            accept=".pdf,application/pdf"
+            multiple
             required
             @change="selectFile"
           />
         </label>
 
-        <p v-if="completed" class="success-message">
-          <AscIcon name="check" />
-          已完成前端模拟导入，元数据将在接入接口后写入文献库。
-        </p>
+        <div class="metadata-fields">
+          <label>
+            <span>分类</span>
+            <input v-model="category" placeholder="例如：期刊论文" />
+          </label>
+          <label>
+            <span>文件说明（可选）</span>
+            <textarea v-model="description" rows="3" placeholder="这批文献的简短说明" />
+          </label>
+        </div>
+
+        <p v-if="errorMessage" class="error-message" role="alert">{{ errorMessage }}</p>
 
         <footer>
-          <button type="button" class="secondary" @click="$emit('close')">取消</button>
-          <button type="submit" class="primary" :disabled="!value">
-            {{ completed ? '再次导入' : '开始导入' }}
+          <button type="button" class="secondary" :disabled="busy" @click="$emit('close')">取消</button>
+          <button type="submit" class="primary" :disabled="!files.length || busy">
+            {{ busy ? '正在上传…' : '上传到后端' }}
           </button>
         </footer>
       </form>
@@ -54,43 +57,47 @@ const props = defineProps({
   mode: {
     type: String,
     default: ''
+  },
+  busy: {
+    type: Boolean,
+    default: false
+  },
+  errorMessage: {
+    type: String,
+    default: ''
   }
 })
 
 const emit = defineEmits(['close', 'complete'])
-const value = ref('')
-const completed = ref(false)
+const files = ref([])
+const category = ref('未分类')
+const description = ref('')
 const titleId = 'document-import-title'
 
-const title = computed(() => ({
-  doi: '导入 DOI',
-  batch: '批量导入',
-  upload: '上传文献'
-}[props.mode] || '导入文献'))
-
-const description = computed(() => ({
-  doi: '输入 DOI 后将自动补全标题、作者、年份和期刊信息。',
-  batch: '通过 BibTeX 或 CSV 一次导入多条文献元数据。',
-  upload: '上传 PDF 后进入解析、切片和 QA 索引流程。'
-}[props.mode] || ''))
+const title = computed(() => '上传 PDF 文献')
+const modalDescription = computed(() => '文件会保存到当前本地用户对应的后端 PDF 文件库。')
+const selectedFileNames = computed(() => files.value.map((file) => file.name).join('、'))
 
 watch(
   () => props.mode,
   () => {
-    value.value = ''
-    completed.value = false
+    files.value = []
+    category.value = '未分类'
+    description.value = ''
   }
 )
 
 function selectFile(event) {
-  const files = [...event.target.files]
-  value.value = files.map(file => file.name).join('、')
+  files.value = [...event.target.files]
 }
 
 function complete() {
-  if (!value.value) return
-  completed.value = true
-  emit('complete', { mode: props.mode, value: value.value })
+  if (!files.value.length || props.busy) return
+  emit('complete', {
+    files: [...files.value],
+    category: category.value.trim() || '未分类',
+    description: description.value.trim()
+  })
 }
 </script>
 
@@ -167,6 +174,17 @@ function complete() {
   font-size: 12px;
 }
 
+.modal textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--asc-border);
+  border-radius: 6px;
+  outline: 0;
+  font: inherit;
+  font-size: 11px;
+  resize: vertical;
+}
+
 .modal input:focus {
   border-color: #75afd1;
 }
@@ -206,15 +224,18 @@ function complete() {
   font-size: 10px;
 }
 
-.success-message {
-  display: flex;
-  align-items: center;
-  gap: 7px;
+.metadata-fields {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.error-message {
   margin: 14px 0 0;
   padding: 9px 10px;
   border-radius: 6px;
-  background: var(--asc-success-soft);
-  color: var(--asc-success);
+  background: #fff1ef;
+  color: #a53d33;
   font-size: 10px;
 }
 

@@ -18,11 +18,21 @@
     </section>
 
     <section class="detail-section">
-      <h4>关键词</h4>
-      <div class="keyword-list">
-        <span v-for="keyword in document.keywords" :key="keyword">{{ keyword }}</span>
-      </div>
+      <h4>文件信息</h4>
+      <dl class="file-metadata">
+        <div><dt>文件名</dt><dd>{{ document.filename }}</dd></div>
+        <div><dt>文件大小</dt><dd>{{ document.fileSizeLabel }}</dd></div>
+        <div><dt>上传时间</dt><dd>{{ formatDate(document.createdAt) }}</dd></div>
+      </dl>
     </section>
+
+    <footer class="detail-actions">
+      <button type="button" @click="$emit('preview', document)">在线预览</button>
+      <button type="button" @click="$emit('download', document)">下载 PDF</button>
+      <button type="button" class="danger" :disabled="busy" @click="$emit('delete', document)">
+        {{ busy ? '正在删除…' : '删除文件' }}
+      </button>
+    </footer>
   </aside>
 </template>
 
@@ -33,10 +43,20 @@ defineProps({
   document: {
     type: Object,
     default: null
+  },
+  busy: {
+    type: Boolean,
+    default: false
   }
 })
 
-defineEmits(['close'])
+defineEmits(['close', 'preview', 'download', 'delete'])
+
+function formatDate(value) {
+  if (!value) return '未知'
+  const date = new Date(value)
+  return Number.isFinite(date.getTime()) ? date.toLocaleString('zh-CN') : value
+}
 </script>
 
 <style scoped>
@@ -121,19 +141,54 @@ defineEmits(['close'])
   line-height: 1.8;
 }
 
-.keyword-list {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+.file-metadata {
+  display: grid;
+  gap: 8px;
+  margin: 0;
 }
 
-.keyword-list span {
-  padding: 5px 8px;
-  border: 1px solid #c9deea;
+.file-metadata div {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.file-metadata dt,
+.file-metadata dd {
+  margin: 0;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.file-metadata dt {
+  color: var(--asc-muted);
+}
+
+.detail-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--asc-border);
+}
+
+.detail-actions button {
+  min-height: 36px;
+  border: 1px solid #9fc3d8;
   border-radius: 6px;
-  background: #f4f9fc;
-  color: #356c8d;
-  font-size: 9px;
+  background: #fff;
+  color: var(--asc-primary);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.detail-actions .danger {
+  border-color: #e5b1ac;
+  color: #ad3f35;
+}
+
+.detail-actions button:disabled {
+  opacity: 0.55;
 }
 
 @media (max-width: 1180px) {

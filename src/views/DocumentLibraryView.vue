@@ -9,14 +9,20 @@
         <p>管理 ASC 耐火材料文献、精选资料与馆藏分类</p>
       </div>
       <div class="header-actions">
-        <button type="button" @click="importMode = 'doi'">导入 DOI</button>
-        <button type="button" @click="importMode = 'batch'">批量导入</button>
+        <button type="button" disabled title="当前后端没有 DOI 导入接口">导入 DOI（待后端）</button>
+        <button type="button" disabled title="当前后端没有 BibTeX / CSV 导入接口">批量导入（待后端）</button>
         <button type="button" class="primary" @click="importMode = 'upload'">
           <AscIcon name="plus" />
           上传文献
         </button>
       </div>
     </header>
+
+    <div v-if="loading" class="library-message" role="status">正在读取后端 PDF 文件库…</div>
+    <div v-else-if="libraryError" class="library-message library-message--error" role="alert">
+      <span>{{ libraryError }}</span>
+      <button type="button" @click="loadDocuments">重试</button>
+    </div>
 
     <section class="library-workspace" :class="{ 'library-workspace--detail': selectedDocument }">
       <div class="library-primary">
@@ -46,14 +52,20 @@
       <DocumentDetails
         v-if="selectedDocument"
         :document="selectedDocument"
+        :busy="deleting"
         @close="selectedDocumentId = ''"
+        @preview="previewDocument"
+        @download="downloadDocument"
+        @delete="deleteDocument"
       />
     </section>
 
     <DocumentImportModal
       :mode="importMode"
+      :busy="uploading"
+      :error-message="uploadError"
       @close="importMode = ''"
-      @complete="showToast('模拟导入成功，已保留待接入的交互流程。')"
+      @complete="uploadDocuments"
     />
 
     <transition name="toast">
@@ -66,14 +78,25 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AscIcon from '../components/ui/AscIcon.vue'
 import LibraryToolbar from '../features/library/LibraryToolbar.vue'
 import DocumentTable from '../features/library/DocumentTable.vue'
 import DocumentDetails from '../features/library/DocumentDetails.vue'
 import DocumentImportModal from '../features/library/DocumentImportModal.vue'
 import LibraryOverviewPopover from '../features/library/LibraryOverviewPopover.vue'
-import { documents as seedDocuments } from '../features/library/libraryData.js'
+import {
+  deletePdfFile,
+  getPdfDownloadUrl,
+  getPdfPreviewUrl,
+  listPdfFiles,
+  uploadPdfFiles
+} from '../api/pdfLibrary.js'
+import {
+  loadPdfDocuments,
+  removePdfDocument,
+  uploadPdfDocuments
+} from '../features/library/pdfLibraryAdapter.js'
 import {
   calculateLibraryMetrics,
   createLibraryFilters,
@@ -84,13 +107,18 @@ import {
   reconcileSelectedDocumentId
 } from '../features/library/libraryModel.js'
 
-const documentRows = ref(seedDocuments.map(document => ({ ...document })))
+const documentRows = ref([])
 const filters = reactive(createLibraryFilters())
 const compactView = typeof window !== 'undefined'
   && window.matchMedia('(max-width: 1180px)').matches
-const selectedDocumentId = ref(initialSelectedDocumentId(seedDocuments, compactView))
+const selectedDocumentId = ref(initialSelectedDocumentId([], compactView))
 const importMode = ref('')
 const toastMessage = ref('')
+const loading = ref(true)
+const libraryError = ref('')
+const uploading = ref(false)
+const uploadError = ref('')
+const deleting = ref(false)
 const page = ref(1)
 const pageSize = ref(20)
 let toastTimer = null
@@ -133,6 +161,63 @@ function showToast(message) {
   }, 2600)
 }
 
+async function loadDocuments() {
+  loading.value = true
+  libraryError.value = ''
+
+  try {
+    documentRows.value = await loadPdfDocuments(listPdfFiles)
+  } catch (error) {
+    documentRows.value = []
+    libraryError.value = error?.message || '无法连接到后端 PDF 文件库。'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function uploadDocuments({ files, category, description }) {
+  uploading.value = true
+  uploadError.value = ''
+
+  try {
+    await uploadPdfDocuments(uploadPdfFiles, files, { category, description })
+    await loadDocuments()
+    importMode.value = ''
+    showToast(`已上传 ${files.length} 个 PDF 文件。`)
+  } catch (error) {
+    uploadError.value = error?.message || 'PDF 上传失败。'
+  } finally {
+    uploading.value = false
+  }
+}
+
+function previewDocument(document) {
+  window.open(getPdfPreviewUrl(document.fileId), '_blank', 'noopener,noreferrer')
+}
+
+function downloadDocument(document) {
+  window.open(getPdfDownloadUrl(document.fileId), '_blank', 'noopener,noreferrer')
+}
+
+async function deleteDocument(document) {
+  const confirmed = window.confirm(`确定删除“${document.filename}”吗？这个操作不能撤销。`)
+  if (!confirmed) return
+
+  deleting.value = true
+  libraryError.value = ''
+
+  try {
+    await removePdfDocument(deletePdfFile, document.fileId)
+    selectedDocumentId.value = ''
+    await loadDocuments()
+    showToast('PDF 文件已从后端删除。')
+  } catch (error) {
+    libraryError.value = error?.message || '删除 PDF 文件失败。'
+  } finally {
+    deleting.value = false
+  }
+}
+
 watch(
   () => [filters.query, filters.type, filters.yearPartitions.join('|')],
   () => {
@@ -157,6 +242,8 @@ watch(
     )
   }
 )
+
+onMounted(loadDocuments)
 </script>
 
 <style scoped>
@@ -220,6 +307,42 @@ watch(
   border-color: var(--asc-primary);
   background: var(--asc-primary);
   color: #fff;
+}
+
+.header-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.library-message {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid #bad1de;
+  border-radius: 7px;
+  background: #f7fbfd;
+  color: var(--asc-muted);
+  font-size: 10px;
+}
+
+.library-message--error {
+  border-color: #e8b9b4;
+  background: #fff7f6;
+  color: #a44036;
+}
+
+.library-message button {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  background: #fff;
+  color: inherit;
+  font-size: 9px;
+  font-weight: 800;
 }
 
 .library-workspace {
