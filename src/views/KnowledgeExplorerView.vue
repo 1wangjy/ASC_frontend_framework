@@ -75,10 +75,10 @@ import GraphNodeSearch from '../features/knowledge/GraphNodeSearch.vue'
 import GraphCanvas from '../features/knowledge/GraphCanvas.vue'
 import { getGraphData, listProjects } from '../api/graph.js'
 import {
-  createGraphExplorerState,
-  focusGraphNode
+  createGraphExplorerState
 } from '../features/knowledge/graphExplorerModel.js'
 import {
+  focusWorkspaceNode,
   loadGraphForProject,
   loadGraphWorkspace
 } from '../features/knowledge/graphWorkspaceService.js'
@@ -152,10 +152,9 @@ async function changeProject() {
 }
 
 function focusNode(nodeId) {
-  graphState.value = focusGraphNode(
+  graphState.value = focusWorkspaceNode(
     graphState.value,
-    graphNodes,
-    graphEdges,
+    { nodes: graphNodes.value, edges: graphEdges.value },
     nodeId,
     { width: 760, height: 520, scale: 1.2 }
   )

@@ -42,9 +42,9 @@ function generatedPosition(index, total) {
   const ring = Math.floor(index / ringSize)
   const position = index % ringSize
   const countOnRing = Math.min(ringSize, Math.max(1, total - ring * ringSize))
-  const radiusX = 220 + ring * 45
-  const radiusY = 155 + ring * 30
-  const angle = -Math.PI / 2 + (position / countOnRing) * Math.PI * 2
+  const radiusX = Math.min(320, 220 + ring * 45)
+  const radiusY = Math.min(210, 155 + ring * 30)
+  const angle = -Math.PI / 2 + (position / countOnRing) * Math.PI * 2 + ring * 0.18
 
   return {
     x: Math.round(380 + Math.cos(angle) * radiusX),

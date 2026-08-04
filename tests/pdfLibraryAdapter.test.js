@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 
 import {
   adaptPdfFile,
+  formatPdfUploadErrors,
   loadPdfDocuments,
   removePdfDocument,
   uploadPdfDocuments
@@ -62,4 +63,21 @@ test('deletes only the requested backend file id', async () => {
   const calls = []
   await removePdfDocument(async (fileId) => calls.push(fileId), 'file-9')
   assert.deepEqual(calls, ['file-9'])
+})
+
+test('preserves partial upload failures returned with HTTP 207', async () => {
+  const files = [
+    new File(['one'], 'one.pdf', { type: 'application/pdf' }),
+    new File(['two'], 'two.pdf', { type: 'application/pdf' })
+  ]
+  const result = await uploadPdfDocuments(async () => ({
+    success: true,
+    data: [{ file_id: 'file-one', filename: 'one.pdf' }],
+    errors: [{ filename: 'two.pdf', error: '文件损坏' }],
+    message: '已上传 1 个文件，1 个失败'
+  }), files)
+
+  assert.equal(result.uploadedCount, 1)
+  assert.deepEqual(result.errors, [{ filename: 'two.pdf', error: '文件损坏' }])
+  assert.equal(formatPdfUploadErrors(result.errors), '部分文件上传失败：two.pdf（文件损坏）')
 })

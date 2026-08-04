@@ -1,5 +1,6 @@
 import { listGraphProjects, resolveActiveProject } from '../projects/projectContextModel.js'
 import { adaptGraphForExplorer } from './graphApiAdapter.js'
+import { focusGraphNode } from './graphExplorerModel.js'
 
 const EMPTY_GRAPH = Object.freeze({ nodes: [], edges: [] })
 
@@ -34,4 +35,14 @@ export async function loadGraphWorkspace(api, preferredProjectId = null) {
     activeProject,
     graph: await loadGraphForProject(api.getGraphData, activeProject)
   }
+}
+
+export function focusWorkspaceNode(state, graph, nodeId, viewport) {
+  return focusGraphNode(
+    state,
+    Array.isArray(graph?.nodes) ? graph.nodes : [],
+    Array.isArray(graph?.edges) ? graph.edges : [],
+    nodeId,
+    viewport
+  )
 }

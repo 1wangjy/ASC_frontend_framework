@@ -2,9 +2,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  focusWorkspaceNode,
   loadGraphForProject,
   loadGraphWorkspace
 } from '../src/features/knowledge/graphWorkspaceService.js'
+import { createGraphExplorerState } from '../src/features/knowledge/graphExplorerModel.js'
 
 test('loads usable projects, restores the preferred project, and fetches its graph', async () => {
   const graphCalls = []
@@ -57,4 +59,15 @@ test('loads a newly selected project graph', async () => {
   )
 
   assert.equal(graph.nodes[0].nodeId, 'g3')
+})
+
+test('focuses a graph node using the plain graph arrays owned by the workspace', () => {
+  const state = focusWorkspaceNode(
+    createGraphExplorerState(),
+    { nodes: [{ nodeId: 'n1', x: 100, y: 120 }], edges: [] },
+    'n1',
+    { width: 760, height: 520, scale: 1.2 }
+  )
+
+  assert.equal(state.focusedNodeId, 'n1')
 })

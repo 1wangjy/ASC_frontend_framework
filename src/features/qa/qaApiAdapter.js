@@ -25,11 +25,18 @@ function unique(values = []) {
 }
 
 function explicitCitations(value) {
-  return unique([...String(value ?? '').matchAll(/\[([^\[\]]+)\]/g)].map((match) => match[1].trim()))
+  const answer = String(value ?? '')
+  return unique([
+    ...[...answer.matchAll(/<c>\s*([^<]+?)\s*<\/c>/gi)].map((match) => match[1].trim()),
+    ...[...answer.matchAll(/\[([^\[\]]+)\]/g)].map((match) => match[1].trim())
+  ])
 }
 
 function cleanCitationMarkers(value) {
-  return String(value ?? '').replace(/\s*\[[^\[\]]+\]/g, '').trim()
+  return String(value ?? '')
+    .replace(/\s*<c>\s*[^<]+?\s*<\/c>/gi, '')
+    .replace(/\s*\[[^\[\]]+\]/g, '')
+    .trim()
 }
 
 function parseAnswer(markdown, bindings, referenceIds) {
@@ -125,6 +132,12 @@ function researchPathOf(result) {
 
 export function adaptCodGraphRagResponse(payload = {}) {
   const result = unwrapResult(payload)
+  const meaningfulAnswer = cleanCitationMarkers(result.final_answer)
+    .replace(/^#{1,6}\s+.*$/gm, '')
+    .trim()
+  if (!meaningfulAnswer) {
+    throw new Error('后端未返回有效回答，请重新尝试。')
+  }
   const rawReferences = Array.isArray(result.references) ? result.references : []
   const references = rawReferences.map(adaptReference).filter((reference) => reference.id)
   const referenceIds = references.map((reference) => reference.id)

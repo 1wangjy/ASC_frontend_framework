@@ -74,7 +74,28 @@ export async function uploadPdfDocuments(uploadPdfFiles, files = [], metadata = 
   if (metadata.category) formData.append('category', metadata.category)
   if (metadata.description) formData.append('description', metadata.description)
 
-  return uploadPdfFiles(formData)
+  const response = await uploadPdfFiles(formData)
+  const result = response?.data && !Array.isArray(response.data)
+    && (response.data.success !== undefined || response.data.errors !== undefined)
+    ? response.data
+    : response
+
+  return {
+    response,
+    uploadedCount: Array.isArray(result?.data) ? result.data.length : 0,
+    errors: Array.isArray(result?.errors) ? result.errors : [],
+    message: String(result?.message ?? '').trim()
+  }
+}
+
+export function formatPdfUploadErrors(errors = []) {
+  const details = errors.map((item) => {
+    const filename = String(item?.filename ?? item?.file ?? '未知文件').trim()
+    const reason = String(item?.error ?? item?.message ?? '上传失败').trim()
+    return `${filename}（${reason}）`
+  }).join('；')
+
+  return details ? `部分文件上传失败：${details}` : ''
 }
 
 export async function removePdfDocument(deletePdfFile, fileId) {

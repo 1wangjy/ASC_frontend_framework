@@ -76,3 +76,15 @@ test('accepts an axios backend envelope and object endpoints', () => {
   assert.equal(adapted.edges[0].source, 'source')
   assert.equal(adapted.edges[0].target, 'target')
 })
+
+test('keeps generated node positions inside the explorer viewport', () => {
+  const adapted = adaptGraphForExplorer({
+    nodes: Array.from({ length: 70 }, (_, index) => ({ id: `node-${index}` })),
+    edges: []
+  })
+
+  for (const node of adapted.nodes) {
+    assert.ok(node.x >= 40 && node.x <= 720, `x=${node.x} is outside the viewport`)
+    assert.ok(node.y >= 40 && node.y <= 480, `y=${node.y} is outside the viewport`)
+  }
+})

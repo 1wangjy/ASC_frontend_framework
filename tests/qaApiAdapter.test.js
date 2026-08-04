@@ -110,3 +110,25 @@ test('completes and fails a real API answer without substituting mock data', () 
   assert.equal(failed.errorMessage, '后端调用失败')
   assert.equal(failed.answer, null)
 })
+
+test('extracts and removes the citation markers emitted by the backend', () => {
+  const adapted = adaptCodGraphRagResponse({
+    success: true,
+    data: {
+      qa_run_id: 'qarun_citation',
+      final_answer: '## 结论\n碳化硅改善性能<c>R1</c>。',
+      references: [{ reference_id: 'R1', source_label: 'paper.pdf' }],
+      citation_bindings: []
+    }
+  })
+
+  assert.equal(adapted.answer.sections[0].body, '碳化硅改善性能。')
+  assert.deepEqual(adapted.answer.sections[0].citations, ['R1'])
+})
+
+test('rejects a successful response that contains no real answer text', () => {
+  assert.throws(() => adaptCodGraphRagResponse({
+    success: true,
+    data: { qa_run_id: 'qarun_empty', final_answer: '   ', references: [] }
+  }), /未返回有效回答/)
+})

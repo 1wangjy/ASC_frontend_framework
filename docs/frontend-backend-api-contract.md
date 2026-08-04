@@ -90,7 +90,7 @@
 | `POST /api/simulation/prepare` | `prepareSimulation` | 异步准备分析环境 | 已对齐但仅旧页面使用 | 可能生成画像并调用 LLM |
 | `POST /api/simulation/prepare/status` | `getPrepareStatus` | 查询准备任务状态 | 已对齐但仅旧页面使用 | JSON 中发送 `task_id` 或 `simulation_id` |
 | `GET /api/simulation/:simulationId` | `getSimulation` | 获取分析实例详情 | 已对齐但仅旧页面使用 | — |
-| `GET /api/simulation/:simulationId/profiles` | `getSimulationProfiles` | 获取已生成 Agent 画像 | 已对齐但仅旧页面使用 | 查询参数 `platform` |
+| `GET /api/simulation/:simulationId/profiles` | `getSimulationProfiles` | 获取已生成 Agent 画像 | 已对齐但当前未调用 | 查询参数 `platform` |
 | `GET /api/simulation/:simulationId/profiles/realtime` | `getSimulationProfilesRealtime` | 实时读取生成中的 Agent 画像 | 已对齐但仅旧页面使用 | 查询参数 `platform` |
 | `GET /api/simulation/:simulationId/config` | `getSimulationConfig` | 获取分析环境配置 | 已对齐但仅旧页面使用 | — |
 | `GET /api/simulation/:simulationId/config/realtime` | `getSimulationConfigRealtime` | 实时读取生成中的配置 | 已对齐但仅旧页面使用 | — |
@@ -99,10 +99,10 @@
 | `POST /api/simulation/stop` | `stopSimulation` | 停止模拟运行 | 已对齐但仅旧页面使用 | 发送 `simulation_id` |
 | `GET /api/simulation/:simulationId/run-status` | `getRunStatus` | 获取简要运行状态 | 已对齐但仅旧页面使用 | — |
 | `GET /api/simulation/:simulationId/run-status/detail` | `getRunStatusDetail` | 获取运行状态和最近动作 | 已对齐但仅旧页面使用 | — |
-| `GET /api/simulation/:simulationId/posts` | `getSimulationPosts` | 获取模拟帖子 | 已对齐但仅旧页面使用 | `platform`、`limit`、`offset` |
-| `GET /api/simulation/:simulationId/timeline` | `getSimulationTimeline` | 按轮次获取时间线 | 已对齐但仅旧页面使用 | `start_round`、可选 `end_round` |
-| `GET /api/simulation/:simulationId/agent-stats` | `getAgentStats` | 获取 Agent 统计 | 已对齐但仅旧页面使用 | — |
-| `GET /api/simulation/:simulationId/actions` | `getSimulationActions` | 获取动作历史 | 已对齐但仅旧页面使用 | 支持分页、平台、Agent、轮次筛选 |
+| `GET /api/simulation/:simulationId/posts` | `getSimulationPosts` | 获取模拟帖子 | 已对齐但当前未调用 | `platform`、`limit`、`offset` |
+| `GET /api/simulation/:simulationId/timeline` | `getSimulationTimeline` | 按轮次获取时间线 | 已对齐但当前未调用 | `start_round`、可选 `end_round` |
+| `GET /api/simulation/:simulationId/agent-stats` | `getAgentStats` | 获取 Agent 统计 | 已对齐但当前未调用 | — |
+| `GET /api/simulation/:simulationId/actions` | `getSimulationActions` | 获取动作历史 | 已对齐但当前未调用 | 支持分页、平台、Agent、轮次筛选 |
 | `POST /api/simulation/close-env` | `closeSimulationEnv` | 优雅关闭模拟环境 | 已对齐但仅旧页面使用 | 发送 `simulation_id`、可选超时 |
 | `POST /api/simulation/env-status` | `getEnvStatus` | 查询模拟环境进程状态 | 已对齐但仅旧页面使用 | 发送 `simulation_id` |
 | `POST /api/simulation/interview/batch` | `interviewAgents` | 批量采访 Agent | 已对齐但仅旧页面使用 | 发送采访数组；可能调用 LLM |
