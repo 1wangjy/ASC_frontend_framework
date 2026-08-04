@@ -19,13 +19,15 @@
 - Keep `src/api/index.js` as the only Axios instance and preserve `X-NEXUS-USER` behavior.
 - Write and run a failing test before each production-code task.
 - Do not call real LLM, Zep, upload, or delete endpoints from automated tests.
+- Test observable request contracts and orchestration through pure builders/services with injected API fakes. Where later task text mentions source-regex or source-inventory assertions, this behavioral-test rule supersedes it; documentation coverage is audited against exported API modules during final verification rather than treated as an executable product behavior.
 
 ---
 
 ### Task 1: Correct and lock the frontend HTTP contracts
 
 **Files:**
-- Create: `tests/apiContracts.test.js`
+- Create: `tests/requestContracts.test.js`
+- Create: `src/api/requestContracts.js`
 - Modify: `src/api/graph.js`
 - Modify: `src/api/report.js`
 
