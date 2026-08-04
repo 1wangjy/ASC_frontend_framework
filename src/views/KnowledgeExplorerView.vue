@@ -5,38 +5,151 @@
         <h1>ASC 知识图谱工作区</h1>
         <p>搜索节点并精准导航材料、物相、性能和服役关系</p>
       </div>
-      <router-link to="/knowledge">
-        <AscIcon class="back-icon" name="chevron" />
-        返回图谱入口
-      </router-link>
+      <div class="explorer-header__actions">
+        <label class="project-picker">
+          <span>当前项目</span>
+          <select
+            v-model="activeProjectId"
+            :disabled="loading || !projects.length"
+            @change="changeProject"
+          >
+            <option v-if="!projects.length" value="">暂无可用图谱</option>
+            <option
+              v-for="project in projects"
+              :key="project.project_id"
+              :value="project.project_id"
+            >
+              {{ projectLabel(project) }}
+            </option>
+          </select>
+        </label>
+        <router-link to="/knowledge">
+          <AscIcon class="back-icon" name="chevron" />
+          返回图谱入口
+        </router-link>
+      </div>
     </header>
 
     <section class="explorer-workspace">
-      <GraphNodeSearch :nodes="graphNodes" @select="focusNode" />
-      <GraphCanvas
-        :nodes="graphNodes"
-        :edges="graphEdges"
-        :state="graphState"
-        @focus="focusNode"
-        @reset="resetView"
-      />
+      <div v-if="loading" class="workspace-status" role="status">
+        <strong>正在读取后端图谱数据…</strong>
+        <span>正在加载项目列表和节点关系。</span>
+      </div>
+
+      <div v-else-if="errorMessage" class="workspace-status workspace-status--error" role="alert">
+        <strong>图谱数据加载失败</strong>
+        <span>{{ errorMessage }}</span>
+        <button type="button" @click="loadWorkspace">重试</button>
+      </div>
+
+      <div v-else-if="!projects.length" class="workspace-status">
+        <strong>后端暂时没有可浏览的图谱项目</strong>
+        <span>项目必须已经生成 graph_id 才能在这里显示。</span>
+        <button type="button" @click="loadWorkspace">重新检查</button>
+      </div>
+
+      <div v-else-if="!graphNodes.length" class="workspace-status">
+        <strong>当前项目的图谱还是空的</strong>
+        <span>项目已存在，但后端尚未返回节点和关系数据。</span>
+        <button type="button" @click="changeProject">重新加载</button>
+      </div>
+
+      <template v-else>
+        <GraphNodeSearch :nodes="graphNodes" @select="focusNode" />
+        <GraphCanvas
+          :nodes="graphNodes"
+          :edges="graphEdges"
+          :state="graphState"
+          @focus="focusNode"
+          @reset="resetView"
+        />
+      </template>
     </section>
   </main>
 </template>
 
 <script setup>
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import AscIcon from '../components/ui/AscIcon.vue'
 import GraphNodeSearch from '../features/knowledge/GraphNodeSearch.vue'
 import GraphCanvas from '../features/knowledge/GraphCanvas.vue'
-import { graphEdges, graphNodes } from '../features/knowledge/graphExplorerData.js'
+import { getGraphData, listProjects } from '../api/graph.js'
 import {
   createGraphExplorerState,
   focusGraphNode
 } from '../features/knowledge/graphExplorerModel.js'
+import {
+  loadGraphForProject,
+  loadGraphWorkspace
+} from '../features/knowledge/graphWorkspaceService.js'
+import {
+  readActiveProjectId,
+  rememberActiveProjectId
+} from '../features/projects/projectContextModel.js'
 
 const graphState = ref(createGraphExplorerState())
+const graphNodes = ref([])
+const graphEdges = ref([])
+const projects = ref([])
+const activeProjectId = ref('')
+const loading = ref(true)
+const errorMessage = ref('')
 let noticeTimer = null
+
+function projectLabel(project) {
+  return project.project_name || project.name || project.project_id
+}
+
+function selectedProject() {
+  return projects.value.find((project) => project.project_id === activeProjectId.value) ?? null
+}
+
+function applyGraph(graph) {
+  graphNodes.value = graph.nodes
+  graphEdges.value = graph.edges
+  graphState.value = createGraphExplorerState()
+}
+
+async function loadWorkspace() {
+  loading.value = true
+  errorMessage.value = ''
+
+  try {
+    const workspace = await loadGraphWorkspace(
+      { listProjects, getGraphData },
+      readActiveProjectId(window.localStorage)
+    )
+    projects.value = workspace.projects
+    activeProjectId.value = workspace.activeProject?.project_id ?? ''
+    rememberActiveProjectId(window.localStorage, activeProjectId.value)
+    applyGraph(workspace.graph)
+  } catch (error) {
+    projects.value = []
+    activeProjectId.value = ''
+    applyGraph({ nodes: [], edges: [] })
+    errorMessage.value = error?.message || '无法连接到 NEXUS Backend。'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function changeProject() {
+  const project = selectedProject()
+  if (!project) return
+
+  loading.value = true
+  errorMessage.value = ''
+  rememberActiveProjectId(window.localStorage, project.project_id)
+
+  try {
+    applyGraph(await loadGraphForProject(getGraphData, project))
+  } catch (error) {
+    applyGraph({ nodes: [], edges: [] })
+    errorMessage.value = error?.message || '当前项目的图谱数据加载失败。'
+  } finally {
+    loading.value = false
+  }
+}
 
 function focusNode(nodeId) {
   graphState.value = focusGraphNode(
@@ -58,6 +171,7 @@ function resetView() {
   graphState.value = createGraphExplorerState()
 }
 
+onMounted(loadWorkspace)
 onBeforeUnmount(() => window.clearTimeout(noticeTimer))
 </script>
 
@@ -106,6 +220,31 @@ onBeforeUnmount(() => window.clearTimeout(noticeTimer))
   font-weight: 800;
 }
 
+.explorer-header__actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.project-picker {
+  display: grid;
+  gap: 4px;
+  color: var(--asc-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.project-picker select {
+  min-width: 190px;
+  height: 36px;
+  padding: 0 30px 0 10px;
+  border: 1px solid var(--asc-border);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--asc-heading);
+  font: inherit;
+}
+
 .back-icon {
   transform: rotate(180deg);
 }
@@ -118,6 +257,46 @@ onBeforeUnmount(() => window.clearTimeout(noticeTimer))
   padding: 16px 20px 22px;
 }
 
+.workspace-status {
+  min-height: 260px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 30px;
+  border: 1px dashed #b9cfdb;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--asc-muted);
+  text-align: center;
+}
+
+.workspace-status strong {
+  color: var(--asc-heading);
+  font-size: 14px;
+}
+
+.workspace-status span {
+  font-size: 10px;
+}
+
+.workspace-status button {
+  min-height: 34px;
+  margin-top: 5px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--asc-primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.workspace-status--error {
+  border-color: #efb7b2;
+  background: #fff9f8;
+}
+
 @media (max-width: 760px) {
   .graph-explorer-page {
     min-height: calc(100vh - 56px);
@@ -126,6 +305,16 @@ onBeforeUnmount(() => window.clearTimeout(noticeTimer))
   .explorer-header {
     align-items: flex-start;
     padding: 15px 14px;
+  }
+
+  .explorer-header__actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .project-picker select {
+    min-width: 150px;
+    max-width: 180px;
   }
 
   .explorer-header h1 {
