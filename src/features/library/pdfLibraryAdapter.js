@@ -98,6 +98,12 @@ export function formatPdfUploadErrors(errors = []) {
   return details ? `部分文件上传失败：${details}` : ''
 }
 
+export function preservePdfRefreshError(currentError = '', uploadErrors = []) {
+  return uploadErrors.length
+    ? formatPdfUploadErrors(uploadErrors)
+    : String(currentError ?? '')
+}
+
 export async function removePdfDocument(deletePdfFile, fileId) {
   if (!fileId) return null
   return deletePdfFile(fileId)

@@ -5,6 +5,7 @@ import {
   adaptPdfFile,
   formatPdfUploadErrors,
   loadPdfDocuments,
+  preservePdfRefreshError,
   removePdfDocument,
   uploadPdfDocuments
 } from '../src/features/library/pdfLibraryAdapter.js'
@@ -80,4 +81,12 @@ test('preserves partial upload failures returned with HTTP 207', async () => {
   assert.equal(result.uploadedCount, 1)
   assert.deepEqual(result.errors, [{ filename: 'two.pdf', error: '文件损坏' }])
   assert.equal(formatPdfUploadErrors(result.errors), '部分文件上传失败：two.pdf（文件损坏）')
+})
+
+test('does not erase a list refresh error after a successful upload', () => {
+  assert.equal(preservePdfRefreshError('列表刷新失败，请重试。', []), '列表刷新失败，请重试。')
+  assert.equal(
+    preservePdfRefreshError('列表刷新失败，请重试。', [{ filename: 'two.pdf', error: '文件损坏' }]),
+    '部分文件上传失败：two.pdf（文件损坏）'
+  )
 })

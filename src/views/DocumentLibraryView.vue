@@ -93,8 +93,8 @@ import {
   uploadPdfFiles
 } from '../api/pdfLibrary.js'
 import {
-  formatPdfUploadErrors,
   loadPdfDocuments,
+  preservePdfRefreshError,
   removePdfDocument,
   uploadPdfDocuments
 } from '../features/library/pdfLibraryAdapter.js'
@@ -184,7 +184,7 @@ async function uploadDocuments({ files, category, description }) {
     const result = await uploadPdfDocuments(uploadPdfFiles, files, { category, description })
     await loadDocuments()
     importMode.value = ''
-    libraryError.value = formatPdfUploadErrors(result.errors)
+    libraryError.value = preservePdfRefreshError(libraryError.value, result.errors)
     showToast(result.message || `已上传 ${result.uploadedCount} 个 PDF 文件。`)
   } catch (error) {
     uploadError.value = error?.message || 'PDF 上传失败。'
