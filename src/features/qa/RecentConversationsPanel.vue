@@ -2,7 +2,7 @@
   <aside
     class="recent-conversations"
     :class="{ 'recent-conversations--compact-open': compactOpen }"
-    aria-label="最近会话"
+    :aria-label="title"
     @keydown.esc.stop="closeCompactPanel"
   >
     <button
@@ -13,13 +13,13 @@
       aria-controls="recent-conversation-list"
       @click="compactOpen = !compactOpen"
     >
-      <span>最近会话</span>
+      <span>{{ title }}</span>
       <AscIcon name="chevron" :class="{ 'is-open': compactOpen }" />
     </button>
 
     <div id="recent-conversation-list" class="recent-conversations__content">
       <div class="recent-conversations__heading">
-        <span>最近会话</span>
+        <span>{{ title }}</span>
         <small>{{ conversations.length }} 条</small>
       </div>
 
@@ -62,6 +62,10 @@ import {
 } from '../navigation/recentConversationModel.js'
 
 const props = defineProps({
+  title: {
+    type: String,
+    default: '示例问题'
+  },
   conversations: {
     type: Array,
     default: () => []

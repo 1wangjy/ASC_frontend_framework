@@ -89,7 +89,7 @@ test('recent conversations panel provides quiet expandable history controls', as
     'utf8'
   ).catch(() => '')
 
-  assert.match(source, /最近会话/)
+  assert.match(source, /示例问题/)
   assert.match(source, /查看更多历史/)
   assert.match(source, /收起历史/)
   assert.match(source, /aria-expanded/)
@@ -229,7 +229,7 @@ test('toggles one manual issue without duplicating it', () => {
   assert.equal(evaluation.toggleManualIssue?.(initial, 'unknown'), initial)
 })
 
-test('builds binary manual feedback without a document score', () => {
+test('builds backend-valid binary manual feedback scores', () => {
   const payload = evaluationService.buildManualEvaluationPayload?.(
     { question: '热震稳定性如何？', answerText: '回答正文', citationIds: ['R1'] },
     {
@@ -240,35 +240,32 @@ test('builds binary manual feedback without a document score', () => {
     }
   )
 
-  assert.deepEqual(payload, {
-    question: '热震稳定性如何？',
-    final_answer: '回答正文',
-    citation_ids: ['R1'],
-    verdict: 'inaccurate',
-    selected_excerpt: '问题片段',
-    error_types: ['evidence'],
-    comments: '证据不足'
+  assert.equal(payload.question, '热震稳定性如何？')
+  assert.equal(payload.final_answer, '回答正文')
+  assert.equal(payload.verdict, 'inaccurate')
+  assert.deepEqual(payload.scores, {
+    correctness: 2,
+    evidence_grounding: 2,
+    domain_relevance: 2,
+    overall_quality: 2
   })
-  assert.equal(Object.hasOwn(payload, 'score'), false)
-  assert.equal(Object.hasOwn(payload, 'scores'), false)
+  assert.deepEqual(payload.error_types, ['evidence_gap'])
+  assert.deepEqual(payload.answer_sources, [{ reference_id: 'R1' }])
+  assert.equal(payload.annotations[0].selected_text, '问题片段')
 })
 
 test('builds an LLM judge request from the current answer context', () => {
-  assert.deepEqual(
-    evaluationService.buildLlmEvaluationPayload?.({
+  const payload = evaluationService.buildLlmEvaluationPayload?.({
       question: '热震稳定性如何？',
       answerText: '回答正文',
       citationIds: ['R1', 'R2']
-    }),
-    {
-      question: '热震稳定性如何？',
-      final_answer: '回答正文',
-      qa_result: {
-        answer: '回答正文',
-        citation_ids: ['R1', 'R2']
-      }
-    }
-  )
+    })
+
+  assert.equal(payload.question, '热震稳定性如何？')
+  assert.equal(payload.final_answer, '回答正文')
+  assert.equal(payload.qa_result.answer, '回答正文')
+  assert.equal(payload.qa_result.final_answer, '回答正文')
+  assert.deepEqual(payload.qa_result.citation_ids, ['R1', 'R2'])
 })
 
 test('demo evaluation service returns an explicitly marked LLM result', async () => {

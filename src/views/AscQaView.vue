@@ -12,6 +12,23 @@
           <span>ASC 耐火材料智能研究平台</span>
           <strong v-if="qaState.phase !== 'empty'">研究答疑 / 热震稳定性</strong>
         </div>
+        <label class="qa-project-picker">
+          <span>知识图谱项目</span>
+          <select
+            v-model="activeProjectId"
+            :disabled="projectsLoading || !projects.length"
+            @change="changeActiveProject"
+          >
+            <option v-if="!projects.length" value="">暂无可用图谱</option>
+            <option
+              v-for="project in projects"
+              :key="project.project_id"
+              :value="project.project_id"
+            >
+              {{ projectLabel(project) }}
+            </option>
+          </select>
+        </label>
       </header>
 
       <section v-if="qaState.phase === 'empty'" class="qa-empty">
@@ -23,8 +40,14 @@
           <p>围绕耐火材料配方、工艺、组织结构、服役性能与失效机理提出问题</p>
         </div>
 
+        <div v-if="projectUnavailableMessage" class="qa-project-message" :class="{ error: projectError }">
+          <span>{{ projectUnavailableMessage }}</span>
+          <button v-if="projectError" type="button" @click="loadProjects">重试</button>
+        </div>
+
         <QuestionComposer
           v-model="draft"
+          :disabled="projectsLoading || !activeProject"
           :settings="qaState.settings"
           @update:settings="updateSettings"
           @submit="sendQuestion"
@@ -43,12 +66,13 @@
           @citation="chooseCitation"
           @open-evidence="qaState = { ...qaState, evidenceOpen: true }"
           @answer-selection="captureEvaluationExcerpt"
+          @retry="retryQuestion"
         />
 
         <QuestionComposer
           v-model="draft"
           compact
-          :disabled="qaState.phase === 'loading'"
+          :disabled="qaState.phase === 'loading' || !activeProject"
           :settings="qaState.settings"
           @update:settings="updateSettings"
           @submit="sendQuestion"
@@ -78,14 +102,19 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import QuestionComposer from '../features/qa/QuestionComposer.vue'
 import TaskShortcuts from '../features/qa/TaskShortcuts.vue'
 import ConversationPanel from '../features/qa/ConversationPanel.vue'
 import EvidencePanel from '../features/qa/EvidencePanel.vue'
 import RecentConversationsPanel from '../features/qa/RecentConversationsPanel.vue'
-import { judgeQAWithLLM, submitQAFeedback } from '../api/graph.js'
+import {
+  codGraphRAGQuery,
+  judgeQAWithLLM,
+  listProjects,
+  submitQAFeedback
+} from '../api/graph.js'
 import { recentConversations } from '../features/navigation/appNavigation.js'
 import { findRecentConversation } from '../features/navigation/recentConversationModel.js'
 import {
@@ -98,14 +127,22 @@ import {
   setManualVerdict
 } from '../features/qa/answerEvaluationModel.js'
 import {
-  completeMockAnswer,
+  completeApiAnswer,
   createQaState,
+  failApiAnswer,
   resetConversation,
   selectCitation,
   submitQuestion,
   updateAnswerEvaluation,
   updateQaSettings
 } from '../features/qa/qaDemoModel.js'
+import { requestCodAnswer } from '../features/qa/qaApiAdapter.js'
+import {
+  listGraphProjects,
+  readActiveProjectId,
+  rememberActiveProjectId,
+  resolveActiveProject
+} from '../features/projects/projectContextModel.js'
 import {
   createQuestionGuideState,
   refreshQuestionGuide
@@ -116,22 +153,94 @@ const router = useRouter()
 const qaState = ref(createQaState())
 const draft = ref('')
 const questionGuides = ref(createQuestionGuideState())
+const projects = ref([])
+const activeProjectId = ref('')
+const projectsLoading = ref(true)
+const projectError = ref('')
 const evaluationService = createAnswerEvaluationService({
-  mode: import.meta.env.VITE_QA_EVALUATION_API === 'true' ? 'api' : 'demo',
+  mode: 'api',
   api: { judgeQAWithLLM, submitQAFeedback }
 })
-let completionTimer = null
+let requestVersion = 0
 
-function sendQuestion() {
-  const nextState = submitQuestion(qaState.value, draft.value)
+const activeProject = computed(
+  () => projects.value.find((project) => project.project_id === activeProjectId.value) ?? null
+)
+const projectUnavailableMessage = computed(() => {
+  if (projectsLoading.value) return '正在读取可用于问答的知识图谱项目…'
+  if (projectError.value) return projectError.value
+  if (!activeProject.value) return '后端没有带 graph_id 的可用项目，暂时不能发起图谱问答。'
+  return ''
+})
+
+function projectLabel(project) {
+  return project.project_name || project.name || project.project_id
+}
+
+function projectsFromResponse(response) {
+  if (Array.isArray(response)) return response
+  if (Array.isArray(response?.data)) return response.data
+  if (Array.isArray(response?.data?.data)) return response.data.data
+  return []
+}
+
+async function loadProjects() {
+  projectsLoading.value = true
+  projectError.value = ''
+
+  try {
+    const response = await listProjects()
+    projects.value = listGraphProjects(projectsFromResponse(response))
+    const selected = resolveActiveProject(
+      projects.value,
+      readActiveProjectId(window.localStorage)
+    )
+    activeProjectId.value = selected?.project_id ?? ''
+    rememberActiveProjectId(window.localStorage, activeProjectId.value)
+  } catch (error) {
+    projects.value = []
+    activeProjectId.value = ''
+    projectError.value = error?.message || '无法连接到后端项目列表。'
+  } finally {
+    projectsLoading.value = false
+  }
+}
+
+function changeActiveProject() {
+  rememberActiveProjectId(window.localStorage, activeProjectId.value)
+  reset()
+}
+
+async function sendQuestion(question = draft.value) {
+  if (!activeProject.value || projectsLoading.value) return
+  const nextState = submitQuestion(qaState.value, question)
   if (nextState === qaState.value) return
 
   qaState.value = nextState
   draft.value = ''
-  window.clearTimeout(completionTimer)
-  completionTimer = window.setTimeout(() => {
-    qaState.value = completeMockAnswer(qaState.value)
-  }, 720)
+  const currentRequest = ++requestVersion
+
+  try {
+    const adapted = await requestCodAnswer(codGraphRAGQuery, {
+      question: nextState.question,
+      project: activeProject.value,
+      settings: nextState.settings
+    })
+    if (currentRequest === requestVersion) {
+      qaState.value = completeApiAnswer(qaState.value, adapted)
+    }
+  } catch (error) {
+    if (currentRequest === requestVersion) {
+      qaState.value = failApiAnswer(qaState.value, error)
+    }
+  }
+}
+
+function retryQuestion() {
+  const question = qaState.value.question
+  if (!question) return
+  draft.value = question
+  sendQuestion(question)
 }
 
 function updateSettings(patch) {
@@ -170,7 +279,9 @@ function getEvaluationContext() {
       currentAnswer.summary,
       ...currentAnswer.sections.map(section => `${section.title}：${section.body}`)
     ].join('\n'),
-    citationIds: [...currentAnswer.citationIds]
+    citationIds: [...currentAnswer.citationIds],
+    qaRunId: qaState.value.qaRunId,
+    qaResult: qaState.value.qaResult
   }
 }
 
@@ -246,7 +357,7 @@ function refreshGuide(categoryId) {
 }
 
 function reset() {
-  window.clearTimeout(completionTimer)
+  requestVersion += 1
   qaState.value = resetConversation()
   draft.value = ''
   questionGuides.value = createQuestionGuideState()
@@ -282,7 +393,7 @@ watch(
   { immediate: true }
 )
 
-onBeforeUnmount(() => window.clearTimeout(completionTimer))
+onMounted(loadProjects)
 </script>
 
 <style scoped>
@@ -334,6 +445,26 @@ onBeforeUnmount(() => window.clearTimeout(completionTimer))
   border-left: 1px solid var(--asc-border);
   color: var(--asc-heading);
   font-size: 12px;
+}
+
+.qa-project-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--asc-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.qa-project-picker select {
+  min-width: 190px;
+  height: 34px;
+  padding: 0 28px 0 9px;
+  border: 1px solid var(--asc-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--asc-heading);
+  font-size: 10px;
 }
 
 .qa-empty {
@@ -396,6 +527,37 @@ onBeforeUnmount(() => window.clearTimeout(completionTimer))
   font-weight: 500;
   letter-spacing: 0.01em;
   text-align: center;
+}
+
+.qa-project-message {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border: 1px solid #c2d8e5;
+  border-radius: 7px;
+  background: #f7fbfd;
+  color: var(--asc-muted);
+  font-size: 10px;
+}
+
+.qa-project-message.error {
+  border-color: #e6b5af;
+  background: #fff7f6;
+  color: #9e4037;
+}
+
+.qa-project-message button {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  background: #fff;
+  color: inherit;
+  font-size: 9px;
+  font-weight: 800;
 }
 
 .qa-session {

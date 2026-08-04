@@ -84,6 +84,9 @@ export function createQaState() {
   return {
     phase: 'empty',
     question: '',
+    qaRunId: '',
+    qaResult: null,
+    errorMessage: '',
     answer: null,
     references: [],
     evidenceOpen: false,
@@ -101,11 +104,47 @@ export function submitQuestion(state, question) {
     ...state,
     phase: 'loading',
     question: normalizedQuestion,
+    qaRunId: '',
+    qaResult: null,
+    errorMessage: '',
     answer: null,
     references: [],
     evidenceOpen: false,
     selectedCitationId: null,
     evaluation: createAnswerEvaluationState()
+  }
+}
+
+export function completeApiAnswer(state, adaptedAnswer) {
+  if (!state || state.phase !== 'loading' || !adaptedAnswer?.answer) return state
+
+  const references = Array.isArray(adaptedAnswer.references) ? adaptedAnswer.references : []
+  return {
+    ...state,
+    phase: 'answered',
+    qaRunId: adaptedAnswer.qaRunId || '',
+    qaResult: adaptedAnswer.qaResult || null,
+    errorMessage: '',
+    answer: adaptedAnswer.answer,
+    references,
+    evidenceOpen: references.length > 0,
+    selectedCitationId: references[0]?.id ?? null
+  }
+}
+
+export function failApiAnswer(state, error) {
+  if (!state || state.phase !== 'loading') return state
+
+  return {
+    ...state,
+    phase: 'error',
+    qaRunId: '',
+    qaResult: null,
+    errorMessage: String(error?.message ?? '').trim() || '问答请求失败，请重新尝试。',
+    answer: null,
+    references: [],
+    evidenceOpen: false,
+    selectedCitationId: null
   }
 }
 

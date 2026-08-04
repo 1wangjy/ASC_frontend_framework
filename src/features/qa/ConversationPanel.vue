@@ -15,6 +15,15 @@
       </div>
     </div>
 
+    <div v-else-if="state.phase === 'error'" class="message-row">
+      <div class="avatar avatar--asc">ASC</div>
+      <div class="answer-card answer-card--error" role="alert">
+        <strong>这次问答没有完成</strong>
+        <p>{{ state.errorMessage }}</p>
+        <button type="button" @click="$emit('retry')">重新请求后端</button>
+      </div>
+    </div>
+
     <div v-else-if="state.answer" class="message-row">
       <div class="avatar avatar--asc">ASC</div>
       <article
@@ -77,7 +86,7 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['citation', 'open-evidence', 'answer-selection'])
+const emit = defineEmits(['citation', 'open-evidence', 'answer-selection', 'retry'])
 const answerCard = ref(null)
 
 function captureAnswerSelection() {
@@ -273,6 +282,34 @@ function captureAnswerSelection() {
   margin: 24px 0 0;
   color: var(--asc-muted);
   font-size: 12px;
+}
+
+.answer-card--error {
+  border-color: #e8b8b2;
+  background: #fff8f7;
+}
+
+.answer-card--error strong {
+  color: #9d3f36;
+  font-size: 13px;
+}
+
+.answer-card--error p {
+  margin: 7px 0 13px;
+  color: #735a57;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.answer-card--error button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--asc-primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
 }
 
 @keyframes pulse {

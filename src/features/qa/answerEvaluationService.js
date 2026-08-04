@@ -7,8 +7,53 @@ function normalizeContext(context = {}) {
   return {
     question: String(context.question ?? '').trim(),
     answerText: String(context.answerText ?? '').trim(),
-    citationIds: Array.isArray(context.citationIds) ? [...context.citationIds] : []
+    citationIds: Array.isArray(context.citationIds) ? [...context.citationIds] : [],
+    qaRunId: String(context.qaRunId ?? '').trim(),
+    qaResult: context.qaResult && typeof context.qaResult === 'object' ? context.qaResult : {}
   }
+}
+
+const ISSUE_TYPE_MAP = {
+  retrieval: 'retrieval_failure',
+  knowledge: 'knowledge_gap',
+  reasoning: 'reasoning_error',
+  evidence: 'evidence_gap',
+  unsupported: 'hallucination',
+  incomplete: 'incomplete_answer',
+  domain: 'domain_mismatch'
+}
+
+const ERROR_TYPE_LABELS = {
+  retrieval_failure: '检索失败',
+  knowledge_gap: '知识缺失',
+  reasoning_error: '推理错误',
+  evidence_gap: '证据不足',
+  hallucination: '无依据断言',
+  incomplete_answer: '回答不完整',
+  domain_mismatch: '领域不匹配',
+  prompt_or_style_issue: '表达策略问题'
+}
+
+function scoreSet(value) {
+  return {
+    correctness: value,
+    evidence_grounding: value,
+    domain_relevance: value,
+    overall_quality: value
+  }
+}
+
+function qaResultOf(context) {
+  const result = {
+    ...context.qaResult,
+    question: context.question,
+    final_answer: context.answerText,
+    answer: context.answerText,
+    citation_ids: context.citationIds
+  }
+  const qaRunId = context.qaRunId || context.qaResult.qa_run_id
+  if (qaRunId) result.qa_run_id = qaRunId
+  return result
 }
 
 function wait(delay) {
@@ -17,27 +62,105 @@ function wait(delay) {
 
 export function buildManualEvaluationPayload(context, manual = {}) {
   const normalized = normalizeContext(context)
-  return {
+  const errorTypes = Array.isArray(manual.issueTypes)
+    ? manual.issueTypes.map((type) => ISSUE_TYPE_MAP[type] || type).filter(Boolean)
+    : []
+  const selectedExcerpt = normalizeAnswerExcerpt(manual.selectedExcerpt)
+  const comment = String(manual.comment ?? '').trim()
+  const verdict = manual.verdict ?? ''
+
+  const payload = {
     question: normalized.question,
     final_answer: normalized.answerText,
-    citation_ids: normalized.citationIds,
-    verdict: manual.verdict ?? null,
-    selected_excerpt: normalizeAnswerExcerpt(manual.selectedExcerpt),
-    error_types: Array.isArray(manual.issueTypes) ? [...manual.issueTypes] : [],
-    comments: String(manual.comment ?? '').trim()
+    qa_result: qaResultOf(normalized),
+    scores: scoreSet(verdict === 'accurate' ? 5 : 2),
+    verdict,
+    error_types: errorTypes,
+    correction_suggestions: verdict === 'inaccurate' ? comment : '',
+    comments: comment,
+    annotations: selectedExcerpt ? [{
+      selected_text: selectedExcerpt,
+      error_type: errorTypes[0] || '',
+      comment
+    }] : [],
+    answer_sources: normalized.citationIds.map((referenceId) => ({ reference_id: referenceId }))
   }
+  if (normalized.qaRunId) payload.qa_run_id = normalized.qaRunId
+  return payload
 }
 
 export function buildLlmEvaluationPayload(context) {
   const normalized = normalizeContext(context)
-  return {
+  const payload = {
     question: normalized.question,
     final_answer: normalized.answerText,
-    qa_result: {
-      answer: normalized.answerText,
-      citation_ids: normalized.citationIds
-    }
+    qa_result: qaResultOf(normalized)
   }
+  if (normalized.qaRunId) payload.qa_run_id = normalized.qaRunId
+  return payload
+}
+
+function responseData(payload) {
+  if (payload?.scores || payload?.overall_score !== undefined) return payload
+  if (payload?.data?.scores || payload?.data?.overall_score !== undefined) return payload.data
+  if (payload?.data?.data?.scores || payload?.data?.data?.overall_score !== undefined) return payload.data.data
+  return {}
+}
+
+function suggestionsOf(value) {
+  return String(value ?? '')
+    .split(/[。；;\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+export function adaptLlmEvaluationResponse(payload = {}) {
+  const result = responseData(payload)
+  const scores = result.scores && typeof result.scores === 'object' ? result.scores : {}
+  const overallScore = Number(result.overall_score)
+  const confidence = Number(result.confidence)
+  const scoreLabel = Number.isFinite(overallScore) ? `${overallScore}/5` : '评分未知'
+  const confidenceLabel = Number.isFinite(confidence) ? ` · 置信度 ${Math.round(confidence * 100)}%` : ''
+  const dimensions = [
+    ['correctness', '回答正确性'],
+    ['evidence_grounding', '证据支撑'],
+    ['domain_relevance', '领域相关性'],
+    ['overall_quality', '整体质量']
+  ].map(([key, label]) => ({ label, result: scores[key] !== undefined ? `${scores[key]}/5` : '未评分' }))
+
+  return {
+    isDemo: false,
+    summary: String(result.rationale || result.comments || '后端已完成 LLM 评估。'),
+    confidenceLabel: `总体评分 ${scoreLabel}${confidenceLabel}`,
+    model: String(result.model || result.written_by || 'Backend LLM Judge'),
+    version: String(result.method || result.status || 'api'),
+    evaluatedAt: new Date().toISOString(),
+    dimensions,
+    risks: (Array.isArray(result.error_types) ? result.error_types : [])
+      .map((type) => ERROR_TYPE_LABELS[type] || String(type)),
+    suggestions: suggestionsOf(result.correction_suggestions),
+    raw: result
+  }
+}
+
+export function buildLlmFeedbackPayload(context, adaptedResult = {}) {
+  const normalized = normalizeContext(context)
+  const raw = adaptedResult.raw && typeof adaptedResult.raw === 'object' ? adaptedResult.raw : {}
+  const overallScore = Number(raw.overall_score)
+
+  const payload = {
+    question: normalized.question,
+    final_answer: normalized.answerText,
+    qa_result: qaResultOf(normalized),
+    scores: raw.scores || scoreSet(3),
+    verdict: Number.isFinite(overallScore) && overallScore >= 3.5 ? 'accurate' : 'inaccurate',
+    error_types: Array.isArray(raw.error_types) ? raw.error_types : [],
+    correction_suggestions: String(raw.correction_suggestions ?? ''),
+    comments: String(raw.comments || raw.rationale || ''),
+    metadata: { evaluation_source: 'llm', judge_id: raw.judge_id || '' }
+  }
+  if (normalized.qaRunId) payload.qa_run_id = normalized.qaRunId
+  return payload
 }
 
 export function getAnswerEvaluationErrorMessage(error) {
@@ -60,21 +183,18 @@ export function createAnswerEvaluationService({ mode = 'demo', delay = 320, api 
         }
         return api.submitQAFeedback(buildManualEvaluationPayload(context, manual))
       },
-      runLlm(context) {
+      async runLlm(context) {
         if (typeof api.judgeQAWithLLM !== 'function') {
-          return Promise.reject(new Error('LLM 评估接口尚未配置'))
+          throw new Error('LLM 评估接口尚未配置')
         }
-        return api.judgeQAWithLLM(buildLlmEvaluationPayload(context))
+        const response = await api.judgeQAWithLLM(buildLlmEvaluationPayload(context))
+        return adaptLlmEvaluationResponse(response)
       },
       saveLlm(context, result) {
         if (typeof api.submitQAFeedback !== 'function') {
           return Promise.reject(new Error('LLM 评估保存接口尚未配置'))
         }
-        return api.submitQAFeedback({
-          ...buildLlmEvaluationPayload(context),
-          evaluation_source: 'llm',
-          llm_evaluation: result
-        })
+        return api.submitQAFeedback(buildLlmFeedbackPayload(context, result))
       }
     }
   }
