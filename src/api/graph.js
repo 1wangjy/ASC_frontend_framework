@@ -1,23 +1,6 @@
 import service, { requestWithRetry } from './index'
 import { buildListProjectsRequest } from './requestContracts'
 
-const DEFAULT_GRAPH_LAUNCH_ENDPOINT = '/api/graph/launch'
-
-/**
- * 同步启动知识图谱页面。后端完成准备后直接返回页面地址。
- * @param {String} endpoint - 可由 VITE_GRAPH_LAUNCH_API 覆盖
- * @returns {Promise<Object>}
- */
-export function launchKnowledgeGraph(endpoint = DEFAULT_GRAPH_LAUNCH_ENDPOINT) {
-  const normalizedEndpoint = String(endpoint ?? '').trim() || DEFAULT_GRAPH_LAUNCH_ENDPOINT
-
-  return service({
-    url: normalizedEndpoint,
-    method: 'post',
-    timeout: 15 * 60 * 1000
-  })
-}
-
 /**
  * 预创建本体生成项目，用于长时间 LLM 调用期间轮询进度
  * @param {Object} data

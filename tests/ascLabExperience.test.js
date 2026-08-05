@@ -12,7 +12,6 @@ const library = await import('../src/features/library/libraryModel.js').catch(()
 const libraryData = await import('../src/features/library/libraryData.js').catch(() => ({}))
 const routes = await import('../src/config/ascRoutes.js').catch(() => ({}))
 const overview = await import('../src/features/overview/moduleCatalog.js').catch(() => ({}))
-const launcher = await import('../src/features/knowledge/knowledgeGraphLauncher.js').catch(() => ({}))
 const graphData = await import('../src/features/knowledge/graphExplorerData.js').catch(() => ({}))
 const graph = await import('../src/features/knowledge/graphExplorerModel.js').catch(() => ({}))
 
@@ -775,139 +774,14 @@ test('defines route-complete supporting modules without generated research resul
   )
 })
 
-test('waits for the graph launch API and normalizes its returned page address', async () => {
-  const requestedEndpoints = []
-  const result = await launcher.requestGraphLaunch?.({
-    endpoint: '/api/graph/launch',
-    launchApi: async endpoint => {
-      requestedEndpoints.push(endpoint)
-      return {
-        redirect_url: 'https://graph.example.com/session/42',
-        graph_session_id: '42'
-      }
-    },
-    currentUrl: 'http://localhost/knowledge'
-  })
-
-  assert.deepEqual(requestedEndpoints, ['/api/graph/launch'])
-  assert.deepEqual(result, {
-    redirectUrl: 'https://graph.example.com/session/42',
-    graphSessionId: '42'
-  })
-})
-
-test('routes every same-origin relative graph address through Vue Router', () => {
-  assert.deepEqual(
-    launcher.getGraphNavigationTarget?.(
-      'knowledge/explorer?session=42#material:sic',
-      'http://localhost/knowledge'
-    ),
-    {
-      kind: 'internal',
-      target: '/knowledge/explorer?session=42#material:sic'
-    }
-  )
-  assert.deepEqual(
-    launcher.getGraphNavigationTarget?.(
-      'https://graph.example.com/session/42',
-      'http://localhost/knowledge'
-    ),
-    {
-      kind: 'external',
-      target: 'https://graph.example.com/session/42'
-    }
-  )
-})
-
-test('keeps the current graph entry path for query-only and hash-only redirects', () => {
-  assert.deepEqual(
-    launcher.getGraphNavigationTarget?.('?session=42', 'http://localhost/knowledge'),
-    {
-      kind: 'internal',
-      target: '/knowledge?session=42'
-    }
-  )
-  assert.deepEqual(
-    launcher.getGraphNavigationTarget?.('#material:sic', 'http://localhost/knowledge'),
-    {
-      kind: 'internal',
-      target: '/knowledge#material:sic'
-    }
-  )
-})
-
-test('rejects an unsafe graph redirect returned by the launch API', async () => {
-  await assert.rejects(
-    launcher.requestGraphLaunch?.({
-      endpoint: '/api/graph/launch',
-      launchApi: async () => ({ url: 'javascript:alert(1)' })
-    }),
-    /无效的图谱跳转地址/
-  )
-})
-
-test('rejects an empty graph launch response with a useful address error', async () => {
-  await assert.rejects(
-    launcher.requestGraphLaunch?.({
-      endpoint: '/api/graph/launch',
-      launchApi: async () => null
-    }),
-    /无效的图谱跳转地址/
-  )
-})
-
-test('keeps the launch API failure available to the retry UI', async () => {
-  await assert.rejects(
-    launcher.requestGraphLaunch?.({
-      endpoint: '/api/graph/launch',
-      launchApi: async () => {
-        throw new Error('图谱构建失败，请重试')
-      }
-    }),
-    /图谱构建失败，请重试/
-  )
-})
-
-test('turns technical graph launch failures into actionable Chinese messages', () => {
-  const timeoutError = Object.assign(new Error('timeout of 900000ms exceeded'), {
-    code: 'ECONNABORTED'
-  })
-
-  assert.equal(
-    launcher.getGraphLaunchErrorMessage?.(timeoutError),
-    '图谱准备时间过长，请稍后重试'
-  )
-  assert.equal(
-    launcher.getGraphLaunchErrorMessage?.(new Error('Request failed with status code 500')),
-    '图谱服务暂时不可用，请稍后重试'
-  )
-  assert.equal(
-    launcher.getGraphLaunchErrorMessage?.(new Error('图谱构建失败，请重试')),
-    '图谱构建失败，请重试'
-  )
-})
-
-test('uses the shared API client for one long graph launch request', async () => {
-  const graphApi = await readFile(new URL('../src/api/graph.js', import.meta.url), 'utf8')
-  const launchApiFunction = graphApi.match(
-    /export function launchKnowledgeGraph[\s\S]*?\r?\n}\r?\n/
-  )?.[0] ?? ''
-
-  assert.match(launchApiFunction, /export function launchKnowledgeGraph/)
-  assert.match(launchApiFunction, /method:\s*['"]post['"]/)
-  assert.match(launchApiFunction, /timeout:\s*15\s*\*\s*60\s*\*\s*1000/)
-  assert.doesNotMatch(launchApiFunction, /requestWithRetry/)
-})
-
-test('shows a guarded loading state and retry action while launching the graph', async () => {
+test('routes the graph entry into the existing workflow without inventing a backend API', async () => {
   const view = await readFile(new URL('../src/views/KnowledgeView.vue', import.meta.url), 'utf8')
+  const graphApi = await readFile(new URL('../src/api/graph.js', import.meta.url), 'utf8')
 
   assert.match(view, /进入知识图谱/)
-  assert.match(view, /正在进入…/)
-  assert.match(view, /:disabled="launching"/)
-  assert.match(view, /if \(launching\.value\) return/)
-  assert.match(view, /currentUrl:\s*window\.location\.href/)
-  assert.match(view, />重试<\/button>/)
+  assert.match(view, /router\.push\(['"]\/process\/new['"]\)/)
+  assert.doesNotMatch(view, /launchKnowledgeGraph|requestGraphLaunch|VITE_GRAPH_LAUNCH_API/)
+  assert.doesNotMatch(graphApi, /\/api\/graph\/launch|launchKnowledgeGraph/)
 })
 
 test('searches graph nodes by label alias and stable node id', () => {

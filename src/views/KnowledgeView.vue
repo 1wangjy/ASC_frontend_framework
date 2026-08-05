@@ -10,63 +10,23 @@
         <span class="launch-card__icon"><AscIcon name="graph" /></span>
         <h2>ASC 知识图谱</h2>
         <p>检索材料、组分、物相、性能与服役关系，并精准定位目标节点。</p>
-        <button type="button" :disabled="launching" @click="launchGraph">
-          <AscIcon v-if="launching" class="launch-spinner" name="refresh" />
-          <span>{{ launching ? '正在进入…' : '进入知识图谱' }}</span>
-          <AscIcon v-if="!launching" name="chevron" />
+        <button type="button" @click="launchGraph">
+          <span>进入知识图谱</span>
+          <AscIcon name="chevron" />
         </button>
-        <div v-if="launchError" class="launch-error" role="alert">
-          <span>{{ launchError }}</span>
-          <button type="button" @click="launchGraph">重试</button>
-        </div>
       </article>
     </section>
   </main>
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { launchKnowledgeGraph } from '../api/graph.js'
 import AscIcon from '../components/ui/AscIcon.vue'
-import {
-  getGraphLaunchErrorMessage,
-  getGraphNavigationTarget,
-  requestGraphLaunch
-} from '../features/knowledge/knowledgeGraphLauncher.js'
 
 const router = useRouter()
-const launching = ref(false)
-const launchError = ref('')
 
-async function launchGraph() {
-  if (launching.value) return
-
-  launching.value = true
-  launchError.value = ''
-
-  try {
-    const result = await requestGraphLaunch({
-      endpoint: import.meta.env.VITE_GRAPH_LAUNCH_API || '/api/graph/launch',
-      launchApi: launchKnowledgeGraph,
-      currentUrl: window.location.href
-    })
-    const navigation = getGraphNavigationTarget(result.redirectUrl, window.location.href)
-
-    if (!navigation) {
-      throw new Error('无效的图谱跳转地址')
-    }
-
-    if (navigation.kind === 'internal') {
-      await router.push(navigation.target)
-    } else {
-      window.location.assign(navigation.target)
-    }
-  } catch (error) {
-    launchError.value = getGraphLaunchErrorMessage(error)
-  } finally {
-    launching.value = false
-  }
+function launchGraph() {
+  router.push('/process/new')
 }
 </script>
 
@@ -155,44 +115,6 @@ async function launchGraph() {
 
 .launch-card > button:hover:not(:disabled) {
   background: var(--asc-primary-hover);
-}
-
-.launch-card > button:disabled {
-  cursor: wait;
-  opacity: 0.72;
-}
-
-.launch-spinner {
-  animation: launch-spin 0.9s linear infinite;
-}
-
-@keyframes launch-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.launch-error {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  margin-top: 12px;
-  color: var(--asc-danger);
-  font-size: 10px;
-}
-
-.launch-error button {
-  border: 0;
-  background: transparent;
-  color: var(--asc-primary);
-  font-size: 10px;
-  font-weight: 800;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .launch-spinner {
-    animation: none;
-  }
 }
 
 @media (max-width: 760px) {
