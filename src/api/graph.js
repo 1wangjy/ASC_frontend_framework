@@ -1,5 +1,11 @@
 import service, { requestWithRetry } from './index'
-import { buildListProjectsRequest } from './requestContracts'
+import {
+  buildDeleteGraphProjectRequest,
+  buildDeleteGraphRequest,
+  buildListProjectsRequest,
+  buildResetGraphProjectRequest,
+  buildUpdateGraphEdgeRequest
+} from './requestContracts'
 
 /**
  * 预创建本体生成项目，用于长时间 LLM 调用期间轮询进度
@@ -123,6 +129,26 @@ export function getProject(projectId) {
     url: `/api/graph/project/${projectId}`,
     method: 'get'
   })
+}
+
+/** 编辑本地图谱关系元数据。 */
+export function updateGraphEdgeMetadata(projectId, edgeId, data) {
+  return service(buildUpdateGraphEdgeRequest(projectId, edgeId, data))
+}
+
+/** 保留本体并重置图谱构建状态。 */
+export function resetGraphProject(projectId) {
+  return service(buildResetGraphProjectRequest(projectId))
+}
+
+/** 删除后端本地项目目录。 */
+export function deleteGraphProject(projectId) {
+  return service(buildDeleteGraphProjectRequest(projectId))
+}
+
+/** 删除 Zep 中的远端图谱。 */
+export function deleteGraph(graphId) {
+  return service(buildDeleteGraphRequest(graphId))
 }
 
 /**

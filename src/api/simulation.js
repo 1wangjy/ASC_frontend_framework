@@ -1,4 +1,5 @@
 import service, { requestWithRetry } from './index'
+import { buildSimulationInterviewRequest } from './requestContracts'
 
 /**
  * 创建ASC文献分析工作台实例（接口路径沿用 simulation）
@@ -173,7 +174,17 @@ export const getEnvStatus = (data) => {
  * @param {Object} data - { simulation_id, interviews: [{ agent_id, prompt }] }
  */
 export const interviewAgents = (data) => {
-  return requestWithRetry(() => service.post('/api/simulation/interview/batch', data), 3, 1000)
+  return requestWithRetry(() => service(buildSimulationInterviewRequest('batch', data)), 3, 1000)
+}
+
+/** 采访单个分析 Agent。 */
+export const interviewAgent = (data) => {
+  return requestWithRetry(() => service(buildSimulationInterviewRequest('single', data)), 3, 1000)
+}
+
+/** 使用同一个问题采访工作台内全部分析 Agent。 */
+export const interviewAllAgents = (data) => {
+  return requestWithRetry(() => service(buildSimulationInterviewRequest('all', data)), 3, 1000)
 }
 
 /**

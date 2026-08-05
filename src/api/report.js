@@ -1,5 +1,9 @@
 import service, { requestWithRetry } from './index'
-import { buildReportStatusRequest } from './requestContracts'
+import {
+  buildReportDownloadRequest,
+  buildReportSectionsRequest,
+  buildReportStatusRequest
+} from './requestContracts'
 
 /**
  * 开始报告生成
@@ -41,6 +45,16 @@ export const getConsoleLog = (reportId, fromLine = 0) => {
  */
 export const getReport = (reportId) => {
   return service.get(`/api/report/${reportId}`)
+}
+
+/** 获取后端已生成的报告章节。 */
+export const getReportSections = (reportId) => {
+  return service(buildReportSectionsRequest(reportId))
+}
+
+/** 下载后端生成的 Markdown 报告。 */
+export const downloadReport = (reportId) => {
+  return service(buildReportDownloadRequest(reportId))
 }
 
 /**
