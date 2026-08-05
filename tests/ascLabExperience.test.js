@@ -572,6 +572,24 @@ test('document library hides large metrics behind the title overview', async () 
   assert.doesNotMatch(source, /class="summary-grid"/)
 })
 
+test('hands selected backend PDF file ids to the existing graph workflow', async () => {
+  const view = await readFile(
+    new URL('../src/views/DocumentLibraryView.vue', import.meta.url),
+    'utf8'
+  )
+  const table = await readFile(
+    new URL('../src/features/library/DocumentTable.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(view, /使用选中文献构建图谱/)
+  assert.match(view, /setPendingUpload/)
+  assert.match(view, /pdfLibraryFileIds/)
+  assert.match(view, /router\.push\(['"]\/process\/new['"]\)/)
+  assert.match(table, /selectedIds/)
+  assert.match(table, /toggle-selection/)
+})
+
 test('library overview exposes hidden metrics with complete close controls', async () => {
   const source = await readFile(
     new URL('../src/features/library/LibraryOverviewPopover.vue', import.meta.url),

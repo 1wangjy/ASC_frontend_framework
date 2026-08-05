@@ -9,6 +9,13 @@
         <p>管理 ASC 耐火材料文献、精选资料与馆藏分类</p>
       </div>
       <div class="header-actions">
+        <button
+          type="button"
+          :disabled="!selectedDocumentIds.length || loading"
+          @click="buildGraphFromSelection"
+        >
+          使用选中文献构建图谱
+        </button>
         <button type="button" disabled title="当前后端没有 DOI 导入接口">导入 DOI（待后端）</button>
         <button type="button" disabled title="当前后端没有 BibTeX / CSV 导入接口">批量导入（待后端）</button>
         <button type="button" class="primary" @click="importMode = 'upload'">
@@ -37,12 +44,14 @@
         <DocumentTable
           :documents="pagination.items"
           :selected-id="selectedDocumentId"
+          :selected-ids="selectedDocumentIds"
           :page="pagination.page"
           :page-count="pagination.pageCount"
           :page-size="pagination.pageSize"
           :page-sizes="pagination.pageSizes"
           :total="pagination.total"
           @select="selectedDocumentId = $event"
+          @toggle-selection="toggleDocumentSelection"
           @reset="resetFilters"
           @change-page="page = $event"
           @change-page-size="changePageSize"
@@ -79,6 +88,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import AscIcon from '../components/ui/AscIcon.vue'
 import LibraryToolbar from '../features/library/LibraryToolbar.vue'
 import DocumentTable from '../features/library/DocumentTable.vue'
@@ -107,12 +117,20 @@ import {
   paginateDocuments,
   reconcileSelectedDocumentId
 } from '../features/library/libraryModel.js'
+import {
+  buildPdfLibrarySelection,
+  reconcileSelectedDocumentIds,
+  toggleSelectedDocumentId
+} from '../features/library/libraryWorkflowModel.js'
+import { setPendingUpload } from '../store/pendingUpload.js'
 
+const router = useRouter()
 const documentRows = ref([])
 const filters = reactive(createLibraryFilters())
 const compactView = typeof window !== 'undefined'
   && window.matchMedia('(max-width: 1180px)').matches
 const selectedDocumentId = ref(initialSelectedDocumentId([], compactView))
+const selectedDocumentIds = ref([])
 const importMode = ref('')
 const toastMessage = ref('')
 const loading = ref(true)
@@ -152,6 +170,27 @@ function resetFilters() {
 function changePageSize(size) {
   pageSize.value = size
   page.value = 1
+}
+
+function toggleDocumentSelection(documentId) {
+  selectedDocumentIds.value = toggleSelectedDocumentId(
+    selectedDocumentIds.value,
+    documentId
+  )
+}
+
+function buildGraphFromSelection() {
+  const selection = buildPdfLibrarySelection(documentRows.value, selectedDocumentIds.value)
+  if (!selection.fileIds.length) return
+
+  setPendingUpload([], '', '', '', {
+    dataType: 'pdf_library',
+    buildStage: 'base',
+    sourceCorpusType: 'survey',
+    pdfLibraryFileIds: selection.fileIds,
+    pdfLibraryFiles: selection.files
+  })
+  router.push('/process/new')
 }
 
 function showToast(message) {
@@ -241,6 +280,16 @@ watch(
       documents,
       selectedDocumentId.value,
       compactView
+    )
+  }
+)
+
+watch(
+  documentRows,
+  documents => {
+    selectedDocumentIds.value = reconcileSelectedDocumentIds(
+      selectedDocumentIds.value,
+      documents
     )
   }
 )
@@ -411,7 +460,7 @@ onMounted(loadDocuments)
 
   .header-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 
   .header-actions button {

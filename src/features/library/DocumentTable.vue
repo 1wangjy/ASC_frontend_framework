@@ -23,9 +23,16 @@
             @keydown.enter="$emit('select', document.id)"
           >
             <td class="checkbox-cell">
-              <span class="fake-checkbox" :class="{ checked: document.id === selectedId }">
-                <AscIcon v-if="document.id === selectedId" name="check" />
-              </span>
+              <button
+                type="button"
+                class="fake-checkbox"
+                :class="{ checked: selectedIds.includes(document.id) }"
+                :aria-label="selectedIds.includes(document.id) ? `取消选择 ${document.title}` : `选择 ${document.title}`"
+                :aria-pressed="selectedIds.includes(document.id)"
+                @click.stop="$emit('toggle-selection', document.id)"
+              >
+                <AscIcon v-if="selectedIds.includes(document.id)" name="check" />
+              </button>
             </td>
             <td class="document-cell">
               <div class="document-title-line">
@@ -118,6 +125,10 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  selectedIds: {
+    type: Array,
+    default: () => []
+  },
   page: {
     type: Number,
     default: 1
@@ -140,7 +151,7 @@ const props = defineProps({
   }
 })
 
-defineEmits(['select', 'reset', 'change-page', 'change-page-size'])
+defineEmits(['select', 'toggle-selection', 'reset', 'change-page', 'change-page-size'])
 
 const pageNumbers = computed(() => {
   const start = Math.max(1, props.page - 2)
@@ -228,6 +239,8 @@ tbody tr.selected {
   place-items: center;
   border: 1px solid #b7c7d4;
   border-radius: 4px;
+  padding: 0;
+  background: #fff;
   color: #fff;
   font-size: 11px;
 }
