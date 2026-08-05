@@ -43,6 +43,13 @@
         <div v-if="projectUnavailableMessage" class="qa-project-message" :class="{ error: projectError }">
           <span>{{ projectUnavailableMessage }}</span>
           <button v-if="projectError" type="button" @click="loadProjects">重试</button>
+          <button
+            v-if="!projectsLoading && !activeProject"
+            type="button"
+            @click="openAnswerPreview"
+          >
+            预览回答页面
+          </button>
         </div>
 
         <QuestionComposer
@@ -91,6 +98,7 @@
       :references="qaState.references"
       :selected-citation-id="qaState.selectedCitationId"
       :evaluation="qaState.evaluation"
+      :evaluation-enabled="evaluationEnabled"
       @close="qaState = { ...qaState, evidenceOpen: false }"
       @select="chooseCitation"
       @update:evaluation="patchEvaluation"
@@ -127,9 +135,12 @@ import {
   setManualVerdict
 } from '../features/qa/answerEvaluationModel.js'
 import {
+  canEvaluateAnswer,
   completeApiAnswer,
+  completePreviewAnswer,
   createQaState,
   failApiAnswer,
+  PREVIEW_QUESTION,
   resetConversation,
   selectCitation,
   submitQuestion,
@@ -138,10 +149,10 @@ import {
 } from '../features/qa/qaDemoModel.js'
 import { requestCodAnswer } from '../features/qa/qaApiAdapter.js'
 import {
-  listGraphProjects,
   readActiveProjectId,
   rememberActiveProjectId,
-  resolveActiveProject
+  resolveActiveProject,
+  resolveQuestionProjects
 } from '../features/projects/projectContextModel.js'
 import {
   createQuestionGuideState,
@@ -166,6 +177,7 @@ let requestVersion = 0
 const activeProject = computed(
   () => projects.value.find((project) => project.project_id === activeProjectId.value) ?? null
 )
+const evaluationEnabled = computed(() => canEvaluateAnswer(qaState.value))
 const projectUnavailableMessage = computed(() => {
   if (projectsLoading.value) return '正在读取可用于问答的知识图谱项目…'
   if (projectError.value) return projectError.value
@@ -190,7 +202,10 @@ async function loadProjects() {
 
   try {
     const response = await listProjects()
-    projects.value = listGraphProjects(projectsFromResponse(response))
+    projects.value = resolveQuestionProjects(projectsFromResponse(response), {
+      graphId: import.meta.env.VITE_DEFAULT_GRAPH_ID,
+      projectId: import.meta.env.VITE_DEFAULT_PROJECT_ID
+    })
     const selected = resolveActiveProject(
       projects.value,
       readActiveProjectId(window.localStorage)
@@ -198,12 +213,27 @@ async function loadProjects() {
     activeProjectId.value = selected?.project_id ?? ''
     rememberActiveProjectId(window.localStorage, activeProjectId.value)
   } catch (error) {
-    projects.value = []
-    activeProjectId.value = ''
-    projectError.value = error?.message || '无法连接到后端项目列表。'
+    projects.value = resolveQuestionProjects([], {
+      graphId: import.meta.env.VITE_DEFAULT_GRAPH_ID,
+      projectId: import.meta.env.VITE_DEFAULT_PROJECT_ID
+    })
+    const selected = resolveActiveProject(
+      projects.value,
+      readActiveProjectId(window.localStorage)
+    )
+    activeProjectId.value = selected?.project_id ?? ''
+    projectError.value = selected ? '' : (error?.message || '无法连接到后端项目列表。')
   } finally {
     projectsLoading.value = false
   }
+}
+
+function openAnswerPreview() {
+  requestVersion += 1
+  qaState.value = completePreviewAnswer(
+    submitQuestion(createQaState(), PREVIEW_QUESTION)
+  )
+  draft.value = ''
 }
 
 function changeActiveProject() {
@@ -252,10 +282,12 @@ function chooseCitation(citationId) {
 }
 
 function patchEvaluation(patch) {
+  if (!evaluationEnabled.value) return
   qaState.value = updateAnswerEvaluation(qaState.value, patch)
 }
 
 function captureEvaluationExcerpt(value) {
+  if (!evaluationEnabled.value) return
   const selectedExcerpt = normalizeAnswerExcerpt(value)
   if (!selectedExcerpt || !qaState.value.answer) return
 
@@ -270,6 +302,7 @@ function captureEvaluationExcerpt(value) {
 }
 
 function getEvaluationContext() {
+  if (!evaluationEnabled.value) return null
   const currentAnswer = qaState.value.answer
   if (!currentAnswer) return null
 
@@ -381,6 +414,14 @@ function openConversation(conversation) {
 watch(
   () => route.query.new,
   () => reset()
+)
+
+watch(
+  () => route.query.preview,
+  preview => {
+    if (preview === 'answer') openAnswerPreview()
+  },
+  { immediate: true }
 )
 
 watch(

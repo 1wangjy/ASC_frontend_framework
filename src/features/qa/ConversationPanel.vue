@@ -32,12 +32,17 @@
         @mouseup="captureAnswerSelection"
         @keyup="captureAnswerSelection"
       >
+        <div v-if="state.answerSource === 'preview'" class="answer-preview-notice" role="status">
+          界面预览数据，未请求后端
+        </div>
         <header>
           <div>
             <span>ASC QA</span>
             <strong>基于 {{ state.references.length }} 篇证据文献生成</strong>
           </div>
-          <button type="button" @click="$emit('open-evidence')">查看证据评估</button>
+          <button type="button" @click="$emit('open-evidence')">
+            {{ state.answerSource === 'preview' ? '查看预览证据' : '查看证据评估' }}
+          </button>
         </header>
 
         <p class="answer-summary">{{ state.answer.summary }}</p>
@@ -154,6 +159,17 @@ function captureAnswerSelection() {
   border: 1px solid var(--asc-border);
   border-radius: var(--asc-radius);
   background: #fff;
+}
+
+.answer-preview-notice {
+  margin: -4px 0 14px;
+  padding: 8px 10px;
+  border: 1px solid #e4c98b;
+  border-radius: 6px;
+  background: #fff9e9;
+  color: #7a5a16;
+  font-size: 10px;
+  font-weight: 750;
 }
 
 .answer-card header {

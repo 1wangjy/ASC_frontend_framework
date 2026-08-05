@@ -370,6 +370,24 @@ test('QA view keeps evaluation state outside the evidence drawer', async () => {
   assert.match(source, /saveLlmEvaluation/)
 })
 
+test('offers an explicit backend-free answer preview when no graph is available', async () => {
+  const view = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
+  const conversation = await readFile(
+    new URL('../src/features/qa/ConversationPanel.vue', import.meta.url),
+    'utf8'
+  )
+  const evidence = await readFile(
+    new URL('../src/features/qa/EvidencePanel.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(view, /预览回答页面/)
+  assert.match(view, /route\.query\.preview/)
+  assert.match(conversation, /界面预览数据，未请求后端/)
+  assert.match(conversation, /查看预览证据/)
+  assert.match(evidence, /预览回答不能提交评估/)
+})
+
 test('offers domestic LLM and version pairs with DeepSeek V4 Flash as default', () => {
   const state = qa.createQaState?.()
 

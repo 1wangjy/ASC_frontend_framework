@@ -43,7 +43,12 @@
       </div>
     </section>
 
-    <section class="evaluation-workspace" aria-label="回答评估工作台">
+    <section v-if="!evaluationEnabled" class="evaluation-unavailable" role="status">
+      <strong>预览回答不能提交评估</strong>
+      <p>请先完成一次真实图谱问答，再使用人工评估或 LLM 评估。</p>
+    </section>
+
+    <section v-else class="evaluation-workspace" aria-label="回答评估工作台">
       <div class="evaluation-switch" role="tablist" aria-label="评估方式">
         <button
           type="button"
@@ -107,6 +112,10 @@ const props = defineProps({
   evaluation: {
     type: Object,
     required: true
+  },
+  evaluationEnabled: {
+    type: Boolean,
+    default: true
   }
 })
 
@@ -303,6 +312,26 @@ function toggleIssue(issueId) {
 
 .evaluation-workspace {
   padding-top: 18px;
+}
+
+.evaluation-unavailable {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #e4c98b;
+  border-radius: 8px;
+  background: #fff9e9;
+}
+
+.evaluation-unavailable strong {
+  color: #705114;
+  font-size: 11px;
+}
+
+.evaluation-unavailable p {
+  margin: 6px 0 0;
+  color: #7b6840;
+  font-size: 9px;
+  line-height: 1.6;
 }
 
 .evaluation-switch {
