@@ -694,7 +694,7 @@ test('adding a literature record to QA changes only the selected record', () => 
   assert.equal(libraryData.documents.find(item => item.id === 'DOC-2022-003').qaIndexed, false)
 })
 
-test('defines the six active ASC LAB routes and redirects unknown paths home', () => {
+test('keeps the six ASC entries and restores the five backend workflow routes', () => {
   assert.deepEqual(
     routes.ascRouteDefinitions?.map(route => [route.name, route.path]),
     [
@@ -703,7 +703,12 @@ test('defines the six active ASC LAB routes and redirects unknown paths home', (
       ['Knowledge', '/knowledge'],
       ['KnowledgeExplorer', '/knowledge/explorer'],
       ['DataPlatform', '/data'],
-      ['Models', '/models']
+      ['Models', '/models'],
+      ['Process', '/process/:projectId'],
+      ['Simulation', '/simulation/:simulationId'],
+      ['SimulationRun', '/simulation/:simulationId/start'],
+      ['Report', '/report/:reportId'],
+      ['Interaction', '/interaction/:reportId']
     ]
   )
   assert.deepEqual(routes.fallbackRoute, {
@@ -713,6 +718,14 @@ test('defines the six active ASC LAB routes and redirects unknown paths home', (
   assert.equal(
     routes.ascRouteDefinitions?.find(route => route.name === 'AscQa')?.meta.title,
     '问答首页'
+  )
+  assert.equal(
+    routes.ascRouteDefinitions?.find(route => route.name === 'Process')?.meta.navigationPath,
+    '/knowledge'
+  )
+  assert.equal(
+    routes.ascRouteDefinitions?.find(route => route.name === 'Interaction')?.meta.navigationPath,
+    '/'
   )
 })
 

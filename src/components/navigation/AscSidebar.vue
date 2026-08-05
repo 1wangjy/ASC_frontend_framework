@@ -42,6 +42,7 @@
         :key="item.path"
         :to="item.path"
         class="nav-item"
+        :class="{ 'router-link-exact-active': route.meta.navigationPath === item.path }"
         :title="collapsed ? item.label : undefined"
         @click="$emit('close')"
       >
@@ -54,8 +55,11 @@
 </template>
 
 <script setup>
+import { useRoute } from 'vue-router'
 import AscIcon from '../ui/AscIcon.vue'
 import { primaryNavigation } from '../../features/navigation/appNavigation.js'
+
+const route = useRoute()
 
 defineProps({
   mobileOpen: {
