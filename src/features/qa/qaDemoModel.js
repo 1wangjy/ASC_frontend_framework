@@ -13,6 +13,7 @@ export const domesticModelOptions = Object.freeze([
 
 export const frameworkOptions = Object.freeze(['Hybrid RAG', 'NEXUS'])
 export const reasoningOptions = Object.freeze(['Auto', 'CoT', 'ToT'])
+export const PREVIEW_QUESTION = '为什么 SiC 含量会影响 ASC 耐火材料的抗氧化性能？'
 
 const defaultSettings = Object.freeze({
   model: domesticModelOptions[0],
@@ -86,6 +87,7 @@ export function createQaState() {
     question: '',
     qaRunId: '',
     qaResult: null,
+    answerSource: null,
     errorMessage: '',
     answer: null,
     references: [],
@@ -106,6 +108,7 @@ export function submitQuestion(state, question) {
     question: normalizedQuestion,
     qaRunId: '',
     qaResult: null,
+    answerSource: null,
     errorMessage: '',
     answer: null,
     references: [],
@@ -124,6 +127,7 @@ export function completeApiAnswer(state, adaptedAnswer) {
     phase: 'answered',
     qaRunId: adaptedAnswer.qaRunId || '',
     qaResult: adaptedAnswer.qaResult || null,
+    answerSource: 'live',
     errorMessage: '',
     answer: adaptedAnswer.answer,
     references,
@@ -140,6 +144,7 @@ export function failApiAnswer(state, error) {
     phase: 'error',
     qaRunId: '',
     qaResult: null,
+    answerSource: null,
     errorMessage: String(error?.message ?? '').trim() || '问答请求失败，请重新尝试。',
     answer: null,
     references: [],
@@ -148,12 +153,16 @@ export function failApiAnswer(state, error) {
   }
 }
 
-export function completeMockAnswer(state) {
+export function completePreviewAnswer(state) {
   if (!state || state.phase !== 'loading') return state
 
   return {
     ...state,
     phase: 'answered',
+    qaRunId: '',
+    qaResult: null,
+    answerSource: 'preview',
+    errorMessage: '',
     answer: {
       ...answer,
       sections: answer.sections.map(section => ({
@@ -167,6 +176,14 @@ export function completeMockAnswer(state) {
     evidenceOpen: true,
     selectedCitationId: 'R1'
   }
+}
+
+export function completeMockAnswer(state) {
+  return completePreviewAnswer(state)
+}
+
+export function canEvaluateAnswer(state) {
+  return state?.phase === 'answered' && state?.answerSource === 'live'
 }
 
 export function selectCitation(state, citationId) {

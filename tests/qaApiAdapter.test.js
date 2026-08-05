@@ -7,9 +7,12 @@ import {
   requestCodAnswer
 } from '../src/features/qa/qaApiAdapter.js'
 import {
+  canEvaluateAnswer,
   completeApiAnswer,
+  completePreviewAnswer,
   createQaState,
   failApiAnswer,
+  PREVIEW_QUESTION,
   submitQuestion
 } from '../src/features/qa/qaDemoModel.js'
 
@@ -124,6 +127,28 @@ test('completes and fails a real API answer without substituting mock data', () 
   assert.equal(failed.question, '真实问题')
   assert.equal(failed.errorMessage, '后端调用失败')
   assert.equal(failed.answer, null)
+})
+
+test('marks preview answers and keeps backend identifiers empty', () => {
+  const preview = completePreviewAnswer(
+    submitQuestion(createQaState(), PREVIEW_QUESTION)
+  )
+
+  assert.equal(preview.phase, 'answered')
+  assert.equal(preview.question, PREVIEW_QUESTION)
+  assert.equal(preview.answerSource, 'preview')
+  assert.equal(preview.qaRunId, '')
+  assert.equal(preview.qaResult, null)
+  assert.equal(canEvaluateAnswer(preview), false)
+})
+
+test('allows evaluation only for a completed live answer', () => {
+  const loading = submitQuestion(createQaState(), '真实问题')
+  const live = completeApiAnswer(loading, adaptCodGraphRagResponse(backendResponse))
+
+  assert.equal(live.answerSource, 'live')
+  assert.equal(canEvaluateAnswer(live), true)
+  assert.equal(canEvaluateAnswer(loading), false)
 })
 
 test('extracts and removes the citation markers emitted by the backend', () => {
