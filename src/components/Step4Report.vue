@@ -9,7 +9,7 @@
           <div class="report-header-block">
             <div class="report-meta">
               <span class="report-tag">KG Insight Report</span>
-              <span class="report-id">ID: {{ reportId || 'REF-2024-X92' }}</span>
+              <span class="report-id">ID: {{ reportId || '等待后端分配' }}</span>
             </div>
             <h1 class="main-title">{{ reportOutline.title }}</h1>
             <p class="sub-title">{{ reportOutline.summary }}</p>
@@ -378,7 +378,7 @@
     <div class="console-logs">
       <div class="log-header">
         <span class="log-title">CONSOLE OUTPUT</span>
-        <span class="log-id">{{ reportId || 'NO_REPORT' }}</span>
+        <span class="log-id">{{ reportId || '等待后端分配' }}</span>
       </div>
       <div class="log-content" ref="logContent">
         <div class="log-line" v-for="(log, idx) in consoleLogs" :key="idx">
@@ -392,12 +392,13 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, h, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAgentLog, getConsoleLog } from '../api/report'
+import { getAgentLog, getConsoleLog, getReportStatus } from '../api/report'
 
 const router = useRouter()
 
 const props = defineProps({
   reportId: String,
+  reportTaskId: String,
   simulationId: String,
   systemLogs: Array
 })
@@ -2075,6 +2076,7 @@ const getLogLevelClass = (log) => {
 // Polling
 let agentLogTimer = null
 let consoleLogTimer = null
+let reportStatusTimer = null
 
 const fetchAgentLog = async () => {
   if (!props.reportId) return
@@ -2209,7 +2211,37 @@ const fetchConsoleLog = async () => {
   }
 }
 
+const fetchReportStatus = async () => {
+  if (!props.reportTaskId || isComplete.value) return
+
+  try {
+    const res = await getReportStatus({ taskId: props.reportTaskId })
+    const status = res?.data?.status
+
+    if (status === 'completed') {
+      await Promise.all([fetchAgentLog(), fetchConsoleLog()])
+      isComplete.value = true
+      currentSectionIndex.value = null
+      emit('update-status', 'completed')
+      stopPolling()
+    } else if (status === 'failed') {
+      addLog(`报告生成失败: ${res.data?.message || '后端任务失败'}`)
+      emit('update-status', 'error')
+      stopPolling()
+    }
+  } catch (error) {
+    console.warn('Report status polling failed:', error)
+  }
+}
+
+const startStatusPolling = () => {
+  if (!props.reportTaskId || reportStatusTimer) return
+  fetchReportStatus()
+  reportStatusTimer = setInterval(fetchReportStatus, 2000)
+}
+
 const startPolling = () => {
+  startStatusPolling()
   if (agentLogTimer || consoleLogTimer) return
   
   fetchAgentLog()
@@ -2227,6 +2259,10 @@ const stopPolling = () => {
   if (consoleLogTimer) {
     clearInterval(consoleLogTimer)
     consoleLogTimer = null
+  }
+  if (reportStatusTimer) {
+    clearInterval(reportStatusTimer)
+    reportStatusTimer = null
   }
 }
 
@@ -2260,6 +2296,10 @@ watch(() => props.reportId, (newId) => {
     startPolling()
   }
 }, { immediate: true })
+
+watch(() => props.reportTaskId, () => {
+  startStatusPolling()
+})
 </script>
 
 <style scoped>

@@ -5,7 +5,7 @@
         <div class="cod-global-report-brand">
           <span>KG Insight Report</span>
           <strong>{{ reportOutline?.title || displayProjectName }}</strong>
-          <small>ID: {{ reportId || projectId || 'REF-2024-X92' }}</small>
+          <small>ID: {{ reportId || projectId || '等待后端分配' }}</small>
         </div>
         <div class="cod-global-report-actions">
           <button type="button" class="cod-global-action-btn" @click="openKgInsightPreview">预览</button>
@@ -590,7 +590,7 @@
           <div class="report-header-block">
             <div class="report-meta">
               <span class="report-tag">KG Insight Report</span>
-              <span class="report-id">ID: {{ reportId || 'REF-2024-X92' }}</span>
+              <span class="report-id">ID: {{ reportId || '等待后端分配' }}</span>
             </div>
             <h1 class="main-title">{{ reportOutline.title }}</h1>
             <p class="sub-title">{{ reportOutline.summary }}</p>

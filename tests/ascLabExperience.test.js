@@ -380,6 +380,32 @@ test('requires a backend graph project before opening the answer workflow', asyn
   assert.doesNotMatch(view, /预览回答页面/)
 })
 
+test('carries the backend report task id into the report status polling page', async () => {
+  const simulation = await readFile(
+    new URL('../src/components/Step3Simulation.vue', import.meta.url),
+    'utf8'
+  )
+  const reportView = await readFile(
+    new URL('../src/views/ReportView.vue', import.meta.url),
+    'utf8'
+  )
+  const reportStep = await readFile(
+    new URL('../src/components/Step4Report.vue', import.meta.url),
+    'utf8'
+  )
+  const interactionStep = await readFile(
+    new URL('../src/components/Step5Interaction.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(simulation, /res\.data\.task_id/)
+  assert.match(simulation, /query:\s*\{\s*taskId/)
+  assert.match(reportView, /:reportTaskId="reportTaskId"/)
+  assert.match(reportStep, /getReportStatus\(\{\s*taskId:\s*props\.reportTaskId\s*\}\)/)
+  assert.doesNotMatch(reportStep, /REF-2024-X92/)
+  assert.doesNotMatch(interactionStep, /REF-2024-X92/)
+})
+
 test('offers domestic LLM and version pairs with DeepSeek V4 Flash as default', () => {
   const state = qa.createQaState?.()
 

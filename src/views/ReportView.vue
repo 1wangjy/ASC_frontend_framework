@@ -56,6 +56,7 @@
       <div class="panel-wrapper right" :style="rightPanelStyle">
         <Step4Report
           :reportId="currentReportId"
+          :reportTaskId="reportTaskId"
           :simulationId="simulationId"
           :systemLogs="systemLogs"
           @add-log="addLog"
@@ -89,6 +90,7 @@ const viewMode = ref('workbench')
 
 // Data State
 const currentReportId = ref(route.params.reportId)
+const reportTaskId = computed(() => String(route.query.taskId || '').trim())
 const simulationId = ref(null)
 const projectData = ref(null)
 const graphData = ref(null)

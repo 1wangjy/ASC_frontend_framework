@@ -971,10 +971,15 @@ const handleNextStep = async () => {
     
     if (res.success && res.data) {
       const reportId = res.data.report_id
+      const taskId = res.data.task_id
       addLog(`✓ ASC洞察报告生成任务已启动: ${reportId}`)
       
       // 跳转到报告页面
-      router.push({ name: 'Report', params: { reportId } })
+      router.push({
+        name: 'Report',
+        params: { reportId },
+        query: { taskId }
+      })
     } else {
       addLog(`✗ 启动报告生成失败: ${res.error || '未知错误'}`)
       isGeneratingReport.value = false
