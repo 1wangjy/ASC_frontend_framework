@@ -46,9 +46,9 @@
           <button
             v-if="!projectsLoading && !activeProject"
             type="button"
-            @click="openAnswerPreview"
+            @click="router.push('/process/new')"
           >
-            预览回答页面
+            去构建知识图谱
           </button>
         </div>
 
@@ -137,10 +137,8 @@ import {
 import {
   canEvaluateAnswer,
   completeApiAnswer,
-  completePreviewAnswer,
   createQaState,
   failApiAnswer,
-  PREVIEW_QUESTION,
   resetConversation,
   selectCitation,
   submitQuestion,
@@ -152,7 +150,7 @@ import {
   readActiveProjectId,
   rememberActiveProjectId,
   resolveActiveProject,
-  resolveQuestionProjects
+  listGraphProjects
 } from '../features/projects/projectContextModel.js'
 import {
   createQuestionGuideState,
@@ -202,10 +200,7 @@ async function loadProjects() {
 
   try {
     const response = await listProjects()
-    projects.value = resolveQuestionProjects(projectsFromResponse(response), {
-      graphId: import.meta.env.VITE_DEFAULT_GRAPH_ID,
-      projectId: import.meta.env.VITE_DEFAULT_PROJECT_ID
-    })
+    projects.value = listGraphProjects(projectsFromResponse(response))
     const selected = resolveActiveProject(
       projects.value,
       readActiveProjectId(window.localStorage)
@@ -213,27 +208,13 @@ async function loadProjects() {
     activeProjectId.value = selected?.project_id ?? ''
     rememberActiveProjectId(window.localStorage, activeProjectId.value)
   } catch (error) {
-    projects.value = resolveQuestionProjects([], {
-      graphId: import.meta.env.VITE_DEFAULT_GRAPH_ID,
-      projectId: import.meta.env.VITE_DEFAULT_PROJECT_ID
-    })
-    const selected = resolveActiveProject(
-      projects.value,
-      readActiveProjectId(window.localStorage)
-    )
-    activeProjectId.value = selected?.project_id ?? ''
-    projectError.value = selected ? '' : (error?.message || '无法连接到后端项目列表。')
+    projects.value = []
+    activeProjectId.value = ''
+    rememberActiveProjectId(window.localStorage, '')
+    projectError.value = error?.message || '无法连接到后端项目列表。'
   } finally {
     projectsLoading.value = false
   }
-}
-
-function openAnswerPreview() {
-  requestVersion += 1
-  qaState.value = completePreviewAnswer(
-    submitQuestion(createQaState(), PREVIEW_QUESTION)
-  )
-  draft.value = ''
 }
 
 function changeActiveProject() {
@@ -414,14 +395,6 @@ function openConversation(conversation) {
 watch(
   () => route.query.new,
   () => reset()
-)
-
-watch(
-  () => route.query.preview,
-  preview => {
-    if (preview === 'answer') openAnswerPreview()
-  },
-  { immediate: true }
 )
 
 watch(

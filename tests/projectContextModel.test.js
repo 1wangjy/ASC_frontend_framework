@@ -6,8 +6,7 @@ import {
   listGraphProjects,
   readActiveProjectId,
   rememberActiveProjectId,
-  resolveActiveProject,
-  resolveQuestionProjects
+  resolveActiveProject
 } from '../src/features/projects/projectContextModel.js'
 
 const projects = [
@@ -35,30 +34,11 @@ test('returns null when there is no usable graph project', () => {
   assert.equal(resolveActiveProject([{ project_id: 'p1', graph_id: null }], 'p1'), null)
 })
 
-test('uses a configured graph only when the backend has no usable graph project', () => {
-  assert.deepEqual(resolveQuestionProjects([], {
-    graphId: 'graph-local',
-    projectId: ''
-  }), [{
-    project_id: 'configured:graph-local',
-    graph_id: 'graph-local',
-    project_name: '本地配置图谱',
-    context_source: 'environment',
-    omit_project_id_from_query: true
-  }])
-})
-
-test('prefers backend graph projects over local configuration', () => {
-  assert.deepEqual(
-    resolveQuestionProjects(projects, { graphId: 'graph-local' }).map(project => project.project_id),
-    ['newer', 'older']
-  )
-})
-
-test('returns no question project when neither source has a graph id', () => {
-  assert.deepEqual(resolveQuestionProjects([
-    { project_id: 'unfinished', graph_id: '' }
-  ], { graphId: '  ' }), [])
+test('never fabricates a usable project when the backend has no graph id', () => {
+  assert.deepEqual(listGraphProjects([
+    { project_id: 'unfinished', graph_id: '' },
+    { project_id: '', graph_id: 'graph-without-project' }
+  ]), [])
 })
 
 test('persists only the active project identifier', () => {
