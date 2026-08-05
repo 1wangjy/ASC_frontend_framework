@@ -74,6 +74,21 @@ test('builds an explicitly scoped CoD request from the selected project', () => 
   })
 })
 
+test('omits the synthetic project id for graph-only local configuration', () => {
+  assert.deepEqual(buildCodQueryPayload({
+    question: 'Q',
+    project: {
+      project_id: 'configured:g1',
+      graph_id: 'g1',
+      omit_project_id_from_query: true
+    }
+  }), {
+    question: 'Q',
+    graph_id: 'g1',
+    reasoning_mode: 'auto'
+  })
+})
+
 test('calls the query API with the exact scoped payload and adapts its response', async () => {
   const calls = []
   const adapted = await requestCodAnswer(async (payload) => {

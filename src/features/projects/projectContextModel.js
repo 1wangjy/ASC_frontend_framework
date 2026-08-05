@@ -23,6 +23,23 @@ export function resolveActiveProject(projects = [], preferredProjectId = null) {
   return usableProjects.find((project) => String(project.project_id) === preferredId) || usableProjects[0]
 }
 
+export function resolveQuestionProjects(projects = [], config = {}) {
+  const backendProjects = listGraphProjects(projects)
+  if (backendProjects.length) return backendProjects
+
+  const graphId = String(config?.graphId ?? '').trim()
+  if (!graphId) return []
+
+  const projectId = String(config?.projectId ?? '').trim()
+  return [{
+    project_id: projectId || `configured:${graphId}`,
+    graph_id: graphId,
+    project_name: '本地配置图谱',
+    context_source: 'environment',
+    omit_project_id_from_query: !projectId
+  }]
+}
+
 export function readActiveProjectId(storage) {
   if (!storage?.getItem) return null
 

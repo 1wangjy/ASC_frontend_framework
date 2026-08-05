@@ -160,10 +160,13 @@ export function adaptCodGraphRagResponse(payload = {}) {
 export function buildCodQueryPayload({ question, project, settings = {} } = {}) {
   const payload = {
     question: String(question ?? '').trim(),
-    project_id: String(project?.project_id ?? '').trim(),
-    graph_id: String(project?.graph_id ?? '').trim(),
     reasoning_mode: REASONING_MODES[settings.reasoning] || 'auto'
   }
+
+  const projectId = String(project?.project_id ?? '').trim()
+  const graphId = String(project?.graph_id ?? '').trim()
+  if (projectId && !project?.omit_project_id_from_query) payload.project_id = projectId
+  if (graphId) payload.graph_id = graphId
 
   if (settings.framework === 'NEXUS') payload.mode = 'adaptive_cod'
   return payload
