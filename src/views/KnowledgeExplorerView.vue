@@ -73,19 +73,23 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import AscIcon from '../components/ui/AscIcon.vue'
 import GraphNodeSearch from '../features/knowledge/GraphNodeSearch.vue'
 import GraphCanvas from '../features/knowledge/GraphCanvas.vue'
-import { getGraphData, listProjects } from '../api/graph.js'
+import { getGraphData, getProject } from '../api/graph.js'
 import {
   createGraphExplorerState
 } from '../features/knowledge/graphExplorerModel.js'
 import {
   focusWorkspaceNode,
-  loadGraphForProject,
-  loadGraphWorkspace
+  loadGraphForProject
 } from '../features/knowledge/graphWorkspaceService.js'
+import {
+  listGraphProjects,
+  resolveActiveProject
+} from '../features/projects/projectContextModel.js'
 import {
   readActiveProjectId,
   rememberActiveProjectId
 } from '../features/projects/projectContextModel.js'
+import { getRegisteredProjectIds } from '../features/projects/projectRegistry.js'
 
 const graphState = ref(createGraphExplorerState())
 const graphNodes = ref([])
@@ -115,19 +119,35 @@ async function loadWorkspace() {
   errorMessage.value = ''
 
   try {
-    const workspace = await loadGraphWorkspace(
-      { listProjects, getGraphData },
+    // 从 localStorage 读取已注册的 project_id，逐个用 getProject 获取
+    const ids = getRegisteredProjectIds()
+    const results = await Promise.allSettled(
+      ids.map(id => getProject(id))
+    )
+    const fetched = results
+      .filter(r => r.status === 'fulfilled')
+      .map(r => r.value)
+      .filter(Boolean)
+
+    projects.value = listGraphProjects(fetched)
+    const activeProject = resolveActiveProject(
+      projects.value,
       readActiveProjectId(window.localStorage)
     )
-    projects.value = workspace.projects
-    activeProjectId.value = workspace.activeProject?.project_id ?? ''
+    activeProjectId.value = activeProject?.project_id ?? ''
     rememberActiveProjectId(window.localStorage, activeProjectId.value)
-    applyGraph(workspace.graph)
+
+    // 加载当前项目的图谱数据
+    if (activeProject?.graph_id) {
+      applyGraph(await loadGraphForProject(getGraphData, activeProject))
+    } else {
+      applyGraph({ nodes: [], edges: [] })
+    }
   } catch (error) {
     projects.value = []
     activeProjectId.value = ''
     applyGraph({ nodes: [], edges: [] })
-    errorMessage.value = error?.message || '无法连接到 NEXUS Backend。'
+    errorMessage.value = error?.message || '无法连接到后端。'
   } finally {
     loading.value = false
   }

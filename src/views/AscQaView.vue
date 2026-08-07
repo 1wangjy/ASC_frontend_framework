@@ -119,8 +119,8 @@ import EvidencePanel from '../features/qa/EvidencePanel.vue'
 import RecentConversationsPanel from '../features/qa/RecentConversationsPanel.vue'
 import {
   codGraphRAGQuery,
+  getProject,
   judgeQAWithLLM,
-  listProjects,
   submitQAFeedback
 } from '../api/graph.js'
 import { recentConversations } from '../features/navigation/appNavigation.js'
@@ -152,6 +152,9 @@ import {
   resolveActiveProject,
   listGraphProjects
 } from '../features/projects/projectContextModel.js'
+import {
+  getRegisteredProjectIds
+} from '../features/projects/projectRegistry.js'
 import {
   createQuestionGuideState,
   refreshQuestionGuide
@@ -187,20 +190,22 @@ function projectLabel(project) {
   return project.project_name || project.name || project.project_id
 }
 
-function projectsFromResponse(response) {
-  if (Array.isArray(response)) return response
-  if (Array.isArray(response?.data)) return response.data
-  if (Array.isArray(response?.data?.data)) return response.data.data
-  return []
-}
-
 async function loadProjects() {
   projectsLoading.value = true
   projectError.value = ''
 
   try {
-    const response = await listProjects()
-    projects.value = listGraphProjects(projectsFromResponse(response))
+    // 从 localStorage 读取已注册的 project_id，逐个用 getProject 获取
+    const ids = getRegisteredProjectIds()
+    const results = await Promise.allSettled(
+      ids.map(id => getProject(id))
+    )
+    const fetched = results
+      .filter(r => r.status === 'fulfilled')
+      .map(r => r.value)
+      .filter(Boolean)
+
+    projects.value = listGraphProjects(fetched)
     const selected = resolveActiveProject(
       projects.value,
       readActiveProjectId(window.localStorage)
@@ -211,7 +216,7 @@ async function loadProjects() {
     projects.value = []
     activeProjectId.value = ''
     rememberActiveProjectId(window.localStorage, '')
-    projectError.value = error?.message || '无法连接到后端项目列表。'
+    projectError.value = '暂无可用项目，请先通过"知识图谱构建"创建项目。'
   } finally {
     projectsLoading.value = false
   }

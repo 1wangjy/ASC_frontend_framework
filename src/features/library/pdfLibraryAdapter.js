@@ -19,17 +19,20 @@ function yearFromDate(value) {
 }
 
 export function adaptPdfFile(file = {}) {
+  // 兼容后端可能返回的多种字段名
+  const fileId = String(file.file_id ?? file.id ?? '').trim()
+  const filename = String(file.filename ?? file.name ?? file.file_name ?? '').trim() || '未命名 PDF'
   const category = String(file.category ?? '').trim() || '未分类'
-  const filename = String(file.filename ?? '').trim() || '未命名 PDF'
+  const createdAt = file.created_at ?? file.createdAt ?? file.upload_time ?? ''
 
   return {
-    id: String(file.file_id ?? '').trim(),
-    fileId: String(file.file_id ?? '').trim(),
+    id: fileId,
+    fileId,
     filename,
     title: filename,
     doi: '—',
     authors: [],
-    year: yearFromDate(file.created_at),
+    year: yearFromDate(createdAt),
     type: CATEGORY_TYPES[category] || 'pdf',
     typeLabel: category === '未分类' ? 'PDF 文献' : category,
     journal: `后端 PDF 文件 · ${formatBytes(file.file_size)}`,
@@ -50,8 +53,8 @@ export function adaptPdfFile(file = {}) {
     contentType: file.content_type || 'application/pdf',
     fileSize: Number(file.file_size) || 0,
     fileSizeLabel: formatBytes(file.file_size),
-    createdAt: file.created_at || '',
-    updatedAt: file.updated_at || ''
+    createdAt: createdAt,
+    updatedAt: file.updated_at ?? file.updatedAt ?? ''
   }
 }
 
@@ -59,6 +62,9 @@ function filesFromResponse(response) {
   if (Array.isArray(response)) return response
   if (Array.isArray(response?.data)) return response.data
   if (Array.isArray(response?.data?.data)) return response.data.data
+  if (Array.isArray(response?.data?.files)) return response.data.files
+  if (Array.isArray(response?.files)) return response.files
+  if (Array.isArray(response?.data?.items)) return response.data.items
   return []
 }
 

@@ -14,9 +14,12 @@ const STAGE_LABELS = {
 }
 
 function unwrapResult(payload) {
+  if (!payload) return {}
   if (payload?.final_answer !== undefined) return payload
   if (payload?.data?.final_answer !== undefined) return payload.data
   if (payload?.data?.data?.final_answer !== undefined) return payload.data.data
+  if (payload?.answer !== undefined) return payload
+  if (payload?.data?.answer !== undefined) return payload.data
   return {}
 }
 

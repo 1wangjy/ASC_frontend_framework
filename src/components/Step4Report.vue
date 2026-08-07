@@ -392,13 +392,12 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, h, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAgentLog, getConsoleLog, getReportStatus } from '../api/report'
+import { getAgentLog, getConsoleLog } from '../api/report'
 
 const router = useRouter()
 
 const props = defineProps({
   reportId: String,
-  reportTaskId: String,
   simulationId: String,
   systemLogs: Array
 })
@@ -2076,7 +2075,6 @@ const getLogLevelClass = (log) => {
 // Polling
 let agentLogTimer = null
 let consoleLogTimer = null
-let reportStatusTimer = null
 
 const fetchAgentLog = async () => {
   if (!props.reportId) return
@@ -2211,37 +2209,7 @@ const fetchConsoleLog = async () => {
   }
 }
 
-const fetchReportStatus = async () => {
-  if (!props.reportTaskId || isComplete.value) return
-
-  try {
-    const res = await getReportStatus({ taskId: props.reportTaskId })
-    const status = res?.data?.status
-
-    if (status === 'completed') {
-      await Promise.all([fetchAgentLog(), fetchConsoleLog()])
-      isComplete.value = true
-      currentSectionIndex.value = null
-      emit('update-status', 'completed')
-      stopPolling()
-    } else if (status === 'failed') {
-      addLog(`报告生成失败: ${res.data?.message || '后端任务失败'}`)
-      emit('update-status', 'error')
-      stopPolling()
-    }
-  } catch (error) {
-    console.warn('Report status polling failed:', error)
-  }
-}
-
-const startStatusPolling = () => {
-  if (!props.reportTaskId || reportStatusTimer) return
-  fetchReportStatus()
-  reportStatusTimer = setInterval(fetchReportStatus, 2000)
-}
-
 const startPolling = () => {
-  startStatusPolling()
   if (agentLogTimer || consoleLogTimer) return
   
   fetchAgentLog()
@@ -2259,10 +2227,6 @@ const stopPolling = () => {
   if (consoleLogTimer) {
     clearInterval(consoleLogTimer)
     consoleLogTimer = null
-  }
-  if (reportStatusTimer) {
-    clearInterval(reportStatusTimer)
-    reportStatusTimer = null
   }
 }
 
@@ -2297,9 +2261,7 @@ watch(() => props.reportId, (newId) => {
   }
 }, { immediate: true })
 
-watch(() => props.reportTaskId, () => {
-  startStatusPolling()
-})
+
 </script>
 
 <style scoped>

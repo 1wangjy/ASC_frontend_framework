@@ -10,9 +10,18 @@ export function listGraphProjects(projects = []) {
   if (!Array.isArray(projects)) return []
 
   return projects
-    .filter((project) => String(project?.project_id ?? '').trim() && String(project?.graph_id ?? '').trim())
+    .filter((project) => {
+      const pid = String(project?.project_id ?? project?.id ?? '').trim()
+      return pid.length > 0
+    })
     .slice()
-    .sort((left, right) => projectTimestamp(right) - projectTimestamp(left))
+    .sort((left, right) => {
+      // 有 graph_id 的排前面
+      const lh = String(left?.graph_id ?? '').trim() ? 1 : 0
+      const rh = String(right?.graph_id ?? '').trim() ? 1 : 0
+      if (lh !== rh) return rh - lh
+      return projectTimestamp(right) - projectTimestamp(left)
+    })
 }
 
 export function resolveActiveProject(projects = [], preferredProjectId = null) {

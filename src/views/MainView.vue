@@ -98,6 +98,7 @@ import Step1GraphBuild from '../components/Step1GraphBuild.vue'
 import Step2EnvSetup from '../components/Step2EnvSetup.vue'
 import WorkflowProgressBar from '../components/WorkflowProgressBar.vue'
 import { prepareOntologyProject, generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
+import { registerProject } from '../features/projects/projectRegistry.js'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 
 const route = useRoute()
@@ -412,6 +413,7 @@ const handleNewProject = async () => {
       baseProjectId.value = prepareRes.data.project_id
     }
     router.replace({ name: 'Process', params: { projectId: prepareRes.data.project_id } })
+    registerProject(prepareRes.data.project_id)
     startOntologyPolling(prepareRes.data.project_id)
     addLog(`Ontology project prepared: ${prepareRes.data.project_id}`)
     
@@ -445,6 +447,7 @@ const handleNewProject = async () => {
           }
           
           router.replace({ name: 'Process', params: { projectId: res.data.project_id } })
+          registerProject(res.data.project_id)
           stopOntologyPolling()
           ontologyProgress.value = null
           addLog(`✓ Ontology generated successfully for project ${res.data.project_id}`)
@@ -772,6 +775,7 @@ const startProfessionalGraphBuild = async (options = {}) => {
     projectData.value = prepareRes.data
     graphData.value = null
     router.replace({ name: 'Process', params: { projectId: prepareRes.data.project_id } })
+    registerProject(prepareRes.data.project_id)
     startOntologyPolling(prepareRes.data.project_id)
     addLog(`Professional ontology project prepared: ${prepareRes.data.project_id}`)
 
@@ -800,6 +804,7 @@ const startProfessionalGraphBuild = async (options = {}) => {
     stopOntologyPolling()
     ontologyProgress.value = null
     router.replace({ name: 'Process', params: { projectId: res.data.project_id } })
+    registerProject(res.data.project_id)
     addLog(`Professional Research project created: ${res.data.project_id}`)
 
     await startBuildGraph({
