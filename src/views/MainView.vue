@@ -98,7 +98,8 @@ import Step1GraphBuild from '../components/Step1GraphBuild.vue'
 import Step2EnvSetup from '../components/Step2EnvSetup.vue'
 import WorkflowProgressBar from '../components/WorkflowProgressBar.vue'
 import { prepareOntologyProject, generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
-import { registerProject } from '../features/projects/projectRegistry.js'
+import { rememberActiveProjectId } from '../features/projects/projectContextModel.js'
+import { buildGraphQaRoute } from '../features/projects/graphQaNavigation.js'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 
 const route = useRoute()
@@ -233,6 +234,19 @@ const addLog = (msg) => {
   if (systemLogs.value.length > 100) {
     systemLogs.value.shift()
   }
+}
+
+const openCompletedGraphInQa = (project) => {
+  const qaRoute = buildGraphQaRoute(project)
+  if (!qaRoute) {
+    error.value = '图谱构建完成响应缺少 project_id 或 graph_id，无法进入问答。'
+    addLog(error.value)
+    return false
+  }
+
+  rememberActiveProjectId(window.localStorage, project.project_id)
+  router.replace(qaRoute)
+  return true
 }
 
 const displayOntologyProgress = (progress = {}) => {
@@ -413,7 +427,6 @@ const handleNewProject = async () => {
       baseProjectId.value = prepareRes.data.project_id
     }
     router.replace({ name: 'Process', params: { projectId: prepareRes.data.project_id } })
-    registerProject(prepareRes.data.project_id)
     startOntologyPolling(prepareRes.data.project_id)
     addLog(`Ontology project prepared: ${prepareRes.data.project_id}`)
     
@@ -447,7 +460,6 @@ const handleNewProject = async () => {
           }
           
           router.replace({ name: 'Process', params: { projectId: res.data.project_id } })
-          registerProject(res.data.project_id)
           stopOntologyPolling()
           ontologyProgress.value = null
           addLog(`✓ Ontology generated successfully for project ${res.data.project_id}`)
@@ -529,7 +541,6 @@ const loadProject = async () => {
     const res = await getProject(currentProjectId.value)
     if (res.success) {
       projectData.value = res.data
-      registerProject(currentProjectId.value)
       updatePhaseByStatus(res.data.status)
       addLog(`Project loaded. Status: ${res.data.status}`)
       
@@ -776,7 +787,6 @@ const startProfessionalGraphBuild = async (options = {}) => {
     projectData.value = prepareRes.data
     graphData.value = null
     router.replace({ name: 'Process', params: { projectId: prepareRes.data.project_id } })
-    registerProject(prepareRes.data.project_id)
     startOntologyPolling(prepareRes.data.project_id)
     addLog(`Professional ontology project prepared: ${prepareRes.data.project_id}`)
 
@@ -805,7 +815,6 @@ const startProfessionalGraphBuild = async (options = {}) => {
     stopOntologyPolling()
     ontologyProgress.value = null
     router.replace({ name: 'Process', params: { projectId: res.data.project_id } })
-    registerProject(res.data.project_id)
     addLog(`Professional Research project created: ${res.data.project_id}`)
 
     await startBuildGraph({
@@ -918,6 +927,7 @@ const pollTaskStatus = async (taskId, buildStage = 'base') => {
               currentPhase.value = 4
               addLog('Professional Research graph completed; analysis preparation is now available.')
             }
+            openCompletedGraphInQa(projRes.data)
         }
       } else if (task.status === 'failed') {
         stopPolling()
@@ -944,6 +954,7 @@ const pollTaskStatus = async (taskId, buildStage = 'base') => {
           stopGraphPolling()
           if (projRes.data.graph_id) {
             await loadGraph(projRes.data.graph_id)
+            openCompletedGraphInQa(projRes.data)
           }
         }
       }

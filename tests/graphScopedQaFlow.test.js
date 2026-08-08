@@ -16,6 +16,15 @@ test('QA discovers graph projects from the backend instead of the local registry
   assert.doesNotMatch(source, /projectRegistry/)
 })
 
+test('completed graph builds route to QA and no longer write a local registry', async () => {
+  const source = await readFile(new URL('../src/views/MainView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /buildGraphQaRoute/)
+  assert.match(source, /rememberActiveProjectId/)
+  assert.match(source, /router\.replace\(qaRoute\)/)
+  assert.doesNotMatch(source, /registerProject|projectRegistry/)
+})
+
 test('keeps a 404 status when the API returns an unrelated error message', async () => {
   const server = createServer((request, response) => {
     response.writeHead(404, { 'Content-Type': 'application/json' })
