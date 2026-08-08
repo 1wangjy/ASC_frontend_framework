@@ -161,15 +161,19 @@ export function adaptCodGraphRagResponse(payload = {}) {
 }
 
 export function buildCodQueryPayload({ question, project, settings = {} } = {}) {
-  const payload = {
-    question: String(question ?? '').trim(),
-    reasoning_mode: REASONING_MODES[settings.reasoning] || 'auto'
-  }
-
+  const normalizedQuestion = String(question ?? '').trim()
   const projectId = String(project?.project_id ?? '').trim()
   const graphId = String(project?.graph_id ?? '').trim()
-  if (projectId && !project?.omit_project_id_from_query) payload.project_id = projectId
-  if (graphId) payload.graph_id = graphId
+
+  if (!normalizedQuestion) throw new Error('question 不能为空')
+  if (!projectId || !graphId) throw new Error('问答请求必须同时包含 project_id 和 graph_id')
+
+  const payload = {
+    question: normalizedQuestion,
+    project_id: projectId,
+    graph_id: graphId,
+    reasoning_mode: REASONING_MODES[settings.reasoning] || 'auto'
+  }
 
   if (settings.framework === 'NEXUS') payload.mode = 'adaptive_cod'
   return payload

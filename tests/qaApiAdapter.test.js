@@ -77,19 +77,15 @@ test('builds an explicitly scoped CoD request from the selected project', () => 
   })
 })
 
-test('omits the synthetic project id for graph-only local configuration', () => {
-  assert.deepEqual(buildCodQueryPayload({
-    question: 'Q',
-    project: {
-      project_id: 'configured:g1',
-      graph_id: 'g1',
-      omit_project_id_from_query: true
-    }
-  }), {
-    question: 'Q',
-    graph_id: 'g1',
-    reasoning_mode: 'auto'
-  })
+test('rejects a question without a complete backend graph scope', () => {
+  assert.throws(
+    () => buildCodQueryPayload({ question: 'Q', project: { project_id: 'p1' } }),
+    /project_id.*graph_id/
+  )
+  assert.throws(
+    () => buildCodQueryPayload({ question: ' ', project: { project_id: 'p1', graph_id: 'g1' } }),
+    /question/
+  )
 })
 
 test('calls the query API with the exact scoped payload and adapts its response', async () => {

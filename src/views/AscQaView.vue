@@ -120,7 +120,7 @@ import EvidencePanel from '../features/qa/EvidencePanel.vue'
 import RecentConversationsPanel from '../features/qa/RecentConversationsPanel.vue'
 import {
   codGraphRAGQuery,
-  getProject,
+  listProjects,
   judgeQAWithLLM,
   submitQAFeedback
 } from '../api/graph.js'
@@ -153,9 +153,6 @@ import {
   resolveActiveProject,
   listGraphProjects
 } from '../features/projects/projectContextModel.js'
-import {
-  getRegisteredProjectIds
-} from '../features/projects/projectRegistry.js'
 import {
   createQuestionGuideState,
   refreshQuestionGuide
@@ -196,19 +193,11 @@ async function loadProjects() {
   projectError.value = ''
 
   try {
-    // 从 localStorage 读取已注册的 project_id，逐个用 getProject 获取
-    const ids = getRegisteredProjectIds()
-    const results = await Promise.allSettled(
-      ids.map(id => getProject(id))
-    )
-    const fetched = results
-      .filter(r => r.status === 'fulfilled')
-      .map(r => r.value)
-      .filter(Boolean)
-
-    projects.value = listGraphProjects(fetched)
+    const response = await listProjects({ limit: 50 })
+    projects.value = listGraphProjects(response)
     const selected = resolveActiveProject(
       projects.value,
+      route.query.projectId,
       readActiveProjectId(window.localStorage)
     )
     activeProjectId.value = selected?.project_id ?? ''
@@ -217,7 +206,7 @@ async function loadProjects() {
     projects.value = []
     activeProjectId.value = ''
     rememberActiveProjectId(window.localStorage, '')
-    projectError.value = '暂无可用项目，请先通过"知识图谱构建"创建项目。'
+    projectError.value = error?.message || '无法从后端读取可用知识图谱，请确认 5002 服务正在运行。'
   } finally {
     projectsLoading.value = false
   }
@@ -226,6 +215,12 @@ async function loadProjects() {
 function changeActiveProject() {
   rememberActiveProjectId(window.localStorage, activeProjectId.value)
   reset()
+}
+
+function isMissingGraphScopeError(error) {
+  const status = error?.response?.status
+  const message = String(error?.message ?? '').toLowerCase()
+  return status === 404 || /graph.*not found|project.*not found|图谱不存在|项目不存在/.test(message)
 }
 
 async function sendQuestion(question = draft.value) {
@@ -249,6 +244,7 @@ async function sendQuestion(question = draft.value) {
   } catch (error) {
     if (currentRequest === requestVersion) {
       qaState.value = failApiAnswer(qaState.value, error)
+      if (isMissingGraphScopeError(error)) await loadProjects()
     }
   }
 }
