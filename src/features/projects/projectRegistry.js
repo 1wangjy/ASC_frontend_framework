@@ -2,7 +2,7 @@
  * 项目注册表 —— 前端本地维护项目列表的简单方案。
  *
  * 后端初始提交（f8b9ee4）没有 `GET /api/graph/project/list` 接口，
- * 新页面（AscQaView、KnowledgeExplorerView）无法直接获取项目列表。
+ * 问答页面需要从本地注册表恢复已知项目。
  * 本模块将 project_id 存入 localStorage，通过 `getProject(projectId)` 逐个获取。
  *
  * 使用方式：

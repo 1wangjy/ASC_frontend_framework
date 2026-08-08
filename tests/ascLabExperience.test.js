@@ -9,11 +9,8 @@ const evaluation = await import('../src/features/qa/answerEvaluationModel.js').c
 const evaluationService = await import('../src/features/qa/answerEvaluationService.js').catch(() => ({}))
 const guides = await import('../src/features/qa/questionGuideModel.js').catch(() => ({}))
 const library = await import('../src/features/library/libraryModel.js').catch(() => ({}))
-const libraryData = await import('../src/features/library/libraryData.js').catch(() => ({}))
+const libraryData = await import('./fixtures/libraryDocuments.js').catch(() => ({}))
 const routes = await import('../src/config/ascRoutes.js').catch(() => ({}))
-const overview = await import('../src/features/overview/moduleCatalog.js').catch(() => ({}))
-const graphData = await import('../src/features/knowledge/graphExplorerData.js').catch(() => ({}))
-const graph = await import('../src/features/knowledge/graphExplorerModel.js').catch(() => ({}))
 
 function contrastRatio(foreground, background) {
   const luminance = hex => {
@@ -793,66 +790,6 @@ test('literature filters support no-result and full-reset states', () => {
     0
   )
   assert.equal(library.filterDocuments(libraryData.documents, filters).length, 5)
-})
-
-test('defines route-complete supporting modules without generated research results', () => {
-  assert.deepEqual(Object.keys(overview.moduleCatalog || {}), ['knowledge', 'data', 'models'])
-  assert.deepEqual(
-    overview.moduleCatalog?.knowledge.items.map(item => item.title),
-    ['材料体系', '物相与反应', '性能关系']
-  )
-  assert.equal(
-    Object.values(overview.moduleCatalog || {}).every(module => module.items.length >= 3),
-    true
-  )
-})
-
-test('routes the graph entry into the existing workflow without inventing a backend API', async () => {
-  const view = await readFile(new URL('../src/views/KnowledgeView.vue', import.meta.url), 'utf8')
-  const graphApi = await readFile(new URL('../src/api/graph.js', import.meta.url), 'utf8')
-
-  assert.match(view, /进入知识图谱/)
-  assert.match(view, /router\.push\(['"]\/process\/new['"]\)/)
-  assert.doesNotMatch(view, /launchKnowledgeGraph|requestGraphLaunch|VITE_GRAPH_LAUNCH_API/)
-  assert.doesNotMatch(graphApi, /\/api\/graph\/launch|launchKnowledgeGraph/)
-})
-
-test('searches graph nodes by label alias and stable node id', () => {
-  assert.equal(
-    graph.searchGraphNodes?.(graphData.graphNodes, '碳化硅')[0].nodeId,
-    'material:sic'
-  )
-  assert.equal(
-    graph.searchGraphNodes?.(graphData.graphNodes, 'reaction:sic-oxidation')[0].label,
-    'SiC 氧化'
-  )
-})
-
-test('focuses a node at viewport center and highlights direct neighbors', () => {
-  const focused = graph.focusGraphNode?.(
-    graph.createGraphExplorerState(),
-    graphData.graphNodes,
-    graphData.graphEdges,
-    'material:sic',
-    { width: 760, height: 520, scale: 1.2 }
-  )
-
-  assert.equal(focused.focusedNodeId, 'material:sic')
-  assert.deepEqual(focused.viewport, { x: 80, y: 44, scale: 1.2 })
-  assert.ok(focused.highlightedNodeIds.includes('material:alumina'))
-})
-
-test('keeps the current graph view when a search target does not exist', () => {
-  const state = graph.createGraphExplorerState?.()
-  assert.ok(state)
-  const unchanged = graph.focusGraphNode?.(
-    state,
-    graphData.graphNodes,
-    graphData.graphEdges,
-    'missing:node'
-  )
-
-  assert.equal(unchanged, state)
 })
 
 test('uses ASC LAB metadata in the application entry document', async () => {
