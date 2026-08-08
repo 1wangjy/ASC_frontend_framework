@@ -26,16 +26,6 @@
       <AscIcon name="chevron" :class="{ 'sidebar__toggle-icon--collapse': !collapsed }" />
     </button>
 
-    <button
-      class="new-question"
-      type="button"
-      :title="collapsed ? '新建问答' : undefined"
-      @click="$emit('new-chat')"
-    >
-      <AscIcon name="plus" />
-      <span>新建问答</span>
-    </button>
-
     <nav class="primary-nav" aria-label="主要导航">
       <router-link
         v-for="item in primaryNavigation"
@@ -72,7 +62,7 @@ defineProps({
   }
 })
 
-defineEmits(['close', 'toggle-collapse', 'new-chat'])
+defineEmits(['close', 'toggle-collapse'])
 </script>
 
 <style scoped>
@@ -157,30 +147,10 @@ defineEmits(['close', 'toggle-collapse', 'new-chat'])
   transform: rotate(180deg);
 }
 
-.new-question {
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 15px;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: var(--asc-radius);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 750;
-  transition: background var(--asc-transition), border-color var(--asc-transition);
-}
-
-.new-question:hover {
-  border-color: rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.14);
-}
-
 .primary-nav {
   display: grid;
   gap: 5px;
-  margin-top: 17px;
+  margin-top: 4px;
 }
 
 .nav-item {
@@ -223,22 +193,12 @@ defineEmits(['close', 'toggle-collapse', 'new-chat'])
   }
 
   .sidebar--collapsed .brand__name,
-  .sidebar--collapsed .new-question span,
   .sidebar--collapsed .nav-item span {
     display: none;
   }
 
   .sidebar--collapsed .sidebar__toggle {
     left: calc(var(--asc-sidebar-collapsed-width) - 15px);
-  }
-
-  .sidebar--collapsed .new-question {
-    width: 44px;
-    min-height: 44px;
-    justify-content: center;
-    margin-inline: auto;
-    padding: 0;
-    font-size: 18px;
   }
 
   .sidebar--collapsed .primary-nav {

@@ -31,15 +31,12 @@ function contrastRatio(foreground, background) {
   )
 }
 
-test('defines the five ASC LAB destinations in product order', () => {
+test('defines the two retained ASC LAB destinations in product order', () => {
   assert.deepEqual(
     navigation.primaryNavigation?.map(item => [item.label, item.path]),
     [
       ['问答首页', '/'],
-      ['文献管理', '/documents'],
-      ['知识图谱', '/knowledge'],
-      ['数据平台', '/data'],
-      ['专业模型', '/models']
+      ['文献管理', '/documents']
     ]
   )
 })
@@ -88,7 +85,8 @@ test('recent conversations panel provides quiet expandable history controls', as
     'utf8'
   ).catch(() => '')
 
-  assert.match(source, /示例问题/)
+  assert.match(source, /历史问题/)
+  assert.match(source, /新建问答/)
   assert.match(source, /查看更多历史/)
   assert.match(source, /收起历史/)
   assert.match(source, /aria-expanded/)
@@ -108,7 +106,9 @@ test('QA owns recent conversations and hides them beside evidence', async () => 
   assert.match(view, /v-if="!qaState\.evidenceOpen"/)
   assert.match(view, /findRecentConversation/)
   assert.doesNotMatch(sidebar, /最近会话|recentConversations|open-conversation/)
+  assert.doesNotMatch(sidebar, /新建问答|new-question|new-chat/)
   assert.doesNotMatch(shell, /open-conversation|openConversation/)
+  assert.doesNotMatch(shell, /startNewChat|new-chat/)
 })
 
 test('compact recent conversations reserve their own row instead of covering QA content', async () => {
@@ -730,16 +730,12 @@ test('adding a literature record to QA changes only the selected record', () => 
   assert.equal(libraryData.documents.find(item => item.id === 'DOC-2022-003').qaIndexed, false)
 })
 
-test('keeps the six ASC entries and restores the five backend workflow routes', () => {
+test('keeps the two portal entries and the five backend workflow routes', () => {
   assert.deepEqual(
     routes.ascRouteDefinitions?.map(route => [route.name, route.path]),
     [
       ['AscQa', '/'],
       ['Documents', '/documents'],
-      ['Knowledge', '/knowledge'],
-      ['KnowledgeExplorer', '/knowledge/explorer'],
-      ['DataPlatform', '/data'],
-      ['Models', '/models'],
       ['Process', '/process/:projectId'],
       ['Simulation', '/simulation/:simulationId'],
       ['SimulationRun', '/simulation/:simulationId/start'],
@@ -757,7 +753,7 @@ test('keeps the six ASC entries and restores the five backend workflow routes', 
   )
   assert.equal(
     routes.ascRouteDefinitions?.find(route => route.name === 'Process')?.meta.navigationPath,
-    '/knowledge'
+    '/'
   )
   assert.equal(
     routes.ascRouteDefinitions?.find(route => route.name === 'Interaction')?.meta.navigationPath,

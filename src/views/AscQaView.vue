@@ -91,6 +91,7 @@
       v-if="!qaState.evidenceOpen"
       :conversations="recentConversations"
       @select="openConversation"
+      @new-chat="reset"
     />
 
     <EvidencePanel

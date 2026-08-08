@@ -5,7 +5,6 @@
       :collapsed="sidebarCollapsed"
       @close="mobileNavOpen = false"
       @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
-      @new-chat="startNewChat"
     />
 
     <button
@@ -31,20 +30,13 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import AscSidebar from '../components/navigation/AscSidebar.vue'
 import AscIcon from '../components/ui/AscIcon.vue'
 
 const route = useRoute()
-const router = useRouter()
 const mobileNavOpen = ref(false)
 const sidebarCollapsed = ref(false)
-
-function startNewChat() {
-  mobileNavOpen.value = false
-  router.push({ path: '/', query: { new: Date.now().toString() } })
-}
-
 </script>
 
 <style scoped>

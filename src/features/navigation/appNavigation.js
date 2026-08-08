@@ -1,9 +1,6 @@
 export const primaryNavigation = [
   { label: '问答首页', path: '/', icon: 'home' },
-  { label: '文献管理', path: '/documents', icon: 'document' },
-  { label: '知识图谱', path: '/knowledge', icon: 'graph' },
-  { label: '数据平台', path: '/data', icon: 'database' },
-  { label: '专业模型', path: '/models', icon: 'model' }
+  { label: '文献管理', path: '/documents', icon: 'document' }
 ]
 
 export const recentConversations = [

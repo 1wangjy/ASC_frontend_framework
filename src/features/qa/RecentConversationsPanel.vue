@@ -19,8 +19,18 @@
 
     <div id="recent-conversation-list" class="recent-conversations__content">
       <div class="recent-conversations__heading">
-        <span>{{ title }}</span>
-        <small>{{ conversations.length }} 条</small>
+        <div class="recent-conversations__summary">
+          <span>{{ title }}</span>
+          <small>{{ conversations.length }} 条</small>
+        </div>
+        <button
+          class="recent-conversations__new"
+          type="button"
+          @click="$emit('new-chat')"
+        >
+          <AscIcon name="plus" />
+          <span>新建问答</span>
+        </button>
       </div>
 
       <div
@@ -64,7 +74,7 @@ import {
 const props = defineProps({
   title: {
     type: String,
-    default: '示例问题'
+    default: '历史问题'
   },
   conversations: {
     type: Array,
@@ -72,7 +82,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['select'])
+const emit = defineEmits(['select', 'new-chat'])
 const expanded = ref(false)
 const compactOpen = ref(false)
 const compactToggle = ref(null)
@@ -112,9 +122,7 @@ function closeCompactPanel() {
 }
 
 .recent-conversations__heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
   gap: 8px;
   margin: 0 8px 10px;
   color: var(--recent-heading);
@@ -123,11 +131,41 @@ function closeCompactPanel() {
   letter-spacing: 0.08em;
 }
 
+.recent-conversations__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .recent-conversations__heading small {
   color: var(--recent-muted);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0;
+}
+
+.recent-conversations__new {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid #9fc4da;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--asc-primary);
+  font-size: 10px;
+  font-weight: 750;
+  transition: background var(--asc-transition), border-color var(--asc-transition);
+}
+
+.recent-conversations__new:hover,
+.recent-conversations__new:focus-visible {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary-soft);
+  outline: none;
 }
 
 .recent-conversations__list {

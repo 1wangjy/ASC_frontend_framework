@@ -12,49 +12,25 @@ export const ascRouteDefinitions = [
     meta: { title: '文献管理' }
   },
   {
-    path: '/knowledge',
-    name: 'Knowledge',
-    component: () => import('../views/KnowledgeView.vue'),
-    meta: { title: '知识图谱' }
-  },
-  {
-    path: '/knowledge/explorer',
-    name: 'KnowledgeExplorer',
-    component: () => import('../views/KnowledgeExplorerView.vue'),
-    meta: { title: '知识图谱工作区' }
-  },
-  {
-    path: '/data',
-    name: 'DataPlatform',
-    component: () => import('../views/DataPlatformView.vue'),
-    meta: { title: '数据平台' }
-  },
-  {
-    path: '/models',
-    name: 'Models',
-    component: () => import('../views/ModelsView.vue'),
-    meta: { title: '专业模型' }
-  },
-  {
     path: '/process/:projectId',
     name: 'Process',
     component: () => import('../views/MainView.vue'),
     props: true,
-    meta: { title: '知识图谱构建', navigationPath: '/knowledge' }
+    meta: { title: '知识图谱构建', navigationPath: '/' }
   },
   {
     path: '/simulation/:simulationId',
     name: 'Simulation',
     component: () => import('../views/SimulationView.vue'),
     props: true,
-    meta: { title: '研究配置', navigationPath: '/knowledge' }
+    meta: { title: '研究配置', navigationPath: '/' }
   },
   {
     path: '/simulation/:simulationId/start',
     name: 'SimulationRun',
     component: () => import('../views/SimulationRunView.vue'),
     props: true,
-    meta: { title: '证据推理', navigationPath: '/knowledge' }
+    meta: { title: '证据推理', navigationPath: '/' }
   },
   {
     path: '/report/:reportId',
