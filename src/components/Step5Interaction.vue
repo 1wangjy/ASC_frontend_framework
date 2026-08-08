@@ -2492,6 +2492,7 @@ import { chatWithReport, getReport, getAgentLog } from '../api/report'
 import { interviewAgents, getSimulationProfilesRealtime } from '../api/simulation'
 import { codGraphRAGQuery, submitQAFeedback, judgeQAWithLLM } from '../api/graph'
 import { getPdfPreviewUrl } from '../api/pdfLibrary'
+import { buildApiUrl } from '../api/runtime.js'
 import { buildAscDomainTerms, findAscDomainTermMatches } from '../utils/ascDomainHighlighter'
 
 const props = defineProps({
@@ -3471,8 +3472,7 @@ const referenceSourceUrl = (reference) => {
     if (/^https?:\/\//i.test(deepLink)) {
       url = deepLink
     } else if (deepLink.startsWith('/')) {
-      const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
-      url = `${base}${deepLink}`
+      url = buildApiUrl(deepLink)
     }
   }
   if (!url) return ''

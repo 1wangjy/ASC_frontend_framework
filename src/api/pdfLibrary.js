@@ -1,4 +1,5 @@
-import service from './index'
+import service from './index.js'
+import { buildApiUrl } from './runtime.js'
 
 export function uploadPdfFiles(formData, onUploadProgress) {
   return service({
@@ -26,13 +27,11 @@ export function deletePdfFile(fileId) {
 }
 
 export function getPdfPreviewUrl(fileId) {
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
   const user = encodeURIComponent(localStorage.getItem('nexus_user_id') || 'local-asc-analyst')
-  return `${base}/api/pdf-library/files/${fileId}/preview?user=${user}`
+  return `${buildApiUrl(`/api/pdf-library/files/${fileId}/preview`)}?user=${user}`
 }
 
 export function getPdfDownloadUrl(fileId) {
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001'
   const user = encodeURIComponent(localStorage.getItem('nexus_user_id') || 'local-asc-analyst')
-  return `${base}/api/pdf-library/files/${fileId}/download?user=${user}`
+  return `${buildApiUrl(`/api/pdf-library/files/${fileId}/download`)}?user=${user}`
 }
