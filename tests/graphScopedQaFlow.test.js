@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 
 import service from '../src/api/index.js'
@@ -51,4 +51,16 @@ test('keeps a 404 status when the API returns an unrelated error message', async
     console.error = originalConsoleError
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
   }
+})
+
+test('removes the obsolete browser project registry', async () => {
+  await assert.rejects(
+    access(new URL('../src/features/projects/projectRegistry.js', import.meta.url))
+  )
+
+  const [qa, process] = await Promise.all([
+    readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/views/MainView.vue', import.meta.url), 'utf8')
+  ])
+  assert.doesNotMatch(`${qa}\n${process}`, /asc_project_registry|projectRegistry|registerProject|getRegisteredProjectIds/)
 })
