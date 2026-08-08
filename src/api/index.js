@@ -39,7 +39,9 @@ service.interceptors.response.use(
     console.error('Response error:', error)
     const apiMessage = error.response?.data?.error || error.response?.data?.message
     if (apiMessage) {
-      return Promise.reject(new Error(apiMessage))
+      const apiError = new Error(apiMessage)
+      apiError.response = error.response
+      return Promise.reject(apiError)
     }
     if (error.response?.status === 413) {
       return Promise.reject(new Error('上传内容过大，请减少单次上传文件数量或调高后端 MAX_CONTENT_LENGTH_MB 配置'))

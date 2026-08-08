@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
+
+import service from '../src/api/index.js'
 
 test('QA discovers graph projects from the backend instead of the local registry', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
@@ -8,6 +11,35 @@ test('QA discovers graph projects from the backend instead of the local registry
   assert.match(source, /listProjects/)
   assert.match(source, /await listProjects\(\{\s*limit:\s*50\s*\}\)/)
   assert.match(source, /route\.query\.projectId/)
+  assert.match(source, /status === 404/)
   assert.doesNotMatch(source, /getRegisteredProjectIds|getProject\(/)
   assert.doesNotMatch(source, /projectRegistry/)
+})
+
+test('keeps a 404 status when the API returns an unrelated error message', async () => {
+  const server = createServer((request, response) => {
+    response.writeHead(404, { 'Content-Type': 'application/json' })
+    response.end(JSON.stringify({ message: 'The route is unavailable' }))
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const { port } = server.address()
+  const originalLocalStorage = globalThis.localStorage
+  const originalConsoleError = console.error
+  globalThis.localStorage = { getItem: () => null }
+  console.error = () => {}
+
+  try {
+    await assert.rejects(
+      () => service.get(`http://127.0.0.1:${port}/cod-query`),
+      (error) => {
+        assert.equal(error.message, 'The route is unavailable')
+        assert.equal(error.response?.status, 404)
+        return true
+      }
+    )
+  } finally {
+    globalThis.localStorage = originalLocalStorage
+    console.error = originalConsoleError
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
+  }
 })
