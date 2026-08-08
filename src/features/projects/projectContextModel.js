@@ -6,30 +6,33 @@ function projectTimestamp(project) {
   return Number.isFinite(timestamp) ? timestamp : 0
 }
 
-export function listGraphProjects(projects = []) {
-  if (!Array.isArray(projects)) return []
-
-  return projects
-    .filter((project) => {
-      const pid = String(project?.project_id ?? project?.id ?? '').trim()
-      return pid.length > 0
-    })
-    .slice()
-    .sort((left, right) => {
-      // 有 graph_id 的排前面
-      const lh = String(left?.graph_id ?? '').trim() ? 1 : 0
-      const rh = String(right?.graph_id ?? '').trim() ? 1 : 0
-      if (lh !== rh) return rh - lh
-      return projectTimestamp(right) - projectTimestamp(left)
-    })
+function projectArray(input) {
+  if (Array.isArray(input)) return input
+  return Array.isArray(input?.data) ? input.data : []
 }
 
-export function resolveActiveProject(projects = [], preferredProjectId = null) {
+export function listGraphProjects(input = []) {
+  return projectArray(input)
+    .map((project) => ({
+      ...project,
+      project_id: String(project?.project_id ?? '').trim(),
+      graph_id: String(project?.graph_id ?? '').trim()
+    }))
+    .filter((project) => project.project_id && project.graph_id)
+    .sort((left, right) => projectTimestamp(right) - projectTimestamp(left))
+}
+
+export function resolveActiveProject(projects = [], ...preferredProjectIds) {
   const usableProjects = listGraphProjects(projects)
   if (!usableProjects.length) return null
 
-  const preferredId = String(preferredProjectId ?? '').trim()
-  return usableProjects.find((project) => String(project.project_id) === preferredId) || usableProjects[0]
+  for (const candidate of preferredProjectIds) {
+    const projectId = String(candidate ?? '').trim()
+    const match = usableProjects.find((project) => project.project_id === projectId)
+    if (match) return match
+  }
+
+  return usableProjects[0]
 }
 
 export function readActiveProjectId(storage) {

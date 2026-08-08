@@ -22,6 +22,23 @@ test('keeps only usable graph projects and orders the newest first', () => {
   )
 })
 
+test('unwraps the backend project-list envelope and normalizes identifiers', () => {
+  const result = listGraphProjects({
+    success: true,
+    data: [{ project_id: ' p1 ', graph_id: ' g1 ', updated_at: '2026-08-08T10:00:00Z' }]
+  })
+
+  assert.equal(result.length, 1)
+  assert.equal(result[0].project_id, 'p1')
+  assert.equal(result[0].graph_id, 'g1')
+})
+
+test('prefers URL project, then stored project, then newest project', () => {
+  assert.equal(resolveActiveProject(projects, 'older', 'newer')?.project_id, 'older')
+  assert.equal(resolveActiveProject(projects, 'missing', 'older')?.project_id, 'older')
+  assert.equal(resolveActiveProject(projects, 'missing', 'also-missing')?.project_id, 'newer')
+})
+
 test('restores a preferred usable project', () => {
   assert.equal(resolveActiveProject(projects, 'older')?.project_id, 'older')
 })
