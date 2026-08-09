@@ -1,9 +1,9 @@
-import service, { requestWithRetry } from './index'
+import service, { requestWithRetry } from './index.js'
 import {
   buildReportDownloadRequest,
   buildReportSectionsRequest,
   buildReportStatusRequest
-} from './requestContracts'
+} from './requestContracts.js'
 
 /**
  * 开始报告生成

@@ -1,17 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { createServer } from 'vite'
+import service from '../src/api/index.js'
+import { getReportStatus } from '../src/api/report.js'
 
 test('polls report status with the backend task-id POST contract', async () => {
-  const vite = await createServer({
-    server: { middlewareMode: true, hmr: false },
-    appType: 'custom'
-  })
-  const [{ default: service }, { getReportStatus }] = await Promise.all([
-    vite.ssrLoadModule('/src/api/index.js'),
-    vite.ssrLoadModule('/src/api/report.js')
-  ])
   const originalAdapter = service.defaults.adapter
   let requestConfig
 
@@ -36,6 +29,5 @@ test('polls report status with the backend task-id POST contract', async () => {
     assert.deepEqual(JSON.parse(requestConfig.data), { task_id: 'task-7' })
   } finally {
     service.defaults.adapter = originalAdapter
-    await vite.close()
   }
 })

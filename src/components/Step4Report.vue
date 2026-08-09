@@ -393,6 +393,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, h, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { getAgentLog, getConsoleLog, getReportStatus } from '../api/report'
+import { createReportStatusPoller } from '../features/reports/reportStatusPoller.js'
 
 const router = useRouter()
 
@@ -2076,7 +2077,6 @@ const getLogLevelClass = (log) => {
 // Polling
 let agentLogTimer = null
 let consoleLogTimer = null
-let reportStatusTimer = null
 
 const fetchAgentLog = async () => {
   if (!props.reportId) return
@@ -2211,12 +2211,14 @@ const fetchConsoleLog = async () => {
   }
 }
 
-const fetchReportStatus = async () => {
-  if (!props.reportTaskId || isComplete.value) return
-
-  try {
-    const res = await getReportStatus({ taskId: props.reportTaskId })
+const reportStatusPoller = createReportStatusPoller({
+  poll: () => {
+    if (!props.reportTaskId || isComplete.value) return null
+    return getReportStatus({ taskId: props.reportTaskId })
+  },
+  onResult: async res => {
     const status = res?.data?.status
+    if (!status) return
 
     if (status === 'completed') {
       await Promise.all([fetchAgentLog(), fetchConsoleLog()])
@@ -2229,15 +2231,15 @@ const fetchReportStatus = async () => {
       emit('update-status', 'error')
       stopPolling()
     }
-  } catch (error) {
+  },
+  onError: error => {
     console.warn('Report status polling failed:', error)
   }
-}
+})
 
 const startStatusPolling = () => {
-  if (!props.reportTaskId || reportStatusTimer) return
-  fetchReportStatus()
-  reportStatusTimer = setInterval(fetchReportStatus, 2000)
+  if (!props.reportTaskId) return
+  reportStatusPoller.start()
 }
 
 const startPolling = () => {
@@ -2260,10 +2262,7 @@ const stopPolling = () => {
     clearInterval(consoleLogTimer)
     consoleLogTimer = null
   }
-  if (reportStatusTimer) {
-    clearInterval(reportStatusTimer)
-    reportStatusTimer = null
-  }
+  reportStatusPoller.stop()
 }
 
 // Lifecycle
@@ -2280,6 +2279,7 @@ onUnmounted(() => {
 
 watch(() => props.reportId, (newId) => {
   if (newId) {
+    stopPolling()
     agentLogs.value = []
     consoleLogs.value = []
     agentLogLine.value = 0
@@ -2298,6 +2298,7 @@ watch(() => props.reportId, (newId) => {
 }, { immediate: true })
 
 watch(() => props.reportTaskId, () => {
+  reportStatusPoller.stop()
   startStatusPolling()
 })
 </script>
