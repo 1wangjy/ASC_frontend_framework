@@ -4,7 +4,7 @@ Date: 2026-08-09 (Asia/Shanghai)
 
 ## Outcome
 
-The frontend regression suite, production build, real port-3000 proxy, persistent graph-task UI, responsive controls, reconnect flow, and retained advanced routes passed. Verification exposed a real report-status regression: the frontend had fallen back to a GET/report-ID contract even though the running 5002 backend accepts task-status polling as `POST /api/report/generate/status` with `task_id`. The focused TDD corrections are `d2683bb` (`fix: restore report task status polling`) and `4edd6a0` (`fix: serialize report status polling`).
+The frontend regression suite, production build, real port-3000 proxy, persistent graph-task UI, responsive controls, reconnect flow, and retained advanced routes passed. Verification exposed a real report-status regression: the frontend had fallen back to a GET/report-ID contract even though the running 5002 backend accepts task-status polling as `POST /api/report/generate/status` with `task_id`. The focused TDD corrections are `d2683bb` (`fix: restore report task status polling`), `4edd6a0` (`fix: serialize report status polling`), and Fix Round 1 commit `f3c3e9e` (`fix: restart replaced report status tasks`).
 
 ## Regression and build evidence
 
@@ -19,14 +19,23 @@ The frontend regression suite, production build, real port-3000 proxy, persisten
   - 2 tests; 0 passed; 2 failed as intended: three overlapping requests instead of one, and a stopped poller handled a late completed response.
 - Polling-race GREEN: `node --test tests/reportStatusPoller.test.js tests/reportApi.test.js tests/ascLabExperience.test.js tests/requestContracts.test.js`
   - 65 tests; 65 passed; 0 failed/skipped/cancelled/todo.
-- Full GREEN: `node --test tests/*.test.js`
-  - 162 tests; 162 passed; 0 failed/skipped/cancelled/todo.
+- Final post-runtime-commit GREEN: `node --test tests/*.test.js`
+  - 163 tests; 163 passed; 0 failed/skipped/cancelled/todo.
 - Build: `npm run build`
-  - Vite 7.2.7; 732 modules transformed; exit 0; built in 3.11 seconds on the latest focused pre-report run.
+  - Post-runtime-commit Vite 7.2.7 build; 732 modules transformed; exit 0; built in 3.81 seconds.
 - Diff check: `git diff --check`
   - Exit 0 with no whitespace errors.
 - Advanced API contract focus: `node --test tests/requestContracts.test.js`
   - 6 tests; 6 passed; 0 failed/skipped/cancelled/todo.
+
+## Fix Round 1
+
+- Task-only replacement RED: the source-behavior contract failed because `reportTaskId` could change after completion without resetting `isComplete`, so the status poll closure returned `null` instead of issuing a request for the replacement task.
+- Unresolved restart RED: the behavioral poller test observed two underlying calls after `start`, unresolved request, `stop`, and immediate `start`; `stop` had discarded the in-flight identity before the request actually settled.
+- GREEN implementation: the combined report/task watcher resets completion/status and starts polling the current `props.reportTaskId` on task-only replacement without clearing report logs or generated sections. Its report-change branch returns before the task-only branch, so simultaneous report/task replacement starts once.
+- GREEN poller behavior: an unresolved request retains its single-flight identity across stop/restart. The stale generation cannot invoke result/error handlers; after settlement, exactly one request begins for the current generation.
+- Focused GREEN: `node --test tests/reportStatusPoller.test.js tests/ascLabExperience.test.js tests/reportApi.test.js tests/requestContracts.test.js` passed 66/66. A final source/poller focus after strengthening the content-preservation assertion passed 59/59.
+- Post-runtime-commit gate for `f3c3e9e`: full tests 163/163; build 732 modules in 3.81 seconds; `git diff --check` exit 0; source/test and production-bundle forbidden scans 0/0; real port-3000 proxy HTTP 200, `success: true`, array payload, 5 rows.
 
 ## Report baseline diagnosis
 
