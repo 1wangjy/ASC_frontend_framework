@@ -98,6 +98,50 @@ test('completed-task finalization navigates only after the final graph load succ
   assert.deepEqual(calls, ['getProject', 'loadGraph'])
 })
 
+test('completed-task finalization validates and readies a graph without automatic navigation when requested', async () => {
+  const { completeTaskGraphForQa } = await import('../src/features/projects/graphQaNavigation.js')
+  const calls = []
+
+  const result = await completeTaskGraphForQa({
+    projectId: 'p1',
+    navigateWhenReady: false,
+    getProject: async () => {
+      calls.push('getProject')
+      return {
+        success: true,
+        data: { project_id: 'p1', graph_id: 'g1', status: 'graph_completed' }
+      }
+    },
+    loadGraph: async () => { calls.push('loadGraph'); return true },
+    onReady: async () => { calls.push('onReady') },
+    navigate: async () => { calls.push('navigate') }
+  })
+
+  assert.equal(result.status, 'success')
+  assert.deepEqual(result.route, { name: 'AscQa', query: { projectId: 'p1' } })
+  assert.deepEqual(calls, ['getProject', 'loadGraph', 'onReady'])
+})
+
+test('completed-task no-navigation finalization still reports graph loading failures before readiness', async () => {
+  const { completeTaskGraphForQa } = await import('../src/features/projects/graphQaNavigation.js')
+  const calls = []
+
+  const result = await completeTaskGraphForQa({
+    projectId: 'p1',
+    navigateWhenReady: false,
+    getProject: async () => ({
+      success: true,
+      data: { project_id: 'p1', graph_id: 'g1', status: 'graph_completed' }
+    }),
+    loadGraph: async () => { calls.push('loadGraph'); return false },
+    onReady: async () => { calls.push('onReady') }
+  })
+
+  assert.equal(result.status, 'error')
+  assert.match(result.message, /graph load/)
+  assert.deepEqual(calls, ['loadGraph'])
+})
+
 test('missing-task fallback reports getProject failure without navigating', async () => {
   const navigation = await import('../src/features/projects/graphQaNavigation.js')
   assert.equal(typeof navigation.completeMissingTaskGraphForQa, 'function')

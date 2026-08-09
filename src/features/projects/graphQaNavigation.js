@@ -36,6 +36,7 @@ async function completeGraphForQa({
   getProject,
   loadGraph,
   navigate,
+  navigateWhenReady = true,
   onCompletedProject,
   onReady,
   requireCompletedStatus = false
@@ -85,6 +86,9 @@ async function completeGraphForQa({
   }
 
   if (typeof onReady === 'function') await onReady(project)
+  if (navigateWhenReady === false) {
+    return { status: 'success', project, route }
+  }
   if (typeof navigate !== 'function') {
     return completionError('Final QA navigation is unavailable', project)
   }

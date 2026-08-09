@@ -377,6 +377,20 @@ test('requires a backend graph project before opening the answer workflow', asyn
   assert.doesNotMatch(view, /预览回答页面/)
 })
 
+test('keeps completed graph workflows visible until the explicit QA action is selected', async () => {
+  const view = await readFile(new URL('../src/views/MainView.vue', import.meta.url), 'utf8')
+
+  assert.match(view, /const canOpenCompletedGraphQa = computed\(\(\) => \([\s\S]*?projectData\.value\?\.status === 'graph_completed'[\s\S]*?project_id[\s\S]*?graph_id/)
+  assert.match(view, /v-if="canOpenCompletedGraphQa"/)
+  assert.match(view, /class="qa-entry-button"/)
+  assert.match(view, /@click="openCompletedGraphInQa\(projectData\)"/)
+  assert.match(view, /去图谱问答/)
+  assert.match(view, /completeTaskGraphForQa\(\{[\s\S]*?navigateWhenReady:\s*false[\s\S]*?\}\)/)
+  assert.match(view, /completeMissingTaskGraphForQa\(\{[\s\S]*?navigateWhenReady:\s*false[\s\S]*?\}\)/)
+  assert.doesNotMatch(view, /completeTaskGraphForQa\(\{[\s\S]*?navigate:\s*openCompletedGraphInQa/)
+  assert.doesNotMatch(view, /completeMissingTaskGraphForQa\(\{[\s\S]*?navigate:\s*openCompletedGraphInQa/)
+})
+
 test('carries the backend report task id into the report status polling page', async () => {
   const simulation = await readFile(
     new URL('../src/components/Step3Simulation.vue', import.meta.url),

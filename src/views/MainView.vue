@@ -21,6 +21,14 @@
       </div>
 
       <div class="header-right">
+        <button
+          v-if="canOpenCompletedGraphQa"
+          class="qa-entry-button"
+          type="button"
+          @click="openCompletedGraphInQa(projectData)"
+        >
+          去图谱问答
+        </button>
         <div class="workflow-step">
           <span class="step-num">Step {{ currentStep }}/5</span>
           <span class="step-name">{{ stepNames[currentStep - 1] }}</span>
@@ -194,6 +202,12 @@ const statusText = computed(() => {
   if (currentPhase.value === 0) return 'Generating Ontology'
   return 'Initializing'
 })
+
+const canOpenCompletedGraphQa = computed(() => (
+  projectData.value?.status === 'graph_completed'
+  && Boolean(String(projectData.value?.project_id || '').trim())
+  && Boolean(String(projectData.value?.graph_id || '').trim())
+))
 
 const stepProgress = computed(() => {
   if (currentStep.value > 1) return 100
@@ -941,7 +955,7 @@ const pollTaskStatus = async (taskId, buildStage = 'base') => {
           getProject,
           loadGraph,
           onReady: (project) => applyCompletedGraphState(project, buildStage),
-          navigate: openCompletedGraphInQa
+          navigateWhenReady: false
         })
         reportGraphCompletionFailure(completion)
       } else if (task.status === 'failed') {
@@ -966,7 +980,7 @@ const pollTaskStatus = async (taskId, buildStage = 'base') => {
           stopGraphPolling()
         },
         onReady: (project) => applyCompletedGraphState(project, buildStage),
-        navigate: openCompletedGraphInQa
+        navigateWhenReady: false
       })
       if (completion.status === 'pending') {
         projectData.value = completion.project
@@ -1124,6 +1138,27 @@ onUnmounted(() => {
   gap: 16px;
 }
 
+.qa-entry-button {
+  border: 1px solid #111;
+  background: #111;
+  color: #FFF;
+  padding: 7px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.qa-entry-button:hover {
+  background: #333;
+}
+
+.qa-entry-button:focus-visible {
+  outline: 3px solid #4C9AFF;
+  outline-offset: 2px;
+}
+
 .workflow-step {
   display: flex;
   align-items: center;
@@ -1146,6 +1181,26 @@ onUnmounted(() => {
   width: 1px;
   height: 14px;
   background-color: #E0E0E0;
+}
+
+@media (max-width: 860px) {
+  .app-header {
+    padding: 0 12px;
+  }
+
+  .header-center {
+    position: static;
+    transform: none;
+  }
+
+  .workflow-step,
+  .step-divider {
+    display: none;
+  }
+
+  .header-right {
+    gap: 8px;
+  }
 }
 
 .dot {
