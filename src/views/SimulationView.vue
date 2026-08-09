@@ -62,6 +62,7 @@
           @next-step="handleNextStep"
           @add-log="addLog"
           @update-status="updateStatus"
+          @go-qa="openProjectGraphInQa"
         />
       </div>
     </main>
@@ -76,6 +77,7 @@ import Step2EnvSetup from '../components/Step2EnvSetup.vue'
 import WorkflowProgressBar from '../components/WorkflowProgressBar.vue'
 import { getProject, getGraphData } from '../api/graph'
 import { getSimulation, stopSimulation, getEnvStatus, closeSimulationEnv } from '../api/simulation'
+import { navigateGraphProjectToQa } from '../features/projects/graphQaNavigation.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -154,6 +156,17 @@ const handleGoBack = () => {
     router.push({ name: 'Process', params: { projectId: projectData.value.project_id } })
   } else {
     router.push('/')
+  }
+}
+
+const openProjectGraphInQa = async () => {
+  const navigated = await navigateGraphProjectToQa({
+    project: projectData.value,
+    browser: globalThis,
+    navigate: qaRoute => router.replace(qaRoute)
+  })
+  if (!navigated) {
+    addLog('当前项目缺少 project_id 或 graph_id，无法进入图谱问答。')
   }
 }
 

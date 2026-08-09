@@ -1,6 +1,11 @@
 <template>
   <div class="env-setup-panel">
     <div class="scroll-container">
+      <section v-if="preparationState === 'missing-question'" class="missing-question-notice" role="alert">
+        <p>当前项目缺少研究问题，无法开始 ASC 分析准备。</p>
+        <p>你仍可使用图谱问答。</p>
+        <button class="action-btn" type="button" @click="emit('go-qa', projectData)">去图谱问答</button>
+      </section>
       <!-- Step 01: 分析工作台实例 -->
       <div class="step-card" :class="{ 'active': phase === 0, 'completed': phase > 0 }">
         <div class="card-header">
@@ -804,7 +809,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import { 
   prepareSimulation, 
   getPrepareStatus, 
@@ -812,6 +817,7 @@ import {
   getSimulationConfig,
   getSimulationConfigRealtime 
 } from '../api/simulation'
+import { simulationPreparationState } from '../features/research/simulationPreparationModel.js'
 
 const props = defineProps({
   simulationId: String,  // 从父组件传入
@@ -820,7 +826,7 @@ const props = defineProps({
   systemLogs: Array
 })
 
-const emit = defineEmits(['go-back', 'next-step', 'add-log', 'update-status'])
+const emit = defineEmits(['go-back', 'next-step', 'add-log', 'update-status', 'go-qa'])
 
 // State
 const phase = ref(0) // 0: 初始化, 1: 生成分析模块, 2: 生成配置, 3: 任务编排, 4: 完成
@@ -828,6 +834,9 @@ const taskId = ref(null)
 const prepareProgress = ref(0)
 const currentStage = ref('')
 const progressMessage = ref('')
+const prepareStarted = ref(false)
+const missingQuestionStatusReported = ref(false)
+const preparationState = computed(() => simulationPreparationState(props.simulationId, props.projectData))
 const profiles = ref([])
 const entityTypes = ref([])
 const expectedTotal = ref(null)
@@ -1083,6 +1092,29 @@ const startPrepareSimulation = async () => {
   }
 }
 
+watch(
+  () => [props.simulationId, props.projectData, simulationPreparationState(props.simulationId, props.projectData)],
+  ([, , state]) => {
+    if (state === 'waiting-project') return
+
+    if (state === 'missing-question') {
+      progressMessage.value = '当前项目缺少研究问题，无法开始 ASC 分析准备。'
+      if (!missingQuestionStatusReported.value) {
+        missingQuestionStatusReported.value = true
+        emit('update-status', 'error')
+      }
+      return
+    }
+
+    if (!prepareStarted.value) {
+      prepareStarted.value = true
+      addLog('Step2 ASC文献分析准备初始化')
+      startPrepareSimulation()
+    }
+  },
+  { immediate: true }
+)
+
 const startPolling = () => {
   pollTimer = setInterval(pollPrepareStatus, 2000)
 }
@@ -1322,14 +1354,6 @@ watch(() => props.systemLogs?.length, () => {
   })
 })
 
-onMounted(() => {
-  // 自动开始准备流程
-  if (props.simulationId) {
-    addLog('Step2 ASC文献分析准备初始化')
-    startPrepareSimulation()
-  }
-})
-
 onUnmounted(() => {
   stopPolling()
   stopProfilesPolling()
@@ -1344,6 +1368,19 @@ onUnmounted(() => {
   flex-direction: column;
   background: #FAFAFA;
   font-family: 'Space Grotesk', 'Noto Sans SC', system-ui, sans-serif;
+}
+
+.missing-question-notice {
+  margin: 16px 20px 0;
+  padding: 16px;
+  border: 1px solid #F59E0B;
+  border-radius: 8px;
+  background: #FFFBEB;
+  color: #92400E;
+}
+
+.missing-question-notice p {
+  margin: 0 0 8px;
 }
 
 .scroll-container {

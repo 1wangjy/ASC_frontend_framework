@@ -82,6 +82,7 @@
           @professional-files-selected="handleProfessionalFilesSelected"
           @build-professional-graph="startProfessionalGraphBuild"
           @next-step="handleNextStep"
+          @open-qa="openCompletedGraphInQa"
         />
         <!-- Step 2: 环境搭建 -->
         <Step2EnvSetup

@@ -515,12 +515,21 @@
           <p class="description">Base 与 Professional Research 图谱构建完成后，进入ASC文献分析准备</p>
           <button 
             class="action-btn" 
-            :disabled="currentPhase < 4 || creatingSimulation"
+            :disabled="currentPhase < 4 || creatingSimulation || !projectResearchQuestion(projectData)"
             @click="handleEnterEnvSetup"
           >
             <span v-if="creatingSimulation" class="spinner-sm"></span>
             {{ creatingSimulation ? '创建中...' : '进入分析准备 ➝' }}
           </button>
+          <p v-if="simulationPreparationError" class="simulation-preparation-error">
+            {{ simulationPreparationError }}
+          </p>
+          <button
+            v-if="projectData?.project_id && projectData?.graph_id"
+            class="action-btn qa-action-btn"
+            type="button"
+            @click="emit('open-qa', projectData)"
+          >去图谱问答</button>
         </div>
       </div>
     </div>
@@ -547,6 +556,7 @@ import { useRouter } from 'vue-router'
 import { importBaseMetadata, updateGraphNodeMetadata } from '../api/graph'
 import { createSimulation } from '../api/simulation'
 import { baseGraphExportFilename, buildBaseGraphExport } from '../utils/baseGraphMetadata'
+import { projectResearchQuestion } from '../features/research/simulationPreparationModel.js'
 
 const router = useRouter()
 
@@ -571,12 +581,14 @@ const emit = defineEmits([
   'professional-files-selected',
   'base-node-updated',
   'confirm-base-nodes',
-  'base-metadata-imported'
+  'base-metadata-imported',
+  'open-qa'
 ])
 
 const selectedOntologyItem = ref(null)
 const logContent = ref(null)
 const creatingSimulation = ref(false)
+const simulationPreparationError = ref('')
 const entityNodeLimit = ref(260)
 const targetEdgeCount = ref(180)
 const postTargetEdgeIterations = ref(2)
@@ -976,6 +988,12 @@ const handleEnterEnvSetup = async () => {
     console.error('缺少项目或图谱信息')
     return
   }
+
+  if (!projectResearchQuestion(props.projectData)) {
+    simulationPreparationError.value = '当前项目缺少研究问题，不能进入 ASC 分析准备。你仍可使用图谱问答。'
+    return
+  }
+  simulationPreparationError.value = ''
   
   creatingSimulation.value = true
   
