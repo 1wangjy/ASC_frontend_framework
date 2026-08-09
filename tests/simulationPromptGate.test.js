@@ -9,6 +9,7 @@ import {
   createSimulationPreparationController,
   simulationPreparationKey
 } from '../src/features/research/simulationPreparationController.js'
+import { createSimulationViewLifecycleController } from '../src/features/research/simulationViewLifecycleController.js'
 
 const readyProject = (projectId = 'p1', graphId = 'g1') => ({
   project_id: projectId,
@@ -126,6 +127,106 @@ test('preparation controller invalidates a late response after stop so it cannot
   assert.equal(timersStarted, 0)
 })
 
+test('preparation controller starts once when an initially missing question becomes ready for the same key', async () => {
+  const starts = []
+  const controller = createSimulationPreparationController({
+    start: context => starts.push(context.key)
+  })
+
+  await controller.update('s1', { project_id: 'p1', graph_id: 'g1', query_prompt: '' })
+  await controller.update('s1', readyProject())
+
+  assert.deepEqual(starts, ['s1|p1|g1'])
+})
+
+test('preparation controller does not restart a prepared key after a transient missing snapshot', async () => {
+  const starts = []
+  const states = []
+  const controller = createSimulationPreparationController({
+    start: context => starts.push(context.key),
+    onState: state => states.push(state)
+  })
+
+  await controller.update('s1', readyProject())
+  await controller.update('s1', { project_id: 'p1', graph_id: 'g1', query_prompt: '' })
+  await controller.update('s1', readyProject())
+
+  assert.deepEqual(starts, ['s1|p1|g1'])
+  assert.deepEqual(states, ['ready', 'ready', 'ready'])
+})
+
+test('preparation controller resets an unprepared same-key missing state and blocks start', async () => {
+  const resets = []
+  const stops = []
+  const starts = []
+  const controller = createSimulationPreparationController({
+    reset: context => resets.push(context.state),
+    stop: () => stops.push('stop'),
+    start: context => starts.push(context.key)
+  })
+
+  await controller.update('s1', null)
+  await controller.update('s1', { project_id: '', graph_id: '', query_prompt: '' })
+
+  assert.deepEqual(resets, ['waiting-project', 'missing-question'])
+  assert.deepEqual(stops, ['stop', 'stop'])
+  assert.deepEqual(starts, [])
+})
+
+test('simulation view lifecycle never closes or stops a newer route after an old environment lookup resolves', async () => {
+  const firstLookup = deferred()
+  const firstClose = deferred()
+  const closeTargets = []
+  const stopTargets = []
+  const loaded = []
+  const controller = createSimulationViewLifecycleController({
+    checkEnvironment: simulationId => simulationId === 's1'
+      ? firstLookup.promise
+      : Promise.resolve({ env_alive: false }),
+    closeEnvironment: simulationId => {
+      closeTargets.push(simulationId)
+      return firstClose.promise
+    },
+    forceStop: async simulationId => stopTargets.push(simulationId),
+    load: async context => { if (context.isCurrent()) loaded.push(context.simulationId) }
+  })
+
+  const first = controller.enter('s1')
+  firstLookup.resolve({ env_alive: true })
+  await Promise.resolve()
+  await controller.enter('s2')
+  firstClose.resolve()
+  await first
+
+  assert.deepEqual(closeTargets, ['s1'])
+  assert.deepEqual(stopTargets, [])
+  assert.deepEqual(loaded, ['s2'])
+})
+
+test('simulation view lifecycle discards an environment response that arrives after switching routes', async () => {
+  const firstLookup = deferred()
+  const closeTargets = []
+  const stopTargets = []
+  const loaded = []
+  const controller = createSimulationViewLifecycleController({
+    checkEnvironment: simulationId => simulationId === 's1'
+      ? firstLookup.promise
+      : Promise.resolve({ env_alive: false }),
+    closeEnvironment: async simulationId => closeTargets.push(simulationId),
+    forceStop: async simulationId => stopTargets.push(simulationId),
+    load: async context => { if (context.isCurrent()) loaded.push(context.simulationId) }
+  })
+
+  const first = controller.enter('s1')
+  await controller.enter('s2')
+  firstLookup.resolve({ env_alive: true })
+  await first
+
+  assert.deepEqual(closeTargets, [])
+  assert.deepEqual(stopTargets, [])
+  assert.deepEqual(loaded, ['s2'])
+})
+
 test('builds a stable simulation preparation key from simulation and project identifiers', () => {
   assert.equal(simulationPreparationKey(' s1 ', { project_id: ' p1 ', graph_id: ' g1 ' }), 's1|p1|g1')
 })
@@ -165,7 +266,8 @@ test('MainView and SimulationView route project-scoped QA actions through the sh
   assert.match(simulationView, /@go-qa="openProjectGraphInQa"/)
   assert.match(simulationView, /navigateGraphProjectToQa/)
   assert.match(simulationView, /project:\s*projectData\.value/)
-  assert.match(simulationView, /watch\(\(\) => route\.params\.simulationId/)
+  assert.match(simulationView, /watch\(\s*\(\) => route\.params\.simulationId/)
+  assert.match(simulationView, /createSimulationViewLifecycleController/)
 })
 
 test('simulation prompt gate does not fabricate a default research question', async () => {

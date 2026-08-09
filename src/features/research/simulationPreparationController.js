@@ -20,7 +20,7 @@ export function createSimulationPreparationController({
   let generation = 0
   let activeKey = null
   let activeState = null
-  let prepareStarted = false
+  let hasPreparedForKey = false
   let missingReported = false
 
   function createContext(simulationId, project, key, state, currentGeneration) {
@@ -49,15 +49,21 @@ export function createSimulationPreparationController({
       generation++
       activeKey = key
       activeState = state
-      prepareStarted = false
+      hasPreparedForKey = false
       missingReported = false
       stop()
       reset(createContext(simulationId, project, key, state, generation))
+    } else if (stateChanged && state !== 'ready' && hasPreparedForKey) {
+      const context = createContext(simulationId, project, key, activeState, generation)
+      onState(activeState, context)
+      return
     } else if (stateChanged) {
       generation++
       activeState = state
-      prepareStarted = false
-      if (state !== 'ready') stop()
+      if (state !== 'ready') {
+        stop()
+        reset(createContext(simulationId, project, key, state, generation))
+      }
     }
 
     const context = createContext(simulationId, project, key, state, generation)
@@ -72,8 +78,8 @@ export function createSimulationPreparationController({
       return
     }
 
-    if (prepareStarted) return
-    prepareStarted = true
+    if (hasPreparedForKey) return
+    hasPreparedForKey = true
     await start(context)
   }
 
