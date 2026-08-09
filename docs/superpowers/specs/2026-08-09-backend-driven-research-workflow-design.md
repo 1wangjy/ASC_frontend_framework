@@ -110,7 +110,7 @@ ASC 前端不是一组彼此独立的展示页面，而是一条由 5002 后端�
 
 它只负责：
 
-- 请求后端任务和项目数据；
+- 请求后端项目列表，并按项目中的 `graph_build_task_id` 查询进行中的单任务状态；
 - 将任务与对应项目关联；
 - 维护连接状态和最后一次成功同步时间；
 - 根据任务活跃状态调整轮询频率；
@@ -160,14 +160,15 @@ ASC 前端不是一组彼此独立的展示页面，而是一条由 5002 后端�
 
 不在组件中散落写死的 `http://127.0.0.1:5002`。生产或特殊部署继续通过 `VITE_API_BASE_URL` 配置。
 
-本设计使用现有接口，不要求修改后端：
+本设计使用当前已经验证可用的接口，不要求修改后端：
 
-- `GET /api/graph/tasks`
 - `GET /api/graph/project/list`
 - `GET /api/graph/project/:projectId`
 - `GET /api/graph/task/:taskId`
 - `GET /api/graph/data/:graphId`
 - 现有本体生成、图谱构建、问答、仿真和报告接口
+
+后端虽然声明了 `GET /api/graph/tasks`，但 2026-08-09 对正在运行的 5002 实测为 HTTP 500，错误为 `AttributeError: 'dict' object has no attribute 'to_dict'`。由于本次禁止修改后端，全局监控不得依赖该接口。监控先通过项目列表识别 `ontology_generating`、`graph_building`、`graph_completed` 和 `failed` 状态，再只对带 `graph_build_task_id` 的构建中项目请求单任务状态。这样既绕开已知故障，又保持项目与任务天然对应。
 
 ### 5.2 轮询策略
 
