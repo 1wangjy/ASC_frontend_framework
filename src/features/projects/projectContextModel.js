@@ -35,20 +35,37 @@ export function resolveActiveProject(projects = [], ...preferredProjectIds) {
   return usableProjects[0]
 }
 
+export function resolveProjectAfterRefresh(projects = [], options = {}) {
+  if (options.requireManualSelection === true) return null
+  return resolveActiveProject(
+    projects,
+    options.routeProjectId,
+    options.storedProjectId
+  )
+}
+
 export function readActiveProjectId(storage) {
   if (!storage?.getItem) return null
 
-  const projectId = String(storage.getItem(ACTIVE_PROJECT_STORAGE_KEY) ?? '').trim()
-  return projectId || null
+  try {
+    const projectId = String(storage.getItem(ACTIVE_PROJECT_STORAGE_KEY) ?? '').trim()
+    return projectId || null
+  } catch {
+    return null
+  }
 }
 
 export function rememberActiveProjectId(storage, projectId) {
   if (!storage) return
 
   const normalizedId = String(projectId ?? '').trim()
-  if (normalizedId && storage.setItem) {
-    storage.setItem(ACTIVE_PROJECT_STORAGE_KEY, normalizedId)
-  } else if (storage.removeItem) {
-    storage.removeItem(ACTIVE_PROJECT_STORAGE_KEY)
+  try {
+    if (normalizedId && storage.setItem) {
+      storage.setItem(ACTIVE_PROJECT_STORAGE_KEY, normalizedId)
+    } else if (storage.removeItem) {
+      storage.removeItem(ACTIVE_PROJECT_STORAGE_KEY)
+    }
+  } catch {
+    // Project selection memory is optional and must never block the main flow.
   }
 }

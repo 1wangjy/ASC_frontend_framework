@@ -73,3 +73,52 @@ test('persists only the active project identifier', () => {
   rememberActiveProjectId(storage, '')
   assert.equal(readActiveProjectId(storage), null)
 })
+
+test('treats unavailable browser storage as an empty active-project memory', () => {
+  const storage = {
+    getItem() {
+      throw new DOMException('Storage access denied', 'SecurityError')
+    }
+  }
+
+  assert.equal(readActiveProjectId(storage), null)
+})
+
+test('does not let active-project storage writes block the calling flow', () => {
+  let continuedAfterWrite = false
+  const storage = {
+    setItem() {
+      throw new DOMException('Storage quota exceeded', 'QuotaExceededError')
+    },
+    removeItem() {
+      throw new DOMException('Storage access denied', 'SecurityError')
+    }
+  }
+
+  assert.doesNotThrow(() => {
+    rememberActiveProjectId(storage, 'project-1')
+    continuedAfterWrite = true
+  })
+  assert.equal(continuedAfterWrite, true)
+  assert.doesNotThrow(() => rememberActiveProjectId(storage, ''))
+})
+
+test('invalid-scope refresh leaves every project unselected for a manual choice', async () => {
+  const projectContext = await import('../src/features/projects/projectContextModel.js')
+  assert.equal(typeof projectContext.resolveProjectAfterRefresh, 'function')
+
+  const availableProjects = [
+    { project_id: 'p2', graph_id: 'g2', updated_at: '2026-08-09T01:00:00Z' },
+    { project_id: 'p1', graph_id: 'g1', updated_at: '2026-08-09T00:00:00Z' }
+  ]
+
+  assert.equal(projectContext.resolveProjectAfterRefresh(availableProjects, {
+    routeProjectId: 'p1',
+    storedProjectId: 'p2',
+    requireManualSelection: true
+  }), null)
+  assert.equal(projectContext.resolveProjectAfterRefresh(availableProjects, {
+    routeProjectId: 'p1',
+    storedProjectId: 'p2'
+  })?.project_id, 'p1')
+})

@@ -19,7 +19,8 @@
             :disabled="projectsLoading || !projects.length"
             @change="changeActiveProject"
           >
-            <option v-if="!projects.length" value="">暂无可用图谱</option>
+            <option v-if="scopeSelectionRequired" value="" disabled>请选择知识图谱</option>
+            <option v-else-if="!projects.length" value="">暂无可用图谱</option>
             <option
               v-for="project in projects"
               :key="project.project_id"
@@ -120,6 +121,7 @@ import EvidencePanel from '../features/qa/EvidencePanel.vue'
 import RecentConversationsPanel from '../features/qa/RecentConversationsPanel.vue'
 import {
   codGraphRAGQuery,
+  getProject,
   listProjects,
   judgeQAWithLLM,
   submitQAFeedback
@@ -146,11 +148,14 @@ import {
   updateAnswerEvaluation,
   updateQaSettings
 } from '../features/qa/qaDemoModel.js'
-import { requestCodAnswer } from '../features/qa/qaApiAdapter.js'
+import {
+  isInvalidGraphScopeError,
+  requestCodAnswer
+} from '../features/qa/qaApiAdapter.js'
 import {
   readActiveProjectId,
   rememberActiveProjectId,
-  resolveActiveProject,
+  resolveProjectAfterRefresh,
   listGraphProjects
 } from '../features/projects/projectContextModel.js'
 import {
@@ -167,6 +172,7 @@ const projects = ref([])
 const activeProjectId = ref('')
 const projectsLoading = ref(true)
 const projectError = ref('')
+const scopeSelectionRequired = ref(false)
 const evaluationService = createAnswerEvaluationService({
   mode: 'api',
   api: { judgeQAWithLLM, submitQAFeedback }
@@ -180,6 +186,7 @@ const evaluationEnabled = computed(() => canEvaluateAnswer(qaState.value))
 const projectUnavailableMessage = computed(() => {
   if (projectsLoading.value) return '正在读取可用于问答的知识图谱项目…'
   if (projectError.value) return projectError.value
+  if (scopeSelectionRequired.value && projects.value.length) return '原知识图谱范围已失效，请手动选择图谱后重试。'
   if (!activeProject.value) return '后端没有带 graph_id 的可用项目，暂时不能发起图谱问答。'
   return ''
 })
@@ -188,18 +195,20 @@ function projectLabel(project) {
   return project.project_name || project.name || project.project_id
 }
 
-async function loadProjects() {
+async function loadProjects(options = {}) {
+  const requireManualSelection = options?.requireManualSelection === true || scopeSelectionRequired.value
   projectsLoading.value = true
   projectError.value = ''
+  scopeSelectionRequired.value = requireManualSelection
 
   try {
     const response = await listProjects({ limit: 50 })
     projects.value = listGraphProjects(response)
-    const selected = resolveActiveProject(
-      projects.value,
-      route.query.projectId,
-      readActiveProjectId(window.localStorage)
-    )
+    const selected = resolveProjectAfterRefresh(projects.value, {
+      routeProjectId: route.query.projectId,
+      storedProjectId: readActiveProjectId(window.localStorage),
+      requireManualSelection
+    })
     activeProjectId.value = selected?.project_id ?? ''
     rememberActiveProjectId(window.localStorage, activeProjectId.value)
   } catch (error) {
@@ -214,13 +223,12 @@ async function loadProjects() {
 
 function changeActiveProject() {
   rememberActiveProjectId(window.localStorage, activeProjectId.value)
+  if (scopeSelectionRequired.value) {
+    scopeSelectionRequired.value = false
+    projectError.value = ''
+    return
+  }
   reset()
-}
-
-function isMissingGraphScopeError(error) {
-  const status = error?.response?.status
-  const message = String(error?.message ?? '').toLowerCase()
-  return status === 404 || /graph.*not found|project.*not found|图谱不存在|项目不存在/.test(message)
 }
 
 async function sendQuestion(question = draft.value) {
@@ -233,7 +241,7 @@ async function sendQuestion(question = draft.value) {
   const currentRequest = ++requestVersion
 
   try {
-    const adapted = await requestCodAnswer(codGraphRAGQuery, {
+    const adapted = await requestCodAnswer({ codGraphRAGQuery, getProject }, {
       question: nextState.question,
       project: activeProject.value,
       settings: nextState.settings
@@ -244,7 +252,10 @@ async function sendQuestion(question = draft.value) {
   } catch (error) {
     if (currentRequest === requestVersion) {
       qaState.value = failApiAnswer(qaState.value, error)
-      if (isMissingGraphScopeError(error)) await loadProjects()
+      if (isInvalidGraphScopeError(error)) {
+        draft.value = qaState.value.question
+        await loadProjects({ requireManualSelection: true })
+      }
     }
   }
 }

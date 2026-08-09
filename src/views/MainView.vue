@@ -99,7 +99,11 @@ import Step2EnvSetup from '../components/Step2EnvSetup.vue'
 import WorkflowProgressBar from '../components/WorkflowProgressBar.vue'
 import { prepareOntologyProject, generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
 import { rememberActiveProjectId } from '../features/projects/projectContextModel.js'
-import { buildGraphQaRoute } from '../features/projects/graphQaNavigation.js'
+import {
+  buildGraphQaRoute,
+  completeMissingTaskGraphForQa,
+  completeTaskGraphForQa
+} from '../features/projects/graphQaNavigation.js'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 
 const route = useRoute()
@@ -247,6 +251,32 @@ const openCompletedGraphInQa = (project) => {
   rememberActiveProjectId(window.localStorage, project.project_id)
   router.replace(qaRoute)
   return true
+}
+
+const reportGraphCompletionFailure = (result) => {
+  if (result?.status !== 'error') return
+  error.value = result.message || 'Final graph loading failed; QA navigation was cancelled.'
+  addLog(error.value)
+}
+
+const applyCompletedGraphState = (project, buildStage) => {
+  projectData.value = project
+  if (buildStage === 'base') {
+    baseProjectData.value = project
+    baseProjectId.value = project.project_id
+    baseGraphData.value = graphData.value
+    baseMetadataPath.value = project.base_metadata_file || project.latest_graph_metadata_file || baseMetadataPath.value
+    baseNodesConfirmed.value = false
+    currentPhase.value = 2
+    addLog(`Base graph metadata ready: ${baseMetadataPath.value || 'not found'}`)
+    addLog('Waiting for Base Node expert review in Step 02 before Professional Research.')
+  } else {
+    baseNodesConfirmed.value = true
+    baseProjectId.value = project.base_project_id || baseProjectId.value
+    baseMetadataPath.value = project.base_metadata_path || baseMetadataPath.value
+    currentPhase.value = 4
+    addLog('Professional Research graph completed; analysis preparation is now available.')
+  }
 }
 
 const displayOntologyProgress = (progress = {}) => {
@@ -905,30 +935,15 @@ const pollTaskStatus = async (taskId, buildStage = 'base') => {
         addLog('Graph build task completed.')
         stopPolling()
         stopGraphPolling() // Stop polling, do final load
-        
-        // Final load
-        const projRes = await getProject(currentProjectId.value)
-        if (projRes.success && projRes.data.graph_id) {
-            projectData.value = projRes.data
-            await loadGraph(projRes.data.graph_id)
-            if (buildStage === 'base') {
-              baseProjectData.value = projRes.data
-              baseProjectId.value = projRes.data.project_id
-              baseGraphData.value = graphData.value
-              baseMetadataPath.value = projRes.data.base_metadata_file || projRes.data.latest_graph_metadata_file || baseMetadataPath.value
-              baseNodesConfirmed.value = false
-              currentPhase.value = 2
-              addLog(`Base graph metadata ready: ${baseMetadataPath.value || 'not found'}`)
-              addLog('Waiting for Base Node expert review in Step 02 before Professional Research.')
-            } else {
-              baseNodesConfirmed.value = true
-              baseProjectId.value = projRes.data.base_project_id || baseProjectId.value
-              baseMetadataPath.value = projRes.data.base_metadata_path || baseMetadataPath.value
-              currentPhase.value = 4
-              addLog('Professional Research graph completed; analysis preparation is now available.')
-            }
-            openCompletedGraphInQa(projRes.data)
-        }
+
+        const completion = await completeTaskGraphForQa({
+          projectId: currentProjectId.value,
+          getProject,
+          loadGraph,
+          onReady: (project) => applyCompletedGraphState(project, buildStage),
+          navigate: openCompletedGraphInQa
+        })
+        reportGraphCompletionFailure(completion)
       } else if (task.status === 'failed') {
         stopPolling()
         error.value = task.error
@@ -942,21 +957,27 @@ const pollTaskStatus = async (taskId, buildStage = 'base') => {
         addLog('Task status is unavailable; continuing project and graph polling.')
         taskMissingLogged.value = true
       }
-      const projRes = await getProject(currentProjectId.value)
-      if (projRes.success) {
-        projectData.value = projRes.data
-        updatePhaseByStatus(projRes.data.status)
-        if (projRes.data.graph_id) {
-          await fetchGraphData()
-        }
-        if (projRes.data.status === 'graph_completed') {
+      const completion = await completeMissingTaskGraphForQa({
+        projectId: currentProjectId.value,
+        getProject,
+        loadGraph,
+        onCompletedProject: () => {
           stopPolling()
           stopGraphPolling()
-          if (projRes.data.graph_id) {
-            await loadGraph(projRes.data.graph_id)
-            openCompletedGraphInQa(projRes.data)
-          }
+        },
+        onReady: (project) => applyCompletedGraphState(project, buildStage),
+        navigate: openCompletedGraphInQa
+      })
+      if (completion.status === 'pending') {
+        projectData.value = completion.project
+        updatePhaseByStatus(completion.project.status)
+        if (completion.project.graph_id) await fetchGraphData()
+      } else if (completion.status === 'error') {
+        if (completion.project?.status === 'graph_completed') {
+          stopPolling()
+          stopGraphPolling()
         }
+        reportGraphCompletionFailure(completion)
       }
       return
     }
@@ -972,11 +993,14 @@ const loadGraph = async (graphId) => {
     if (res.success) {
       graphData.value = res.data
       addLog('Graph data loaded successfully.')
+      return true
     } else {
       addLog(`Failed to load graph data: ${res.error}`)
+      return false
     }
   } catch (e) {
     addLog(`Exception loading graph: ${e.message}`)
+    return false
   } finally {
     graphLoading.value = false
   }

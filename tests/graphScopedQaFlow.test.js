@@ -11,17 +11,33 @@ test('QA discovers graph projects from the backend instead of the local registry
   assert.match(source, /listProjects/)
   assert.match(source, /await listProjects\(\{\s*limit:\s*50\s*\}\)/)
   assert.match(source, /route\.query\.projectId/)
-  assert.match(source, /status === 404/)
   assert.doesNotMatch(source, /getRegisteredProjectIds|getProject\(/)
   assert.doesNotMatch(source, /projectRegistry/)
+})
+
+test('invalid QA scope refreshes into manual selection without resending the question', async () => {
+  const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /requestCodAnswer\(\{\s*codGraphRAGQuery,\s*getProject\s*\}/)
+  assert.match(source, /loadProjects\(\{\s*requireManualSelection:\s*true\s*\}\)/)
+  assert.match(source, /draft\.value\s*=\s*qaState\.value\.question/)
+  assert.match(source, /resolveProjectAfterRefresh/)
 })
 
 test('completed graph builds route to QA and no longer write a local registry', async () => {
   const source = await readFile(new URL('../src/views/MainView.vue', import.meta.url), 'utf8')
 
   assert.match(source, /buildGraphQaRoute/)
+  assert.match(source, /completeTaskGraphForQa/)
+  assert.match(source, /completeMissingTaskGraphForQa/)
   assert.match(source, /rememberActiveProjectId/)
   assert.match(source, /router\.replace\(qaRoute\)/)
+  const loadGraphSource = source.slice(
+    source.indexOf('const loadGraph = async'),
+    source.indexOf('const refreshGraph =')
+  )
+  assert.match(loadGraphSource, /return true/)
+  assert.match(loadGraphSource, /return false/)
   assert.doesNotMatch(source, /registerProject|projectRegistry/)
 })
 

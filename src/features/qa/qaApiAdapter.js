@@ -4,6 +4,8 @@ const REASONING_MODES = {
   ToT: 'tot'
 }
 
+const INVALID_GRAPH_SCOPE_CODE = 'INVALID_GRAPH_SCOPE'
+
 const STAGE_LABELS = {
   query_decomposition: '问题分解',
   subgraph_retrieval: '子图检索',
@@ -21,6 +23,60 @@ function unwrapResult(payload) {
   if (payload?.answer !== undefined) return payload
   if (payload?.data?.answer !== undefined) return payload.data
   return {}
+}
+
+function invalidGraphScope(message, cause) {
+  const error = new Error(message, cause ? { cause } : undefined)
+  error.code = INVALID_GRAPH_SCOPE_CODE
+  return error
+}
+
+function isMissingScopeResponse(error) {
+  const status = error?.response?.status
+  const message = String(error?.message ?? '').toLowerCase()
+  return status === 404 || /graph.*not found|project.*not found|图谱不存在|项目不存在/.test(message)
+}
+
+function projectFromResponse(response) {
+  if (response?.data && typeof response.data === 'object') return response.data
+  return response && typeof response === 'object' ? response : null
+}
+
+function assertAuthoritativeProjectScope(requestScope, response) {
+  if (response?.success === false) {
+    throw invalidGraphScope(response?.error || 'Selected project no longer exists')
+  }
+
+  const project = projectFromResponse(response)
+  const projectId = String(project?.project_id ?? '').trim()
+  const graphId = String(project?.graph_id ?? '').trim()
+  if (!projectId || projectId !== requestScope.project_id) {
+    throw invalidGraphScope('Authoritative project_id does not match the selected project')
+  }
+  if (!graphId || graphId !== requestScope.graph_id) {
+    throw invalidGraphScope('Authoritative graph_id does not match the selected graph')
+  }
+}
+
+function assertResolvedResponseScope(payload, requestScope) {
+  const graphContext = unwrapResult(payload)?.debug_trace?.graph_context
+  if (!graphContext || typeof graphContext !== 'object') {
+    throw invalidGraphScope('Successful answer is missing debug_trace.graph_context')
+  }
+
+  if (String(graphContext.scope_resolution ?? '').trim() !== 'project_id') {
+    throw invalidGraphScope('Response scope_resolution did not resolve from the requested project_id')
+  }
+  if (String(graphContext.project_id ?? '').trim() !== requestScope.project_id) {
+    throw invalidGraphScope('Resolved response project_id does not match the request')
+  }
+  if (String(graphContext.graph_id ?? '').trim() !== requestScope.graph_id) {
+    throw invalidGraphScope('Resolved response graph_id does not match the request')
+  }
+}
+
+export function isInvalidGraphScopeError(error) {
+  return error?.code === INVALID_GRAPH_SCOPE_CODE
 }
 
 function unique(values = []) {
@@ -179,7 +235,32 @@ export function buildCodQueryPayload({ question, project, settings = {} } = {}) 
   return payload
 }
 
-export async function requestCodAnswer(codGraphRAGQuery, context) {
-  const response = await codGraphRAGQuery(buildCodQueryPayload(context))
+export async function requestCodAnswer({ codGraphRAGQuery, getProject } = {}, context) {
+  if (typeof getProject !== 'function' || typeof codGraphRAGQuery !== 'function') {
+    throw new TypeError('requestCodAnswer requires getProject and codGraphRAGQuery')
+  }
+
+  const payload = buildCodQueryPayload(context)
+  let projectResponse
+  try {
+    projectResponse = await getProject(payload.project_id)
+  } catch (error) {
+    if (isMissingScopeResponse(error)) {
+      throw invalidGraphScope('Selected project no longer exists', error)
+    }
+    throw error
+  }
+  assertAuthoritativeProjectScope(payload, projectResponse)
+
+  let response
+  try {
+    response = await codGraphRAGQuery(payload)
+  } catch (error) {
+    if (isMissingScopeResponse(error)) {
+      throw invalidGraphScope('Selected graph scope no longer exists', error)
+    }
+    throw error
+  }
+  assertResolvedResponseScope(response, payload)
   return adaptCodGraphRagResponse(response)
 }

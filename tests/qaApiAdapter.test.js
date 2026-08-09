@@ -34,7 +34,14 @@ const backendResponse = {
       answer_excerpt: '碳化硅改善热震性能'
     }],
     debug_trace: {
-      stages: [{ stage: 'query_decomposition' }, { stage: 'path_verification' }]
+      stages: [{ stage: 'query_decomposition' }, { stage: 'path_verification' }],
+      graph_context: {
+        scope_resolution: 'project_id',
+        requested_project_id: 'p1',
+        requested_graph_id: 'g1',
+        project_id: 'p1',
+        graph_id: 'g1'
+      }
     }
   }
 }
@@ -90,23 +97,185 @@ test('rejects a question without a complete backend graph scope', () => {
 
 test('calls the query API with the exact scoped payload and adapts its response', async () => {
   const calls = []
-  const adapted = await requestCodAnswer(async (payload) => {
-    calls.push(payload)
-    return backendResponse
+  const adapted = await requestCodAnswer({
+    getProject: async (projectId) => {
+      calls.push(['getProject', projectId])
+      return {
+        success: true,
+        data: {
+          project_id: 'p1',
+          graph_id: 'g1',
+          project_name: 'Graph one',
+          status: 'graph_completed',
+          updated_at: '2026-08-09T00:00:00Z'
+        }
+      }
+    },
+    codGraphRAGQuery: async (payload) => {
+      calls.push(['codGraphRAGQuery', payload])
+      return backendResponse
+    }
   }, {
     question: 'Q',
     project: { project_id: 'p1', graph_id: 'g1' },
     settings: { framework: 'NEXUS', reasoning: 'Auto' }
   })
 
-  assert.deepEqual(calls, [{
-    question: 'Q',
-    project_id: 'p1',
-    graph_id: 'g1',
-    reasoning_mode: 'auto',
-    mode: 'adaptive_cod'
-  }])
+  assert.deepEqual(calls, [
+    ['getProject', 'p1'],
+    ['codGraphRAGQuery', {
+      question: 'Q',
+      project_id: 'p1',
+      graph_id: 'g1',
+      reasoning_mode: 'auto',
+      mode: 'adaptive_cod'
+    }]
+  ])
   assert.equal(adapted.qaRunId, 'qarun_1')
+})
+
+test('does not POST when the selected project was deleted before submission', async () => {
+  let queryCalled = false
+  const notFound = new Error('Project not found')
+  notFound.response = { status: 404 }
+
+  await assert.rejects(
+    requestCodAnswer({
+      getProject: async () => { throw notFound },
+      codGraphRAGQuery: async () => {
+        queryCalled = true
+        return backendResponse
+      }
+    }, {
+      question: 'Keep this question',
+      project: { project_id: 'p1', graph_id: 'g1' }
+    }),
+    (error) => {
+      assert.equal(error.code, 'INVALID_GRAPH_SCOPE')
+      return true
+    }
+  )
+
+  assert.equal(queryCalled, false)
+})
+
+test('does not POST when the authoritative project now points at another graph', async () => {
+  let queryCalled = false
+
+  await assert.rejects(
+    requestCodAnswer({
+      getProject: async () => ({
+        success: true,
+        data: {
+          project_id: 'p1',
+          graph_id: 'g2',
+          project_name: 'Rebuilt graph',
+          status: 'graph_completed',
+          updated_at: '2026-08-09T00:00:00Z'
+        }
+      }),
+      codGraphRAGQuery: async () => {
+        queryCalled = true
+        return backendResponse
+      }
+    }, {
+      question: 'Keep this question',
+      project: { project_id: 'p1', graph_id: 'g1' }
+    }),
+    (error) => {
+      assert.equal(error.code, 'INVALID_GRAPH_SCOPE')
+      assert.match(error.message, /graph_id/)
+      return true
+    }
+  )
+
+  assert.equal(queryCalled, false)
+})
+
+test('rejects a successful answer resolved through the latest-project fallback', async () => {
+  const fallbackResponse = {
+    ...backendResponse,
+    data: {
+      ...backendResponse.data,
+      debug_trace: {
+        ...backendResponse.data.debug_trace,
+        graph_context: {
+          scope_resolution: 'latest_project_fallback',
+          requested_project_id: 'p1',
+          requested_graph_id: 'g1',
+          project_id: 'p2',
+          graph_id: 'g2'
+        }
+      }
+    }
+  }
+
+  await assert.rejects(
+    requestCodAnswer({
+      getProject: async () => ({
+        success: true,
+        data: {
+          project_id: 'p1',
+          graph_id: 'g1',
+          project_name: 'Graph one',
+          status: 'graph_completed',
+          updated_at: '2026-08-09T00:00:00Z'
+        }
+      }),
+      codGraphRAGQuery: async () => fallbackResponse
+    }, {
+      question: 'Never show another graph answer',
+      project: { project_id: 'p1', graph_id: 'g1' }
+    }),
+    (error) => {
+      assert.equal(error.code, 'INVALID_GRAPH_SCOPE')
+      assert.match(error.message, /scope_resolution/)
+      return true
+    }
+  )
+})
+
+test('rejects a successful answer whose resolved identifiers differ from the request', async () => {
+  const mismatchedResponse = {
+    ...backendResponse,
+    data: {
+      ...backendResponse.data,
+      debug_trace: {
+        ...backendResponse.data.debug_trace,
+        graph_context: {
+          scope_resolution: 'project_id',
+          requested_project_id: 'p1',
+          requested_graph_id: 'g1',
+          project_id: 'p1',
+          graph_id: 'g2'
+        }
+      }
+    }
+  }
+
+  await assert.rejects(
+    requestCodAnswer({
+      getProject: async () => ({
+        success: true,
+        data: {
+          project_id: 'p1',
+          graph_id: 'g1',
+          project_name: 'Graph one',
+          status: 'graph_completed',
+          updated_at: '2026-08-09T00:00:00Z'
+        }
+      }),
+      codGraphRAGQuery: async () => mismatchedResponse
+    }, {
+      question: 'Never show another graph answer',
+      project: { project_id: 'p1', graph_id: 'g1' }
+    }),
+    (error) => {
+      assert.equal(error.code, 'INVALID_GRAPH_SCOPE')
+      assert.match(error.message, /graph_id/)
+      return true
+    }
+  )
 })
 
 test('completes and fails a real API answer without substituting mock data', () => {
