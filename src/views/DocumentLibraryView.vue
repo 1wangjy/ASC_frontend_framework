@@ -128,8 +128,10 @@ import {
   reconcileSelectedDocumentIds,
   toggleSelectedDocumentId
 } from '../features/library/libraryWorkflowModel.js'
-import { createResearchBuildIntent } from '../features/research/researchQuestionWorkflow.js'
-import { setPendingUpload } from '../store/pendingUpload.js'
+import {
+  createResearchBuildIntent,
+  startResearchBuildFromLibrary
+} from '../features/research/researchQuestionWorkflow.js'
 
 const router = useRouter()
 const documentRows = ref([])
@@ -195,16 +197,9 @@ function buildGraphFromSelection() {
 }
 
 function startGraphBuild(question) {
-  const intent = createResearchBuildIntent(documentRows.value, selectedDocumentIds.value, question)
+  const intent = startResearchBuildFromLibrary(documentRows.value, selectedDocumentIds.value, question)
   if (!intent.canStart || !intent.fileIds.length) return
 
-  setPendingUpload([], intent.queryPrompt, '', '', {
-    dataType: 'pdf_library',
-    buildStage: 'base',
-    sourceCorpusType: 'survey',
-    pdfLibraryFileIds: intent.fileIds,
-    pdfLibraryFiles: intent.files
-  })
   researchQuestionDialogOpen.value = false
   router.push('/process/new')
 }

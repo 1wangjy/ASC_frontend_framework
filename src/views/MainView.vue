@@ -112,6 +112,10 @@ import {
   navigateGraphProjectToQa
 } from '../features/projects/graphQaNavigation.js'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
+import {
+  normalizeResearchQuestion,
+  runProfessionalResearchRequests
+} from '../features/research/researchQuestionWorkflow.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -811,6 +815,14 @@ const startProfessionalGraphBuild = async (options = {}) => {
     addLog('Professional Research build blocked: missing base metadata.')
     return
   }
+  const researchQuestion = normalizeResearchQuestion(
+    queryPromptForProfessional.value || projectData.value?.query_prompt || projectData.value?.simulation_requirement || ''
+  )
+  if (!researchQuestion) {
+    error.value = '请先填写研究问题。'
+    addLog('Professional Research build blocked: a research question is required before ontology generation.')
+    return
+  }
 
   try {
     error.value = ''
@@ -819,38 +831,29 @@ const startProfessionalGraphBuild = async (options = {}) => {
     buildProgress.value = { progress: 0, message: 'Generating Professional Research ontology...' }
     addLog(`Creating Professional Research project with ${professionalUploadFiles.value.length} file(s).`)
 
-    const prepareRes = await prepareOntologyProject({
-      project_name: 'Professional Research Graph Project',
-      query_prompt: queryPromptForProfessional.value || projectData.value?.query_prompt || projectData.value?.simulation_requirement || '',
-      simulation_requirement: queryPromptForProfessional.value || projectData.value?.query_prompt || projectData.value?.simulation_requirement || '',
-      build_stage: 'professional',
-      source_corpus_type: 'research',
-      base_metadata_path: effectiveBaseMetadataPath,
-      base_project_id: effectiveBaseProjectId
+    const requestResult = await runProfessionalResearchRequests({
+      question: researchQuestion,
+      files: professionalUploadFiles.value,
+      baseMetadataPath: effectiveBaseMetadataPath,
+      baseProjectId: effectiveBaseProjectId,
+      prepareOntologyProject,
+      generateOntology,
+      onPrepared: async (prepareRes) => {
+        currentProjectId.value = prepareRes.data.project_id
+        projectData.value = prepareRes.data
+        graphData.value = null
+        router.replace({ name: 'Process', params: { projectId: prepareRes.data.project_id } })
+        startOntologyPolling(prepareRes.data.project_id)
+        addLog(`Professional ontology project prepared: ${prepareRes.data.project_id}`)
+      }
     })
+    const prepareRes = requestResult.prepareResponse
     if (!prepareRes.success) {
       error.value = prepareRes.error || 'Professional Research 项目预创建失败'
       addLog(`Professional project preparation failed: ${error.value}`)
       return
     }
-    currentProjectId.value = prepareRes.data.project_id
-    projectData.value = prepareRes.data
-    graphData.value = null
-    router.replace({ name: 'Process', params: { projectId: prepareRes.data.project_id } })
-    startOntologyPolling(prepareRes.data.project_id)
-    addLog(`Professional ontology project prepared: ${prepareRes.data.project_id}`)
-
-    const formData = new FormData()
-    formData.append('project_id', prepareRes.data.project_id)
-    professionalUploadFiles.value.forEach(file => formData.append('files', file))
-    formData.append('query_prompt', queryPromptForProfessional.value || projectData.value?.query_prompt || projectData.value?.simulation_requirement || '')
-    formData.append('simulation_requirement', queryPromptForProfessional.value || projectData.value?.query_prompt || projectData.value?.simulation_requirement || '')
-    formData.append('build_stage', 'professional')
-    formData.append('source_corpus_type', 'research')
-    formData.append('base_metadata_path', effectiveBaseMetadataPath)
-    formData.append('base_project_id', effectiveBaseProjectId)
-
-    const res = await generateOntology(formData)
+    const res = requestResult.generationResponse
     if (!res.success) {
       error.value = res.error || 'Professional Research 本体生成失败'
       addLog(`Professional ontology generation failed: ${error.value}`)

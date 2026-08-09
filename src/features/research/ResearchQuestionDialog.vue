@@ -6,7 +6,7 @@
         <p>请说明希望基于所选文献构建和探索的研究问题。该问题将用于生成图谱。</p>
       </header>
 
-      <form @submit.prevent="submit">
+      <form novalidate @submit.prevent="submit">
         <label for="research-question-input">研究问题</label>
         <textarea
           id="research-question-input"
@@ -29,7 +29,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { normalizeResearchQuestion } from './researchQuestionWorkflow.js'
+import { validateResearchQuestionDialogSubmission } from './researchQuestionWorkflow.js'
 
 const props = defineProps({
   open: {
@@ -45,23 +45,27 @@ const validationError = ref('')
 watch(
   () => props.open,
   (open) => {
-    if (open) validationError.value = ''
+    if (open) {
+      question.value = ''
+      validationError.value = ''
+    }
   }
 )
 
 function close() {
+  question.value = ''
   validationError.value = ''
   emit('close')
 }
 
 function submit() {
-  const normalizedQuestion = normalizeResearchQuestion(question.value)
-  if (!normalizedQuestion) {
-    validationError.value = '请先填写研究问题。'
+  const result = validateResearchQuestionDialogSubmission(question.value)
+  if (!result.canSubmit) {
+    validationError.value = result.error
     return
   }
 
-  emit('submit', normalizedQuestion)
+  emit('submit', result.question)
 }
 </script>
 
