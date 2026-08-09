@@ -83,11 +83,6 @@ import { createSimulationViewLifecycleController } from '../features/research/si
 const route = useRoute()
 const router = useRouter()
 
-// Props
-const props = defineProps({
-  simulationId: String
-})
-
 // Layout State
 const viewMode = ref('split')
 
@@ -209,56 +204,6 @@ const handleNextStep = (params = {}) => {
 
 // --- Data Logic ---
 
-/**
- * 检查并关闭正在运行的模拟
- * 当用户从 Step 3 返回到 Step 2 时，默认用户要退出模拟
- */
-const checkAndStopRunningSimulation = async (simulationId) => {
-  if (!simulationId) return
-  
-  try {
-    // 先检查模拟环境是否存活
-    const envStatusRes = await getEnvStatus({ simulation_id: simulationId })
-    
-    if (envStatusRes.success && envStatusRes.data?.env_alive) {
-      addLog('检测到模拟环境正在运行，正在关闭...')
-      
-      // 尝试优雅关闭模拟环境
-      try {
-        const closeRes = await closeSimulationEnv({ 
-          simulation_id: simulationId,
-          timeout: 10  // 10秒超时
-        })
-        
-        if (closeRes.success) {
-          addLog('✓ 模拟环境已关闭')
-        } else {
-          addLog(`关闭模拟环境失败: ${closeRes.error || '未知错误'}`)
-          // 如果优雅关闭失败，尝试强制停止
-          await forceStopSimulation(simulationId)
-        }
-      } catch (closeErr) {
-        addLog(`关闭模拟环境异常: ${closeErr.message}`)
-        // 如果优雅关闭异常，尝试强制停止
-        await forceStopSimulation(simulationId)
-      }
-    } else {
-      // 环境未运行，但可能进程还在，检查模拟状态
-      const simRes = await getSimulation(simulationId)
-      if (simRes.success && simRes.data?.status === 'running') {
-        addLog('检测到模拟状态为运行中，正在停止...')
-        await forceStopSimulation(simulationId)
-      }
-    }
-  } catch (err) {
-    // 检查环境状态失败不影响后续流程
-    console.warn('检查模拟状态失败:', err)
-  }
-}
-
-/**
- * 强制停止模拟
- */
 const forceStopSimulation = async (simulationId, context = null) => {
   try {
     const stopRes = await stopSimulation({ simulation_id: simulationId })
@@ -269,6 +214,7 @@ const forceStopSimulation = async (simulationId, context = null) => {
       addLog(`强制停止模拟失败: ${stopRes.error || '未知错误'}`)
     }
   } catch (err) {
+    if (context && !context.isCurrent()) return
     addLog(`强制停止模拟异常: ${err.message}`)
   }
 }
@@ -337,6 +283,7 @@ const simulationViewLifecycle = createSimulationViewLifecycleController({
     currentSimulationId.value = context.simulationId
     projectData.value = null
     graphData.value = null
+    graphLoading.value = false
     currentStatus.value = 'processing'
     addLog('SimulationView 初始化')
   },
@@ -353,6 +300,9 @@ const simulationViewLifecycle = createSimulationViewLifecycleController({
     return response?.success && response.data?.status === 'running'
   },
   forceStop: (simulationId, context) => forceStopSimulation(simulationId, context),
+  onCheckError: (error, context) => {
+    if (context.isCurrent()) addLog(`检查模拟状态失败: ${error.message}`)
+  },
   load: context => loadSimulationData(context)
 })
 

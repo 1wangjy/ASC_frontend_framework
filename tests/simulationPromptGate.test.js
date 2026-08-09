@@ -227,6 +227,85 @@ test('simulation view lifecycle discards an environment response that arrives af
   assert.deepEqual(loaded, ['s2'])
 })
 
+test('simulation view lifecycle warns and still loads when environment or running checks fail', async () => {
+  const loaded = []
+  const warnings = []
+  const environmentFailure = createSimulationViewLifecycleController({
+    checkEnvironment: async () => { throw new Error('environment unavailable') },
+    onCheckError: (error, context) => warnings.push([error.message, context.simulationId]),
+    load: async context => loaded.push(context.simulationId)
+  })
+  const runningFailure = createSimulationViewLifecycleController({
+    checkEnvironment: async () => ({ env_alive: false }),
+    checkRunning: async () => { throw new Error('simulation lookup unavailable') },
+    onCheckError: (error, context) => warnings.push([error.message, context.simulationId]),
+    load: async context => loaded.push(context.simulationId)
+  })
+
+  await environmentFailure.enter('s1')
+  await runningFailure.enter('s2')
+
+  assert.deepEqual(warnings, [
+    ['environment unavailable', 's1'],
+    ['simulation lookup unavailable', 's2']
+  ])
+  assert.deepEqual(loaded, ['s1', 's2'])
+})
+
+test('simulation view lifecycle ignores a stale check failure', async () => {
+  const pending = deferred()
+  const warnings = []
+  const loaded = []
+  const controller = createSimulationViewLifecycleController({
+    checkEnvironment: simulationId => simulationId === 's1'
+      ? pending.promise
+      : Promise.resolve({ env_alive: false }),
+    onCheckError: (error, context) => warnings.push([error.message, context.simulationId]),
+    load: async context => loaded.push(context.simulationId)
+  })
+
+  const oldEntry = controller.enter('s1')
+  await controller.enter('s2')
+  pending.resolve(Promise.reject(new Error('stale failure')))
+  await oldEntry
+  controller.stop()
+
+  assert.deepEqual(warnings, [])
+  assert.deepEqual(loaded, ['s2'])
+})
+
+test('simulation view lifecycle ignores a rejected check after unmount', async () => {
+  const pending = deferred()
+  const warnings = []
+  const loaded = []
+  const controller = createSimulationViewLifecycleController({
+    checkEnvironment: () => pending.promise,
+    onCheckError: (error, context) => warnings.push([error.message, context.simulationId]),
+    load: async context => loaded.push(context.simulationId)
+  })
+
+  const entry = controller.enter('s1')
+  controller.stop()
+  pending.resolve(Promise.reject(new Error('unmounted failure')))
+  await entry
+
+  assert.deepEqual(warnings, [])
+  assert.deepEqual(loaded, [])
+})
+
+test('simulation view lifecycle resets every new route so the view can clear its previous graph spinner', async () => {
+  const resets = []
+  const controller = createSimulationViewLifecycleController({
+    reset: context => resets.push(context.simulationId),
+    load: async () => {}
+  })
+
+  await controller.enter('s1')
+  await controller.enter('s2')
+
+  assert.deepEqual(resets, ['s1', 's2'])
+})
+
 test('builds a stable simulation preparation key from simulation and project identifiers', () => {
   assert.equal(simulationPreparationKey(' s1 ', { project_id: ' p1 ', graph_id: ' g1 ' }), 's1|p1|g1')
 })
@@ -268,6 +347,7 @@ test('MainView and SimulationView route project-scoped QA actions through the sh
   assert.match(simulationView, /project:\s*projectData\.value/)
   assert.match(simulationView, /watch\(\s*\(\) => route\.params\.simulationId/)
   assert.match(simulationView, /createSimulationViewLifecycleController/)
+  assert.match(simulationView, /graphLoading\.value = false/)
 })
 
 test('simulation prompt gate does not fabricate a default research question', async () => {

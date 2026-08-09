@@ -4,7 +4,9 @@ export function createSimulationViewLifecycleController({
   checkRunning = async () => false,
   forceStop = async () => {},
   load = async () => {},
-  reset = () => {}
+  reset = () => {},
+  onCheckError = () => {},
+  onLoadError = () => {}
 } = {}) {
   let mounted = true
   let generation = 0
@@ -29,27 +31,60 @@ export function createSimulationViewLifecycleController({
     reset(context)
     if (!context.simulationId) return
 
-    try {
-      const environment = await checkEnvironment(context.simulationId)
+    async function loadCurrent() {
       if (!context.isCurrent()) return
-
-      if (environment?.env_alive) {
-        try {
-          await closeEnvironment(context.simulationId)
-        } catch {
-          if (!context.isCurrent()) return
-          await forceStop(context.simulationId, context)
-        }
-      } else {
-        const running = await checkRunning(context.simulationId)
-        if (!context.isCurrent()) return
-        if (running) await forceStop(context.simulationId, context)
+      try {
+        await load(context)
+      } catch (error) {
+        if (context.isCurrent()) onLoadError(error, context)
       }
-      if (!context.isCurrent()) return
-      await load(context)
-    } catch {
-      // The view owns visible diagnostics; stale lifecycle work is intentionally silent.
     }
+
+    function reportCurrentCheckError(error) {
+      if (context.isCurrent()) onCheckError(error, context)
+    }
+
+    let environment
+    try {
+      environment = await checkEnvironment(context.simulationId)
+    } catch (error) {
+      reportCurrentCheckError(error)
+      return loadCurrent()
+    }
+    if (!context.isCurrent()) return
+
+    if (environment?.env_alive) {
+      try {
+        await closeEnvironment(context.simulationId)
+      } catch (error) {
+        if (!context.isCurrent()) return
+        reportCurrentCheckError(error)
+        try {
+          await forceStop(context.simulationId, context)
+        } catch (forceError) {
+          reportCurrentCheckError(forceError)
+        }
+      }
+      return loadCurrent()
+    }
+
+    let running
+    try {
+      running = await checkRunning(context.simulationId)
+    } catch (error) {
+      reportCurrentCheckError(error)
+      return loadCurrent()
+    }
+    if (!context.isCurrent()) return
+
+    if (running) {
+      try {
+        await forceStop(context.simulationId, context)
+      } catch (error) {
+        reportCurrentCheckError(error)
+      }
+    }
+    return loadCurrent()
   }
 
   function stop() {
