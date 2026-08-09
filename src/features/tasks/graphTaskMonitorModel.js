@@ -14,6 +14,8 @@ export function normalizeGraphTaskItems(projects = [], taskById = new Map()) {
   return unwrapGraphProjects(projects)
     .filter(project => String(project?.project_id || '').trim())
     .map(project => {
+      const projectId = String(project.project_id).trim()
+      const graphId = String(project.graph_id || '').trim()
       const taskId = String(project.graph_build_task_id || '').trim()
       const task = taskId ? taskById.get(taskId) : null
       const projectStatus = String(project.status || 'created')
@@ -27,8 +29,8 @@ export function normalizeGraphTaskItems(projects = [], taskById = new Map()) {
 
       return {
         id: taskId || `project:${project.project_id}`,
-        projectId: String(project.project_id).trim(),
-        graphId: String(project.graph_id || '').trim(),
+        projectId,
+        graphId,
         taskId,
         name: project.project_name || project.name || project.project_id,
         status,
@@ -37,7 +39,7 @@ export function normalizeGraphTaskItems(projects = [], taskById = new Map()) {
         message: task?.error || task?.message || ontology.message || project.error || '',
         updatedAt: Date.parse(project.updated_at || project.created_at || '') || 0,
         active: ACTIVE_STATUSES.has(status),
-        canOpenQa: status === 'graph_completed' && Boolean(project.project_id && project.graph_id)
+        canOpenQa: status === 'graph_completed' && Boolean(projectId && graphId)
       }
     })
     .sort((left, right) => Number(right.active) - Number(left.active) || right.updatedAt - left.updatedAt)

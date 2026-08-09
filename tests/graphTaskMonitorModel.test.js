@@ -52,6 +52,16 @@ test('permits QA only for completed projects with both identifiers', () => {
   )
 })
 
+test('does not permit QA when a completed project has whitespace-only identifiers', () => {
+  const items = normalizeGraphTaskItems([
+    { project_id: 'p1', graph_id: '   ', status: 'graph_completed' },
+    { project_id: 'p2', graph_id: 'g2', status: 'graph_completed' }
+  ])
+
+  assert.equal(items.find(item => item.projectId === 'p1').canOpenQa, false)
+  assert.equal(items.find(item => item.projectId === 'p2').canOpenQa, true)
+})
+
 test('surfaces a failed graph task error as an inactive terminal failure', () => {
   const [item] = normalizeGraphTaskItems([{
     project_id: 'p1',
