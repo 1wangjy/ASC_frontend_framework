@@ -60,7 +60,40 @@ D:\WEB\VScode\yuan ma\桌面\AI4Sci-NEXUS-ASC-Development-Domain-main\backend
 
 was enumerated with source/config extensions, excluding `logs`, `uploads`, `cache`, `.pytest_cache`, `venv`, and `.venv`. Of 124 files, zero had a `LastWriteTime` at or after the branch starting point `2026-08-08T22:48:55+08:00` (`7201da4`). The newest included source/config file was timestamped `2026-08-06 14:06:49 +08:00`. This supports that the implementation did not modify backend source/configuration; it deliberately makes no claim about runtime logs, uploads, caches, virtual environments, or data.
 
+## Fix Round 2: Real CoD Query
+
+Using the same temporary worktree Vite instance at port 3100, Chrome loaded the real project list, chose a project whose backend status was `graph_completed`, and selected it through the URL project parameter. It then issued one **unintercepted** browser `POST /api/graphrag/cod-query` through the 3100-to-5002 proxy. The temporary route used for the earlier UI-only smoke was not installed for this request.
+
+The JSON request contained exactly these four keys:
+
+```text
+graph_id, project_id, question, reasoning_mode
+```
+
+The request did not contain `simulation_requirement`. To avoid persisting raw backend identifiers, the selected project and graph are represented by SHA-256 prefixes `1eca3b7c77ab` and `907ea01d1771`, respectively. The short question was `Brief runtime smoke: state the graph scope is accepted.`
+
+The real backend request completed with HTTP 200 and `success: true`. Its adapted result had both a non-empty answer and a non-empty `qa_run_id`. The response summary did not contain `simulation_requirement`, and the browser remained at `/` rather than navigating to Step2 or simulation. No raw answer, raw identifiers, or backend response body is retained in this document.
+
+## Fix Round 2: Independent Backend Mirror Comparison
+
+Because the D:\WEB tree has no Git metadata, a Git pre/post snapshot remains unavailable. As a stronger but non-Git equivalent boundary check, the following two backend trees were independently enumerated and SHA-256 compared:
+
+```text
+D:\WEB\VScode\yuan ma\桌面\AI4Sci-NEXUS-ASC-Development-Domain-main\backend
+D:\ASC\AI4Sci-NEXUS-ASC-Development-Domain-main\backend
+```
+
+The comparison used the 122 source/config relative paths (excluding runtime, logs, uploads, caches, virtual environments, and documentation-only Markdown files):
+
+- Both trees contained 122 paths.
+- Their complete relative-path sets were identical: zero paths existed only in either tree.
+- 118 files had equal SHA-256 values.
+- The four differing files were `run.py`, `app/services/graph_builder.py`, `tests/test_graph_builder_edge_target.py`, and `tests/test_run.py`.
+- Each differing D:\WEB file had a `LastWriteTime` on 2026-08-06, earlier than `2026-08-08T22:48:55+08:00` (`7201da4`).
+
+Together with the worktree's committed diff (only frontend cleanup and verification documentation), this supports that this task did not delete or rename D:\WEB backend source/config paths. It is not represented as a Git pre/post snapshot and does not cover excluded runtime/data paths.
+
 ## Limits
 
-- This validates the browser-side selector and request contract against real 5002 project metadata. The answer request itself was intercepted after capture, so it does not validate a real LLM response.
+- The two-request selector-switch smoke intentionally intercepted responses after capture. The separate Fix Round 2 request was not intercepted and verifies one real backend answer/`qa_run_id`; it is still a narrow runtime smoke, not broad answer-quality coverage.
 - No raw backend identifiers, credentials, or response data are stored in this committed record.
