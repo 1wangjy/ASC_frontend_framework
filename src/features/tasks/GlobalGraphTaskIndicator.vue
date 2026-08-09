@@ -1,5 +1,5 @@
 <template>
-  <aside class="graph-task-indicator" aria-label="图谱任务状态">
+  <aside class="graph-task-indicator" aria-label="图谱任务状态" @keydown.esc.stop="closePopover">
     <button
       ref="trigger"
       class="graph-task-indicator__trigger"
@@ -17,7 +17,6 @@
       class="graph-task-indicator__popover"
       :aria-hidden="!expanded"
       v-show="expanded"
-      @keydown.esc.stop="closePopover"
     >
       <header class="graph-task-indicator__header">
         <strong>图谱任务</strong>
