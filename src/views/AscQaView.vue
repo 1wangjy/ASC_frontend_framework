@@ -153,6 +153,7 @@ import {
   requestCodAnswer
 } from '../features/qa/qaApiAdapter.js'
 import {
+  getBrowserStorage,
   readActiveProjectId,
   rememberActiveProjectId,
   resolveProjectAfterRefresh,
@@ -165,6 +166,7 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const browserStorage = getBrowserStorage(globalThis)
 const qaState = ref(createQaState())
 const draft = ref('')
 const questionGuides = ref(createQuestionGuideState())
@@ -206,15 +208,15 @@ async function loadProjects(options = {}) {
     projects.value = listGraphProjects(response)
     const selected = resolveProjectAfterRefresh(projects.value, {
       routeProjectId: route.query.projectId,
-      storedProjectId: readActiveProjectId(window.localStorage),
+      storedProjectId: readActiveProjectId(browserStorage),
       requireManualSelection
     })
     activeProjectId.value = selected?.project_id ?? ''
-    rememberActiveProjectId(window.localStorage, activeProjectId.value)
+    rememberActiveProjectId(browserStorage, activeProjectId.value)
   } catch (error) {
     projects.value = []
     activeProjectId.value = ''
-    rememberActiveProjectId(window.localStorage, '')
+    rememberActiveProjectId(browserStorage, '')
     projectError.value = error?.message || '无法从后端读取可用知识图谱，请确认 5002 服务正在运行。'
   } finally {
     projectsLoading.value = false
@@ -222,7 +224,7 @@ async function loadProjects(options = {}) {
 }
 
 function changeActiveProject() {
-  rememberActiveProjectId(window.localStorage, activeProjectId.value)
+  rememberActiveProjectId(browserStorage, activeProjectId.value)
   if (scopeSelectionRequired.value) {
     scopeSelectionRequired.value = false
     projectError.value = ''
@@ -619,7 +621,23 @@ onMounted(loadProjects)
 
 @media (max-width: 760px) {
   .qa-topbar {
+    min-height: auto;
+    display: flex;
+    padding: 10px 14px;
+  }
+
+  .qa-topbar > div:first-child {
     display: none;
+  }
+
+  .qa-project-picker {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .qa-project-picker select {
+    min-width: 0;
+    flex: 1;
   }
 
   .qa-empty {

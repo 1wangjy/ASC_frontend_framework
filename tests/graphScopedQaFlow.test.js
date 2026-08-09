@@ -24,6 +24,16 @@ test('invalid QA scope refreshes into manual selection without resending the que
   assert.match(source, /resolveProjectAfterRefresh/)
 })
 
+test('keeps the graph project picker reachable at mobile widths', async () => {
+  const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
+  const mobileTopbarRule = source.match(
+    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.qa-topbar\s*\{([^}]*)\}/
+  )
+
+  assert.ok(mobileTopbarRule, 'expected a mobile qa-topbar rule')
+  assert.doesNotMatch(mobileTopbarRule[1], /display:\s*none/)
+})
+
 test('completed graph builds route to QA and no longer write a local registry', async () => {
   const source = await readFile(new URL('../src/views/MainView.vue', import.meta.url), 'utf8')
 
@@ -65,6 +75,30 @@ test('keeps a 404 status when the API returns an unrelated error message', async
   } finally {
     globalThis.localStorage = originalLocalStorage
     console.error = originalConsoleError
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
+  }
+})
+
+test('continues API requests when browser storage access is denied', async () => {
+  const server = createServer((request, response) => {
+    response.writeHead(200, { 'Content-Type': 'application/json' })
+    response.end(JSON.stringify({ success: true, data: [{ project_id: 'p1', graph_id: 'g1' }] }))
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const { port } = server.address()
+  const originalLocalStorage = globalThis.localStorage
+
+  globalThis.localStorage = {
+    getItem() {
+      throw new DOMException('Storage access denied', 'SecurityError')
+    }
+  }
+
+  try {
+    const response = await service.get(`http://127.0.0.1:${port}/projects`)
+    assert.deepEqual(response.data, [{ project_id: 'p1', graph_id: 'g1' }])
+  } finally {
+    globalThis.localStorage = originalLocalStorage
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
   }
 })

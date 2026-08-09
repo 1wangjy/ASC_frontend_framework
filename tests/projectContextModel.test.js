@@ -84,6 +84,19 @@ test('treats unavailable browser storage as an empty active-project memory', () 
   assert.equal(readActiveProjectId(storage), null)
 })
 
+test('treats a throwing browser localStorage getter as unavailable storage', async () => {
+  const projectContext = await import('../src/features/projects/projectContextModel.js')
+  const browser = {}
+  Object.defineProperty(browser, 'localStorage', {
+    get() {
+      throw new DOMException('Storage access denied', 'SecurityError')
+    }
+  })
+
+  assert.equal(typeof projectContext.getBrowserStorage, 'function')
+  assert.equal(projectContext.getBrowserStorage(browser), null)
+})
+
 test('does not let active-project storage writes block the calling flow', () => {
   let continuedAfterWrite = false
   const storage = {

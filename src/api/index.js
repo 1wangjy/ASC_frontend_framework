@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { API_BASE_URL } from './runtime.js'
+import { readBrowserStorageItem } from '../utils/browserStorage.js'
 
 // 创建axios实例
 const service = axios.create({
@@ -13,7 +14,7 @@ const service = axios.create({
 // 请求拦截器
 service.interceptors.request.use(
   config => {
-    config.headers['X-NEXUS-USER'] = localStorage.getItem('nexus_user_id') || 'local-asc-analyst'
+    config.headers['X-NEXUS-USER'] = readBrowserStorageItem('nexus_user_id') || 'local-asc-analyst'
     return config
   },
   error => {

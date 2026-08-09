@@ -1,3 +1,5 @@
+export { getBrowserStorage } from '../../utils/browserStorage.js'
+
 export const ACTIVE_PROJECT_STORAGE_KEY = 'nexus_active_project_id'
 
 function projectTimestamp(project) {
