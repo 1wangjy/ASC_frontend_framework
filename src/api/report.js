@@ -1,7 +1,8 @@
 import service, { requestWithRetry } from './index'
 import {
   buildReportDownloadRequest,
-  buildReportSectionsRequest
+  buildReportSectionsRequest,
+  buildReportStatusRequest
 } from './requestContracts'
 
 /**
@@ -14,27 +15,10 @@ export const generateReport = (data) => {
 
 /**
  * 获取报告生成状态
- * 兼容两种调用方式：
- *   getReportStatus(reportId)              — 旧方式（初始提交 GET 接口）
- *   getReportStatus({ taskId, simulationId }) — 新方式（如果后端支持 POST）
- * @param {string|Object} identifiers
+ * @param {Object} identifiers - { taskId?, simulationId? }
  */
-export const getReportStatus = (identifiers) => {
-  // 旧方式：getReportStatus(reportId)
-  if (typeof identifiers === 'string') {
-    return service.get(`/api/report/generate/status`, {
-      params: { report_id: identifiers }
-    })
-  }
-  // 新方式（降级）：尝试从对象中提取 reportId 字段
-  const reportId = identifiers?.reportId || ''
-  if (reportId) {
-    return service.get(`/api/report/generate/status`, {
-      params: { report_id: reportId }
-    })
-  }
-  // 实在无法兼容时返回空结果
-  return Promise.resolve({ success: false, data: null, message: '无法兼容的 getReportStatus 调用' })
+export const getReportStatus = (identifiers = {}) => {
+  return service(buildReportStatusRequest(identifiers))
 }
 
 /**
