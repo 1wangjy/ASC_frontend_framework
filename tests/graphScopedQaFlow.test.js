@@ -5,6 +5,24 @@ import { createServer } from 'node:http'
 
 import service from '../src/api/index.js'
 
+function extractBlockAfter(source, marker) {
+  const markerIndex = source.indexOf(marker)
+  assert.notEqual(markerIndex, -1, `expected ${marker}`)
+
+  const signatureEnd = marker.includes('function')
+    ? source.indexOf(')', markerIndex) + 1
+    : markerIndex
+  const blockStart = source.indexOf('{', signatureEnd)
+  let depth = 0
+  for (let index = blockStart; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1
+    if (source[index] === '}') depth -= 1
+    if (depth === 0) return source.slice(markerIndex, index + 1)
+  }
+
+  throw new Error(`expected a closing block for ${marker}`)
+}
+
 test('QA discovers graph projects from the backend instead of the local registry', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
 
@@ -17,10 +35,12 @@ test('QA discovers graph projects from the backend instead of the local registry
 
 test('invalid QA scope refreshes into manual selection without resending the question', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
+  const invalidScopeRecovery = extractBlockAfter(source, 'if (isInvalidGraphScopeError(error))')
 
   assert.match(source, /requestCodAnswer\(\{\s*codGraphRAGQuery,\s*getProject\s*\}/)
-  assert.match(source, /loadProjects\(\{\s*requireManualSelection:\s*true\s*\}\)/)
-  assert.match(source, /draft\.value\s*=\s*qaState\.value\.question/)
+  assert.match(invalidScopeRecovery, /draft\.value\s*=\s*qaState\.value\.question/)
+  assert.match(invalidScopeRecovery, /await\s+loadProjects\(\{\s*requireManualSelection:\s*true\s*\}\)/)
+  assert.doesNotMatch(invalidScopeRecovery, /sendQuestion\s*\(/)
   assert.match(source, /resolveProjectAfterRefresh/)
 })
 
@@ -47,15 +67,28 @@ test('QA reloads projects when the route project scope changes without an immedi
 
 test('QA project refreshes suppress stale success, error, and loading updates', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
-  const loadProjectsSource = source.slice(
-    source.indexOf('async function loadProjects'),
-    source.indexOf('function changeActiveProject')
+  const loadProjectsSource = extractBlockAfter(source, 'async function loadProjects')
+  const successSource = loadProjectsSource.slice(
+    loadProjectsSource.indexOf('const response = await listProjects'),
+    loadProjectsSource.indexOf('} catch (error)')
   )
+  const errorSource = extractBlockAfter(loadProjectsSource, '} catch (error)')
+  const finallySource = extractBlockAfter(loadProjectsSource, '} finally')
+  const staleGuard = 'if (currentRequest !== projectsRequestVersion) return'
 
   assert.match(source, /let projectsRequestVersion = 0/)
   assert.match(loadProjectsSource, /const currentRequest = \+\+projectsRequestVersion/)
-  assert.match(loadProjectsSource, /if \(currentRequest !== projectsRequestVersion\) return/)
-  assert.match(loadProjectsSource, /if \(currentRequest === projectsRequestVersion\) projectsLoading\.value = false/)
+  assert.ok(successSource.indexOf(staleGuard) >= 0, 'expected a stale guard in the success branch')
+  assert.ok(
+    successSource.indexOf(staleGuard) < successSource.indexOf('projects.value ='),
+    'expected the success guard before project state changes'
+  )
+  assert.ok(errorSource.indexOf(staleGuard) >= 0, 'expected a stale guard in the error branch')
+  assert.ok(
+    errorSource.indexOf(staleGuard) < errorSource.indexOf('projects.value ='),
+    'expected the error guard before clearing project state'
+  )
+  assert.match(finallySource, /if \(currentRequest === projectsRequestVersion\) projectsLoading\.value = false/)
 })
 
 test('keeps the graph project picker reachable at mobile widths', async () => {
