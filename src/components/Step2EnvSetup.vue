@@ -818,6 +818,7 @@ import {
   getSimulationConfigRealtime 
 } from '../api/simulation'
 import { simulationPreparationState } from '../features/research/simulationPreparationModel.js'
+import { createSimulationPreparationController } from '../features/research/simulationPreparationController.js'
 
 const props = defineProps({
   simulationId: String,  // 从父组件传入
@@ -834,8 +835,6 @@ const taskId = ref(null)
 const prepareProgress = ref(0)
 const currentStage = ref('')
 const progressMessage = ref('')
-const prepareStarted = ref(false)
-const missingQuestionStatusReported = ref(false)
 const preparationState = computed(() => simulationPreparationState(props.simulationId, props.projectData))
 const profiles = ref([])
 const entityTypes = ref([])
@@ -976,6 +975,9 @@ watch(simulationConfig, (config) => {
 let pollTimer = null
 let profilesTimer = null
 let configTimer = null
+let activePreparationContext = null
+
+const isCurrentPreparation = (context = activePreparationContext) => Boolean(context?.isCurrent())
 
 // Computed
 const displayProfiles = computed(() => {
@@ -1037,8 +1039,10 @@ const selectProfile = (profile) => {
 }
 
 // 自动开始准备ASC文献分析工作台
-const startPrepareSimulation = async () => {
-  if (!props.simulationId) {
+const startPrepareSimulation = async (context) => {
+  if (!isCurrentPreparation(context)) return
+  const simulationId = context.simulationId
+  if (!simulationId) {
     addLog('错误：缺少 simulationId')
     emit('update-status', 'error')
     return
@@ -1046,24 +1050,26 @@ const startPrepareSimulation = async () => {
   
   // 标记第一步完成，开始第二步
   phase.value = 1
-  addLog(`ASC分析工作台实例已创建: ${props.simulationId}`)
+  addLog(`ASC分析工作台实例已创建: ${simulationId}`)
   addLog('正在准备ASC文献分析工作台...')
   emit('update-status', 'processing')
   
   try {
     const res = await prepareSimulation({
-      simulation_id: props.simulationId,
+      simulation_id: simulationId,
       use_llm_for_profiles: false,
       parallel_profile_count: 5
     })
     
+    if (!isCurrentPreparation(context)) return
     if (res.success && res.data) {
       if (res.data.already_prepared) {
         addLog('检测到已有完成的ASC分析准备工作，直接使用')
-        await loadPreparedData()
+        await loadPreparedData(context)
         return
       }
       
+      if (!isCurrentPreparation(context)) return
       taskId.value = res.data.task_id
       addLog(`ASC分析准备任务已启动`)
       addLog(`  └─ Task ID: ${res.data.task_id}`)
@@ -1079,44 +1085,24 @@ const startPrepareSimulation = async () => {
       
       addLog('开始轮询ASC分析准备进度...')
       // 开始轮询进度
-      startPolling()
+      if (!isCurrentPreparation(context)) return
+      startPolling(context)
       // 开始实时获取分析模块
-      startProfilesPolling()
+      startProfilesPolling(context)
     } else {
       addLog(`准备失败: ${res.error || '未知错误'}`)
       emit('update-status', 'error')
     }
   } catch (err) {
+    if (!isCurrentPreparation(context)) return
     addLog(`准备异常: ${err.message}`)
     emit('update-status', 'error')
   }
 }
 
-watch(
-  () => [props.simulationId, props.projectData, simulationPreparationState(props.simulationId, props.projectData)],
-  ([, , state]) => {
-    if (state === 'waiting-project') return
-
-    if (state === 'missing-question') {
-      progressMessage.value = '当前项目缺少研究问题，无法开始 ASC 分析准备。'
-      if (!missingQuestionStatusReported.value) {
-        missingQuestionStatusReported.value = true
-        emit('update-status', 'error')
-      }
-      return
-    }
-
-    if (!prepareStarted.value) {
-      prepareStarted.value = true
-      addLog('Step2 ASC文献分析准备初始化')
-      startPrepareSimulation()
-    }
-  },
-  { immediate: true }
-)
-
-const startPolling = () => {
-  pollTimer = setInterval(pollPrepareStatus, 2000)
+const startPolling = (context = activePreparationContext) => {
+  if (!isCurrentPreparation(context) || pollTimer) return
+  pollTimer = setInterval(() => pollPrepareStatus(context), 2000)
 }
 
 const stopPolling = () => {
@@ -1126,8 +1112,9 @@ const stopPolling = () => {
   }
 }
 
-const startProfilesPolling = () => {
-  profilesTimer = setInterval(fetchProfilesRealtime, 3000)
+const startProfilesPolling = (context = activePreparationContext) => {
+  if (!isCurrentPreparation(context) || profilesTimer) return
+  profilesTimer = setInterval(() => fetchProfilesRealtime(context), 3000)
 }
 
 const stopProfilesPolling = () => {
@@ -1137,15 +1124,16 @@ const stopProfilesPolling = () => {
   }
 }
 
-const pollPrepareStatus = async () => {
-  if (!taskId.value && !props.simulationId) return
+const pollPrepareStatus = async (context = activePreparationContext) => {
+  if (!isCurrentPreparation(context) || (!taskId.value && !context.simulationId)) return
   
   try {
     const res = await getPrepareStatus({
       task_id: taskId.value,
-      simulation_id: props.simulationId
+      simulation_id: context.simulationId
     })
     
+    if (!isCurrentPreparation(context)) return
     if (res.success && res.data) {
       const data = res.data
       
@@ -1187,7 +1175,7 @@ const pollPrepareStatus = async () => {
         addLog('✓ ASC分析准备已完成')
         stopPolling()
         stopProfilesPolling()
-        await loadPreparedData()
+        await loadPreparedData(context)
       } else if (data.status === 'failed') {
         addLog(`✗ 准备失败: ${data.error || '未知错误'}`)
         stopPolling()
@@ -1199,12 +1187,13 @@ const pollPrepareStatus = async () => {
   }
 }
 
-const fetchProfilesRealtime = async () => {
-  if (!props.simulationId) return
+const fetchProfilesRealtime = async (context = activePreparationContext) => {
+  if (!isCurrentPreparation(context) || !context.simulationId) return
   
   try {
-    const res = await getSimulationProfilesRealtime(props.simulationId, 'reddit')
+    const res = await getSimulationProfilesRealtime(context.simulationId, 'reddit')
     
+    if (!isCurrentPreparation(context)) return
     if (res.success && res.data) {
       const prevCount = profiles.value.length
       profiles.value = res.data.profiles || []
@@ -1245,8 +1234,9 @@ const fetchProfilesRealtime = async () => {
 }
 
 // 配置轮询
-const startConfigPolling = () => {
-  configTimer = setInterval(fetchConfigRealtime, 2000)
+const startConfigPolling = (context = activePreparationContext) => {
+  if (!isCurrentPreparation(context) || configTimer) return
+  configTimer = setInterval(() => fetchConfigRealtime(context), 2000)
 }
 
 const stopConfigPolling = () => {
@@ -1256,12 +1246,13 @@ const stopConfigPolling = () => {
   }
 }
 
-const fetchConfigRealtime = async () => {
-  if (!props.simulationId) return
+const fetchConfigRealtime = async (context = activePreparationContext) => {
+  if (!isCurrentPreparation(context) || !context.simulationId) return
   
   try {
-    const res = await getSimulationConfigRealtime(props.simulationId)
+    const res = await getSimulationConfigRealtime(context.simulationId)
     
+    if (!isCurrentPreparation(context)) return
     if (res.success && res.data) {
       const data = res.data
       
@@ -1306,17 +1297,20 @@ const fetchConfigRealtime = async () => {
   }
 }
 
-const loadPreparedData = async () => {
+const loadPreparedData = async (context = activePreparationContext) => {
+  if (!isCurrentPreparation(context)) return
   phase.value = 2
   addLog('正在加载已有ASC分析配置...')
 
   // 最后获取一次分析模块
-  await fetchProfilesRealtime()
+  await fetchProfilesRealtime(context)
+  if (!isCurrentPreparation(context)) return
   addLog(`已加载 ${profiles.value.length} 个ASC分析模块`)
 
   // 获取配置（使用实时接口）
   try {
-    const res = await getSimulationConfigRealtime(props.simulationId)
+    const res = await getSimulationConfigRealtime(context.simulationId)
+    if (!isCurrentPreparation(context)) return
     if (res.success && res.data) {
       if (res.data.config_generated && res.data.config) {
         simulationConfig.value = res.data.config
@@ -1339,10 +1333,60 @@ const loadPreparedData = async () => {
       }
     }
   } catch (err) {
+    if (!isCurrentPreparation(context)) return
     addLog(`加载配置失败: ${err.message}`)
     emit('update-status', 'error')
   }
 }
+
+const stopAllPreparationTimers = () => {
+  stopPolling()
+  stopProfilesPolling()
+  stopConfigPolling()
+}
+
+const resetPreparationState = (context) => {
+  activePreparationContext = context
+  taskId.value = null
+  prepareProgress.value = 0
+  currentStage.value = ''
+  progressMessage.value = ''
+  profiles.value = []
+  entityTypes.value = []
+  expectedTotal.value = null
+  simulationConfig.value = null
+  selectedProfile.value = null
+  phase.value = 0
+  lastLoggedMessage = ''
+  lastLoggedProfileCount = 0
+  lastLoggedConfigStage = ''
+}
+
+const preparationController = createSimulationPreparationController({
+  stop: stopAllPreparationTimers,
+  reset: resetPreparationState,
+  reportMissing: () => {
+    progressMessage.value = '当前项目缺少研究问题，无法开始 ASC 分析准备。'
+    emit('update-status', 'error')
+  },
+  start: async (context) => {
+    activePreparationContext = context
+    addLog('Step2 ASC文献分析准备初始化')
+    await startPrepareSimulation(context)
+  }
+})
+
+watch(
+  () => [
+    props.simulationId,
+    props.projectData?.project_id,
+    props.projectData?.graph_id,
+    props.projectData?.query_prompt,
+    props.projectData?.simulation_requirement
+  ],
+  () => preparationController.update(props.simulationId, props.projectData),
+  { immediate: true }
+)
 
 // Scroll log to bottom
 const logContent = ref(null)
@@ -1355,9 +1399,7 @@ watch(() => props.systemLogs?.length, () => {
 })
 
 onUnmounted(() => {
-  stopPolling()
-  stopProfilesPolling()
-  stopConfigPolling()
+  preparationController.stop()
 })
 </script>
 

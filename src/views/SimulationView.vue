@@ -70,7 +70,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import GraphPanel from '../components/GraphPanel.vue'
 import Step2EnvSetup from '../components/Step2EnvSetup.vue'
@@ -270,25 +270,28 @@ const forceStopSimulation = async () => {
   }
 }
 
-const loadSimulationData = async () => {
+const loadSimulationData = async (simulationId = currentSimulationId.value) => {
+  if (!simulationId) return
   try {
-    addLog(`加载模拟数据: ${currentSimulationId.value}`)
+    addLog(`加载模拟数据: ${simulationId}`)
     
     // 获取 simulation 信息
-    const simRes = await getSimulation(currentSimulationId.value)
+    const simRes = await getSimulation(simulationId)
+    if (simulationId !== currentSimulationId.value) return
     if (simRes.success && simRes.data) {
       const simData = simRes.data
       
       // 获取 project 信息
       if (simData.project_id) {
         const projRes = await getProject(simData.project_id)
+        if (simulationId !== currentSimulationId.value) return
         if (projRes.success && projRes.data) {
           projectData.value = projRes.data
           addLog(`项目加载成功: ${projRes.data.project_id}`)
           
           // 获取 graph 数据
           if (projRes.data.graph_id) {
-            await loadGraph(projRes.data.graph_id)
+            await loadGraph(projRes.data.graph_id, simulationId)
           }
         }
       }
@@ -300,10 +303,12 @@ const loadSimulationData = async () => {
   }
 }
 
-const loadGraph = async (graphId) => {
+const loadGraph = async (graphId, simulationId = currentSimulationId.value) => {
+  if (simulationId !== currentSimulationId.value) return
   graphLoading.value = true
   try {
     const res = await getGraphData(graphId)
+    if (simulationId !== currentSimulationId.value) return
     if (res.success) {
       graphData.value = res.data
       addLog('图谱数据加载成功')
@@ -311,7 +316,7 @@ const loadGraph = async (graphId) => {
   } catch (err) {
     addLog(`图谱加载失败: ${err.message}`)
   } finally {
-    graphLoading.value = false
+    if (simulationId === currentSimulationId.value) graphLoading.value = false
   }
 }
 
@@ -321,15 +326,19 @@ const refreshGraph = () => {
   }
 }
 
-onMounted(async () => {
+watch(() => route.params.simulationId, async (simulationId) => {
+  currentSimulationId.value = simulationId
+  projectData.value = null
+  graphData.value = null
+  currentStatus.value = 'processing'
   addLog('SimulationView 初始化')
   
   // 检查并关闭正在运行的模拟（用户从 Step 3 返回时）
   await checkAndStopRunningSimulation()
   
   // 加载模拟数据
-  loadSimulationData()
-})
+  loadSimulationData(simulationId)
+}, { immediate: true })
 </script>
 
 <style scoped>

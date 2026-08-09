@@ -588,7 +588,14 @@ const emit = defineEmits([
 const selectedOntologyItem = ref(null)
 const logContent = ref(null)
 const creatingSimulation = ref(false)
-const simulationPreparationError = ref('')
+const simulationPreparationError = computed(() => {
+  const hasCompletedGraph = props.currentPhase >= 4
+    && props.projectData?.project_id
+    && props.projectData?.graph_id
+  return hasCompletedGraph && !projectResearchQuestion(props.projectData)
+    ? '当前项目缺少研究问题，不能进入 ASC 分析准备。你仍可使用图谱问答。'
+    : ''
+})
 const entityNodeLimit = ref(260)
 const targetEdgeCount = ref(180)
 const postTargetEdgeIterations = ref(2)
@@ -990,10 +997,8 @@ const handleEnterEnvSetup = async () => {
   }
 
   if (!projectResearchQuestion(props.projectData)) {
-    simulationPreparationError.value = '当前项目缺少研究问题，不能进入 ASC 分析准备。你仍可使用图谱问答。'
     return
   }
-  simulationPreparationError.value = ''
   
   creatingSimulation.value = true
   
