@@ -1,11 +1,11 @@
-import service, { requestWithRetry } from './index'
+import service, { requestWithRetry } from './index.js'
 import {
   buildDeleteGraphProjectRequest,
   buildDeleteGraphRequest,
   buildListProjectsRequest,
   buildResetGraphProjectRequest,
   buildUpdateGraphEdgeRequest
-} from './requestContracts'
+} from './requestContracts.js'
 
 /**
  * 预创建本体生成项目，用于长时间 LLM 调用期间轮询进度
