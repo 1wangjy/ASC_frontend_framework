@@ -46,6 +46,10 @@
       :stepProgress="stepProgress"
     />
 
+    <div v-if="error" class="global-error-banner" role="alert">
+      {{ error }}
+    </div>
+
     <!-- Main Content Area -->
     <main class="content-area">
       <!-- Left Panel: Graph -->
@@ -119,6 +123,11 @@ import {
   runBaseResearchRequests,
   runProfessionalResearchRequests
 } from '../features/research/researchQuestionWorkflow.js'
+import {
+  canBuildGraphProject,
+  GRAPH_BUILD_RESEARCH_QUESTION_ERROR,
+  runGraphBuildProjectRequest
+} from '../features/research/simulationPreparationModel.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -160,6 +169,9 @@ let ontologyPollTimer = null
 let lastOntologyProgressMessage = ''
 const GRAPH_VISUAL_POLL_INTERVAL_MS = 2500
 const TASK_STATUS_POLL_INTERVAL_MS = 1200
+const ONTOLOGY_GENERATION_MAX_RETRIES = 3
+const ONTOLOGY_RETRY_DELAY_MS = 3000
+const waitForOntologyRetry = () => new Promise(resolve => setTimeout(resolve, ONTOLOGY_RETRY_DELAY_MS))
 
 const graphDataSignature = (data) => {
   if (!data) return 'empty'
@@ -447,10 +459,6 @@ const handleNewProject = async () => {
   const initialStage = 'base'
   
   // 重试配置
-  const MAX_RETRIES = 3
-  const RETRY_DELAY = 3000 // 3秒
-  let lastError = null
-  
   try {
     loading.value = true
     currentPhase.value = 0
@@ -470,8 +478,8 @@ const handleNewProject = async () => {
       projectName: pending.projectName || `${stageDisplayName(initialStage)} Graph Project`,
       prepareOntologyProject,
       generateOntology,
-      maxRetries: MAX_RETRIES,
-      waitForRetry: () => new Promise(resolve => setTimeout(resolve, RETRY_DELAY)),
+      maxRetries: ONTOLOGY_GENERATION_MAX_RETRIES,
+      waitForRetry: waitForOntologyRetry,
       onPrepared: async (prepareRes) => {
         currentProjectId.value = prepareRes.data.project_id
         projectData.value = prepareRes.data
@@ -489,15 +497,13 @@ const handleNewProject = async () => {
         addLog(`Attempt ${attempt}/${maxRetries}: Sending ontology generation request...`)
       },
       onAttemptError: ({ attempt, error: requestError, isNetworkError, retrying }) => {
-        lastError = requestError
         if (isNetworkError && retrying) {
           const errorMsg = requestError.message || String(requestError)
           addLog(`⚠ Network error detected: ${errorMsg}`)
-          addLog(`Retrying in 3 seconds... (${attempt}/${MAX_RETRIES})`)
+          addLog(`Retrying in 3 seconds... (${attempt}/${ONTOLOGY_GENERATION_MAX_RETRIES})`)
         }
       },
       onFailure: ({ stage, error: requestError }) => {
-        lastError = requestError
         if (stage === 'generate') {
           error.value = requestError.message || 'Ontology generation failed'
           addLog(`Error generating ontology: ${error.value}`)
@@ -547,7 +553,7 @@ const handleNewProject = async () => {
     console.error('handleNewProject error:', {
       message: errorMsg,
       originalError: err,
-      attempts: MAX_RETRIES
+      attempts: ONTOLOGY_GENERATION_MAX_RETRIES
     })
     
   } finally {
@@ -629,6 +635,12 @@ const updatePhaseByStatus = (status) => {
 }
 
 const startBuildGraph = async (options = {}) => {
+  if (!canBuildGraphProject(projectData.value)) {
+    error.value = GRAPH_BUILD_RESEARCH_QUESTION_ERROR
+    addLog('Graph build blocked: project research question is empty after normalization.')
+    return
+  }
+
   try {
     error.value = ''
     const buildStage = options.build_stage || projectData.value?.graph_build_stage || pendingBuildOptions.value.build_stage || 'base'
@@ -681,7 +693,12 @@ const startBuildGraph = async (options = {}) => {
       payload.professional_new_node_count = entityNodeLimit
       payload.professional_new_edge_count = targetEdgeCount
     }
-    const res = await buildGraph(payload)
+    const graphBuildResult = await runGraphBuildProjectRequest({
+      project: projectData.value,
+      payload,
+      buildGraph
+    })
+    const res = graphBuildResult.response
     if (res.success) {
       addLog(`Graph build task started. Task ID: ${res.data.task_id}`)
       startGraphPolling()
@@ -805,6 +822,8 @@ const startProfessionalGraphBuild = async (options = {}) => {
       baseProjectId: effectiveBaseProjectId,
       prepareOntologyProject,
       generateOntology,
+      maxRetries: ONTOLOGY_GENERATION_MAX_RETRIES,
+      waitForRetry: waitForOntologyRetry,
       onPrepared: async (prepareRes) => {
         currentProjectId.value = prepareRes.data.project_id
         projectData.value = prepareRes.data
@@ -812,6 +831,21 @@ const startProfessionalGraphBuild = async (options = {}) => {
         router.replace({ name: 'Process', params: { projectId: prepareRes.data.project_id } })
         startOntologyPolling(prepareRes.data.project_id)
         addLog(`Professional ontology project prepared: ${prepareRes.data.project_id}`)
+      },
+      onAttempt: (attempt, maxRetries) => {
+        addLog(`Attempt ${attempt}/${maxRetries}: Sending Professional Research ontology generation request...`)
+      },
+      onAttemptError: ({ attempt, error: requestError, isNetworkError, retrying }) => {
+        if (isNetworkError && retrying) {
+          addLog(`⚠ Professional Research network error: ${requestError.message || String(requestError)}`)
+          addLog(`Retrying Professional Research ontology generation in 3 seconds... (${attempt}/${ONTOLOGY_GENERATION_MAX_RETRIES})`)
+        }
+      },
+      onFailure: ({ stage, error: requestError }) => {
+        if (stage === 'generate') {
+          error.value = requestError.message || 'Professional Research ontology generation failed'
+          addLog(`Professional ontology generation failed: ${error.value}`)
+        }
       }
     })
     const prepareRes = requestResult.prepareResponse
@@ -1112,6 +1146,17 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.global-error-banner {
+  margin: 12px 16px 0;
+  padding: 10px 12px;
+  border: 1px solid #F4B8B0;
+  border-radius: 6px;
+  background: #FFF4F2;
+  color: #A33A2D;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .qa-entry-button {

@@ -205,6 +205,16 @@
               </button>
             </div>
           </div>
+          <div
+            v-if="canConfigureBuild && !canBuildGraphProject(props.projectData)"
+            class="graph-build-question-error"
+            role="alert"
+          >
+            <span>当前项目缺少研究问题，不能开始图谱构建。</span>
+            <button class="ghost-btn" type="button" @click="router.push({ name: 'AscQa' })">
+              问答首页
+            </button>
+          </div>
           
           <!-- Stats Cards -->
           <div class="stats-grid">
@@ -556,7 +566,10 @@ import { useRouter } from 'vue-router'
 import { importBaseMetadata, updateGraphNodeMetadata } from '../api/graph'
 import { createSimulation } from '../api/simulation'
 import { baseGraphExportFilename, buildBaseGraphExport } from '../utils/baseGraphMetadata'
-import { projectResearchQuestion } from '../features/research/simulationPreparationModel.js'
+import {
+  canBuildGraphProject,
+  projectResearchQuestion
+} from '../features/research/simulationPreparationModel.js'
 
 const router = useRouter()
 
@@ -707,6 +720,7 @@ const canConfigureBuild = computed(() => (
 
 const canStartBuild = computed(() => (
   canConfigureBuild.value &&
+  canBuildGraphProject(props.projectData) &&
   Number.isFinite(Number(entityNodeLimit.value)) &&
   Number(entityNodeLimit.value) > 0 &&
   Number.isFinite(Number(targetEdgeCount.value)) &&
@@ -1584,6 +1598,21 @@ watch(() => props.systemLogs.length, () => {
   flex-direction: column;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.graph-build-question-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #F4B8B0;
+  border-radius: 8px;
+  background: #FFF4F2;
+  color: #A33A2D;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .build-recommendations {

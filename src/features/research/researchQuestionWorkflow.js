@@ -48,9 +48,51 @@ function baseFilesFromPending(pending) {
     : (pending.buildStage && pending.buildStage !== 'base' ? [] : (pending.files || []))
 }
 
-function isRetryableNetworkError(error) {
+export function isRetryableNetworkError(error) {
   const message = error?.message || String(error)
-  return message.includes('Network Error') || message.includes('ECONNABORTED') || message.includes('timeout') || error?.code === 'ECONNABORTED'
+  return message.includes('Network Error')
+    || message.includes('ERR_NETWORK')
+    || message.includes('ECONNABORTED')
+    || message.includes('timeout')
+    || error?.code === 'ERR_NETWORK'
+    || error?.code === 'ECONNABORTED'
+}
+
+export async function runOntologyGenerationWithRetry({
+  generateOntology,
+  createFormData,
+  maxRetries = 3,
+  waitForRetry = async () => {},
+  onAttempt,
+  onAttemptError,
+  onFailure
+}) {
+  const requestedAttempts = Number.isFinite(Number(maxRetries))
+    ? Math.trunc(Number(maxRetries))
+    : 3
+  const totalAttempts = Math.max(1, Math.min(3, requestedAttempts))
+
+  for (let attempt = 1; attempt <= totalAttempts; attempt++) {
+    await onAttempt?.(attempt, totalAttempts)
+    let response
+    try {
+      response = await generateOntology(createFormData(attempt))
+    } catch (error) {
+      const isNetworkError = isRetryableNetworkError(error)
+      const retrying = isNetworkError && attempt < totalAttempts
+      await onAttemptError?.({ attempt, error, isNetworkError, retrying })
+      if (!retrying) throw error
+      await waitForRetry(attempt, error)
+      continue
+    }
+
+    if (response?.success) return response
+    const failure = new Error(response?.error || 'Ontology generation failed')
+    await onFailure?.({ stage: 'generate', attempt, error: failure, retrying: false })
+    throw failure
+  }
+
+  throw new Error('Ontology generation failed')
 }
 
 export function createBaseResearchRequestIntent(pending) {
@@ -133,32 +175,15 @@ export async function runBaseResearchRequests({
 
   await onPrepared?.(prepareResponse, intent.buildOptions)
 
-  let generationResponse = null
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const formData = intent.createGenerationFormData(prepareResponse.data.project_id)
-
-    await onAttempt?.(attempt, maxRetries)
-    try {
-      generationResponse = await generateOntology(formData)
-    } catch (error) {
-      const isNetworkError = isRetryableNetworkError(error)
-      const retrying = isNetworkError && attempt < maxRetries
-      await onAttemptError?.({ attempt, error, isNetworkError, retrying })
-      if (!retrying) throw error
-      await waitForRetry(attempt, error)
-      continue
-    }
-
-    if (generationResponse.success) break
-    const failure = new Error(generationResponse.error || 'Ontology generation failed')
-    const retrying = attempt < maxRetries
-    await onFailure?.({ stage: 'generate', attempt, error: failure, retrying })
-    if (!retrying) throw failure
-  }
-
-  if (!generationResponse?.success) {
-    throw new Error(generationResponse?.error || 'Ontology generation failed')
-  }
+  const generationResponse = await runOntologyGenerationWithRetry({
+    generateOntology,
+    createFormData: () => intent.createGenerationFormData(prepareResponse.data.project_id),
+    maxRetries,
+    waitForRetry,
+    onAttempt,
+    onAttemptError,
+    onFailure
+  })
 
   return {
     canStart: true,
@@ -176,7 +201,12 @@ export async function runProfessionalResearchRequests({
   baseProjectId = '',
   prepareOntologyProject,
   generateOntology,
-  onPrepared
+  onPrepared,
+  onAttempt,
+  onAttemptError,
+  onFailure,
+  maxRetries = 3,
+  waitForRetry = async () => {}
 }) {
   const researchQuestion = normalizeResearchQuestion(question)
   if (!researchQuestion) {
@@ -210,17 +240,26 @@ export async function runProfessionalResearchRequests({
 
   await onPrepared?.(prepareResponse, researchQuestion)
 
-  const formData = new FormData()
-  formData.append('project_id', prepareResponse.data.project_id)
-  Array.from(files).forEach(file => formData.append('files', file))
-  formData.append('query_prompt', researchQuestion)
-  formData.append('simulation_requirement', researchQuestion)
-  formData.append('build_stage', 'professional')
-  formData.append('source_corpus_type', 'research')
-  formData.append('base_metadata_path', baseMetadataPath)
-  formData.append('base_project_id', baseProjectId)
-
-  const generationResponse = await generateOntology(formData)
+  const generationResponse = await runOntologyGenerationWithRetry({
+    generateOntology,
+    createFormData: () => {
+      const formData = new FormData()
+      formData.append('project_id', prepareResponse.data.project_id)
+      Array.from(files).forEach(file => formData.append('files', file))
+      formData.append('query_prompt', researchQuestion)
+      formData.append('simulation_requirement', researchQuestion)
+      formData.append('build_stage', 'professional')
+      formData.append('source_corpus_type', 'research')
+      formData.append('base_metadata_path', baseMetadataPath)
+      formData.append('base_project_id', baseProjectId)
+      return formData
+    },
+    maxRetries,
+    waitForRetry,
+    onAttempt,
+    onAttemptError,
+    onFailure
+  })
   return {
     canStart: true,
     error: '',

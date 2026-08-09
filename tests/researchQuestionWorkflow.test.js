@@ -154,7 +154,7 @@ test('throws a failed base-project preparation response to preserve MainView err
   clearPendingUpload()
 })
 
-test('retries failed base-generation responses without network waits and reports failures before succeeding', async () => {
+test('does not retry a resolved base-generation failure', async () => {
   clearPendingUpload()
   startResearchBuildFromLibrary(documents, ['row-2'], 'Build a base graph')
   const attempts = []
@@ -162,29 +162,29 @@ test('retries failed base-generation responses without network waits and reports
   const waits = []
   let generationCalls = 0
 
-  const result = await runBaseResearchRequests({
-    pending: getPendingUpload(),
-    prepareOntologyProject: async () => ({ success: true, data: { project_id: 'base-1' } }),
-    generateOntology: async () => {
-      generationCalls++
-      return generationCalls === 1
-        ? { success: false, error: 'temporary generation failure' }
-        : { success: true, data: { project_id: 'base-1' } }
-    },
-    onAttempt: (attempt) => attempts.push(attempt),
-    onFailure: ({ stage, attempt, error, retrying }) => failures.push({ stage, attempt, message: error.message, retrying }),
-    waitForRetry: (attempt) => waits.push(attempt)
-  })
+  await assert.rejects(
+    runBaseResearchRequests({
+      pending: getPendingUpload(),
+      prepareOntologyProject: async () => ({ success: true, data: { project_id: 'base-1' } }),
+      generateOntology: async () => {
+        generationCalls++
+        return { success: false, error: 'resolved generation failure' }
+      },
+      onAttempt: (attempt) => attempts.push(attempt),
+      onFailure: ({ stage, attempt, error, retrying }) => failures.push({ stage, attempt, message: error.message, retrying }),
+      waitForRetry: (attempt) => waits.push(attempt)
+    }),
+    /resolved generation failure/
+  )
 
-  assert.equal(result.generationResponse.success, true)
-  assert.equal(generationCalls, 2)
-  assert.deepEqual(attempts, [1, 2])
+  assert.equal(generationCalls, 1)
+  assert.deepEqual(attempts, [1])
   assert.deepEqual(waits, [])
   assert.deepEqual(failures, [{
     stage: 'generate',
     attempt: 1,
-    message: 'temporary generation failure',
-    retrying: true
+    message: 'resolved generation failure',
+    retrying: false
   }])
 
   clearPendingUpload()
@@ -297,7 +297,7 @@ test('retries timeout base-generation exceptions between attempts and stops afte
   clearPendingUpload()
 })
 
-test('throws the last base-generation response failure after three attempts without network waits', async () => {
+test('keeps a resolved base-generation failure to one call even when maxRetries is larger than three', async () => {
   clearPendingUpload()
   startResearchBuildFromLibrary(documents, ['row-2'], 'Build a base graph')
   let generationCalls = 0
@@ -312,19 +312,16 @@ test('throws the last base-generation response failure after three attempts with
         generationCalls++
         return { success: false, error: 'final generation failure' }
       },
+      maxRetries: 99,
       onFailure: ({ attempt, retrying }) => failures.push({ attempt, retrying }),
       waitForRetry: (attempt) => waits.push(attempt)
     }),
     /final generation failure/
   )
 
-  assert.equal(generationCalls, 3)
+  assert.equal(generationCalls, 1)
   assert.deepEqual(waits, [])
-  assert.deepEqual(failures, [
-    { attempt: 1, retrying: true },
-    { attempt: 2, retrying: true },
-    { attempt: 3, retrying: false }
-  ])
+  assert.deepEqual(failures, [{ attempt: 1, retrying: false }])
   clearPendingUpload()
 })
 
@@ -387,6 +384,74 @@ test('does not call professional ontology APIs when its research question is emp
   assert.equal(prepareCalls, 0)
   assert.equal(generationCalls, 0)
 })
+
+for (const workflow of ['base', 'professional']) {
+  test(`${workflow} ontology generation uses three calls and two waits only for retryable network errors`, async () => {
+    let generationCalls = 0
+    const waits = []
+    const networkError = Object.assign(new Error('socket closed'), { code: 'ERR_NETWORK' })
+    const common = {
+      prepareOntologyProject: async () => ({ success: true, data: { project_id: `${workflow}-1` } }),
+      generateOntology: async () => {
+        generationCalls++
+        throw networkError
+      },
+      maxRetries: 99,
+      waitForRetry: (attempt, error) => waits.push({ attempt, error })
+    }
+    const request = workflow === 'base'
+      ? runBaseResearchRequests({ ...common, pending: { queryPrompt: 'Question' } })
+      : runProfessionalResearchRequests({ ...common, question: 'Question' })
+
+    await assert.rejects(request, error => error === networkError)
+    assert.equal(generationCalls, 3)
+    assert.deepEqual(waits, [
+      { attempt: 1, error: networkError },
+      { attempt: 2, error: networkError }
+    ])
+  })
+
+  test(`${workflow} ontology generation uses one call and no wait for non-network errors`, async () => {
+    let generationCalls = 0
+    const waits = []
+    const programError = new TypeError('invalid form data')
+    const common = {
+      prepareOntologyProject: async () => ({ success: true, data: { project_id: `${workflow}-1` } }),
+      generateOntology: async () => {
+        generationCalls++
+        throw programError
+      },
+      waitForRetry: attempt => waits.push(attempt)
+    }
+    const request = workflow === 'base'
+      ? runBaseResearchRequests({ ...common, pending: { queryPrompt: 'Question' } })
+      : runProfessionalResearchRequests({ ...common, question: 'Question' })
+
+    await assert.rejects(request, error => error === programError)
+    assert.equal(generationCalls, 1)
+    assert.deepEqual(waits, [])
+  })
+
+  test(`${workflow} ontology generation uses one call and no wait for resolved failures`, async () => {
+    let generationCalls = 0
+    const waits = []
+    const common = {
+      prepareOntologyProject: async () => ({ success: true, data: { project_id: `${workflow}-1` } }),
+      generateOntology: async () => {
+        generationCalls++
+        return { success: false, error: `${workflow} resolved failure` }
+      },
+      waitForRetry: attempt => waits.push(attempt)
+    }
+    const request = workflow === 'base'
+      ? runBaseResearchRequests({ ...common, pending: { queryPrompt: 'Question' } })
+      : runProfessionalResearchRequests({ ...common, question: 'Question' })
+
+    await assert.rejects(request, new RegExp(`${workflow} resolved failure`))
+    assert.equal(generationCalls, 1)
+    assert.deepEqual(waits, [])
+  })
+}
 
 test('declares a required research-question dialog that allows component validation to run', async () => {
   const source = await readFile(new URL('../src/features/research/ResearchQuestionDialog.vue', import.meta.url), 'utf8')
