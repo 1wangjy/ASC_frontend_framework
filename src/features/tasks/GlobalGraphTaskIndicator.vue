@@ -1,5 +1,5 @@
 <template>
-  <aside class="graph-task-indicator" aria-label="图谱任务状态" @keydown.esc.stop="closePopover">
+  <aside class="graph-task-indicator" aria-label="图谱任务状态" @keydown.esc="handleEscape">
     <button
       ref="trigger"
       class="graph-task-indicator__trigger"
@@ -91,6 +91,12 @@ function statusCopy(status) {
 function closePopover() {
   expanded.value = false
   nextTick(() => trigger.value?.focus())
+}
+
+function handleEscape(event) {
+  if (!expanded.value) return
+  event.stopPropagation()
+  closePopover()
 }
 </script>
 

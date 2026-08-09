@@ -56,7 +56,12 @@ test('keeps the task indicator display-only and accessible across breakpoints', 
   assert.match(source, /selectVisibleGraphTasks/)
   assert.match(source, /aria-expanded/)
   assert.match(source, /keydown\.esc|event\.key === 'Escape'/)
-  assert.match(source, /<aside[^>]*@keydown\.esc\.stop="closePopover"/)
+  assert.match(source, /<aside[^>]*@keydown\.esc="handleEscape"/)
+  assert.doesNotMatch(source, /@keydown\.esc\.stop/)
+  assert.match(
+    source,
+    /function handleEscape\(event\)\s*\{\s*if \(!expanded\.value\) return\s*event\.stopPropagation\(\)\s*closePopover\(\)/
+  )
   assert.match(source, /nextTick/)
   assert.match(source, /@media \(max-width: 760px\)/)
 })
