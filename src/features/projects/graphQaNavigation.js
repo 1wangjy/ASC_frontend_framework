@@ -1,3 +1,8 @@
+import {
+  getBrowserStorage,
+  rememberActiveProjectId
+} from './projectContextModel.js'
+
 export function buildGraphQaRoute(project = {}) {
   const projectId = String(project?.project_id ?? '').trim()
   const graphId = String(project?.graph_id ?? '').trim()
@@ -7,6 +12,19 @@ export function buildGraphQaRoute(project = {}) {
     name: 'AscQa',
     query: { projectId }
   }
+}
+
+export async function navigateGraphProjectToQa({
+  project,
+  browser = globalThis,
+  navigate
+} = {}) {
+  const route = buildGraphQaRoute(project)
+  if (!route || typeof navigate !== 'function') return false
+
+  rememberActiveProjectId(getBrowserStorage(browser), project.project_id)
+  await navigate(route)
+  return true
 }
 
 function completionError(message, project = null) {

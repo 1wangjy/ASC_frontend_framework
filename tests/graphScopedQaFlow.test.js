@@ -37,10 +37,9 @@ test('keeps the graph project picker reachable at mobile widths', async () => {
 test('completed graph builds route to QA and no longer write a local registry', async () => {
   const source = await readFile(new URL('../src/views/MainView.vue', import.meta.url), 'utf8')
 
-  assert.match(source, /buildGraphQaRoute/)
+  assert.match(source, /navigateGraphProjectToQa/)
   assert.match(source, /completeTaskGraphForQa/)
   assert.match(source, /completeMissingTaskGraphForQa/)
-  assert.match(source, /rememberActiveProjectId/)
   assert.match(source, /router\.replace\(qaRoute\)/)
   const loadGraphSource = source.slice(
     source.indexOf('const loadGraph = async'),

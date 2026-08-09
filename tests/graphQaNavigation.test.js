@@ -14,6 +14,27 @@ test('does not route an incomplete graph build', () => {
   assert.equal(buildGraphQaRoute({ project_id: '', graph_id: 'g1' }), null)
 })
 
+test('graph completion still navigates when the browser storage getter is denied', async () => {
+  const navigation = await import('../src/features/projects/graphQaNavigation.js')
+  const browser = {}
+  Object.defineProperty(browser, 'localStorage', {
+    get() {
+      throw new DOMException('Storage access denied', 'SecurityError')
+    }
+  })
+  let navigatedRoute = null
+
+  assert.equal(typeof navigation.navigateGraphProjectToQa, 'function')
+  const navigated = await navigation.navigateGraphProjectToQa({
+    project: { project_id: 'p1', graph_id: 'g1' },
+    browser,
+    navigate: (route) => { navigatedRoute = route }
+  })
+
+  assert.equal(navigated, true)
+  assert.deepEqual(navigatedRoute, { name: 'AscQa', query: { projectId: 'p1' } })
+})
+
 test('completed-task finalization reports getProject failure without navigating', async () => {
   const navigation = await import('../src/features/projects/graphQaNavigation.js')
   assert.equal(typeof navigation.completeTaskGraphForQa, 'function')

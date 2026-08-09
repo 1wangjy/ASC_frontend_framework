@@ -98,11 +98,10 @@ import Step1GraphBuild from '../components/Step1GraphBuild.vue'
 import Step2EnvSetup from '../components/Step2EnvSetup.vue'
 import WorkflowProgressBar from '../components/WorkflowProgressBar.vue'
 import { prepareOntologyProject, generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
-import { rememberActiveProjectId } from '../features/projects/projectContextModel.js'
 import {
-  buildGraphQaRoute,
   completeMissingTaskGraphForQa,
-  completeTaskGraphForQa
+  completeTaskGraphForQa,
+  navigateGraphProjectToQa
 } from '../features/projects/graphQaNavigation.js'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 
@@ -240,16 +239,17 @@ const addLog = (msg) => {
   }
 }
 
-const openCompletedGraphInQa = (project) => {
-  const qaRoute = buildGraphQaRoute(project)
-  if (!qaRoute) {
+const openCompletedGraphInQa = async (project) => {
+  const navigated = await navigateGraphProjectToQa({
+    project,
+    browser: globalThis,
+    navigate: (qaRoute) => router.replace(qaRoute)
+  })
+  if (!navigated) {
     error.value = '图谱构建完成响应缺少 project_id 或 graph_id，无法进入问答。'
     addLog(error.value)
     return false
   }
-
-  rememberActiveProjectId(window.localStorage, project.project_id)
-  router.replace(qaRoute)
   return true
 }
 
