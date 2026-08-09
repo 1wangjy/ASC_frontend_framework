@@ -138,6 +138,89 @@ test('does not call base ontology APIs from an empty pending research question',
   clearPendingUpload()
 })
 
+test('throws a failed base-project preparation response to preserve MainView error handling', async () => {
+  clearPendingUpload()
+  startResearchBuildFromLibrary(documents, ['row-2'], 'Build a base graph')
+
+  await assert.rejects(
+    runBaseResearchRequests({
+      pending: getPendingUpload(),
+      prepareOntologyProject: async () => ({ success: false, error: 'prepare failed' }),
+      generateOntology: async () => ({ success: true })
+    }),
+    /prepare failed/
+  )
+
+  clearPendingUpload()
+})
+
+test('retries failed base generation with injected waits and reports failures before succeeding', async () => {
+  clearPendingUpload()
+  startResearchBuildFromLibrary(documents, ['row-2'], 'Build a base graph')
+  const attempts = []
+  const failures = []
+  const waits = []
+  let generationCalls = 0
+
+  const result = await runBaseResearchRequests({
+    pending: getPendingUpload(),
+    prepareOntologyProject: async () => ({ success: true, data: { project_id: 'base-1' } }),
+    generateOntology: async () => {
+      generationCalls++
+      return generationCalls === 1
+        ? { success: false, error: 'temporary generation failure' }
+        : { success: true, data: { project_id: 'base-1' } }
+    },
+    onAttempt: (attempt) => attempts.push(attempt),
+    onFailure: ({ stage, attempt, error, retrying }) => failures.push({ stage, attempt, message: error.message, retrying }),
+    waitForRetry: (attempt) => waits.push(attempt)
+  })
+
+  assert.equal(result.generationResponse.success, true)
+  assert.equal(generationCalls, 2)
+  assert.deepEqual(attempts, [1, 2])
+  assert.deepEqual(waits, [1])
+  assert.deepEqual(failures, [{
+    stage: 'generate',
+    attempt: 1,
+    message: 'temporary generation failure',
+    retrying: true
+  }])
+
+  clearPendingUpload()
+})
+
+test('throws the last base-generation failure after three attempts', async () => {
+  clearPendingUpload()
+  startResearchBuildFromLibrary(documents, ['row-2'], 'Build a base graph')
+  let generationCalls = 0
+  const waits = []
+  const failures = []
+
+  await assert.rejects(
+    runBaseResearchRequests({
+      pending: getPendingUpload(),
+      prepareOntologyProject: async () => ({ success: true, data: { project_id: 'base-1' } }),
+      generateOntology: async () => {
+        generationCalls++
+        return { success: false, error: 'final generation failure' }
+      },
+      onFailure: ({ attempt, retrying }) => failures.push({ attempt, retrying }),
+      waitForRetry: (attempt) => waits.push(attempt)
+    }),
+    /final generation failure/
+  )
+
+  assert.equal(generationCalls, 3)
+  assert.deepEqual(waits, [1, 2])
+  assert.deepEqual(failures, [
+    { attempt: 1, retrying: true },
+    { attempt: 2, retrying: true },
+    { attempt: 3, retrying: false }
+  ])
+  clearPendingUpload()
+})
+
 test('rejects an empty dialog submission before emitting a graph-build request', () => {
   assert.deepEqual(validateResearchQuestionDialogSubmission('   '), {
     canSubmit: false,

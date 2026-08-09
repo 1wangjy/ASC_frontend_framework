@@ -115,6 +115,7 @@ import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 import {
   createBaseResearchRequestIntent,
   normalizeResearchQuestion,
+  runBaseResearchRequests,
   runProfessionalResearchRequests
 } from '../features/research/researchQuestionWorkflow.js'
 
@@ -463,86 +464,55 @@ const handleNewProject = async () => {
     ontologyProgress.value = { message: `Uploading and analyzing ${stageDisplayName(pendingBuildOptions.value.build_stage)} docs...` }
     addLog(`Starting ontology generation for ${stageDisplayName(pendingBuildOptions.value.build_stage)} files: ${initialFiles.length || initialPdfLibraryFileIds.length}`)
 
-    const prepareRes = await prepareOntologyProject(
-      baseRequestIntent.createPreparePayload(
-        pending.projectName || `${stageDisplayName(initialStage)} Graph Project`
-      )
-    )
-    if (!prepareRes.success) {
-      throw new Error(prepareRes.error || 'Project preparation failed')
-    }
-    currentProjectId.value = prepareRes.data.project_id
-    projectData.value = prepareRes.data
+    const requestResult = await runBaseResearchRequests({
+      pending,
+      projectName: pending.projectName || `${stageDisplayName(initialStage)} Graph Project`,
+      prepareOntologyProject,
+      generateOntology,
+      maxRetries: MAX_RETRIES,
+      waitForRetry: () => new Promise(resolve => setTimeout(resolve, RETRY_DELAY)),
+      onPrepared: async (prepareRes) => {
+        currentProjectId.value = prepareRes.data.project_id
+        projectData.value = prepareRes.data
+        graphData.value = null
+        baseGraphData.value = null
+        if (initialStage === 'base') {
+          baseProjectData.value = prepareRes.data
+          baseProjectId.value = prepareRes.data.project_id
+        }
+        router.replace({ name: 'Process', params: { projectId: prepareRes.data.project_id } })
+        startOntologyPolling(prepareRes.data.project_id)
+        addLog(`Ontology project prepared: ${prepareRes.data.project_id}`)
+      },
+      onAttempt: (attempt, maxRetries) => {
+        addLog(`Attempt ${attempt}/${maxRetries}: Sending ontology generation request...`)
+      },
+      onFailure: ({ stage, attempt, error: requestError, retrying }) => {
+        lastError = requestError
+        if (stage === 'generate') {
+          error.value = requestError.message || 'Ontology generation failed'
+          addLog(`Error generating ontology: ${error.value}`)
+          if (retrying) addLog(`Retrying in 3 seconds... (${attempt}/${MAX_RETRIES})`)
+        }
+      }
+    })
+    const res = requestResult.generationResponse
+    clearPendingUpload()
+    currentProjectId.value = res.data.project_id
+    projectData.value = res.data
     graphData.value = null
     baseGraphData.value = null
     if (initialStage === 'base') {
-      baseProjectData.value = prepareRes.data
-      baseProjectId.value = prepareRes.data.project_id
+      baseProjectData.value = res.data
+      baseProjectId.value = res.data.project_id
     }
-    router.replace({ name: 'Process', params: { projectId: prepareRes.data.project_id } })
-    startOntologyPolling(prepareRes.data.project_id)
-    addLog(`Ontology project prepared: ${prepareRes.data.project_id}`)
-    
-    // 重试循环
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const formData = baseRequestIntent.createGenerationFormData(currentProjectId.value)
-        
-        addLog(`Attempt ${attempt}/${MAX_RETRIES}: Sending ontology generation request...`)
-        const res = await generateOntology(formData)
-        
-        if (res.success) {
-          clearPendingUpload()
-          currentProjectId.value = res.data.project_id
-          projectData.value = res.data
-          graphData.value = null
-          baseGraphData.value = null
-          if (initialStage === 'base') {
-            baseProjectData.value = res.data
-            baseProjectId.value = res.data.project_id
-          }
-          
-          router.replace({ name: 'Process', params: { projectId: res.data.project_id } })
-          stopOntologyPolling()
-          ontologyProgress.value = null
-          addLog(`✓ Ontology generated successfully for project ${res.data.project_id}`)
-          addLog(`构建阶段: ${stageDisplayName(pendingBuildOptions.value.build_stage)}${pendingBuildOptions.value.base_metadata_path ? `，base metadata: ${pendingBuildOptions.value.base_metadata_path}` : ''}`)
-          addLog(`推荐实体节点数: ${res.data.recommended_entity_node_count || res.data.entity_node_limit || 60}，推荐关系边数: ${res.data.recommended_edge_count || res.data.target_edge_count || 180}，达标后迭代: ${res.data.recommended_post_target_edge_iterations ?? res.data.post_target_edge_iterations ?? 2}`)
-          return // 成功退出
-        } else {
-          error.value = res.error || 'Ontology generation failed'
-          lastError = res.error
-          addLog(`Error generating ontology: ${error.value}`)
-          
-          // 如果是最后一次重试，不再继续
-          if (attempt >= MAX_RETRIES) {
-            throw new Error(error.value)
-          }
-        }
-      } catch (err) {
-        lastError = err
-        const errorMsg = err.message || String(err)
-        
-        // 判断是否为网络错误
-        const isNetworkError = 
-          errorMsg.includes('Network Error') || 
-          errorMsg.includes('ECONNABORTED') || 
-          errorMsg.includes('timeout') ||
-          err.code === 'ECONNABORTED'
-        
-        if (isNetworkError && attempt < MAX_RETRIES) {
-          // 网络错误且非最后一次，进行重试
-          addLog(`⚠ Network error detected: ${errorMsg}`)
-          addLog(`Retrying in 3 seconds... (${attempt}/${MAX_RETRIES})`)
-          
-          // 等待后重试
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
-        } else {
-          // 非网络错误或最后一次重试失败，直接抛出
-          throw err
-        }
-      }
-    }
+    router.replace({ name: 'Process', params: { projectId: res.data.project_id } })
+    stopOntologyPolling()
+    ontologyProgress.value = null
+    addLog(`✓ Ontology generated successfully for project ${res.data.project_id}`)
+    addLog(`构建阶段: ${stageDisplayName(pendingBuildOptions.value.build_stage)}${pendingBuildOptions.value.base_metadata_path ? `，base metadata: ${pendingBuildOptions.value.base_metadata_path}` : ''}`)
+    addLog(`推荐实体节点数: ${res.data.recommended_entity_node_count || res.data.entity_node_limit || 60}，推荐关系边数: ${res.data.recommended_edge_count || res.data.target_edge_count || 180}，达标后迭代: ${res.data.recommended_post_target_edge_iterations ?? res.data.post_target_edge_iterations ?? 2}`)
+    return
     
   } catch (err) {
     // 最终错误处理

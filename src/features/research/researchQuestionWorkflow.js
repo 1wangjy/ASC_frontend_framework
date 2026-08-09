@@ -48,11 +48,6 @@ function baseFilesFromPending(pending) {
     : (pending.buildStage && pending.buildStage !== 'base' ? [] : (pending.files || []))
 }
 
-function isRetryableNetworkError(error) {
-  const message = error?.message || String(error)
-  return message.includes('Network Error') || message.includes('ECONNABORTED') || message.includes('timeout') || error?.code === 'ECONNABORTED'
-}
-
 export function createBaseResearchRequestIntent(pending) {
   const researchQuestion = normalizeResearchQuestion(pending?.queryPrompt || pending?.simulationRequirement)
   if (!researchQuestion) {
@@ -108,6 +103,7 @@ export async function runBaseResearchRequests({
   generateOntology,
   onPrepared,
   onAttempt,
+  onFailure,
   maxRetries = 3,
   waitForRetry = async () => {}
 }) {
@@ -124,13 +120,9 @@ export async function runBaseResearchRequests({
 
   const prepareResponse = await prepareOntologyProject(intent.createPreparePayload(projectName))
   if (!prepareResponse.success) {
-    return {
-      canStart: true,
-      error: '',
-      researchQuestion: intent.researchQuestion,
-      prepareResponse,
-      generationResponse: null
-    }
+    const error = new Error(prepareResponse.error || 'Project preparation failed')
+    await onFailure?.({ stage: 'prepare', attempt: 0, error, retrying: false })
+    throw error
   }
 
   await onPrepared?.(prepareResponse, intent.buildOptions)
@@ -140,13 +132,24 @@ export async function runBaseResearchRequests({
     const formData = intent.createGenerationFormData(prepareResponse.data.project_id)
 
     await onAttempt?.(attempt, maxRetries)
+    let failure = null
     try {
       generationResponse = await generateOntology(formData)
-      if (generationResponse.success || attempt >= maxRetries) break
+      if (generationResponse.success) break
+      failure = new Error(generationResponse.error || 'Ontology generation failed')
     } catch (error) {
-      if (!isRetryableNetworkError(error) || attempt >= maxRetries) throw error
-      await waitForRetry(attempt, error)
+      failure = error
     }
+
+    if (!failure) continue
+    const retrying = attempt < maxRetries
+    await onFailure?.({ stage: 'generate', attempt, error: failure, retrying })
+    if (!retrying) throw failure
+    await waitForRetry(attempt, failure)
+  }
+
+  if (!generationResponse?.success) {
+    throw new Error(generationResponse?.error || 'Ontology generation failed')
   }
 
   return {
