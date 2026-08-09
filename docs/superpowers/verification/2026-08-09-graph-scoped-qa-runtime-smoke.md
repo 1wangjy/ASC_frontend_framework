@@ -58,7 +58,7 @@ The requested D:\WEB root is not a Git repository, so `git status` and `git rev-
 D:\WEB\VScode\yuan ma\桌面\AI4Sci-NEXUS-ASC-Development-Domain-main\backend
 ```
 
-was enumerated with source/config extensions, excluding `logs`, `uploads`, `cache`, `.pytest_cache`, `venv`, and `.venv`. Of 124 files, zero had a `LastWriteTime` at or after the branch starting point `2026-08-08T22:48:55+08:00` (`7201da4`). The newest included source/config file was timestamped `2026-08-06 14:06:49 +08:00`. This supports that the implementation did not modify backend source/configuration; it deliberately makes no claim about runtime logs, uploads, caches, virtual environments, or data.
+was enumerated with source/config extensions, excluding `logs`, `uploads`, `cache`, `.pytest_cache`, `venv`, and `.venv`. This broader timestamp scan included two documentation-only Markdown files: of 124 files, zero had a `LastWriteTime` at or after the branch starting point `2026-08-08T22:48:55+08:00` (`7201da4`). The newest included source/config file was timestamped `2026-08-06 14:06:49 +08:00`. This supports that the implementation did not modify backend source/configuration; it deliberately makes no claim about runtime logs, uploads, caches, virtual environments, or data.
 
 ## Fix Round 2: Real CoD Query
 
