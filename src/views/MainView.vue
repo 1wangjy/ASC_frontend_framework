@@ -487,12 +487,19 @@ const handleNewProject = async () => {
       onAttempt: (attempt, maxRetries) => {
         addLog(`Attempt ${attempt}/${maxRetries}: Sending ontology generation request...`)
       },
-      onFailure: ({ stage, attempt, error: requestError, retrying }) => {
+      onAttemptError: ({ attempt, error: requestError, isNetworkError, retrying }) => {
+        lastError = requestError
+        if (isNetworkError && retrying) {
+          const errorMsg = requestError.message || String(requestError)
+          addLog(`⚠ Network error detected: ${errorMsg}`)
+          addLog(`Retrying in 3 seconds... (${attempt}/${MAX_RETRIES})`)
+        }
+      },
+      onFailure: ({ stage, error: requestError }) => {
         lastError = requestError
         if (stage === 'generate') {
           error.value = requestError.message || 'Ontology generation failed'
           addLog(`Error generating ontology: ${error.value}`)
-          if (retrying) addLog(`Retrying in 3 seconds... (${attempt}/${MAX_RETRIES})`)
         }
       }
     })

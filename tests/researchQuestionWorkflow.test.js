@@ -154,7 +154,7 @@ test('throws a failed base-project preparation response to preserve MainView err
   clearPendingUpload()
 })
 
-test('retries failed base generation with injected waits and reports failures before succeeding', async () => {
+test('retries failed base-generation responses without network waits and reports failures before succeeding', async () => {
   clearPendingUpload()
   startResearchBuildFromLibrary(documents, ['row-2'], 'Build a base graph')
   const attempts = []
@@ -179,7 +179,7 @@ test('retries failed base generation with injected waits and reports failures be
   assert.equal(result.generationResponse.success, true)
   assert.equal(generationCalls, 2)
   assert.deepEqual(attempts, [1, 2])
-  assert.deepEqual(waits, [1])
+  assert.deepEqual(waits, [])
   assert.deepEqual(failures, [{
     stage: 'generate',
     attempt: 1,
@@ -190,7 +190,114 @@ test('retries failed base generation with injected waits and reports failures be
   clearPendingUpload()
 })
 
-test('throws the last base-generation failure after three attempts', async () => {
+test('rethrows a non-network base-generation exception without retrying or waiting', async () => {
+  clearPendingUpload()
+  startResearchBuildFromLibrary(documents, ['row-2'], 'Build a base graph')
+  const originalError = new Error('Request failed with status code 401')
+  const waits = []
+  const attemptErrors = []
+  let generationCalls = 0
+
+  await assert.rejects(
+    runBaseResearchRequests({
+      pending: getPendingUpload(),
+      prepareOntologyProject: async () => ({ success: true, data: { project_id: 'base-1' } }),
+      generateOntology: async () => {
+        generationCalls++
+        throw originalError
+      },
+      onAttemptError: ({ attempt, error, isNetworkError, retrying }) => {
+        attemptErrors.push({ attempt, error, isNetworkError, retrying })
+      },
+      waitForRetry: (attempt) => waits.push(attempt)
+    }),
+    error => error === originalError
+  )
+
+  assert.equal(generationCalls, 1)
+  assert.deepEqual(waits, [])
+  assert.deepEqual(attemptErrors, [{
+    attempt: 1,
+    error: originalError,
+    isNetworkError: false,
+    retrying: false
+  }])
+  clearPendingUpload()
+})
+
+test('retries network base-generation exceptions up to three attempts with waits and classification', async () => {
+  clearPendingUpload()
+  startResearchBuildFromLibrary(documents, ['row-2'], 'Build a base graph')
+  const originalError = new Error('Network Error while generating ontology')
+  const waits = []
+  const attemptErrors = []
+  let generationCalls = 0
+
+  await assert.rejects(
+    runBaseResearchRequests({
+      pending: getPendingUpload(),
+      prepareOntologyProject: async () => ({ success: true, data: { project_id: 'base-1' } }),
+      generateOntology: async () => {
+        generationCalls++
+        throw originalError
+      },
+      onAttemptError: ({ attempt, error, isNetworkError, retrying }) => {
+        attemptErrors.push({ attempt, error, isNetworkError, retrying })
+      },
+      waitForRetry: (attempt, error) => waits.push({ attempt, error })
+    }),
+    error => error === originalError
+  )
+
+  assert.equal(generationCalls, 3)
+  assert.deepEqual(waits, [
+    { attempt: 1, error: originalError },
+    { attempt: 2, error: originalError }
+  ])
+  assert.deepEqual(attemptErrors, [
+    { attempt: 1, error: originalError, isNetworkError: true, retrying: true },
+    { attempt: 2, error: originalError, isNetworkError: true, retrying: true },
+    { attempt: 3, error: originalError, isNetworkError: true, retrying: false }
+  ])
+  clearPendingUpload()
+})
+
+test('retries timeout base-generation exceptions between attempts and stops after success', async () => {
+  clearPendingUpload()
+  startResearchBuildFromLibrary(documents, ['row-2'], 'Build a base graph')
+  const timeoutError = Object.assign(new Error('request aborted'), { code: 'ECONNABORTED' })
+  const waits = []
+  const attemptErrors = []
+  let generationCalls = 0
+
+  const result = await runBaseResearchRequests({
+    pending: getPendingUpload(),
+    prepareOntologyProject: async () => ({ success: true, data: { project_id: 'base-1' } }),
+    generateOntology: async () => {
+      generationCalls++
+      if (generationCalls < 3) throw timeoutError
+      return { success: true, data: { project_id: 'base-1' } }
+    },
+    onAttemptError: ({ attempt, error, isNetworkError, retrying }) => {
+      attemptErrors.push({ attempt, error, isNetworkError, retrying })
+    },
+    waitForRetry: (attempt, error) => waits.push({ attempt, error })
+  })
+
+  assert.equal(result.generationResponse.success, true)
+  assert.equal(generationCalls, 3)
+  assert.deepEqual(waits, [
+    { attempt: 1, error: timeoutError },
+    { attempt: 2, error: timeoutError }
+  ])
+  assert.deepEqual(attemptErrors, [
+    { attempt: 1, error: timeoutError, isNetworkError: true, retrying: true },
+    { attempt: 2, error: timeoutError, isNetworkError: true, retrying: true }
+  ])
+  clearPendingUpload()
+})
+
+test('throws the last base-generation response failure after three attempts without network waits', async () => {
   clearPendingUpload()
   startResearchBuildFromLibrary(documents, ['row-2'], 'Build a base graph')
   let generationCalls = 0
@@ -212,7 +319,7 @@ test('throws the last base-generation failure after three attempts', async () =>
   )
 
   assert.equal(generationCalls, 3)
-  assert.deepEqual(waits, [1, 2])
+  assert.deepEqual(waits, [])
   assert.deepEqual(failures, [
     { attempt: 1, retrying: true },
     { attempt: 2, retrying: true },
