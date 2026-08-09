@@ -25,18 +25,48 @@
       </header>
       <slot />
     </div>
+
+    <GlobalGraphTaskIndicator
+      :items="monitor.state.items"
+      :connection="monitor.state.connection"
+      :last-synced-at="monitor.state.lastSyncedAt"
+      @refresh="monitor.refresh"
+      @view-project="viewProject"
+      @open-qa="openProjectQa"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { onMounted, onUnmounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AscSidebar from '../components/navigation/AscSidebar.vue'
 import AscIcon from '../components/ui/AscIcon.vue'
+import GlobalGraphTaskIndicator from '../features/tasks/GlobalGraphTaskIndicator.vue'
+import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
+import { navigateGraphProjectToQa } from '../features/projects/graphQaNavigation.js'
 
 const route = useRoute()
+const router = useRouter()
+const monitor = useGraphTaskMonitor()
 const mobileNavOpen = ref(false)
 const sidebarCollapsed = ref(false)
+
+function viewProject(projectId) {
+  if (!projectId) return
+  router.push({ name: 'Process', params: { projectId } })
+}
+
+async function openProjectQa(item) {
+  await navigateGraphProjectToQa({
+    project: { project_id: item.projectId, graph_id: item.graphId },
+    browser: globalThis,
+    navigate: qaRoute => router.push(qaRoute)
+  })
+}
+
+onMounted(monitor.start)
+onUnmounted(monitor.stop)
 </script>
 
 <style scoped>
