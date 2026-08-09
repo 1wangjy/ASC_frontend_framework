@@ -56,6 +56,10 @@ Read-only live probing through port 3000 returned HTTP 405 for GET `/api/report/
 
 Automation used headless installed Chrome against the existing `http://localhost:3000`; the ignored harness and temporary `playwright-core` installation live under the plan-scoped `.superpowers` directory and are not committed.
 
+### Intercepted report replacement race
+
+The Fix Round 1 report-route smoke was fully intercepted and sent no POST to real 5002. With task A's status POST held unresolved, a task-only route-query replacement produced no overlapping request. Releasing A with a stale `completed` result then produced exactly one status POST for task B; the stale completion was ignored and the UI remained `Generating`. Exact focused totals: 1 unresolved request before release, 1 replacement request after settlement, and 2 intercepted report-status POSTs overall.
+
 ### Real backend, no interception
 
 - QA loaded and the global graph-task trigger was visible.
@@ -75,7 +79,7 @@ The harness aborted only project-list GETs (2 requests) until the open monitor d
 
 ## Request safety and forbidden endpoint checks
 
-- Browser request audit: 334 requests observed across real, intercepted-active, and reconnect scenarios; 0 POST requests, 0 graph-build POSTs, 0 CoD/query POSTs, and 0 `/api/graph/tasks` requests.
+- Main browser request audit: 334 requests observed across real, intercepted-active, and reconnect scenarios; 0 POST requests, 0 graph-build POSTs, 0 CoD/query POSTs, and 0 `/api/graph/tasks` requests. The separate Fix Round 1 report smoke intercepted its 2 report-status POSTs before the proxy; neither reached real 5002.
 - Source and current production bundle scan for the exact `/api/graph/tasks` string: 0 source/test hits and 0 `dist` hits.
 - Navigation, reload, reconnect, and monitoring created no graph, report, simulation, or query task.
 
