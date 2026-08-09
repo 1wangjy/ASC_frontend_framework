@@ -1,5 +1,10 @@
 import service from './index.js'
 import { buildApiUrl } from './runtime.js'
+import { readBrowserStorageItem } from '../utils/browserStorage.js'
+
+function currentUserId() {
+  return encodeURIComponent(readBrowserStorageItem('nexus_user_id') || 'local-asc-analyst')
+}
 
 export function uploadPdfFiles(formData, onUploadProgress) {
   return service({
@@ -27,11 +32,11 @@ export function deletePdfFile(fileId) {
 }
 
 export function getPdfPreviewUrl(fileId) {
-  const user = encodeURIComponent(localStorage.getItem('nexus_user_id') || 'local-asc-analyst')
+  const user = currentUserId()
   return `${buildApiUrl(`/api/pdf-library/files/${fileId}/preview`)}?user=${user}`
 }
 
 export function getPdfDownloadUrl(fileId) {
-  const user = encodeURIComponent(localStorage.getItem('nexus_user_id') || 'local-asc-analyst')
+  const user = currentUserId()
   return `${buildApiUrl(`/api/pdf-library/files/${fileId}/download`)}?user=${user}`
 }

@@ -22,16 +22,70 @@ test('keeps the frontend on 3000 and proxies API requests to 5002', () => {
 })
 
 test('builds PDF resource URLs through the same-origin development proxy', async () => {
-  globalThis.localStorage = { getItem: () => null }
-  const pdfLibrary = await import('../src/api/pdfLibrary.js').catch(() => ({}))
+  const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
 
-  assert.equal(typeof pdfLibrary.getPdfPreviewUrl, 'function')
-  assert.equal(
-    pdfLibrary.getPdfPreviewUrl('paper-1'),
-    '/api/pdf-library/files/paper-1/preview?user=local-asc-analyst'
-  )
-  assert.equal(
-    pdfLibrary.getPdfDownloadUrl('paper-1'),
-    '/api/pdf-library/files/paper-1/download?user=local-asc-analyst'
-  )
+  try {
+    globalThis.localStorage = { getItem: () => null }
+    const pdfLibrary = await import('../src/api/pdfLibrary.js').catch(() => ({}))
+
+    assert.equal(typeof pdfLibrary.getPdfPreviewUrl, 'function')
+    assert.equal(
+      pdfLibrary.getPdfPreviewUrl('paper-1'),
+      '/api/pdf-library/files/paper-1/preview?user=local-asc-analyst'
+    )
+    assert.equal(
+      pdfLibrary.getPdfDownloadUrl('paper-1'),
+      '/api/pdf-library/files/paper-1/download?user=local-asc-analyst'
+    )
+  } finally {
+    if (originalLocalStorage) Object.defineProperty(globalThis, 'localStorage', originalLocalStorage)
+    else delete globalThis.localStorage
+  }
+})
+
+test('percent-encodes the browser user ID in PDF resource URLs', async () => {
+  const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+
+  try {
+    globalThis.localStorage = { getItem: () => 'analyst /?&=' }
+    const pdfLibrary = await import('../src/api/pdfLibrary.js')
+
+    assert.equal(
+      pdfLibrary.getPdfPreviewUrl('paper-1'),
+      '/api/pdf-library/files/paper-1/preview?user=analyst%20%2F%3F%26%3D'
+    )
+    assert.equal(
+      pdfLibrary.getPdfDownloadUrl('paper-1'),
+      '/api/pdf-library/files/paper-1/download?user=analyst%20%2F%3F%26%3D'
+    )
+  } finally {
+    if (originalLocalStorage) Object.defineProperty(globalThis, 'localStorage', originalLocalStorage)
+    else delete globalThis.localStorage
+  }
+})
+
+test('falls back when accessing browser storage throws for PDF resource URLs', async () => {
+  const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+
+  try {
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('storage access denied')
+      }
+    })
+    const pdfLibrary = await import('../src/api/pdfLibrary.js')
+
+    assert.equal(
+      pdfLibrary.getPdfPreviewUrl('paper-1'),
+      '/api/pdf-library/files/paper-1/preview?user=local-asc-analyst'
+    )
+    assert.equal(
+      pdfLibrary.getPdfDownloadUrl('paper-1'),
+      '/api/pdf-library/files/paper-1/download?user=local-asc-analyst'
+    )
+  } finally {
+    if (originalLocalStorage) Object.defineProperty(globalThis, 'localStorage', originalLocalStorage)
+    else delete globalThis.localStorage
+  }
 })
