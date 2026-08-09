@@ -35,7 +35,7 @@ export function createGraphTaskMonitor(dependencies = {}) {
   })
   let requestSequence = 0
   let timer = null
-  let observedQaReadiness = new Map()
+  const observedQaReadiness = new Map()
   let listenersRegistered = false
 
   function cancelPendingSchedule() {
@@ -55,13 +55,12 @@ export function createGraphTaskMonitor(dependencies = {}) {
   }
 
   function updateCompletedRevision(nextItems) {
-    const nextReadiness = new Map(nextItems.map(item => [item.projectId, item.canOpenQa]))
     for (const item of nextItems) {
       if (observedQaReadiness.has(item.projectId) && !observedQaReadiness.get(item.projectId) && item.canOpenQa) {
         state.completedRevision += 1
       }
+      observedQaReadiness.set(item.projectId, item.canOpenQa)
     }
-    observedQaReadiness = nextReadiness
   }
 
   async function refresh() {

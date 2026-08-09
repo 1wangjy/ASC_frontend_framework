@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 
 import { createGraphTaskMonitor } from '../src/features/tasks/graphTaskMonitor.js'
 
@@ -100,6 +101,32 @@ test('increments completedRevision only for an observed transition to QA-ready',
   assert.equal(monitor.state.completedRevision, 1)
   await monitor.refresh()
   assert.equal(monitor.state.completedRevision, 1)
+})
+
+test('increments completedRevision when an observed project reappears QA-ready after an absent snapshot', async () => {
+  const snapshots = [
+    [project({ status: 'graph_building' })],
+    [],
+    [project({ status: 'graph_completed' })]
+  ]
+  const { monitor } = createHarness({
+    listProjects: async () => ({ success: true, data: snapshots.shift() })
+  })
+
+  await monitor.refresh()
+  await monitor.refresh()
+  await monitor.refresh()
+
+  assert.equal(monitor.state.completedRevision, 1)
+  await monitor.refresh()
+  assert.equal(monitor.state.completedRevision, 1)
+})
+
+test('has no list-all-tasks API dependency', async () => {
+  const source = await readFile(new URL('../src/features/tasks/graphTaskMonitor.js', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(source, /\blistGraphTasks\b/)
+  assert.doesNotMatch(source, /\/api\/graph\/tasks\b/)
 })
 
 test('does not let an older refresh overwrite a newer snapshot', async () => {
