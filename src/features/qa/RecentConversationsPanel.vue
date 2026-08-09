@@ -2,7 +2,7 @@
   <aside
     class="recent-conversations"
     :class="{ 'recent-conversations--compact-open': compactOpen }"
-    aria-label="问题面板"
+    :aria-label="title"
     @keydown.esc.stop="closeCompactPanel"
   >
     <button
@@ -13,7 +13,7 @@
       aria-controls="recent-conversation-list"
       @click="compactOpen = !compactOpen"
     >
-      <span>示例</span>
+      <span>{{ title }}</span>
       <AscIcon name="chevron" :class="{ 'is-open': compactOpen }" />
     </button>
 

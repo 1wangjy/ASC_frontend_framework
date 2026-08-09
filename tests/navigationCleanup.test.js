@@ -33,6 +33,17 @@ test('renders new chat above the truthfully named example list', async () => {
   assert.match(historyHtml, /示例问题/)
   assert.match(historyHtml, /新建问答/)
   assert.doesNotMatch(historyHtml, /历史问题|查看更多历史|收起历史/)
-  assert.ok(historyHtml.indexOf('新建问答') < historyHtml.indexOf('示例问题'))
+  const contentHtml = historyHtml.slice(historyHtml.indexOf('recent-conversations__content'))
+  assert.ok(contentHtml.indexOf('新建问答') < contentHtml.indexOf('示例问题'))
   assert.doesNotMatch(sidebarHtml, /新建问答/)
+})
+
+test('preserves a supplied title for the compact example panel trigger', async () => {
+  const html = await renderSfc('/src/features/qa/RecentConversationsPanel.vue', {
+    title: '本次会话',
+    conversations: recentConversations
+  })
+
+  assert.match(html, /<aside[^>]*aria-label="本次会话"/)
+  assert.match(html, /recent-conversations__compact-toggle[\s\S]*?<span[^>]*>本次会话<\/span>/)
 })
