@@ -12,6 +12,14 @@
       {{ activeCount ? `正在构建 ${activeCount} 项` : '图谱任务' }}
     </button>
 
+    <button
+      class="graph-task-indicator__qa-home"
+      type="button"
+      @click="$emit('open-qa-home')"
+    >
+      问答首页
+    </button>
+
     <section
       id="global-graph-task-popover"
       class="graph-task-indicator__popover"
@@ -61,7 +69,7 @@ const props = defineProps({
   lastSyncedAt: { type: [Number, String], default: null }
 })
 
-defineEmits(['refresh', 'view-project', 'open-qa'])
+defineEmits(['refresh', 'view-project', 'open-qa', 'open-qa-home'])
 
 const expanded = ref(false)
 const trigger = ref(null)
@@ -87,8 +95,9 @@ function closePopover() {
 </script>
 
 <style scoped>
-.graph-task-indicator { position: fixed; right: 22px; bottom: 22px; z-index: 40; font-size: 13px; }
+.graph-task-indicator { position: fixed; right: 22px; bottom: 22px; z-index: 40; display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .graph-task-indicator__trigger { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--asc-border); border-radius: 18px; background: #fff; color: var(--asc-heading); box-shadow: 0 8px 24px rgba(4, 28, 49, .16); font-weight: 700; cursor: pointer; }
+.graph-task-indicator__qa-home { min-height: 36px; padding: 0 12px; border: 1px solid var(--asc-primary); border-radius: 18px; background: var(--asc-primary); color: #fff; box-shadow: 0 8px 24px rgba(4, 28, 49, .16); font: inherit; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .graph-task-indicator__dot { width: 8px; height: 8px; border-radius: 50%; background: #8b9bad; }
 .graph-task-indicator__dot--active { background: var(--asc-primary); box-shadow: 0 0 0 4px var(--asc-primary-soft); }
 .graph-task-indicator__popover { position: absolute; right: 0; bottom: 46px; width: min(360px, calc(100vw - 32px)); max-height: min(70vh, 520px); overflow: auto; border: 1px solid var(--asc-border); border-radius: 12px; background: #fff; box-shadow: 0 16px 40px rgba(4, 28, 49, .2); }

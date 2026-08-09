@@ -75,3 +75,33 @@ test('wires the singleton monitor and graph actions through the persistent shell
   assert.match(source, /name:\s*'Process'/)
   assert.match(source, /navigateGraphProjectToQa/)
 })
+
+test('renders the QA home action for an active task that cannot open project QA', async () => {
+  const html = await renderSfc('/src/features/tasks/GlobalGraphTaskIndicator.vue', {
+    items: [{ ...completedItem, status: 'graph_building', progress: 42, active: true, canOpenQa: false }]
+  })
+
+  assert.match(html, /\u95ee\u7b54\u9996\u9875/)
+})
+
+test('emits an unscoped QA-home action from outside the expandable popover', async () => {
+  const source = await readFile(
+    new URL('../src/features/tasks/GlobalGraphTaskIndicator.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /open-qa-home/)
+  assert.match(source, /class="graph-task-indicator__qa-home"/)
+  assert.match(source, /@click="\$emit\('open-qa-home'\)"/)
+  assert.ok(
+    source.indexOf('graph-task-indicator__qa-home') < source.indexOf('id="global-graph-task-popover"'),
+    'QA home must remain outside the expandable popover'
+  )
+})
+
+test('routes the unscoped QA-home action to the named AscQa route', async () => {
+  const source = await readFile(new URL('../src/layouts/AscShell.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /@open-qa-home="openQaHome"/)
+  assert.match(source, /function openQaHome\(\)\s*\{\s*router\.push\(\{ name: 'AscQa' \}\)/)
+})

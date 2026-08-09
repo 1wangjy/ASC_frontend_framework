@@ -621,8 +621,14 @@ test('hands selected backend PDF file ids to the existing graph workflow', async
   )
 
   assert.match(view, /使用选中文献构建图谱/)
-  assert.match(view, /setPendingUpload/)
-  assert.match(view, /pdfLibraryFileIds/)
+  const researchWorkflow = await readFile(
+    new URL('../src/features/research/researchQuestionWorkflow.js', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(view, /startResearchBuildFromLibrary/)
+  assert.match(researchWorkflow, /setPendingUpload\(\[\], intent\.queryPrompt,/)
+  assert.match(researchWorkflow, /pdfLibraryFileIds/)
   assert.match(view, /router\.push\(['"]\/process\/new['"]\)/)
   assert.match(table, /selectedIds/)
   assert.match(table, /toggle-selection/)

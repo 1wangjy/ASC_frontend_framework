@@ -33,6 +33,7 @@
       @refresh="monitor.refresh"
       @view-project="viewProject"
       @open-qa="openProjectQa"
+      @open-qa-home="openQaHome"
     />
   </div>
 </template>
@@ -55,6 +56,10 @@ const sidebarCollapsed = ref(false)
 function viewProject(projectId) {
   if (!projectId) return
   router.push({ name: 'Process', params: { projectId } })
+}
+
+function openQaHome() {
+  router.push({ name: 'AscQa' })
 }
 
 async function openProjectQa(item) {
