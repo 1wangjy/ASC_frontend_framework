@@ -77,6 +77,12 @@
       @complete="uploadDocuments"
     />
 
+    <ResearchQuestionDialog
+      :open="researchQuestionDialogOpen"
+      @close="researchQuestionDialogOpen = false"
+      @submit="startGraphBuild"
+    />
+
     <transition name="toast">
       <div v-if="toastMessage" class="toast" role="status">
         <AscIcon name="check" />
@@ -95,6 +101,7 @@ import DocumentTable from '../features/library/DocumentTable.vue'
 import DocumentDetails from '../features/library/DocumentDetails.vue'
 import DocumentImportModal from '../features/library/DocumentImportModal.vue'
 import LibraryOverviewPopover from '../features/library/LibraryOverviewPopover.vue'
+import ResearchQuestionDialog from '../features/research/ResearchQuestionDialog.vue'
 import {
   deletePdfFile,
   getPdfDownloadUrl,
@@ -118,10 +125,10 @@ import {
   reconcileSelectedDocumentId
 } from '../features/library/libraryModel.js'
 import {
-  buildPdfLibrarySelection,
   reconcileSelectedDocumentIds,
   toggleSelectedDocumentId
 } from '../features/library/libraryWorkflowModel.js'
+import { createResearchBuildIntent } from '../features/research/researchQuestionWorkflow.js'
 import { setPendingUpload } from '../store/pendingUpload.js'
 
 const router = useRouter()
@@ -132,6 +139,7 @@ const compactView = typeof window !== 'undefined'
 const selectedDocumentId = ref(initialSelectedDocumentId([], compactView))
 const selectedDocumentIds = ref([])
 const importMode = ref('')
+const researchQuestionDialogOpen = ref(false)
 const toastMessage = ref('')
 const loading = ref(true)
 const libraryError = ref('')
@@ -180,16 +188,24 @@ function toggleDocumentSelection(documentId) {
 }
 
 function buildGraphFromSelection() {
-  const selection = buildPdfLibrarySelection(documentRows.value, selectedDocumentIds.value)
-  if (!selection.fileIds.length) return
+  const intent = createResearchBuildIntent(documentRows.value, selectedDocumentIds.value, '')
+  if (!intent.fileIds.length) return
 
-  setPendingUpload([], '', '', '', {
+  researchQuestionDialogOpen.value = true
+}
+
+function startGraphBuild(question) {
+  const intent = createResearchBuildIntent(documentRows.value, selectedDocumentIds.value, question)
+  if (!intent.canStart || !intent.fileIds.length) return
+
+  setPendingUpload([], intent.queryPrompt, '', '', {
     dataType: 'pdf_library',
     buildStage: 'base',
     sourceCorpusType: 'survey',
-    pdfLibraryFileIds: selection.fileIds,
-    pdfLibraryFiles: selection.files
+    pdfLibraryFileIds: intent.fileIds,
+    pdfLibraryFiles: intent.files
   })
+  researchQuestionDialogOpen.value = false
   router.push('/process/new')
 }
 

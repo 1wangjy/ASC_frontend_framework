@@ -410,6 +410,12 @@ const stageDisplayName = (stage) => stage === 'professional' ? '专业细化' : 
 
 const handleNewProject = async () => {
   const pending = getPendingUpload()
+  const researchQuestion = String(pending.queryPrompt || pending.simulationRequirement || '').trim()
+  if (!researchQuestion) {
+    error.value = '请先填写研究问题。'
+    addLog('Graph build blocked: a research question is required before ontology generation.')
+    return
+  }
   const baseFiles = pending.filesByStage?.base?.length
     ? pending.filesByStage.base
     : (pending.buildStage && pending.buildStage !== 'base' ? [] : (pending.files || []))
@@ -420,7 +426,7 @@ const handleNewProject = async () => {
     return
   }
   professionalUploadFiles.value = []
-  queryPromptForProfessional.value = pending.queryPrompt || pending.simulationRequirement || ''
+  queryPromptForProfessional.value = researchQuestion
   graphData.value = null
   baseGraphData.value = null
   baseProjectData.value = null
@@ -453,8 +459,8 @@ const handleNewProject = async () => {
 
     const prepareRes = await prepareOntologyProject({
       project_name: pending.projectName || `${stageDisplayName(initialStage)} Graph Project`,
-      query_prompt: pending.queryPrompt || pending.simulationRequirement,
-      simulation_requirement: pending.queryPrompt || pending.simulationRequirement,
+      query_prompt: researchQuestion,
+      simulation_requirement: researchQuestion,
       build_stage: pendingBuildOptions.value.build_stage,
       source_corpus_type: pendingBuildOptions.value.source_corpus_type,
       base_metadata_path: pendingBuildOptions.value.base_metadata_path || ''
@@ -481,8 +487,8 @@ const handleNewProject = async () => {
         formData.append('project_id', currentProjectId.value)
         initialFiles.forEach(f => formData.append('files', f))
         initialPdfLibraryFileIds.forEach((fileId) => formData.append('pdf_library_file_ids', fileId))
-        formData.append('query_prompt', pending.queryPrompt || pending.simulationRequirement)
-        formData.append('simulation_requirement', pending.queryPrompt || pending.simulationRequirement)
+        formData.append('query_prompt', researchQuestion)
+        formData.append('simulation_requirement', researchQuestion)
         formData.append('build_stage', pendingBuildOptions.value.build_stage)
         formData.append('source_corpus_type', pendingBuildOptions.value.source_corpus_type)
         if (pendingBuildOptions.value.base_metadata_path) {
