@@ -76,16 +76,18 @@ test('finds the restorable question for a recent conversation', () => {
   )
 })
 
-test('recent conversations panel provides quiet expandable history controls', async () => {
+test('recent conversations panel provides quiet expandable example controls', async () => {
   const source = await readFile(
     new URL('../src/features/qa/RecentConversationsPanel.vue', import.meta.url),
     'utf8'
   ).catch(() => '')
 
-  assert.match(source, /历史问题/)
+  assert.match(source, /示例问题/)
   assert.match(source, /新建问答/)
-  assert.match(source, /查看更多历史/)
-  assert.match(source, /收起历史/)
+  assert.match(source, /查看更多示例/)
+  assert.match(source, /收起示例/)
+  assert.doesNotMatch(source, /历史问题|查看更多历史|收起历史/)
+  assert.ok(source.indexOf('新建问答') < source.indexOf('示例问题'))
   assert.match(source, /aria-expanded/)
   assert.match(source, /getVisibleRecentConversations/)
   assert.match(source, /text-overflow:\s*ellipsis/)

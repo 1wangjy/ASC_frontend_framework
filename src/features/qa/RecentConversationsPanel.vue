@@ -2,7 +2,7 @@
   <aside
     class="recent-conversations"
     :class="{ 'recent-conversations--compact-open': compactOpen }"
-    :aria-label="title"
+    aria-label="问题面板"
     @keydown.esc.stop="closeCompactPanel"
   >
     <button
@@ -13,24 +13,25 @@
       aria-controls="recent-conversation-list"
       @click="compactOpen = !compactOpen"
     >
-      <span>{{ title }}</span>
+      <span>示例</span>
       <AscIcon name="chevron" :class="{ 'is-open': compactOpen }" />
     </button>
 
     <div id="recent-conversation-list" class="recent-conversations__content">
+      <button
+        class="recent-conversations__new"
+        type="button"
+        @click="$emit('new-chat')"
+      >
+        <AscIcon name="plus" />
+        <span>新建问答</span>
+      </button>
+
       <div class="recent-conversations__heading">
         <div class="recent-conversations__summary">
           <span>{{ title }}</span>
           <small>{{ conversations.length }} 条</small>
         </div>
-        <button
-          class="recent-conversations__new"
-          type="button"
-          @click="$emit('new-chat')"
-        >
-          <AscIcon name="plus" />
-          <span>新建问答</span>
-        </button>
       </div>
 
       <div
@@ -56,7 +57,7 @@
         :aria-expanded="expanded"
         @click="expanded = !expanded"
       >
-        <span>{{ expanded ? '收起历史' : '查看更多历史' }}</span>
+        <span>{{ expanded ? '收起示例' : '查看更多示例' }}</span>
         <AscIcon name="chevron" :class="{ 'is-open': expanded }" />
       </button>
     </div>
@@ -74,7 +75,7 @@ import {
 const props = defineProps({
   title: {
     type: String,
-    default: '历史问题'
+    default: '示例问题'
   },
   conversations: {
     type: Array,
@@ -122,8 +123,6 @@ function closeCompactPanel() {
 }
 
 .recent-conversations__heading {
-  display: grid;
-  gap: 8px;
   margin: 0 8px 10px;
   color: var(--recent-heading);
   font-size: 10px;
@@ -158,6 +157,7 @@ function closeCompactPanel() {
   color: var(--asc-primary);
   font-size: 10px;
   font-weight: 750;
+  margin: 0 8px 12px;
   transition: background var(--asc-transition), border-color var(--asc-transition);
 }
 

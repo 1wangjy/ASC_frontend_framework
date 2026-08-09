@@ -22,7 +22,7 @@ test('keeps QA and documents as the only primary destinations while retaining wo
   ])
 })
 
-test('renders new chat inside history instead of the primary sidebar', async () => {
+test('renders new chat above the truthfully named example list', async () => {
   const [historyHtml, sidebarHtml] = await Promise.all([
     renderSfc('/src/features/qa/RecentConversationsPanel.vue', {
       conversations: recentConversations
@@ -30,8 +30,9 @@ test('renders new chat inside history instead of the primary sidebar', async () 
     renderSfc('/src/components/navigation/AscSidebar.vue', {}, { withRouter: true })
   ])
 
-  assert.match(historyHtml, /历史问题/)
+  assert.match(historyHtml, /示例问题/)
   assert.match(historyHtml, /新建问答/)
-  assert.doesNotMatch(historyHtml, /示例问题/)
+  assert.doesNotMatch(historyHtml, /历史问题|查看更多历史|收起历史/)
+  assert.ok(historyHtml.indexOf('新建问答') < historyHtml.indexOf('示例问题'))
   assert.doesNotMatch(sidebarHtml, /新建问答/)
 })
