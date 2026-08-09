@@ -56,3 +56,38 @@ test('ignores a pending report status response after polling stops', async () =>
 
   assert.deepEqual(handled, [])
 })
+
+test('stop and immediate restart waits for the stale request before polling once', async () => {
+  const requests = []
+  const handled = []
+  const poller = createReportStatusPoller({
+    poll: () => {
+      const request = deferred()
+      requests.push(request)
+      return request.promise
+    },
+    onResult: result => { handled.push(result) },
+    onError: error => { throw error },
+    schedule: () => requests.length + 1,
+    cancel: () => {}
+  })
+
+  poller.start()
+  poller.stop()
+  poller.start()
+
+  assert.equal(requests.length, 1)
+  requests[0].resolve({ task: 'stale' })
+  await Promise.resolve()
+  await Promise.resolve()
+
+  assert.deepEqual(handled, [])
+  assert.equal(requests.length, 2)
+
+  requests[1].resolve({ task: 'replacement' })
+  await Promise.resolve()
+  await Promise.resolve()
+
+  assert.deepEqual(handled, [{ task: 'replacement' }])
+  poller.stop()
+})

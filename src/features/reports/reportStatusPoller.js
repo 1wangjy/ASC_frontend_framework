@@ -30,7 +30,10 @@ export function createReportStatusPoller({
     } catch (error) {
       if (running && generation === currentGeneration) onError(error)
     } finally {
-      if (inFlight === request) inFlight = null
+      if (inFlight === request) {
+        inFlight = null
+        if (running && generation !== currentGeneration) tick()
+      }
     }
   }
 
@@ -48,7 +51,6 @@ export function createReportStatusPoller({
     generation += 1
     if (timer !== null) cancel(timer)
     timer = null
-    inFlight = null
   }
 
   return { start, stop }

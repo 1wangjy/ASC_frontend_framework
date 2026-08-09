@@ -2277,30 +2277,40 @@ onUnmounted(() => {
   stopPolling()
 })
 
-watch(() => props.reportId, (newId) => {
-  if (newId) {
-    stopPolling()
-    agentLogs.value = []
-    consoleLogs.value = []
-    agentLogLine.value = 0
-    consoleLogLine.value = 0
-    reportOutline.value = null
-    currentSectionIndex.value = null
-    generatedSections.value = {}
-    expandedContent.value = new Set()
-    expandedLogs.value = new Set()
-    collapsedSections.value = new Set()
-    isComplete.value = false
-    startTime.value = null
-    
-    startPolling()
-  }
-}, { immediate: true })
+watch(
+  [() => props.reportId, () => props.reportTaskId],
+  ([newReportId, newTaskId], [oldReportId, oldTaskId] = []) => {
+    const reportChanged = Boolean(newReportId && newReportId !== oldReportId)
+    const taskChanged = newTaskId !== oldTaskId
 
-watch(() => props.reportTaskId, () => {
-  reportStatusPoller.stop()
-  startStatusPolling()
-})
+    if (reportChanged) {
+      stopPolling()
+      agentLogs.value = []
+      consoleLogs.value = []
+      agentLogLine.value = 0
+      consoleLogLine.value = 0
+      reportOutline.value = null
+      currentSectionIndex.value = null
+      generatedSections.value = {}
+      expandedContent.value = new Set()
+      expandedLogs.value = new Set()
+      collapsedSections.value = new Set()
+      isComplete.value = false
+      startTime.value = null
+      emit('update-status', 'processing')
+      startPolling()
+      return
+    }
+
+    if (taskChanged) {
+      reportStatusPoller.stop()
+      isComplete.value = false
+      emit('update-status', 'processing')
+      startStatusPolling()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

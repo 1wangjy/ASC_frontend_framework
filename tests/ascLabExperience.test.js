@@ -415,6 +415,12 @@ test('carries the backend report task id into the report status polling page', a
   assert.match(simulation, /query:\s*\{\s*taskId/)
   assert.match(reportView, /:reportTaskId="reportTaskId"/)
   assert.match(reportStep, /getReportStatus\(\{\s*taskId:\s*props\.reportTaskId\s*\}\)/)
+  assert.match(reportStep, /watch\(\s*\[\(\) => props\.reportId, \(\) => props\.reportTaskId\][\s\S]*?if \(reportChanged\)[\s\S]*?startPolling\(\)[\s\S]*?return[\s\S]*?if \(taskChanged\)[\s\S]*?reportStatusPoller\.stop\(\)[\s\S]*?isComplete\.value = false[\s\S]*?emit\('update-status', 'processing'\)[\s\S]*?startStatusPolling\(\)/)
+  const taskReplacementBranch = reportStep.slice(
+    reportStep.indexOf('if (taskChanged)'),
+    reportStep.indexOf('\n    }\n  },', reportStep.indexOf('if (taskChanged)'))
+  )
+  assert.doesNotMatch(taskReplacementBranch, /agentLogs\.value = \[\]|generatedSections\.value = \{\}/)
   assert.doesNotMatch(reportStep, /REF-2024-X92/)
   assert.doesNotMatch(interactionStep, /REF-2024-X92/)
 })
