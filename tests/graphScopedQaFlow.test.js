@@ -24,6 +24,40 @@ test('invalid QA scope refreshes into manual selection without resending the que
   assert.match(source, /resolveProjectAfterRefresh/)
 })
 
+test('QA reloads projects when graph completion revision increases without owning the monitor lifecycle', async () => {
+  const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /import\s*\{\s*useGraphTaskMonitor\s*\}\s*from\s*'\.\.\/features\/tasks\/graphTaskMonitor\.js'/)
+  assert.match(source, /const graphTaskMonitor = useGraphTaskMonitor\(\)/)
+  assert.match(
+    source,
+    /watch\(\s*\(\)\s*=>\s*graphTaskMonitor\.state\.completedRevision\s*,\s*\(current, previous\)\s*=>\s*\{\s*if\s*\(current > previous\)\s*loadProjects\(\)\s*}\s*\)/
+  )
+  assert.doesNotMatch(source, /graphTaskMonitor\.(?:start|stop)\s*\(/)
+})
+
+test('QA reloads projects when the route project scope changes without an immediate watcher', async () => {
+  const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
+
+  assert.match(
+    source,
+    /watch\(\s*\(\)\s*=>\s*route\.query\.projectId\s*,\s*\(current, previous\)\s*=>\s*\{\s*if\s*\(current !== previous\)\s*loadProjects\(\)\s*}\s*\)/
+  )
+})
+
+test('QA project refreshes suppress stale success, error, and loading updates', async () => {
+  const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
+  const loadProjectsSource = source.slice(
+    source.indexOf('async function loadProjects'),
+    source.indexOf('function changeActiveProject')
+  )
+
+  assert.match(source, /let projectsRequestVersion = 0/)
+  assert.match(loadProjectsSource, /const currentRequest = \+\+projectsRequestVersion/)
+  assert.match(loadProjectsSource, /if \(currentRequest !== projectsRequestVersion\) return/)
+  assert.match(loadProjectsSource, /if \(currentRequest === projectsRequestVersion\) projectsLoading\.value = false/)
+})
+
 test('keeps the graph project picker reachable at mobile widths', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
   const mobileTopbarRule = source.match(

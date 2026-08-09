@@ -163,9 +163,11 @@ import {
   createQuestionGuideState,
   refreshQuestionGuide
 } from '../features/qa/questionGuideModel.js'
+import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
 
 const route = useRoute()
 const router = useRouter()
+const graphTaskMonitor = useGraphTaskMonitor()
 const browserStorage = getBrowserStorage(globalThis)
 const qaState = ref(createQaState())
 const draft = ref('')
@@ -180,6 +182,7 @@ const evaluationService = createAnswerEvaluationService({
   api: { judgeQAWithLLM, submitQAFeedback }
 })
 let requestVersion = 0
+let projectsRequestVersion = 0
 
 const activeProject = computed(
   () => projects.value.find((project) => project.project_id === activeProjectId.value) ?? null
@@ -199,12 +202,14 @@ function projectLabel(project) {
 
 async function loadProjects(options = {}) {
   const requireManualSelection = options?.requireManualSelection === true || scopeSelectionRequired.value
+  const currentRequest = ++projectsRequestVersion
   projectsLoading.value = true
   projectError.value = ''
   scopeSelectionRequired.value = requireManualSelection
 
   try {
     const response = await listProjects({ limit: 50 })
+    if (currentRequest !== projectsRequestVersion) return
     projects.value = listGraphProjects(response)
     const selected = resolveProjectAfterRefresh(projects.value, {
       routeProjectId: route.query.projectId,
@@ -214,12 +219,13 @@ async function loadProjects(options = {}) {
     activeProjectId.value = selected?.project_id ?? ''
     rememberActiveProjectId(browserStorage, activeProjectId.value)
   } catch (error) {
+    if (currentRequest !== projectsRequestVersion) return
     projects.value = []
     activeProjectId.value = ''
     rememberActiveProjectId(browserStorage, '')
     projectError.value = error?.message || '无法从后端读取可用知识图谱，请确认 5002 服务正在运行。'
   } finally {
-    projectsLoading.value = false
+    if (currentRequest === projectsRequestVersion) projectsLoading.value = false
   }
 }
 
@@ -410,6 +416,20 @@ function openConversation(conversation) {
 watch(
   () => route.query.new,
   () => reset()
+)
+
+watch(
+  () => graphTaskMonitor.state.completedRevision,
+  (current, previous) => {
+    if (current > previous) loadProjects()
+  }
+)
+
+watch(
+  () => route.query.projectId,
+  (current, previous) => {
+    if (current !== previous) loadProjects()
+  }
 )
 
 watch(
