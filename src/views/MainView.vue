@@ -113,6 +113,7 @@ import {
 } from '../features/projects/graphQaNavigation.js'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 import {
+  createBaseResearchRequestIntent,
   normalizeResearchQuestion,
   runProfessionalResearchRequests
 } from '../features/research/researchQuestionWorkflow.js'
@@ -414,8 +415,9 @@ const stageDisplayName = (stage) => stage === 'professional' ? '专业细化' : 
 
 const handleNewProject = async () => {
   const pending = getPendingUpload()
-  const researchQuestion = String(pending.queryPrompt || pending.simulationRequirement || '').trim()
-  if (!researchQuestion) {
+  const baseRequestIntent = createBaseResearchRequestIntent(pending)
+  const researchQuestion = baseRequestIntent.researchQuestion
+  if (!baseRequestIntent.canStart) {
     error.value = '请先填写研究问题。'
     addLog('Graph build blocked: a research question is required before ontology generation.')
     return
@@ -461,14 +463,11 @@ const handleNewProject = async () => {
     ontologyProgress.value = { message: `Uploading and analyzing ${stageDisplayName(pendingBuildOptions.value.build_stage)} docs...` }
     addLog(`Starting ontology generation for ${stageDisplayName(pendingBuildOptions.value.build_stage)} files: ${initialFiles.length || initialPdfLibraryFileIds.length}`)
 
-    const prepareRes = await prepareOntologyProject({
-      project_name: pending.projectName || `${stageDisplayName(initialStage)} Graph Project`,
-      query_prompt: researchQuestion,
-      simulation_requirement: researchQuestion,
-      build_stage: pendingBuildOptions.value.build_stage,
-      source_corpus_type: pendingBuildOptions.value.source_corpus_type,
-      base_metadata_path: pendingBuildOptions.value.base_metadata_path || ''
-    })
+    const prepareRes = await prepareOntologyProject(
+      baseRequestIntent.createPreparePayload(
+        pending.projectName || `${stageDisplayName(initialStage)} Graph Project`
+      )
+    )
     if (!prepareRes.success) {
       throw new Error(prepareRes.error || 'Project preparation failed')
     }
@@ -487,17 +486,7 @@ const handleNewProject = async () => {
     // 重试循环
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const formData = new FormData()
-        formData.append('project_id', currentProjectId.value)
-        initialFiles.forEach(f => formData.append('files', f))
-        initialPdfLibraryFileIds.forEach((fileId) => formData.append('pdf_library_file_ids', fileId))
-        formData.append('query_prompt', researchQuestion)
-        formData.append('simulation_requirement', researchQuestion)
-        formData.append('build_stage', pendingBuildOptions.value.build_stage)
-        formData.append('source_corpus_type', pendingBuildOptions.value.source_corpus_type)
-        if (pendingBuildOptions.value.base_metadata_path) {
-          formData.append('base_metadata_path', pendingBuildOptions.value.base_metadata_path)
-        }
+        const formData = baseRequestIntent.createGenerationFormData(currentProjectId.value)
         
         addLog(`Attempt ${attempt}/${MAX_RETRIES}: Sending ontology generation request...`)
         const res = await generateOntology(formData)

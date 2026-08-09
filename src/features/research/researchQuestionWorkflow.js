@@ -42,6 +42,122 @@ export function validateResearchQuestionDialogSubmission(value) {
   }
 }
 
+function baseFilesFromPending(pending) {
+  return pending.filesByStage?.base?.length
+    ? pending.filesByStage.base
+    : (pending.buildStage && pending.buildStage !== 'base' ? [] : (pending.files || []))
+}
+
+function isRetryableNetworkError(error) {
+  const message = error?.message || String(error)
+  return message.includes('Network Error') || message.includes('ECONNABORTED') || message.includes('timeout') || error?.code === 'ECONNABORTED'
+}
+
+export function createBaseResearchRequestIntent(pending) {
+  const researchQuestion = normalizeResearchQuestion(pending?.queryPrompt || pending?.simulationRequirement)
+  if (!researchQuestion) {
+    return {
+      canStart: false,
+      error: REQUIRED_RESEARCH_QUESTION_ERROR,
+      researchQuestion
+    }
+  }
+
+  const initialFiles = baseFilesFromPending(pending || {})
+  const pdfLibraryFileIds = Array.isArray(pending?.pdfLibraryFileIds) ? pending.pdfLibraryFileIds : []
+  const buildOptions = {
+    build_stage: 'base',
+    source_corpus_type: 'survey',
+    base_metadata_path: ''
+  }
+  return {
+    canStart: true,
+    error: '',
+    researchQuestion,
+    initialFiles,
+    pdfLibraryFileIds,
+    buildOptions,
+    createPreparePayload(projectName) {
+      return {
+        project_name: projectName,
+        query_prompt: researchQuestion,
+        simulation_requirement: researchQuestion,
+        build_stage: buildOptions.build_stage,
+        source_corpus_type: buildOptions.source_corpus_type,
+        base_metadata_path: buildOptions.base_metadata_path
+      }
+    },
+    createGenerationFormData(projectId) {
+      const formData = new FormData()
+      formData.append('project_id', projectId)
+      initialFiles.forEach(file => formData.append('files', file))
+      pdfLibraryFileIds.forEach(fileId => formData.append('pdf_library_file_ids', fileId))
+      formData.append('query_prompt', researchQuestion)
+      formData.append('simulation_requirement', researchQuestion)
+      formData.append('build_stage', buildOptions.build_stage)
+      formData.append('source_corpus_type', buildOptions.source_corpus_type)
+      return formData
+    }
+  }
+}
+
+export async function runBaseResearchRequests({
+  pending,
+  projectName = 'Base Graph Project',
+  prepareOntologyProject,
+  generateOntology,
+  onPrepared,
+  onAttempt,
+  maxRetries = 3,
+  waitForRetry = async () => {}
+}) {
+  const intent = createBaseResearchRequestIntent(pending)
+  if (!intent.canStart) {
+    return {
+      canStart: false,
+      error: intent.error,
+      researchQuestion: intent.researchQuestion,
+      prepareResponse: null,
+      generationResponse: null
+    }
+  }
+
+  const prepareResponse = await prepareOntologyProject(intent.createPreparePayload(projectName))
+  if (!prepareResponse.success) {
+    return {
+      canStart: true,
+      error: '',
+      researchQuestion: intent.researchQuestion,
+      prepareResponse,
+      generationResponse: null
+    }
+  }
+
+  await onPrepared?.(prepareResponse, intent.buildOptions)
+
+  let generationResponse = null
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const formData = intent.createGenerationFormData(prepareResponse.data.project_id)
+
+    await onAttempt?.(attempt, maxRetries)
+    try {
+      generationResponse = await generateOntology(formData)
+      if (generationResponse.success || attempt >= maxRetries) break
+    } catch (error) {
+      if (!isRetryableNetworkError(error) || attempt >= maxRetries) throw error
+      await waitForRetry(attempt, error)
+    }
+  }
+
+  return {
+    canStart: true,
+    error: '',
+    researchQuestion: intent.researchQuestion,
+    prepareResponse,
+    generationResponse
+  }
+}
+
 export async function runProfessionalResearchRequests({
   question,
   files = [],

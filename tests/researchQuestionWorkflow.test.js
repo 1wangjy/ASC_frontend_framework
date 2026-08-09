@@ -5,11 +5,12 @@ import { readFile } from 'node:fs/promises'
 import {
   createResearchBuildIntent,
   normalizeResearchQuestion,
+  runBaseResearchRequests,
   runProfessionalResearchRequests,
   startResearchBuildFromLibrary,
   validateResearchQuestionDialogSubmission
 } from '../src/features/research/researchQuestionWorkflow.js'
-import { clearPendingUpload, getPendingUpload } from '../src/store/pendingUpload.js'
+import { clearPendingUpload, getPendingUpload, setPendingUpload } from '../src/store/pendingUpload.js'
 
 const documents = [
   { id: 'row-1', fileId: 'file-1', filename: 'one.pdf', title: 'One' },
@@ -77,6 +78,62 @@ test('stores a valid selected-PDF build intent in the real pending-upload store'
   })
   assert.equal(pending.queryPrompt, 'Explain oxidation mechanisms.')
   assert.equal(pending.simulationRequirement, 'Explain oxidation mechanisms.')
+
+  clearPendingUpload()
+})
+
+test('runs base ontology requests from the real pending snapshot with one normalized question', async () => {
+  clearPendingUpload()
+  startResearchBuildFromLibrary(documents, ['row-2'], '  Explain oxidation mechanisms.  ')
+  const pending = getPendingUpload()
+  const preparePayloads = []
+  const generationPayloads = []
+
+  const result = await runBaseResearchRequests({
+    pending,
+    projectName: 'Base Graph Project',
+    prepareOntologyProject: async (payload) => {
+      preparePayloads.push(payload)
+      return { success: true, data: { project_id: 'base-1' } }
+    },
+    generateOntology: async (formData) => {
+      generationPayloads.push(formData)
+      return { success: true, data: { project_id: 'base-1' } }
+    }
+  })
+
+  assert.equal(result.canStart, true)
+  assert.equal(preparePayloads.length, 1)
+  assert.equal(preparePayloads[0].query_prompt, 'Explain oxidation mechanisms.')
+  assert.equal(preparePayloads[0].simulation_requirement, 'Explain oxidation mechanisms.')
+  assert.equal(generationPayloads.length, 1)
+  assert.equal(generationPayloads[0].get('query_prompt'), 'Explain oxidation mechanisms.')
+  assert.equal(generationPayloads[0].get('simulation_requirement'), 'Explain oxidation mechanisms.')
+
+  clearPendingUpload()
+})
+
+test('does not call base ontology APIs from an empty pending research question', async () => {
+  clearPendingUpload()
+  setPendingUpload([], '   ', '', '', {
+    dataType: 'pdf_library',
+    buildStage: 'base',
+    sourceCorpusType: 'survey',
+    pdfLibraryFileIds: ['file-2']
+  })
+  let prepareCalls = 0
+  let generationCalls = 0
+
+  const result = await runBaseResearchRequests({
+    pending: getPendingUpload(),
+    prepareOntologyProject: async () => { prepareCalls++ },
+    generateOntology: async () => { generationCalls++ }
+  })
+
+  assert.equal(result.canStart, false)
+  assert.equal(result.researchQuestion, '')
+  assert.equal(prepareCalls, 0)
+  assert.equal(generationCalls, 0)
 
   clearPendingUpload()
 })
