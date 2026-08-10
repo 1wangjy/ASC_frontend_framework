@@ -1,8 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { nextTick } from 'vue'
 
 import { ascRouteDefinitions } from '../src/config/ascRoutes.js'
 import * as navigation from '../src/features/navigation/appNavigation.js'
+import {
+  clickRenderedLink,
+  findRenderedLinkByText,
+  mountSfcWithMemoryRouter
+} from './helpers/mountSfcWithMemoryRouter.js'
 import { renderSfc } from './helpers/renderSfc.js'
 
 const { primaryNavigation, recentConversations } = navigation
@@ -46,6 +52,61 @@ test('returns to the last selected graph project after visiting another primary 
   })
   assert.equal(state.target(graphDestination), '/process/proj-123')
   assert.equal(state.target(documentsDestination), '/documents')
+
+  state.observe({
+    name: 'Process',
+    fullPath: '/process',
+    params: {}
+  })
+  assert.equal(state.target(graphDestination), '/process')
+
+  state.observe({
+    name: 'Process',
+    fullPath: '/process/new',
+    params: { projectId: 'new' }
+  })
+  assert.equal(state.target(graphDestination), '/process/new')
+})
+
+async function clickGraphSidebarEntry(fixture) {
+  await nextTick()
+  const graphLink = findRenderedLinkByText(fixture.root, '图谱构建')
+  assert.ok(graphLink, 'rendered sidebar should contain the graph navigation entry')
+  await clickRenderedLink(graphLink)
+}
+
+test('AscSidebar returns to the selected graph project through its rendered router-link', async () => {
+  const fixture = await mountSfcWithMemoryRouter('/src/components/navigation/AscSidebar.vue', '/process/p1')
+  try {
+    await fixture.router.push('/documents')
+    await clickGraphSidebarEntry(fixture)
+    assert.equal(fixture.router.currentRoute.value.fullPath, '/process/p1')
+  } finally {
+    await fixture.close()
+  }
+})
+
+test('AscSidebar clears its retained project after an explicit unscoped Process route', async () => {
+  const fixture = await mountSfcWithMemoryRouter('/src/components/navigation/AscSidebar.vue', '/process/p1')
+  try {
+    await fixture.router.push('/process')
+    await fixture.router.push('/documents')
+    await clickGraphSidebarEntry(fixture)
+    assert.equal(fixture.router.currentRoute.value.fullPath, '/process')
+  } finally {
+    await fixture.close()
+  }
+})
+
+test('AscSidebar retains the existing /process/new workflow route', async () => {
+  const fixture = await mountSfcWithMemoryRouter('/src/components/navigation/AscSidebar.vue', '/process/new')
+  try {
+    await fixture.router.push('/documents')
+    await clickGraphSidebarEntry(fixture)
+    assert.equal(fixture.router.currentRoute.value.fullPath, '/process/new')
+  } finally {
+    await fixture.close()
+  }
 })
 
 test('renders new chat above the truthfully named example list', async () => {

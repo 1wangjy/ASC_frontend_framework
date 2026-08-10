@@ -9,10 +9,11 @@ export function createPrimaryNavigationState() {
 
   return {
     observe(route = {}) {
+      if (route.name !== 'Process') return
       const projectId = String(route.params?.projectId || '').trim()
-      if (route.name === 'Process' && projectId) {
-        graphPath = String(route.fullPath || `/process/${encodeURIComponent(projectId)}`)
-      }
+      graphPath = projectId
+        ? String(route.fullPath || `/process/${encodeURIComponent(projectId)}`)
+        : '/process'
     },
     target(item = {}) {
       return item.path === '/process' ? graphPath : item.path
