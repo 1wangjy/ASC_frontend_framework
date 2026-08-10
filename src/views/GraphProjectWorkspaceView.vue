@@ -17,7 +17,7 @@
       </p>
 
       <GraphProjectList
-        :items="monitor.state.items"
+        :items="logicalProjects"
         :selected-project-id="selectedProjectId"
         :deleting-project-id="deletingProjectId"
         @select="selectProject"
@@ -53,7 +53,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { deleteGraph, deleteGraphProject } from '../api/graph.js'
 import GraphProjectDeleteDialog from '../features/projects/GraphProjectDeleteDialog.vue'
 import GraphProjectList from '../features/projects/GraphProjectList.vue'
-import { deleteGraphProjectResources } from '../features/projects/graphProjectWorkspaceModel.js'
+import { deleteLogicalGraphProjectResources } from '../features/projects/graphProjectWorkspaceModel.js'
+import { buildLogicalGraphProjects } from '../features/projects/logicalGraphProjectModel.js'
 import { navigateGraphProjectToQa } from '../features/projects/graphQaNavigation.js'
 import {
   getBrowserStorage,
@@ -71,6 +72,7 @@ const deletingProjectId = ref('')
 const pendingDeleteProject = ref(null)
 const workspaceError = ref('')
 const selectedProjectId = computed(() => String(route.params.projectId || '').trim())
+const logicalProjects = computed(() => buildLogicalGraphProjects(monitor.state.items))
 
 function selectProject(item) {
   router.push({ name: 'Process', params: { projectId: item.projectId } })
@@ -101,11 +103,11 @@ async function confirmProjectDeletion() {
   deletingProjectId.value = item.projectId
   workspaceError.value = ''
   try {
-    await deleteGraphProjectResources({ deleteGraph, deleteGraphProject }, item)
-    if (readActiveProjectId(browserStorage) === item.projectId) {
+    await deleteLogicalGraphProjectResources({ deleteGraph, deleteGraphProject }, item)
+    if (item.memberProjectIds?.includes(readActiveProjectId(browserStorage))) {
       rememberActiveProjectId(browserStorage, '')
     }
-    if (selectedProjectId.value === item.projectId) {
+    if (item.memberProjectIds?.includes(selectedProjectId.value)) {
       await router.replace({ name: 'Process' })
     }
     await monitor.refresh()

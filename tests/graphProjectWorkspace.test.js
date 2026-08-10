@@ -6,6 +6,7 @@ import { renderSfc } from './helpers/renderSfc.js'
 import { ascRouteDefinitions } from '../src/config/ascRoutes.js'
 import { primaryNavigation } from '../src/features/navigation/appNavigation.js'
 import {
+  deleteLogicalGraphProjectResources,
   deleteGraphProjectResources,
   normalizeProjectName,
   projectDeletionMessage,
@@ -22,9 +23,12 @@ const activeProject = {
   graphId: '',
   name: 'project_2',
   status: 'graph_building',
+  stage: 'base',
   progress: 42,
   active: true,
-  canOpenQa: false
+  canOpenQa: false,
+  memberProjectIds: ['p-active'],
+  resources: [{ projectId: 'p-active', graphId: '' }]
 }
 
 const completedProject = {
@@ -33,9 +37,28 @@ const completedProject = {
   graphId: 'g-completed',
   name: 'project_1',
   status: 'graph_completed',
+  stage: 'professional',
   progress: 100,
   active: false,
-  canOpenQa: true
+  canOpenQa: true,
+  memberProjectIds: ['p-completed', 'base-completed'],
+  resources: [
+    { projectId: 'p-completed', graphId: 'g-completed' },
+    { projectId: 'base-completed', graphId: 'base-g' }
+  ]
+}
+
+const baseCompletedProject = {
+  id: 'base-completed',
+  projectId: 'base-only',
+  graphId: 'base-only-g',
+  name: 'project_base_only',
+  status: 'base_completed',
+  stage: 'base',
+  active: false,
+  canOpenQa: false,
+  memberProjectIds: ['base-only'],
+  resources: [{ projectId: 'base-only', graphId: 'base-only-g' }]
 }
 
 test('groups Base and Professional backend records into one user-visible project', () => {
@@ -144,6 +167,21 @@ test('deletes a graph-building project that does not have a graph id yet', async
   assert.deepEqual(calls, [['project', 'p-active']])
 })
 
+test('deletes every backend record in a logical project from child to root', async () => {
+  const calls = []
+  await deleteLogicalGraphProjectResources({
+    deleteGraph: async id => { calls.push(['graph', id]); return { success: true } },
+    deleteGraphProject: async id => { calls.push(['project', id]); return { success: true } }
+  }, completedProject)
+
+  assert.deepEqual(calls, [
+    ['graph', 'g-completed'],
+    ['project', 'p-completed'],
+    ['graph', 'base-g'],
+    ['project', 'base-completed']
+  ])
+})
+
 test('stops local deletion when remote graph deletion resolves as failed', async () => {
   let projectDeleteCalls = 0
 
@@ -169,17 +207,21 @@ test('requires a project id before issuing destructive requests', async () => {
 
 test('renders active and completed projects with status-aware actions', async () => {
   const html = await renderSfc('/src/features/projects/GraphProjectList.vue', {
-    items: [activeProject, completedProject],
-    selectedProjectId: 'p-active'
+    items: [activeProject, baseCompletedProject, completedProject],
+    selectedProjectId: 'base-completed'
   })
 
   assert.match(html, /project_2/)
-  assert.match(html, /构建图谱/)
+  assert.match(html, /正在构建基础图谱/)
+  assert.match(html, /基础阶段完成，等待 Professional Research/)
   assert.match(html, /project_1/)
-  assert.match(html, /已完成/)
+  assert.match(html, /知识图谱构建完成/)
   assert.match(html, /删除/)
   assert.match(html, /去问答/)
   assert.equal((html.match(/去问答/g) || []).length, 1)
+  assert.doesNotMatch(html, /\d+%/)
+  assert.doesNotMatch(html, /graph-project-card__progress/)
+  assert.match(html, /graph-project-card--selected/)
 })
 
 test('renders a useful empty graph workspace project list', async () => {

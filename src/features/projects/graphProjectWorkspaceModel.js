@@ -43,3 +43,17 @@ export async function deleteGraphProjectResources(dependencies, project = {}) {
   const projectResponse = await dependencies.deleteGraphProject(projectId)
   assertSuccessfulDeletion(projectResponse, '删除图谱项目失败。')
 }
+
+export async function deleteLogicalGraphProjectResources(dependencies, project = {}) {
+  const resources = Array.isArray(project.resources) && project.resources.length
+    ? project.resources
+    : [project]
+  const deletedProjectIds = new Set()
+
+  for (const resource of resources) {
+    const projectId = normalizeProjectName(resource.projectId || resource.project_id)
+    if (!projectId || deletedProjectIds.has(projectId)) continue
+    await deleteGraphProjectResources(dependencies, resource)
+    deletedProjectIds.add(projectId)
+  }
+}

@@ -10,16 +10,12 @@
       v-else
       :key="item.projectId"
       class="graph-project-card"
-      :class="{ 'graph-project-card--selected': item.projectId === selectedProjectId }"
+      :class="{ 'graph-project-card--selected': isSelected(item) }"
     >
       <button class="graph-project-card__select" type="button" @click="$emit('select', item)">
         <span class="graph-project-card__heading">
           <strong>{{ item.name }}</strong>
-          <small>{{ statusCopy(item.status) }}</small>
-        </span>
-        <span class="graph-project-card__progress">
-          <span>{{ item.progress }}%</span>
-          <i><b :style="{ width: `${item.progress}%` }" /></i>
+          <small>{{ statusCopy(item) }}</small>
         </span>
       </button>
 
@@ -47,7 +43,7 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   items: { type: Array, default: () => [] },
   selectedProjectId: { type: String, default: '' },
   deletingProjectId: { type: String, default: '' }
@@ -55,15 +51,21 @@ defineProps({
 
 defineEmits(['select', 'open-qa', 'delete'])
 
-function statusCopy(status) {
+function isSelected(item) {
+  return item.projectId === props.selectedProjectId
+    || item.memberProjectIds?.includes(props.selectedProjectId)
+}
+
+function statusCopy(item) {
   return {
-    created: '准备中',
-    ontology_generating: '生成本体',
-    ontology_generated: '等待构建',
-    graph_building: '构建图谱',
-    graph_completed: '已完成',
-    failed: '失败'
-  }[status] || '准备中'
+    created: item.stage === 'professional' ? '准备最终图谱' : '准备基础图谱',
+    ontology_generating: item.stage === 'professional' ? '正在生成最终本体' : '正在生成基础本体',
+    ontology_generated: item.stage === 'professional' ? '等待构建最终图谱' : '等待构建基础图谱',
+    graph_building: item.stage === 'professional' ? '正在构建最终图谱' : '正在构建基础图谱',
+    base_completed: '基础阶段完成，等待 Professional Research',
+    graph_completed: '知识图谱构建完成',
+    failed: '构建失败'
+  }[item.status] || '准备中'
 }
 </script>
 
@@ -75,14 +77,10 @@ function statusCopy(status) {
 .graph-project-card { overflow: hidden; border: 1px solid var(--asc-border); border-radius: 10px; background: #fff; transition: border-color var(--asc-transition), box-shadow var(--asc-transition); }
 .graph-project-card--selected { border-color: var(--asc-primary); box-shadow: 0 0 0 2px var(--asc-primary-soft); }
 .graph-project-card__select { width: 100%; padding: 13px 14px 10px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
-.graph-project-card__heading, .graph-project-card__progress, .graph-project-card__actions { display: flex; align-items: center; gap: 10px; }
+.graph-project-card__heading, .graph-project-card__actions { display: flex; align-items: center; gap: 10px; }
 .graph-project-card__heading { justify-content: space-between; }
 .graph-project-card__heading strong { overflow: hidden; color: var(--asc-heading); text-overflow: ellipsis; white-space: nowrap; }
 .graph-project-card__heading small { flex: 0 0 auto; color: var(--asc-muted); }
-.graph-project-card__progress { margin-top: 10px; color: var(--asc-muted); font-size: 12px; }
-.graph-project-card__progress > span { min-width: 32px; }
-.graph-project-card__progress i { flex: 1; height: 5px; overflow: hidden; border-radius: 999px; background: var(--asc-primary-soft); }
-.graph-project-card__progress b { display: block; height: 100%; border-radius: inherit; background: var(--asc-primary); }
 .graph-project-card__actions { justify-content: flex-end; padding: 0 10px 10px; }
 .graph-project-card__actions button { padding: 5px 7px; border: 0; background: transparent; color: var(--asc-primary); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .graph-project-card__actions button:disabled { cursor: wait; opacity: .55; }
