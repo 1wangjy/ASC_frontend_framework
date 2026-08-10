@@ -2,6 +2,7 @@ import { buildPdfLibrarySelection } from '../library/libraryWorkflowModel.js'
 import { setPendingUpload } from '../../store/pendingUpload.js'
 
 const REQUIRED_RESEARCH_QUESTION_ERROR = '请先填写研究问题。'
+const REQUIRED_PROJECT_NAME_ERROR = '请填写图谱名称。'
 
 export function normalizeResearchQuestion(value) {
   return String(value || '').trim()
@@ -9,11 +10,16 @@ export function normalizeResearchQuestion(value) {
 
 export function createResearchBuildIntent(documents, selectedIds, question) {
   const selection = buildPdfLibrarySelection(documents, selectedIds)
-  const queryPrompt = normalizeResearchQuestion(question)
+  const submission = question && typeof question === 'object'
+    ? question
+    : { question }
+  const queryPrompt = normalizeResearchQuestion(submission.question)
+  const projectName = String(submission.projectName || '').trim()
 
   return {
     ...selection,
     queryPrompt,
+    ...(projectName ? { projectName } : {}),
     canStart: Boolean(queryPrompt),
     error: queryPrompt ? '' : REQUIRED_RESEARCH_QUESTION_ERROR
   }
@@ -28,7 +34,8 @@ export function startResearchBuildFromLibrary(documents, selectedIds, question) 
     buildStage: 'base',
     sourceCorpusType: 'survey',
     pdfLibraryFileIds: intent.fileIds,
-    pdfLibraryFiles: intent.files
+    pdfLibraryFiles: intent.files,
+    projectName: intent.projectName || ''
   })
   return intent
 }
@@ -39,6 +46,21 @@ export function validateResearchQuestionDialogSubmission(value) {
     canSubmit: Boolean(question),
     question,
     error: question ? '' : REQUIRED_RESEARCH_QUESTION_ERROR
+  }
+}
+
+export function validateResearchBuildDialogSubmission(submission = {}) {
+  const projectName = String(submission.projectName || '').trim()
+  const question = normalizeResearchQuestion(submission.question)
+  const error = !projectName
+    ? REQUIRED_PROJECT_NAME_ERROR
+    : (!question ? REQUIRED_RESEARCH_QUESTION_ERROR : '')
+
+  return {
+    canSubmit: !error,
+    projectName,
+    question,
+    error
   }
 }
 

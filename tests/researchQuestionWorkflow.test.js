@@ -8,6 +8,7 @@ import {
   runBaseResearchRequests,
   runProfessionalResearchRequests,
   startResearchBuildFromLibrary,
+  validateResearchBuildDialogSubmission,
   validateResearchQuestionDialogSubmission
 } from '../src/features/research/researchQuestionWorkflow.js'
 import { clearPendingUpload, getPendingUpload, setPendingUpload } from '../src/store/pendingUpload.js'
@@ -52,7 +53,10 @@ test('stores a valid selected-PDF build intent in the real pending-upload store'
   const intent = startResearchBuildFromLibrary(
     documents,
     ['row-2', 'row-empty'],
-    '  Explain oxidation mechanisms.  '
+    {
+      projectName: '  project_8  ',
+      question: '  Explain oxidation mechanisms.  '
+    }
   )
 
   assert.equal(intent.canStart, true)
@@ -78,6 +82,7 @@ test('stores a valid selected-PDF build intent in the real pending-upload store'
   })
   assert.equal(pending.queryPrompt, 'Explain oxidation mechanisms.')
   assert.equal(pending.simulationRequirement, 'Explain oxidation mechanisms.')
+  assert.equal(pending.projectName, 'project_8')
 
   clearPendingUpload()
 })
@@ -330,6 +335,28 @@ test('rejects an empty dialog submission before emitting a graph-build request',
     canSubmit: false,
     question: '',
     error: '\u8bf7\u5148\u586b\u5199\u7814\u7a76\u95ee\u9898\u3002'
+  })
+})
+
+test('validates and normalizes both project name and research question', () => {
+  assert.deepEqual(validateResearchBuildDialogSubmission({
+    projectName: '  project_8  ',
+    question: '  Why does thermal shock matter?  '
+  }), {
+    canSubmit: true,
+    projectName: 'project_8',
+    question: 'Why does thermal shock matter?',
+    error: ''
+  })
+
+  assert.deepEqual(validateResearchBuildDialogSubmission({
+    projectName: '   ',
+    question: 'Question'
+  }), {
+    canSubmit: false,
+    projectName: '',
+    question: 'Question',
+    error: '请填写图谱名称。'
   })
 })
 

@@ -79,6 +79,7 @@
 
     <ResearchQuestionDialog
       :open="researchQuestionDialogOpen"
+      :default-project-name="defaultProjectName"
       @close="researchQuestionDialogOpen = false"
       @submit="startGraphBuild"
     />
@@ -102,6 +103,8 @@ import DocumentDetails from '../features/library/DocumentDetails.vue'
 import DocumentImportModal from '../features/library/DocumentImportModal.vue'
 import LibraryOverviewPopover from '../features/library/LibraryOverviewPopover.vue'
 import ResearchQuestionDialog from '../features/research/ResearchQuestionDialog.vue'
+import { suggestNextProjectName } from '../features/projects/graphProjectWorkspaceModel.js'
+import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
 import {
   deletePdfFile,
   getPdfDownloadUrl,
@@ -134,6 +137,7 @@ import {
 } from '../features/research/researchQuestionWorkflow.js'
 
 const router = useRouter()
+const graphTaskMonitor = useGraphTaskMonitor()
 const documentRows = ref([])
 const filters = reactive(createLibraryFilters())
 const compactView = typeof window !== 'undefined'
@@ -162,6 +166,7 @@ const pagination = computed(() => paginateDocuments(
 const selectedDocument = computed(
   () => documentRows.value.find(document => document.id === selectedDocumentId.value) || null
 )
+const defaultProjectName = computed(() => suggestNextProjectName(graphTaskMonitor.state.items))
 
 const metrics = computed(() => {
   const counts = calculateLibraryMetrics(documentRows.value)
@@ -196,8 +201,8 @@ function buildGraphFromSelection() {
   researchQuestionDialogOpen.value = true
 }
 
-function startGraphBuild(question) {
-  const intent = startResearchBuildFromLibrary(documentRows.value, selectedDocumentIds.value, question)
+function startGraphBuild(submission) {
+  const intent = startResearchBuildFromLibrary(documentRows.value, selectedDocumentIds.value, submission)
   if (!intent.canStart || !intent.fileIds.length) return
 
   researchQuestionDialogOpen.value = false

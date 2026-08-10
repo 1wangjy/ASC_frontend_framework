@@ -5,6 +5,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import {
   createBaseResearchRequestIntent,
   startResearchBuildFromLibrary,
+  validateResearchBuildDialogSubmission,
   validateResearchQuestionDialogSubmission
 } from '../src/features/research/researchQuestionWorkflow.js'
 import { clearPendingUpload, getPendingUpload } from '../src/store/pendingUpload.js'
@@ -14,23 +15,28 @@ const documents = [{ id: 'row-1', fileId: 'file-1', filename: 'paper.pdf', title
 test('preserves one normalized dialog question through library storage and both graph request fields', () => {
   clearPendingUpload()
 
-  const dialogSubmission = validateResearchQuestionDialogSubmission('  How does ASC resist thermal shock?  ')
+  const dialogSubmission = validateResearchBuildDialogSubmission({
+    projectName: '  project_4  ',
+    question: '  How does ASC resist thermal shock?  '
+  })
   assert.deepEqual(dialogSubmission, {
     canSubmit: true,
+    projectName: 'project_4',
     question: 'How does ASC resist thermal shock?',
     error: ''
   })
 
-  const build = startResearchBuildFromLibrary(documents, ['row-1'], dialogSubmission.question)
+  const build = startResearchBuildFromLibrary(documents, ['row-1'], dialogSubmission)
   assert.equal(build.canStart, true)
 
   const pending = getPendingUpload()
+  assert.equal(pending.projectName, 'project_4')
   assert.equal(pending.queryPrompt, 'How does ASC resist thermal shock?')
   assert.equal(pending.simulationRequirement, 'How does ASC resist thermal shock?')
 
   const request = createBaseResearchRequestIntent(pending)
-  assert.deepEqual(request.createPreparePayload('Thermal project'), {
-    project_name: 'Thermal project',
+  assert.deepEqual(request.createPreparePayload(pending.projectName), {
+    project_name: 'project_4',
     query_prompt: 'How does ASC resist thermal shock?',
     simulation_requirement: 'How does ASC resist thermal shock?',
     build_stage: 'base',
@@ -50,9 +56,11 @@ test('connects dialog submit through the library and blocks empty questions befo
     readFile(new URL('../src/components/Step2EnvSetup.vue', import.meta.url), 'utf8')
   ])
 
-  assert.match(dialogSource, /emit\('submit', result\.question\)/)
+  assert.match(dialogSource, /emit\('submit', result\)/)
+  assert.match(dialogSource, /defaultProjectName/)
+  assert.match(dialogSource, /图谱名称/)
   assert.match(librarySource, /@submit="startGraphBuild"/)
-  assert.match(librarySource, /startResearchBuildFromLibrary\(documentRows\.value, selectedDocumentIds\.value, question\)/)
+  assert.match(librarySource, /startResearchBuildFromLibrary\(documentRows\.value, selectedDocumentIds\.value, submission\)/)
   assert.match(mainSource, /createBaseResearchRequestIntent\(pending\)/)
   assert.match(mainSource, /runBaseResearchRequests\(\{[\s\S]*pending,/)
   assert.match(step1Source, /if \(!projectResearchQuestion\(props\.projectData\)\) \{\s*return\s*\}[\s\S]*createSimulation/)

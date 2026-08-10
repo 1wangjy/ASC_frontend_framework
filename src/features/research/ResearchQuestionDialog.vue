@@ -7,6 +7,16 @@
       </header>
 
       <form novalidate @submit.prevent="submit">
+        <label for="graph-project-name-input">图谱名称</label>
+        <input
+          id="graph-project-name-input"
+          v-model="projectName"
+          required
+          type="text"
+          placeholder="例如：project_1"
+          aria-describedby="research-question-error"
+        />
+
         <label for="research-question-input">研究问题</label>
         <textarea
           id="research-question-input"
@@ -29,16 +39,21 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { validateResearchQuestionDialogSubmission } from './researchQuestionWorkflow.js'
+import { validateResearchBuildDialogSubmission } from './researchQuestionWorkflow.js'
 
 const props = defineProps({
   open: {
     type: Boolean,
     default: false
+  },
+  defaultProjectName: {
+    type: String,
+    default: 'project_1'
   }
 })
 
 const emit = defineEmits(['close', 'submit'])
+const projectName = ref('')
 const question = ref('')
 const validationError = ref('')
 
@@ -46,6 +61,7 @@ watch(
   () => props.open,
   (open) => {
     if (open) {
+      projectName.value = props.defaultProjectName
       question.value = ''
       validationError.value = ''
     }
@@ -53,19 +69,23 @@ watch(
 )
 
 function close() {
+  projectName.value = ''
   question.value = ''
   validationError.value = ''
   emit('close')
 }
 
 function submit() {
-  const result = validateResearchQuestionDialogSubmission(question.value)
+  const result = validateResearchBuildDialogSubmission({
+    projectName: projectName.value,
+    question: question.value
+  })
   if (!result.canSubmit) {
     validationError.value = result.error
     return
   }
 
-  emit('submit', result.question)
+  emit('submit', result)
 }
 </script>
 
@@ -117,6 +137,7 @@ label {
   font-weight: 750;
 }
 
+input,
 textarea {
   box-sizing: border-box;
   width: 100%;
@@ -132,6 +153,12 @@ textarea {
 textarea:focus {
   border-color: #75afd1;
 }
+
+input:focus {
+  border-color: #75afd1;
+}
+
+input { margin-bottom: 16px; }
 
 .error-message {
   margin: 14px 0 0;

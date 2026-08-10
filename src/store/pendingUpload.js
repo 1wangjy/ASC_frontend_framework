@@ -11,6 +11,7 @@ const state = reactive({
     professional: []
   },
   queryPrompt: '',
+  projectName: '',
   simulationRequirement: '',
   focusEntities: '',
   focusEvents: '',
@@ -31,6 +32,7 @@ export function setPendingUpload(files, queryPrompt, focusEntities = '', focusEv
     professional: options.filesByStage?.professional || (options.buildStage === 'professional' ? files : [])
   }
   state.queryPrompt = queryPrompt
+  state.projectName = String(options.projectName || '').trim()
   state.simulationRequirement = queryPrompt
   state.focusEntities = focusEntities
   state.focusEvents = focusEvents
@@ -49,6 +51,7 @@ export function getPendingUpload() {
     files: state.files,
     filesByStage: state.filesByStage,
     queryPrompt: state.queryPrompt,
+    projectName: state.projectName,
     simulationRequirement: state.simulationRequirement,
     focusEntities: state.focusEntities,
     focusEvents: state.focusEvents,
@@ -70,6 +73,7 @@ export function clearPendingUpload() {
     professional: []
   }
   state.queryPrompt = ''
+  state.projectName = ''
   state.simulationRequirement = ''
   state.focusEntities = ''
   state.focusEvents = ''
