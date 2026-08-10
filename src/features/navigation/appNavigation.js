@@ -1,6 +1,7 @@
 export const primaryNavigation = [
   { label: '问答首页', path: '/', icon: 'home' },
-  { label: '文献管理', path: '/documents', icon: 'document' }
+  { label: '文献管理', path: '/documents', icon: 'document' },
+  { label: '图谱构建', path: '/process', icon: 'graph' }
 ]
 
 export const recentConversations = [

@@ -1,12 +1,37 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
+import { renderSfc } from './helpers/renderSfc.js'
+import { ascRouteDefinitions } from '../src/config/ascRoutes.js'
+import { primaryNavigation } from '../src/features/navigation/appNavigation.js'
 import {
   deleteGraphProjectResources,
   normalizeProjectName,
   projectDeletionMessage,
   suggestNextProjectName
 } from '../src/features/projects/graphProjectWorkspaceModel.js'
+
+const activeProject = {
+  id: 'task-active',
+  projectId: 'p-active',
+  graphId: '',
+  name: 'project_2',
+  status: 'graph_building',
+  progress: 42,
+  active: true,
+  canOpenQa: false
+}
+
+const completedProject = {
+  id: 'task-completed',
+  projectId: 'p-completed',
+  graphId: 'g-completed',
+  name: 'project_1',
+  status: 'graph_completed',
+  progress: 100,
+  active: false,
+  canOpenQa: true
+}
 
 test('suggests the next project_N name from backend and monitor project labels', () => {
   assert.equal(suggestNextProjectName([
@@ -69,5 +94,42 @@ test('requires a project id before issuing destructive requests', async () => {
       deleteGraphProject: async () => ({ success: true })
     }, { projectId: ' ' }),
     /缺少项目 ID/
+  )
+})
+
+test('renders active and completed projects with status-aware actions', async () => {
+  const html = await renderSfc('/src/features/projects/GraphProjectList.vue', {
+    items: [activeProject, completedProject],
+    selectedProjectId: 'p-active'
+  })
+
+  assert.match(html, /project_2/)
+  assert.match(html, /构建图谱/)
+  assert.match(html, /project_1/)
+  assert.match(html, /已完成/)
+  assert.match(html, /删除/)
+  assert.match(html, /去问答/)
+  assert.equal((html.match(/去问答/g) || []).length, 1)
+})
+
+test('renders a useful empty graph workspace project list', async () => {
+  const html = await renderSfc('/src/features/projects/GraphProjectList.vue', { items: [] })
+  assert.match(html, /暂无图谱项目/)
+  assert.match(html, /请先从文献管理选择文献并开始构建/)
+})
+
+test('registers graph construction as a primary destination with an optional project route', () => {
+  assert.deepEqual(primaryNavigation.map(item => [item.label, item.path]), [
+    ['问答首页', '/'],
+    ['文献管理', '/documents'],
+    ['图谱构建', '/process']
+  ])
+  assert.equal(
+    ascRouteDefinitions.find(route => route.name === 'Process')?.path,
+    '/process/:projectId?'
+  )
+  assert.equal(
+    ascRouteDefinitions.find(route => route.name === 'Process')?.meta.navigationPath,
+    '/process'
   )
 })

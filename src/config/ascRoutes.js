@@ -12,11 +12,11 @@ export const ascRouteDefinitions = [
     meta: { title: '文献管理' }
   },
   {
-    path: '/process/:projectId',
+    path: '/process/:projectId?',
     name: 'Process',
-    component: () => import('../views/MainView.vue'),
+    component: () => import('../views/GraphProjectWorkspaceView.vue'),
     props: true,
-    meta: { title: '知识图谱构建', navigationPath: '/' }
+    meta: { title: '知识图谱构建', navigationPath: '/process' }
   },
   {
     path: '/simulation/:simulationId',
