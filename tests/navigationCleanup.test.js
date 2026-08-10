@@ -2,8 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import { ascRouteDefinitions } from '../src/config/ascRoutes.js'
-import { primaryNavigation, recentConversations } from '../src/features/navigation/appNavigation.js'
+import * as navigation from '../src/features/navigation/appNavigation.js'
 import { renderSfc } from './helpers/renderSfc.js'
+
+const { primaryNavigation, recentConversations } = navigation
 
 test('keeps QA, documents, and graph construction as primary destinations while retaining workflow routes', () => {
   assert.deepEqual(primaryNavigation.map(({ label, path }) => [label, path]), [
@@ -21,6 +23,29 @@ test('keeps QA, documents, and graph construction as primary destinations while 
     ['Report', '/report/:reportId'],
     ['Interaction', '/interaction/:reportId']
   ])
+})
+
+test('returns to the last selected graph project after visiting another primary page', () => {
+  const state = navigation.createPrimaryNavigationState?.()
+  assert.ok(state, 'primary navigation should retain the last project-scoped graph route')
+
+  const graphDestination = primaryNavigation.find(item => item.path === '/process')
+  const documentsDestination = primaryNavigation.find(item => item.path === '/documents')
+
+  state.observe({
+    name: 'Process',
+    fullPath: '/process/proj-123',
+    params: { projectId: 'proj-123' }
+  })
+  assert.equal(state.target(graphDestination), '/process/proj-123')
+
+  state.observe({
+    name: 'Documents',
+    fullPath: '/documents',
+    params: {}
+  })
+  assert.equal(state.target(graphDestination), '/process/proj-123')
+  assert.equal(state.target(documentsDestination), '/documents')
 })
 
 test('renders new chat above the truthfully named example list', async () => {

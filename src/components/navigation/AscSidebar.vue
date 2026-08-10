@@ -30,7 +30,7 @@
       <router-link
         v-for="item in primaryNavigation"
         :key="item.path"
-        :to="item.path"
+        :to="navigationState.target(item)"
         class="nav-item"
         :class="{ 'router-link-exact-active': route.meta.navigationPath === item.path }"
         :title="collapsed ? item.label : undefined"
@@ -45,11 +45,22 @@
 </template>
 
 <script setup>
+import { watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AscIcon from '../ui/AscIcon.vue'
-import { primaryNavigation } from '../../features/navigation/appNavigation.js'
+import {
+  createPrimaryNavigationState,
+  primaryNavigation
+} from '../../features/navigation/appNavigation.js'
 
 const route = useRoute()
+const navigationState = createPrimaryNavigationState()
+
+watch(
+  () => route.fullPath,
+  () => navigationState.observe(route),
+  { immediate: true }
+)
 
 defineProps({
   mobileOpen: {

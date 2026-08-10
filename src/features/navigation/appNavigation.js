@@ -4,6 +4,22 @@ export const primaryNavigation = [
   { label: '图谱构建', path: '/process', icon: 'graph' }
 ]
 
+export function createPrimaryNavigationState() {
+  let graphPath = '/process'
+
+  return {
+    observe(route = {}) {
+      const projectId = String(route.params?.projectId || '').trim()
+      if (route.name === 'Process' && projectId) {
+        graphPath = String(route.fullPath || `/process/${encodeURIComponent(projectId)}`)
+      }
+    },
+    target(item = {}) {
+      return item.path === '/process' ? graphPath : item.path
+    }
+  }
+}
+
 export const recentConversations = [
   {
     id: 'thermal-shock',
