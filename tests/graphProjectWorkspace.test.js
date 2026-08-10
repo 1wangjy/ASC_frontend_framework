@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 
 import { renderSfc } from './helpers/renderSfc.js'
 import { ascRouteDefinitions } from '../src/config/ascRoutes.js'
@@ -116,6 +117,26 @@ test('renders a useful empty graph workspace project list', async () => {
   const html = await renderSfc('/src/features/projects/GraphProjectList.vue', { items: [] })
   assert.match(html, /暂无图谱项目/)
   assert.match(html, /请先从文献管理选择文献并开始构建/)
+})
+
+test('renders an accessible in-page confirmation for an active project', async () => {
+  const html = await renderSfc('/src/features/projects/GraphProjectDeleteDialog.vue', {
+    project: activeProject,
+    deleting: false
+  })
+
+  assert.match(html, /role="alertdialog"/)
+  assert.match(html, /project_2/)
+  assert.match(html, /正在构建/)
+  assert.match(html, /取消/)
+  assert.match(html, /确认删除/)
+})
+
+test('workspace uses the in-page confirmation instead of a native browser dialog', async () => {
+  const source = await readFile(new URL('../src/views/GraphProjectWorkspaceView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /GraphProjectDeleteDialog/)
+  assert.doesNotMatch(source, /globalThis\.confirm|window\.confirm/)
 })
 
 test('registers graph construction as a primary destination with an optional project route', () => {

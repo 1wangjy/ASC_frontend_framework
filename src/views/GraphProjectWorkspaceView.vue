@@ -22,7 +22,7 @@
         :deleting-project-id="deletingProjectId"
         @select="selectProject"
         @open-qa="openProjectQa"
-        @delete="removeProject"
+        @delete="requestProjectDeletion"
       />
     </aside>
 
@@ -35,6 +35,14 @@
         <router-link to="/documents">从文献管理开始构建</router-link>
       </div>
     </section>
+
+    <GraphProjectDeleteDialog
+      v-if="pendingDeleteProject"
+      :project="pendingDeleteProject"
+      :deleting="Boolean(deletingProjectId)"
+      @cancel="cancelProjectDeletion"
+      @confirm="confirmProjectDeletion"
+    />
   </main>
 </template>
 
@@ -43,11 +51,9 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { deleteGraph, deleteGraphProject } from '../api/graph.js'
+import GraphProjectDeleteDialog from '../features/projects/GraphProjectDeleteDialog.vue'
 import GraphProjectList from '../features/projects/GraphProjectList.vue'
-import {
-  deleteGraphProjectResources,
-  projectDeletionMessage
-} from '../features/projects/graphProjectWorkspaceModel.js'
+import { deleteGraphProjectResources } from '../features/projects/graphProjectWorkspaceModel.js'
 import { navigateGraphProjectToQa } from '../features/projects/graphQaNavigation.js'
 import {
   getBrowserStorage,
@@ -62,6 +68,7 @@ const router = useRouter()
 const monitor = useGraphTaskMonitor()
 const browserStorage = getBrowserStorage(globalThis)
 const deletingProjectId = ref('')
+const pendingDeleteProject = ref(null)
 const workspaceError = ref('')
 const selectedProjectId = computed(() => String(route.params.projectId || '').trim())
 
@@ -77,8 +84,19 @@ async function openProjectQa(item) {
   })
 }
 
-async function removeProject(item) {
-  if (!globalThis.confirm?.(projectDeletionMessage(item))) return
+function requestProjectDeletion(item) {
+  if (deletingProjectId.value) return
+  pendingDeleteProject.value = item
+  workspaceError.value = ''
+}
+
+function cancelProjectDeletion() {
+  if (!deletingProjectId.value) pendingDeleteProject.value = null
+}
+
+async function confirmProjectDeletion() {
+  const item = pendingDeleteProject.value
+  if (!item || deletingProjectId.value) return
 
   deletingProjectId.value = item.projectId
   workspaceError.value = ''
@@ -95,6 +113,7 @@ async function removeProject(item) {
     workspaceError.value = error?.message || '删除图谱项目失败。'
   } finally {
     deletingProjectId.value = ''
+    pendingDeleteProject.value = null
   }
 }
 </script>
