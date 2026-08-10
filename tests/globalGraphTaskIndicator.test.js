@@ -81,32 +81,37 @@ test('wires the singleton monitor and graph actions through the persistent shell
   assert.match(source, /navigateGraphProjectToQa/)
 })
 
-test('renders the QA home action for an active task that cannot open project QA', async () => {
+test('renders a compact graph-task-status trigger with an active count', async () => {
   const html = await renderSfc('/src/features/tasks/GlobalGraphTaskIndicator.vue', {
     items: [{ ...completedItem, status: 'graph_building', progress: 42, active: true, canOpenQa: false }]
   })
 
-  assert.match(html, /\u95ee\u7b54\u9996\u9875/)
+  assert.match(html, /\u56fe\u8c31\u4efb\u52a1\u72b6\u6001/)
+  assert.match(html, /graph-task-indicator__count/)
+  assert.doesNotMatch(html, /\u95ee\u7b54\u9996\u9875/)
 })
 
-test('emits an unscoped QA-home action from outside the expandable popover', async () => {
+test('keeps the task panel collapsible and its task list internally scrollable', async () => {
   const source = await readFile(
     new URL('../src/features/tasks/GlobalGraphTaskIndicator.vue', import.meta.url),
     'utf8'
   )
 
-  assert.match(source, /open-qa-home/)
-  assert.match(source, /class="graph-task-indicator__qa-home"/)
-  assert.match(source, /@click="\$emit\('open-qa-home'\)"/)
-  assert.ok(
-    source.indexOf('graph-task-indicator__qa-home') < source.indexOf('id="global-graph-task-popover"'),
-    'QA home must remain outside the expandable popover'
-  )
+  assert.match(source, /@click="expanded = !expanded"/)
+  assert.match(source, /v-show="expanded"/)
+  assert.match(source, /graph-task-indicator__close/)
+  assert.match(source, /\.graph-task-indicator__list\s*\{[^}]*overflow-y:\s*auto/s)
 })
 
-test('routes the unscoped QA-home action to the named AscQa route', async () => {
-  const source = await readFile(new URL('../src/layouts/AscShell.vue', import.meta.url), 'utf8')
+test('removes the redundant QA-home shortcut while preserving project QA routing', async () => {
+  const componentSource = await readFile(
+    new URL('../src/features/tasks/GlobalGraphTaskIndicator.vue', import.meta.url),
+    'utf8'
+  )
+  const shellSource = await readFile(new URL('../src/layouts/AscShell.vue', import.meta.url), 'utf8')
 
-  assert.match(source, /@open-qa-home="openQaHome"/)
-  assert.match(source, /function openQaHome\(\)\s*\{\s*router\.push\(\{ name: 'AscQa' \}\)/)
+  assert.doesNotMatch(componentSource, /open-qa-home|graph-task-indicator__qa-home|\u95ee\u7b54\u9996\u9875/)
+  assert.doesNotMatch(shellSource, /@open-qa-home|function openQaHome/)
+  assert.match(shellSource, /@open-qa="openProjectQa"/)
+  assert.match(shellSource, /navigateGraphProjectToQa/)
 })

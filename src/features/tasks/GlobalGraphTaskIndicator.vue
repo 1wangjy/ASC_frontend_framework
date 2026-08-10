@@ -9,15 +9,10 @@
       @click="expanded = !expanded"
     >
       <span class="graph-task-indicator__dot" :class="{ 'graph-task-indicator__dot--active': activeCount }" />
-      {{ activeCount ? `正在构建 ${activeCount} 项` : '图谱任务' }}
-    </button>
-
-    <button
-      class="graph-task-indicator__qa-home"
-      type="button"
-      @click="$emit('open-qa-home')"
-    >
-      问答首页
+      <span>图谱任务状态</span>
+      <span v-if="activeCount" class="graph-task-indicator__count" :aria-label="`${activeCount} 个进行中任务`">
+        {{ activeCount }}
+      </span>
     </button>
 
     <section
@@ -69,7 +64,7 @@ const props = defineProps({
   lastSyncedAt: { type: [Number, String], default: null }
 })
 
-defineEmits(['refresh', 'view-project', 'open-qa', 'open-qa-home'])
+defineEmits(['refresh', 'view-project', 'open-qa'])
 
 const expanded = ref(false)
 const trigger = ref(null)
@@ -103,16 +98,16 @@ function handleEscape(event) {
 <style scoped>
 .graph-task-indicator { position: fixed; right: 22px; bottom: 22px; z-index: 40; display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .graph-task-indicator__trigger { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--asc-border); border-radius: 18px; background: #fff; color: var(--asc-heading); box-shadow: 0 8px 24px rgba(4, 28, 49, .16); font-weight: 700; cursor: pointer; }
-.graph-task-indicator__qa-home { min-height: 36px; padding: 0 12px; border: 1px solid var(--asc-primary); border-radius: 18px; background: var(--asc-primary); color: #fff; box-shadow: 0 8px 24px rgba(4, 28, 49, .16); font: inherit; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .graph-task-indicator__dot { width: 8px; height: 8px; border-radius: 50%; background: #8b9bad; }
 .graph-task-indicator__dot--active { background: var(--asc-primary); box-shadow: 0 0 0 4px var(--asc-primary-soft); }
-.graph-task-indicator__popover { position: absolute; right: 0; bottom: 46px; width: min(360px, calc(100vw - 32px)); max-height: min(70vh, 520px); overflow: auto; border: 1px solid var(--asc-border); border-radius: 12px; background: #fff; box-shadow: 0 16px 40px rgba(4, 28, 49, .2); }
+.graph-task-indicator__count { display: inline-grid; min-width: 20px; height: 20px; padding: 0 5px; place-items: center; border-radius: 10px; background: var(--asc-primary); color: #fff; font-size: 12px; line-height: 1; }
+.graph-task-indicator__popover { position: absolute; right: 0; bottom: 46px; display: flex; flex-direction: column; width: min(360px, calc(100vw - 32px)); max-height: min(70vh, 520px); overflow: hidden; border: 1px solid var(--asc-border); border-radius: 12px; background: #fff; box-shadow: 0 16px 40px rgba(4, 28, 49, .2); }
 .graph-task-indicator__header, .graph-task-indicator__item-main, .graph-task-indicator__actions, .graph-task-indicator__offline { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.graph-task-indicator__header { padding: 12px 14px; border-bottom: 1px solid var(--asc-border); }
+.graph-task-indicator__header { flex: 0 0 auto; padding: 12px 14px; border-bottom: 1px solid var(--asc-border); }
 .graph-task-indicator__close { border: 0; background: transparent; color: var(--asc-muted); font-size: 22px; cursor: pointer; }
-.graph-task-indicator__offline { padding: 9px 14px; background: #fff7e8; color: #8a5400; }
+.graph-task-indicator__offline { flex: 0 0 auto; padding: 9px 14px; background: #fff7e8; color: #8a5400; }
 .graph-task-indicator__offline button, .graph-task-indicator__actions button { border: 0; background: transparent; color: var(--asc-primary); font: inherit; font-weight: 700; cursor: pointer; }
-.graph-task-indicator__list { margin: 0; padding: 0; list-style: none; }
+.graph-task-indicator__list { min-height: 0; margin: 0; padding: 0; overflow-y: auto; list-style: none; overscroll-behavior: contain; }
 .graph-task-indicator__item { padding: 12px 14px; border-bottom: 1px solid var(--asc-border); }
 .graph-task-indicator__item-main span, .graph-task-indicator__message, .graph-task-indicator__empty { color: var(--asc-muted); }
 .graph-task-indicator__progress { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
