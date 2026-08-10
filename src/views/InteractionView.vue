@@ -70,6 +70,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'InteractionView' })
+
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import GraphPanel from '../components/GraphPanel.vue'
@@ -81,6 +83,7 @@ import { getReport } from '../api/report'
 
 const route = useRoute()
 const router = useRouter()
+const ownedReportId = String(route.params.reportId || '').trim()
 
 // Props
 const props = defineProps({
@@ -216,7 +219,11 @@ const refreshGraph = () => {
 }
 
 // Watch route params
-watch(() => route.params.reportId, (newId) => {
+watch(() => (
+  route.name === 'Interaction' && String(route.params.reportId || '').trim() === ownedReportId
+    ? ownedReportId
+    : ''
+), (newId) => {
   if (newId && newId !== currentReportId.value) {
     currentReportId.value = newId
     loadReportData()

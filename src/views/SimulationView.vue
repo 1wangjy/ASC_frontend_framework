@@ -70,6 +70,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'SimulationView' })
+
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import GraphPanel from '../components/GraphPanel.vue'
@@ -82,6 +84,8 @@ import { createSimulationViewLifecycleController } from '../features/research/si
 
 const route = useRoute()
 const router = useRouter()
+const ownedSimulationId = String(route.params.simulationId || '').trim()
+let enteredSimulationId = ''
 
 // Layout State
 const viewMode = ref('split')
@@ -307,8 +311,16 @@ const simulationViewLifecycle = createSimulationViewLifecycleController({
 })
 
 watch(
-  () => route.params.simulationId,
-  simulationId => simulationViewLifecycle.enter(simulationId),
+  () => (
+    route.name === 'Simulation' && String(route.params.simulationId || '').trim() === ownedSimulationId
+      ? ownedSimulationId
+      : ''
+  ),
+  simulationId => {
+    if (!simulationId || simulationId === enteredSimulationId) return
+    enteredSimulationId = simulationId
+    simulationViewLifecycle.enter(simulationId)
+  },
   { immediate: true }
 )
 

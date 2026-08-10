@@ -94,6 +94,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'DocumentLibraryView' })
+
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AscIcon from '../components/ui/AscIcon.vue'
