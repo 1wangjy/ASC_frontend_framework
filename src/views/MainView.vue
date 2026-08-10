@@ -21,14 +21,6 @@
       </div>
 
       <div class="header-right">
-        <button
-          v-if="canOpenCompletedGraphQa"
-          class="qa-entry-button"
-          type="button"
-          @click="openCompletedGraphInQa(projectData)"
-        >
-          去图谱问答
-        </button>
         <div class="workflow-step">
           <span class="step-num">Step {{ currentStep }}/5</span>
           <span class="step-name">{{ stepNames[currentStep - 1] }}</span>
@@ -221,8 +213,6 @@ const statusText = computed(() => {
   if (currentPhase.value === 0) return 'Generating Ontology'
   return 'Initializing'
 })
-
-const canOpenCompletedGraphQa = computed(() => isFinalGraphProject(projectData.value))
 
 watch(projectData, project => {
   if (currentStep.value === 1 && isFinalGraphProject(project)) {
@@ -1144,27 +1134,6 @@ onUnmounted(() => {
   color: #A33A2D;
   font-size: 13px;
   line-height: 1.5;
-}
-
-.qa-entry-button {
-  border: 1px solid #111;
-  background: #111;
-  color: #FFF;
-  padding: 7px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.qa-entry-button:hover {
-  background: #333;
-}
-
-.qa-entry-button:focus-visible {
-  outline: 3px solid #4C9AFF;
-  outline-offset: 2px;
 }
 
 .workflow-step {
