@@ -26,6 +26,7 @@ test('keeps QA completion and graph page state alive while another route is visi
   let qaUnmounts = 0
   let graphMounts = 0
   let graphUnmounts = 0
+  let updateGraphLog = () => {}
 
   const AscQaView = defineComponent({
     name: 'AscQaView',
@@ -43,6 +44,7 @@ test('keeps QA completion and graph page state alive while another route is visi
     name: 'GraphProjectWorkspaceView',
     setup() {
       const log = ref('retained graph log')
+      updateGraphLog = value => { log.value = value }
       onMounted(() => { graphMounts += 1 })
       onUnmounted(() => { graphUnmounts += 1 })
       return () => h('p', log.value)
@@ -79,6 +81,8 @@ test('keeps QA completion and graph page state alive while another route is visi
 
   await router.push('/process/p1')
   await nextTick()
+  updateGraphLog('mutated graph log')
+  await nextTick()
   await router.push('/documents')
   await nextTick()
   await router.push('/process/p2')
@@ -86,6 +90,6 @@ test('keeps QA completion and graph page state alive while another route is visi
 
   assert.equal(graphMounts, 1)
   assert.equal(graphUnmounts, 0)
-  assert.match(renderedText(root), /retained graph log/)
+  assert.match(renderedText(root), /mutated graph log/)
   app.unmount()
 })
