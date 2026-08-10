@@ -372,8 +372,8 @@ test('QA view keeps evaluation state outside the evidence drawer', async () => {
 test('requires a backend graph project before opening the answer workflow', async () => {
   const view = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
 
-  assert.match(view, /去构建知识图谱/)
-  assert.match(view, /router\.push\(['"]\/process\/new['"]\)/)
+  assert.match(view, /去图谱构建/)
+  assert.match(view, /router\.push\(\{ name: 'Process' \}\)/)
   assert.doesNotMatch(view, /VITE_DEFAULT_GRAPH_ID/)
   assert.doesNotMatch(view, /openAnswerPreview/)
   assert.doesNotMatch(view, /route\.query\.preview/)

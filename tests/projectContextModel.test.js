@@ -6,7 +6,8 @@ import {
   listGraphProjects,
   readActiveProjectId,
   rememberActiveProjectId,
-  resolveActiveProject
+  resolveActiveProject,
+  resolveProjectAfterRefresh
 } from '../src/features/projects/projectContextModel.js'
 
 const projects = [
@@ -45,6 +46,27 @@ test('restores a preferred usable project', () => {
 
 test('falls back to the newest usable graph project', () => {
   assert.equal(resolveActiveProject(projects, 'missing')?.project_id, 'newer')
+})
+
+test('strict refresh restores only an explicitly routed or remembered project', () => {
+  assert.equal(resolveProjectAfterRefresh(projects, {
+    routeProjectId: 'older',
+    storedProjectId: 'newer',
+    allowFallback: false
+  })?.project_id, 'older')
+  assert.equal(resolveProjectAfterRefresh(projects, {
+    routeProjectId: 'missing',
+    storedProjectId: 'newer',
+    allowFallback: false
+  })?.project_id, 'newer')
+  assert.equal(resolveProjectAfterRefresh(projects, {
+    routeProjectId: 'missing',
+    storedProjectId: 'also-missing',
+    allowFallback: false
+  }), null)
+  assert.equal(resolveProjectAfterRefresh(projects, {
+    allowFallback: false
+  }), null)
 })
 
 test('returns null when there is no usable graph project', () => {

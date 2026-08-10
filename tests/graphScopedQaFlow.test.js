@@ -91,14 +91,15 @@ test('QA project refreshes suppress stale success, error, and loading updates', 
   assert.match(finallySource, /if \(currentRequest === projectsRequestVersion\) projectsLoading\.value = false/)
 })
 
-test('keeps the graph project picker reachable at mobile widths', async () => {
+test('removes the graph project picker and exposes the graph workspace instead', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
-  const mobileTopbarRule = source.match(
-    /@media\s*\(max-width:\s*760px\)[\s\S]*?\.qa-topbar\s*\{([^}]*)\}/
-  )
 
-  assert.ok(mobileTopbarRule, 'expected a mobile qa-topbar rule')
-  assert.doesNotMatch(mobileTopbarRule[1], /display:\s*none/)
+  assert.doesNotMatch(source, /qa-project-picker|changeActiveProject|<select/)
+  assert.match(source, /qa-project-context/)
+  assert.match(source, /当前图谱/)
+  assert.match(source, /更换图谱/)
+  assert.match(source, /name:\s*'Process'/)
+  assert.match(source, /allowFallback:\s*false/)
 })
 
 test('completed graph builds route to QA and no longer write a local registry', async () => {

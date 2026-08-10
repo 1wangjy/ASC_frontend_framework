@@ -12,24 +12,13 @@
           <span>ASC 耐火材料智能研究平台</span>
           <strong v-if="qaState.phase !== 'empty'">研究答疑 / 热震稳定性</strong>
         </div>
-        <label class="qa-project-picker">
-          <span>知识图谱项目</span>
-          <select
-            v-model="activeProjectId"
-            :disabled="projectsLoading || !projects.length"
-            @change="changeActiveProject"
-          >
-            <option v-if="scopeSelectionRequired" value="" disabled>请选择知识图谱</option>
-            <option v-else-if="!projects.length" value="">暂无可用图谱</option>
-            <option
-              v-for="project in projects"
-              :key="project.project_id"
-              :value="project.project_id"
-            >
-              {{ projectLabel(project) }}
-            </option>
-          </select>
-        </label>
+        <div class="qa-project-context">
+          <span>当前图谱</span>
+          <strong>{{ activeProject ? projectLabel(activeProject) : '未选择' }}</strong>
+          <button type="button" @click="router.push({ name: 'Process' })">
+            {{ activeProject ? '更换图谱' : '选择图谱' }}
+          </button>
+        </div>
       </header>
 
       <section v-if="qaState.phase === 'empty'" class="qa-empty">
@@ -47,9 +36,9 @@
           <button
             v-if="!projectsLoading && !activeProject"
             type="button"
-            @click="router.push('/process/new')"
+            @click="router.push({ name: 'Process' })"
           >
-            去构建知识图谱
+            去图谱构建
           </button>
         </div>
 
@@ -191,8 +180,8 @@ const evaluationEnabled = computed(() => canEvaluateAnswer(qaState.value))
 const projectUnavailableMessage = computed(() => {
   if (projectsLoading.value) return '正在读取可用于问答的知识图谱项目…'
   if (projectError.value) return projectError.value
-  if (scopeSelectionRequired.value && projects.value.length) return '原知识图谱范围已失效，请手动选择图谱后重试。'
-  if (!activeProject.value) return '后端没有带 graph_id 的可用项目，暂时不能发起图谱问答。'
+  if (scopeSelectionRequired.value && projects.value.length) return '原知识图谱范围已失效，请前往图谱构建重新选择。'
+  if (!activeProject.value) return '问答需要基于已完成的知识图谱，请先选择或构建图谱。'
   return ''
 })
 
@@ -214,7 +203,8 @@ async function loadProjects(options = {}) {
     const selected = resolveProjectAfterRefresh(projects.value, {
       routeProjectId: route.query.projectId,
       storedProjectId: readActiveProjectId(browserStorage),
-      requireManualSelection
+      requireManualSelection,
+      allowFallback: false
     })
     activeProjectId.value = selected?.project_id ?? ''
     rememberActiveProjectId(browserStorage, activeProjectId.value)
@@ -227,16 +217,6 @@ async function loadProjects(options = {}) {
   } finally {
     if (currentRequest === projectsRequestVersion) projectsLoading.value = false
   }
-}
-
-function changeActiveProject() {
-  rememberActiveProjectId(browserStorage, activeProjectId.value)
-  if (scopeSelectionRequired.value) {
-    scopeSelectionRequired.value = false
-    projectError.value = ''
-    return
-  }
-  reset()
 }
 
 async function sendQuestion(question = draft.value) {
@@ -496,7 +476,7 @@ onMounted(loadProjects)
   font-size: 12px;
 }
 
-.qa-project-picker {
+.qa-project-context {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -505,15 +485,25 @@ onMounted(loadProjects)
   font-weight: 700;
 }
 
-.qa-project-picker select {
-  min-width: 190px;
-  height: 34px;
-  padding: 0 28px 0 9px;
+.qa-project-context strong {
+  max-width: 220px;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qa-project-context button {
+  min-height: 30px;
+  padding: 0 9px;
   border: 1px solid var(--asc-border);
   border-radius: 6px;
   background: #fff;
-  color: var(--asc-heading);
-  font-size: 10px;
+  color: var(--asc-primary);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
 }
 
 .qa-empty {
@@ -650,12 +640,12 @@ onMounted(loadProjects)
     display: none;
   }
 
-  .qa-project-picker {
+  .qa-project-context {
     width: 100%;
     justify-content: space-between;
   }
 
-  .qa-project-picker select {
+  .qa-project-context strong {
     min-width: 0;
     flex: 1;
   }

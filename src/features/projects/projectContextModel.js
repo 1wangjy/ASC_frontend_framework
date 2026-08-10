@@ -39,6 +39,15 @@ export function resolveActiveProject(projects = [], ...preferredProjectIds) {
 
 export function resolveProjectAfterRefresh(projects = [], options = {}) {
   if (options.requireManualSelection === true) return null
+  if (options.allowFallback === false) {
+    const usableProjects = listGraphProjects(projects)
+    for (const candidate of [options.routeProjectId, options.storedProjectId]) {
+      const projectId = String(candidate ?? '').trim()
+      const match = usableProjects.find(project => project.project_id === projectId)
+      if (match) return match
+    }
+    return null
+  }
   return resolveActiveProject(
     projects,
     options.routeProjectId,
