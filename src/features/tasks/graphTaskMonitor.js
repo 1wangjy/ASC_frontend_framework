@@ -19,8 +19,8 @@ export function createGraphTaskMonitor(dependencies = {}) {
   const api = {
     listProjects: dependencies.listProjects || listProjects,
     getTaskStatus: dependencies.getTaskStatus || getTaskStatus,
-    schedule: dependencies.schedule || setTimeout,
-    cancelSchedule: dependencies.cancelSchedule || clearTimeout,
+    schedule: dependencies.schedule || ((callback, delay) => globalThis.setTimeout(callback, delay)),
+    cancelSchedule: dependencies.cancelSchedule || (timerId => globalThis.clearTimeout(timerId)),
     browser: dependencies.browser || globalThis,
     now: dependencies.now || Date.now
   }

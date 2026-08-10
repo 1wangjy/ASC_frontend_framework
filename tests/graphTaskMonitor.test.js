@@ -167,6 +167,41 @@ test('start is idempotent and stop clears its lifecycle listeners and timer', as
   assert.equal(monitor.state.running, false)
 })
 
+test('keeps native global timers bound to the browser receiver', async () => {
+  const originalSetTimeout = globalThis.setTimeout
+  const originalClearTimeout = globalThis.clearTimeout
+  const timers = new Set()
+
+  globalThis.setTimeout = function browserSetTimeout(callback, delay) {
+    assert.equal(this, globalThis)
+    const timer = { callback, delay }
+    timers.add(timer)
+    return timer
+  }
+  globalThis.clearTimeout = function browserClearTimeout(timer) {
+    assert.equal(this, globalThis)
+    timers.delete(timer)
+  }
+
+  try {
+    const monitor = createGraphTaskMonitor({
+      listProjects: async () => ({ success: true, data: [] }),
+      getTaskStatus: async () => ({ success: true, data: {} }),
+      browser: globalThis,
+      now: () => 1234
+    })
+
+    await monitor.start()
+    assert.equal(monitor.state.connection, 'online')
+    assert.equal(timers.size, 1)
+    monitor.stop()
+    assert.equal(timers.size, 0)
+  } finally {
+    globalThis.setTimeout = originalSetTimeout
+    globalThis.clearTimeout = originalClearTimeout
+  }
+})
+
 test('focus, online, and visible visibility changes refresh immediately', async () => {
   let calls = 0
   const { monitor, listeners, browser } = createHarness({ listProjects: async () => { calls += 1; return { success: true, data: [] } } })
