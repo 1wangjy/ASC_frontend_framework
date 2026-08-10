@@ -61,6 +61,28 @@ const baseCompletedProject = {
   resources: [{ projectId: 'base-only', graphId: 'base-only-g' }]
 }
 
+test('keeps the Base graph build action inside the split workspace card', async () => {
+  const source = await readFile(new URL('../src/components/Step1GraphBuild.vue', import.meta.url), 'utf8')
+  const buildInputsCss = source.slice(
+    source.indexOf('.build-inputs {'),
+    source.indexOf('.node-limit-label,')
+  )
+  const buildButtonCss = source.slice(
+    source.indexOf('.build-btn {'),
+    source.indexOf('.build-btn:disabled')
+  )
+  const nodeInputCss = source.slice(
+    source.indexOf('.node-limit-input input {'),
+    source.indexOf('.build-btn {')
+  )
+
+  assert.match(buildInputsCss, /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/)
+  assert.match(buildButtonCss, /grid-column:\s*1\s*\/\s*-1/)
+  assert.match(buildButtonCss, /width:\s*100%/)
+  assert.match(nodeInputCss, /box-sizing:\s*border-box/)
+  assert.match(nodeInputCss, /min-width:\s*0/)
+})
+
 test('groups Base and Professional backend records into one user-visible project', () => {
   const logical = buildLogicalGraphProjects([
     {

@@ -1625,7 +1625,7 @@ watch(() => props.systemLogs.length, () => {
 
 .build-inputs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(120px, 1fr)) auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   align-items: end;
 }
@@ -1647,16 +1647,20 @@ watch(() => props.systemLogs.length, () => {
 
 .node-limit-input input {
   width: 100%;
+  min-width: 0;
   height: 38px;
   border: 1px solid #DDD;
   border-radius: 6px;
   padding: 0 10px;
+  box-sizing: border-box;
   font: inherit;
   font-weight: 700;
   background: #FFF;
 }
 
 .build-btn {
+  grid-column: 1 / -1;
+  width: 100%;
   border: 0;
   border-radius: 6px;
   height: 38px;
