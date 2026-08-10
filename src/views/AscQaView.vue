@@ -174,6 +174,14 @@ const evaluationService = createAnswerEvaluationService({
 })
 let requestVersion = 0
 let projectsRequestVersion = 0
+let qaRouteConsumptionVersion = 0
+let currentProjectsLoad = Promise.resolve()
+const unconsumedQaQuery = Symbol('unconsumed-qa-query')
+const consumedQaQueryTokens = {
+  new: unconsumedQaQuery,
+  projectId: unconsumedQaQuery,
+  conversation: unconsumedQaQuery
+}
 
 const activeProject = computed(
   () => projects.value.find((project) => project.project_id === activeProjectId.value) ?? null
@@ -193,7 +201,12 @@ function projectLabel(project) {
 
 async function loadProjects(options = {}) {
   const requireManualSelection = options?.requireManualSelection === true || scopeSelectionRequired.value
+  const routeProjectId = Object.prototype.hasOwnProperty.call(options, 'routeProjectId')
+    ? options.routeProjectId
+    : route.query.projectId
   const currentRequest = ++projectsRequestVersion
+  let finishCurrentLoad
+  currentProjectsLoad = new Promise(resolve => { finishCurrentLoad = resolve })
   projectsLoading.value = true
   projectError.value = ''
   scopeSelectionRequired.value = requireManualSelection
@@ -203,7 +216,7 @@ async function loadProjects(options = {}) {
     if (currentRequest !== projectsRequestVersion) return
     projects.value = listGraphProjects(response)
     const selected = resolveProjectAfterRefresh(projects.value, {
-      routeProjectId: route.query.projectId,
+      routeProjectId,
       storedProjectId: readActiveProjectId(browserStorage),
       requireManualSelection,
       allowFallback: false
@@ -218,7 +231,16 @@ async function loadProjects(options = {}) {
     projectError.value = error?.message || '无法从后端读取可用知识图谱，请确认 5002 服务正在运行。'
   } finally {
     if (currentRequest === projectsRequestVersion) projectsLoading.value = false
+    finishCurrentLoad()
   }
+}
+
+async function waitForCurrentProjectsLoad() {
+  let pendingLoad
+  do {
+    pendingLoad = currentProjectsLoad
+    await pendingLoad
+  } while (pendingLoad !== currentProjectsLoad)
 }
 
 async function sendQuestion(question = draft.value) {
@@ -395,10 +417,69 @@ function openConversation(conversation) {
   router.push({ path: '/', query: { conversation: conversation.id } })
 }
 
-watch(
-  () => route.query.new,
-  () => reset()
-)
+function qaQueryDescriptor(key) {
+  const query = route.query || {}
+  const present = Object.prototype.hasOwnProperty.call(query, key)
+  const value = query[key]
+  const normalized = Array.isArray(value)
+    ? value.map(item => String(item ?? ''))
+    : [String(value ?? '')]
+  return {
+    present,
+    value,
+    token: present ? JSON.stringify(normalized) : 'absent'
+  }
+}
+
+function activeQaQuerySnapshot() {
+  return {
+    new: qaQueryDescriptor('new'),
+    projectId: qaQueryDescriptor('projectId'),
+    conversation: qaQueryDescriptor('conversation')
+  }
+}
+
+function isCurrentActiveQaSnapshot(snapshot) {
+  if (route.name !== 'AscQa') return false
+  const current = activeQaQuerySnapshot()
+  return Object.keys(snapshot).every(key => current[key].token === snapshot[key].token)
+}
+
+async function consumeActiveQaRouteQuery() {
+  const currentConsumption = ++qaRouteConsumptionVersion
+  if (route.name !== 'AscQa') return
+
+  const snapshot = activeQaQuerySnapshot()
+  const projectChanged = consumedQaQueryTokens.projectId !== snapshot.projectId.token
+  const newChanged = consumedQaQueryTokens.new !== snapshot.new.token
+  const conversationChanged = consumedQaQueryTokens.conversation !== snapshot.conversation.token
+
+  if (projectChanged) {
+    consumedQaQueryTokens.projectId = snapshot.projectId.token
+    void loadProjects({ routeProjectId: snapshot.projectId.value })
+  }
+  await waitForCurrentProjectsLoad()
+
+  if (
+    currentConsumption !== qaRouteConsumptionVersion
+    || !isCurrentActiveQaSnapshot(snapshot)
+  ) return
+
+  if (newChanged) {
+    consumedQaQueryTokens.new = snapshot.new.token
+    if (snapshot.new.present) reset()
+  }
+
+  if (conversationChanged) {
+    consumedQaQueryTokens.conversation = snapshot.conversation.token
+    const conversationId = Array.isArray(snapshot.conversation.value)
+      ? snapshot.conversation.value[0]
+      : snapshot.conversation.value
+    if (!conversationId) return
+    const conversation = findRecentConversation(recentConversations, conversationId)
+    if (conversation) loadConversation(conversation)
+  }
+}
 
 watch(
   () => graphTaskMonitor.state.completedRevision,
@@ -408,23 +489,11 @@ watch(
 )
 
 watch(
-  () => route.query.projectId,
-  (current, previous) => {
-    if (current !== previous) loadProjects()
-  }
+  () => route.fullPath,
+  () => { void consumeActiveQaRouteQuery() }
 )
 
-watch(
-  () => route.query.conversation,
-  conversationId => {
-    if (!conversationId) return
-    const conversation = findRecentConversation(recentConversations, conversationId)
-    if (conversation) loadConversation(conversation)
-  },
-  { immediate: true }
-)
-
-onMounted(loadProjects)
+onMounted(() => { void consumeActiveQaRouteQuery() })
 </script>
 
 <style scoped>

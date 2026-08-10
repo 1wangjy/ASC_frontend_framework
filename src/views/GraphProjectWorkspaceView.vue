@@ -49,7 +49,7 @@
 <script setup>
 defineOptions({ name: 'GraphProjectWorkspaceView' })
 
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { deleteGraph, deleteGraphProject } from '../api/graph.js'
@@ -73,8 +73,16 @@ const browserStorage = getBrowserStorage(globalThis)
 const deletingProjectId = ref('')
 const pendingDeleteProject = ref(null)
 const workspaceError = ref('')
-const selectedProjectId = computed(() => String(route.params.projectId || '').trim())
+const selectedProjectId = ref('')
 const logicalProjects = computed(() => buildLogicalGraphProjects(monitor.state.items))
+
+function retainProcessProject() {
+  if (route.name !== 'Process') return
+  selectedProjectId.value = String(route.params.projectId || '').trim()
+}
+
+retainProcessProject()
+watch(() => route.fullPath, retainProcessProject)
 
 function selectProject(item) {
   router.push({ name: 'Process', params: { projectId: item.projectId } })

@@ -56,15 +56,6 @@ test('QA reloads projects when graph completion revision increases without ownin
   assert.doesNotMatch(source, /graphTaskMonitor\.(?:start|stop)\s*\(/)
 })
 
-test('QA reloads projects when the route project scope changes without an immediate watcher', async () => {
-  const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
-
-  assert.match(
-    source,
-    /watch\(\s*\(\)\s*=>\s*route\.query\.projectId\s*,\s*\(current, previous\)\s*=>\s*\{\s*if\s*\(current !== previous\)\s*loadProjects\(\)\s*}\s*\)/
-  )
-})
-
 test('QA project refreshes suppress stale success, error, and loading updates', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
   const loadProjectsSource = extractBlockAfter(source, 'async function loadProjects')
