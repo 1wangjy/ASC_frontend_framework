@@ -90,7 +90,14 @@ test('preserves the last snapshot and exposes a failed project refresh', async (
 test('increments completedRevision only for an observed transition to QA-ready', async () => {
   let completed = true
   const { monitor } = createHarness({
-    listProjects: async () => ({ success: true, data: [project({ status: completed ? 'graph_completed' : 'graph_building' })] })
+    listProjects: async () => ({
+      success: true,
+      data: [project({
+        status: completed ? 'graph_completed' : 'graph_building',
+        graph_build_stage: 'professional',
+        base_project_id: 'base-1'
+      })]
+    })
   })
   await monitor.refresh()
   assert.equal(monitor.state.completedRevision, 0)
@@ -105,9 +112,9 @@ test('increments completedRevision only for an observed transition to QA-ready',
 
 test('increments completedRevision when an observed project reappears QA-ready after an absent snapshot', async () => {
   const snapshots = [
-    [project({ status: 'graph_building' })],
+    [project({ status: 'graph_building', graph_build_stage: 'professional', base_project_id: 'base-1' })],
     [],
-    [project({ status: 'graph_completed' })]
+    [project({ status: 'graph_completed', graph_build_stage: 'professional', base_project_id: 'base-1' })]
   ]
   const { monitor } = createHarness({
     listProjects: async () => ({ success: true, data: snapshots.shift() })
