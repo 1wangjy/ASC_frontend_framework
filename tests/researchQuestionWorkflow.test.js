@@ -109,9 +109,11 @@ test('runs base ontology requests from the real pending snapshot with one normal
 
   assert.equal(result.canStart, true)
   assert.equal(preparePayloads.length, 1)
+  assert.equal(preparePayloads[0].project_name, 'Base Graph Project')
   assert.equal(preparePayloads[0].query_prompt, 'Explain oxidation mechanisms.')
   assert.equal(preparePayloads[0].simulation_requirement, 'Explain oxidation mechanisms.')
   assert.equal(generationPayloads.length, 1)
+  assert.equal(generationPayloads[0].get('project_name'), 'Base Graph Project')
   assert.equal(generationPayloads[0].get('query_prompt'), 'Explain oxidation mechanisms.')
   assert.equal(generationPayloads[0].get('simulation_requirement'), 'Explain oxidation mechanisms.')
 

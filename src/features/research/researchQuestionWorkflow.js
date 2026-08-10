@@ -151,9 +151,10 @@ export function createBaseResearchRequestIntent(pending) {
         base_metadata_path: buildOptions.base_metadata_path
       }
     },
-    createGenerationFormData(projectId) {
+    createGenerationFormData(projectId, projectName) {
       const formData = new FormData()
       formData.append('project_id', projectId)
+      formData.append('project_name', projectName)
       initialFiles.forEach(file => formData.append('files', file))
       pdfLibraryFileIds.forEach(fileId => formData.append('pdf_library_file_ids', fileId))
       formData.append('query_prompt', researchQuestion)
@@ -188,7 +189,8 @@ export async function runBaseResearchRequests({
     }
   }
 
-  const prepareResponse = await prepareOntologyProject(intent.createPreparePayload(projectName))
+  const normalizedProjectName = String(projectName || '').trim() || 'Base Graph Project'
+  const prepareResponse = await prepareOntologyProject(intent.createPreparePayload(normalizedProjectName))
   if (!prepareResponse.success) {
     const error = new Error(prepareResponse.error || 'Project preparation failed')
     await onFailure?.({ stage: 'prepare', attempt: 0, error, retrying: false })
@@ -199,7 +201,10 @@ export async function runBaseResearchRequests({
 
   const generationResponse = await runOntologyGenerationWithRetry({
     generateOntology,
-    createFormData: () => intent.createGenerationFormData(prepareResponse.data.project_id),
+    createFormData: () => intent.createGenerationFormData(
+      prepareResponse.data.project_id,
+      normalizedProjectName
+    ),
     maxRetries,
     waitForRetry,
     onAttempt,
