@@ -1,3 +1,5 @@
+import { isFinalGraphProject } from '../projects/logicalGraphProjectModel.js'
+
 const ACTIVE_STATUSES = new Set(['ontology_generating', 'graph_building'])
 
 export function unwrapGraphProjects(response = []) {
@@ -16,6 +18,7 @@ export function normalizeGraphTaskItems(projects = [], taskById = new Map()) {
     .map(project => {
       const projectId = String(project.project_id).trim()
       const graphId = String(project.graph_id || '').trim()
+      const baseProjectId = String(project.base_project_id || '').trim()
       const taskId = String(project.graph_build_task_id || '').trim()
       const task = taskId ? taskById.get(taskId) : null
       const projectStatus = String(project.status || 'created')
@@ -27,10 +30,11 @@ export function normalizeGraphTaskItems(projects = [], taskById = new Map()) {
         ? 100
         : numericProgress(status === 'graph_building' ? task?.progress : ontology.progress)
 
-      return {
+      const item = {
         id: taskId || `project:${project.project_id}`,
         projectId,
         graphId,
+        baseProjectId,
         taskId,
         name: project.project_name || project.name || project.project_id,
         status,
@@ -39,8 +43,10 @@ export function normalizeGraphTaskItems(projects = [], taskById = new Map()) {
         message: task?.error || task?.message || ontology.message || project.error || '',
         updatedAt: Date.parse(project.updated_at || project.created_at || '') || 0,
         active: ACTIVE_STATUSES.has(status),
-        canOpenQa: status === 'graph_completed' && Boolean(projectId && graphId)
+        canOpenQa: false
       }
+      item.canOpenQa = isFinalGraphProject(item)
+      return item
     })
     .sort((left, right) => Number(right.active) - Number(left.active) || right.updatedAt - left.updatedAt)
 }

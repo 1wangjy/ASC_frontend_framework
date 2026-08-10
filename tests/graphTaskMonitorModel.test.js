@@ -39,23 +39,36 @@ test('uses the matching graph-build task progress and message', () => {
   assert.equal(item.message, 'Writing graph')
 })
 
-test('permits QA only for completed projects with both identifiers', () => {
+test('preserves the Professional relationship needed to group backend project records', () => {
+  const [item] = normalizeGraphTaskItems([{
+    project_id: 'pro-1',
+    base_project_id: 'base-1',
+    graph_build_stage: 'professional',
+    status: 'graph_building'
+  }])
+
+  assert.equal(item.baseProjectId, 'base-1')
+  assert.equal(item.stage, 'professional')
+})
+
+test('permits QA only for completed Professional projects with both identifiers', () => {
   const items = normalizeGraphTaskItems([
-    { project_id: 'p1', graph_id: 'g1', status: 'graph_completed' },
-    { project_id: 'p2', graph_id: '', status: 'graph_completed' },
-    { project_id: 'p3', graph_id: 'g3', status: 'graph_building' }
+    { project_id: 'base-1', graph_id: 'base-g', graph_build_stage: 'base', status: 'graph_completed' },
+    { project_id: 'pro-1', graph_id: 'pro-g', base_project_id: 'base-1', graph_build_stage: 'professional', status: 'graph_completed' },
+    { project_id: 'pro-2', graph_id: '', base_project_id: 'base-2', graph_build_stage: 'professional', status: 'graph_completed' },
+    { project_id: 'pro-3', graph_id: 'pro-g3', base_project_id: 'base-3', graph_build_stage: 'professional', status: 'graph_building' }
   ])
 
   assert.deepEqual(
     new Map(items.map(item => [item.projectId, item.canOpenQa])),
-    new Map([['p1', true], ['p2', false], ['p3', false]])
+    new Map([['base-1', false], ['pro-1', true], ['pro-2', false], ['pro-3', false]])
   )
 })
 
 test('does not permit QA when a completed project has whitespace-only identifiers', () => {
   const items = normalizeGraphTaskItems([
-    { project_id: 'p1', graph_id: '   ', status: 'graph_completed' },
-    { project_id: 'p2', graph_id: 'g2', status: 'graph_completed' }
+    { project_id: 'p1', graph_id: '   ', graph_build_stage: 'professional', status: 'graph_completed' },
+    { project_id: 'p2', graph_id: 'g2', graph_build_stage: 'professional', status: 'graph_completed' }
   ])
 
   assert.equal(items.find(item => item.projectId === 'p1').canOpenQa, false)

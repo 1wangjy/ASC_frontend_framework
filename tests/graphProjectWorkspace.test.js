@@ -11,6 +11,10 @@ import {
   projectDeletionMessage,
   suggestNextProjectName
 } from '../src/features/projects/graphProjectWorkspaceModel.js'
+import {
+  buildLogicalGraphProjects,
+  isFinalGraphProject
+} from '../src/features/projects/logicalGraphProjectModel.js'
 
 const activeProject = {
   id: 'task-active',
@@ -33,6 +37,71 @@ const completedProject = {
   active: false,
   canOpenQa: true
 }
+
+test('groups Base and Professional backend records into one user-visible project', () => {
+  const logical = buildLogicalGraphProjects([
+    {
+      projectId: 'base-1',
+      graphId: 'base-g',
+      name: 'project_1',
+      stage: 'base',
+      status: 'graph_completed',
+      active: false,
+      updatedAt: 1
+    },
+    {
+      projectId: 'pro-1',
+      graphId: '',
+      name: 'Professional Research Graph Project',
+      baseProjectId: 'base-1',
+      stage: 'professional',
+      status: 'graph_building',
+      active: true,
+      updatedAt: 2
+    }
+  ])
+
+  assert.equal(logical.length, 1)
+  assert.equal(logical[0].name, 'project_1')
+  assert.equal(logical[0].projectId, 'pro-1')
+  assert.equal(logical[0].canOpenQa, false)
+  assert.deepEqual(logical[0].memberProjectIds, ['pro-1', 'base-1'])
+})
+
+test('treats only a completed Professional record as the final graph', () => {
+  assert.equal(isFinalGraphProject({
+    project_id: 'base-1',
+    graph_id: 'base-g',
+    graph_build_stage: 'base',
+    status: 'graph_completed'
+  }), false)
+
+  assert.equal(isFinalGraphProject({
+    project_id: 'pro-1',
+    graph_id: 'pro-g',
+    base_project_id: 'base-1',
+    graph_build_stage: 'professional',
+    status: 'graph_completed'
+  }), true)
+})
+
+test('keeps an unlinked Professional record visible instead of merging it incorrectly', () => {
+  const logical = buildLogicalGraphProjects([{
+    projectId: 'pro-orphan',
+    graphId: 'pro-g',
+    name: 'Imported Professional Graph',
+    baseProjectId: 'missing-base',
+    stage: 'professional',
+    status: 'graph_completed',
+    active: false,
+    updatedAt: 3
+  }])
+
+  assert.equal(logical.length, 1)
+  assert.equal(logical[0].name, 'Imported Professional Graph')
+  assert.equal(logical[0].projectId, 'pro-orphan')
+  assert.equal(logical[0].canOpenQa, true)
+})
 
 test('suggests the next project_N name from backend and monitor project labels', () => {
   assert.equal(suggestNextProjectName([
