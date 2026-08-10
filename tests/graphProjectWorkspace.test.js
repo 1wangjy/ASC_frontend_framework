@@ -92,6 +92,8 @@ test('groups Base and Professional backend records into one user-visible project
 })
 
 test('treats only a completed Professional record as the final graph', () => {
+  assert.equal(isFinalGraphProject(null), false)
+
   assert.equal(isFinalGraphProject({
     project_id: 'base-1',
     graph_id: 'base-g',

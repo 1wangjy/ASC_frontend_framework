@@ -3,27 +3,27 @@ function text(value) {
 }
 
 function projectIdOf(project = {}) {
-  return text(project.projectId || project.project_id)
+  return text(project?.projectId || project?.project_id)
 }
 
 function graphIdOf(project = {}) {
-  return text(project.graphId || project.graph_id)
+  return text(project?.graphId || project?.graph_id)
 }
 
 function baseProjectIdOf(project = {}) {
-  return text(project.baseProjectId || project.base_project_id)
+  return text(project?.baseProjectId || project?.base_project_id)
 }
 
 export function isProfessionalGraphProject(project = {}) {
   const stage = text(
-    project.stage || project.graph_build_stage || project.build_stage
+    project?.stage || project?.graph_build_stage || project?.build_stage
   ).toLowerCase()
   return stage === 'professional' || Boolean(baseProjectIdOf(project))
 }
 
 export function isFinalGraphProject(project = {}) {
   return isProfessionalGraphProject(project)
-    && project.status === 'graph_completed'
+    && project?.status === 'graph_completed'
     && Boolean(projectIdOf(project))
     && Boolean(graphIdOf(project))
 }
