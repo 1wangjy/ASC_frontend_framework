@@ -47,6 +47,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'GraphProjectWorkspaceView' })
+
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 

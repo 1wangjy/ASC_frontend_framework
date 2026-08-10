@@ -101,6 +101,8 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'AscQaView' })
+
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import QuestionComposer from '../features/qa/QuestionComposer.vue'
