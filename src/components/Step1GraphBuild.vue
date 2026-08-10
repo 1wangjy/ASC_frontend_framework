@@ -535,7 +535,7 @@
             {{ simulationPreparationError }}
           </p>
           <button
-            v-if="projectData?.project_id && projectData?.graph_id"
+            v-if="canOpenFinalGraphQa"
             class="action-btn qa-action-btn"
             type="button"
             @click="emit('open-qa', projectData)"
@@ -570,6 +570,7 @@ import {
   canBuildGraphProject,
   projectResearchQuestion
 } from '../features/research/simulationPreparationModel.js'
+import { isFinalGraphProject } from '../features/projects/logicalGraphProjectModel.js'
 
 const router = useRouter()
 
@@ -598,6 +599,7 @@ const emit = defineEmits([
   'open-qa'
 ])
 
+const canOpenFinalGraphQa = computed(() => isFinalGraphProject(props.projectData))
 const selectedOntologyItem = ref(null)
 const logContent = ref(null)
 const creatingSimulation = ref(false)

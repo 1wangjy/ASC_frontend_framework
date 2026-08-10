@@ -10,6 +10,7 @@ const completedItem = {
   graphId: 'graph-1',
   name: '高温材料图谱',
   status: 'graph_completed',
+  stage: 'professional',
   progress: 100,
   active: false,
   canOpenQa: true

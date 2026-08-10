@@ -224,6 +224,41 @@ test('renders active and completed projects with status-aware actions', async ()
   assert.match(html, /graph-project-card--selected/)
 })
 
+test('renders the five-step workflow without a misleading graph percentage', async () => {
+  const html = await renderSfc('/src/components/WorkflowProgressBar.vue', {
+    currentStep: 1
+  })
+
+  assert.match(html, /步骤 1\/5/)
+  assert.doesNotMatch(html, /当前步骤\s*\d+%/)
+  assert.doesNotMatch(html, /workflow-track|workflow-fill/)
+})
+
+test('shows Step 1 QA only for a completed Professional graph', async () => {
+  const baseHtml = await renderSfc('/src/components/Step1GraphBuild.vue', {
+    currentPhase: 4,
+    projectData: {
+      project_id: 'base-1',
+      graph_id: 'base-g',
+      graph_build_stage: 'base',
+      status: 'graph_completed'
+    }
+  })
+  const professionalHtml = await renderSfc('/src/components/Step1GraphBuild.vue', {
+    currentPhase: 4,
+    projectData: {
+      project_id: 'pro-1',
+      graph_id: 'pro-g',
+      base_project_id: 'base-1',
+      graph_build_stage: 'professional',
+      status: 'graph_completed'
+    }
+  })
+
+  assert.doesNotMatch(baseHtml, /去图谱问答/)
+  assert.match(professionalHtml, /去图谱问答/)
+})
+
 test('renders a useful empty graph workspace project list', async () => {
   const html = await renderSfc('/src/features/projects/GraphProjectList.vue', { items: [] })
   assert.match(html, /暂无图谱项目/)

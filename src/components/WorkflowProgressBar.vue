@@ -2,11 +2,6 @@
   <div class="workflow-progress-bar">
     <div class="workflow-progress-header">
       <span class="workflow-step-label">步骤 {{ currentStep }}/5</span>
-      <span class="workflow-step-progress">当前步骤 {{ normalizedStepProgress }}%</span>
-    </div>
-
-    <div class="workflow-track">
-      <div class="workflow-fill" :style="{ width: `${overallProgress}%` }"></div>
     </div>
 
     <div class="workflow-steps">
@@ -28,11 +23,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-
-const props = defineProps({
+defineProps({
   currentStep: { type: Number, required: true },
-  stepProgress: { type: Number, default: 0 },
 })
 
 const steps = [
@@ -43,18 +35,6 @@ const steps = [
   { id: 5, name: '深度互动' },
 ]
 
-const normalizedStepProgress = computed(() => {
-  const value = Number(props.stepProgress)
-  if (Number.isNaN(value)) return 0
-  return Math.max(0, Math.min(100, Math.round(value)))
-})
-
-const overallProgress = computed(() => {
-  const completedSteps = Math.max(0, Math.min(5, props.currentStep - 1))
-  const progressPerStep = 20
-  const currentPart = (normalizedStepProgress.value / 100) * progressPerStep
-  return Math.min(100, Math.round(completedSteps * progressPerStep + currentPart))
-})
 </script>
 
 <style scoped>
@@ -76,25 +56,6 @@ const overallProgress = computed(() => {
 .workflow-step-label {
   font-weight: 600;
   color: #222;
-}
-
-.workflow-step-progress {
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.workflow-track {
-  width: 100%;
-  height: 8px;
-  background: #ececec;
-  border-radius: 999px;
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-
-.workflow-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #0f172a, #3b82f6);
-  transition: width 0.35s ease;
 }
 
 .workflow-steps {

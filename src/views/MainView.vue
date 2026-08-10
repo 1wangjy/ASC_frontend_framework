@@ -43,7 +43,6 @@
 
     <WorkflowProgressBar
       :currentStep="currentStep"
-      :stepProgress="stepProgress"
     />
 
     <div v-if="error" class="global-error-banner" role="alert">
@@ -104,7 +103,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import GraphPanel from '../components/GraphPanel.vue'
 import Step1GraphBuild from '../components/Step1GraphBuild.vue'
@@ -128,6 +127,7 @@ import {
   GRAPH_BUILD_RESEARCH_QUESTION_ERROR,
   runGraphBuildProjectRequest
 } from '../features/research/simulationPreparationModel.js'
+import { isFinalGraphProject } from '../features/projects/logicalGraphProjectModel.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -136,8 +136,8 @@ const router = useRouter()
 const viewMode = ref('split') // graph | split | workbench
 
 // Step State
-const currentStep = ref(1) // 1: 图谱构建, 2: 分析准备, 3: 洞察查询, 4: 报告生成, 5: 深度问答
-const stepNames = ['图谱构建', '分析准备', '洞察查询', '报告生成', '深度问答']
+const currentStep = ref(1) // 1: 图谱构建, 2: 环境搭建, 3: 开始模拟, 4: 报告生成, 5: 深度互动
+const stepNames = ['图谱构建', '环境搭建', '开始模拟', '报告生成', '深度互动']
 
 // Data State
 const currentProjectId = ref(route.params.projectId)
@@ -222,30 +222,12 @@ const statusText = computed(() => {
   return 'Initializing'
 })
 
-const canOpenCompletedGraphQa = computed(() => (
-  projectData.value?.status === 'graph_completed'
-  && Boolean(String(projectData.value?.project_id || '').trim())
-  && Boolean(String(projectData.value?.graph_id || '').trim())
-))
+const canOpenCompletedGraphQa = computed(() => isFinalGraphProject(projectData.value))
 
-const stepProgress = computed(() => {
-  if (currentStep.value > 1) return 100
-  if (currentPhase.value < 0) return 5
-  if (currentPhase.value === 0) {
-    const ontologyPct = Number(ontologyProgress.value?.progress || projectData.value?.ontology_progress?.progress || 0)
-    return Math.min(30, Math.max(8, Math.round(ontologyPct * 0.3)))
+watch(projectData, project => {
+  if (currentStep.value === 1 && isFinalGraphProject(project)) {
+    currentStep.value = 2
   }
-  if (currentPhase.value === 1) {
-    const graphBuild = Number(buildProgress.value?.progress || 0)
-    return Math.min(58, 30 + Math.round(graphBuild * 0.28))
-  }
-  if (currentPhase.value === 2) return baseNodesConfirmed.value ? 68 : 62
-  if (currentPhase.value === 3) {
-    const graphBuild = Number(buildProgress.value?.progress || 0)
-    return Math.min(95, 68 + Math.round(graphBuild * 0.27))
-  }
-  if (currentPhase.value >= 4) return 100
-  return 0
 })
 
 const visibleGraphData = computed(() => {
