@@ -798,6 +798,11 @@ const startProfessionalGraphBuild = async (options = {}) => {
     addLog(`Creating Professional Research project with ${professionalUploadFiles.value.length} file(s).`)
 
     const requestResult = await runProfessionalResearchRequests({
+      projectName: baseProjectData.value?.project_name
+        || baseProjectData.value?.name
+        || projectData.value?.project_name
+        || projectData.value?.name
+        || 'Graph Project',
       question: researchQuestion,
       files: professionalUploadFiles.value,
       baseMetadataPath: effectiveBaseMetadataPath,

@@ -63,6 +63,7 @@ test('connects dialog submit through the library and blocks empty questions befo
   assert.match(librarySource, /startResearchBuildFromLibrary\(documentRows\.value, selectedDocumentIds\.value, submission\)/)
   assert.match(mainSource, /createBaseResearchRequestIntent\(pending\)/)
   assert.match(mainSource, /runBaseResearchRequests\(\{[\s\S]*pending,/)
+  assert.match(mainSource, /runProfessionalResearchRequests\(\{[\s\S]*projectName:/)
   assert.match(step1Source, /if \(!projectResearchQuestion\(props\.projectData\)\) \{\s*return\s*\}[\s\S]*createSimulation/)
   assert.match(step2Source, /preparationState === 'missing-question'/)
   assert.match(step2Source, /reportMissing:[\s\S]*?start: async \(context\)/)

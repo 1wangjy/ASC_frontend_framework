@@ -222,6 +222,7 @@ export async function runBaseResearchRequests({
 }
 
 export async function runProfessionalResearchRequests({
+  projectName,
   question,
   files = [],
   baseMetadataPath = '',
@@ -246,8 +247,10 @@ export async function runProfessionalResearchRequests({
     }
   }
 
+  const normalizedProjectName = String(projectName || '').trim() || 'Graph Project'
+  const professionalProjectName = `${normalizedProjectName} · Professional Research`
   const prepareResponse = await prepareOntologyProject({
-    project_name: 'Professional Research Graph Project',
+    project_name: professionalProjectName,
     query_prompt: researchQuestion,
     simulation_requirement: researchQuestion,
     build_stage: 'professional',
@@ -272,6 +275,7 @@ export async function runProfessionalResearchRequests({
     createFormData: () => {
       const formData = new FormData()
       formData.append('project_id', prepareResponse.data.project_id)
+      formData.append('project_name', professionalProjectName)
       Array.from(files).forEach(file => formData.append('files', file))
       formData.append('query_prompt', researchQuestion)
       formData.append('simulation_requirement', researchQuestion)
