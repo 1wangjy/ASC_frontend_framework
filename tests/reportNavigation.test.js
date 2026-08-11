@@ -16,19 +16,26 @@ test('assigns report detail to the report generation module', () => {
   assert.notEqual(routes.get('Interaction')?.meta?.navigationPath, '/process')
 })
 
-test('renders a passive report center when there is no report id', async () => {
+test('renders a stable report center shell while saved reports are loading', async () => {
   const html = await renderSfc('/src/views/ReportCenterView.vue', {}, { withRouter: true })
 
-  assert.match(html, /尚无报告/)
-  assert.match(html, /请先完成图谱演化/)
-  assert.match(html, /前往图谱演化/)
+  assert.match(html, /报告生成/)
+  assert.match(html, /已保存的研究报告/)
+  assert.match(html, /正在读取已保存报告/)
 })
 
-test('keeps the report center free of report generation requests', async () => {
+test('loads the report center from the read-only list and opens real report ids', async () => {
   const source = await readFile(
     new URL('../src/views/ReportCenterView.vue', import.meta.url),
     'utf8'
   )
 
-  assert.doesNotMatch(source, /api\/report|Step4Report|generateReport|fetch\(|axios/)
+  assert.match(source, /listReports\(\{\s*limit:\s*50\s*\}\)/)
+  assert.match(source, /buildReportCenterItems/)
+  assert.match(source, /buildLogicalGraphProjects/)
+  assert.match(source, /name:\s*['"]Report['"]/)
+  assert.match(source, /报告列表加载失败/)
+  assert.match(source, /尚无报告/)
+  assert.match(source, /重新加载/)
+  assert.doesNotMatch(source, /generateReport|force_regenerate|report\/generate|deleteReport/)
 })
