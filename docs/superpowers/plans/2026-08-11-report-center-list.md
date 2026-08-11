@@ -32,7 +32,7 @@
 - Produces: `buildReportCenterItems(reports, projects) -> ReportCenterItem[]`.
 - Produces: `formatReportDate(value) -> string`.
 
-- [ ] **Step 1: Write failing API and model tests**
+- [x] **Step 1: Write failing API and model tests**
 
 ```js
 test('lists saved reports through the read-only backend endpoint', async () => {
@@ -49,13 +49,13 @@ test('deduplicates reports by simulation, sorts newest first, and links projects
 })
 ```
 
-- [ ] **Step 2: Run tests and record RED**
+- [x] **Step 2: Run tests and record RED**
 
 Run: `node --test tests/reportApi.test.js tests/reportCenterModel.test.js`
 
 Expected: failure because `listReports` and `reportCenterModel.js` do not exist.
 
-- [ ] **Step 3: Implement the GET wrapper and pure model**
+- [x] **Step 3: Implement the GET wrapper and pure model**
 
 ```js
 export const listReports = (params = {}) => {
@@ -65,13 +65,13 @@ export const listReports = (params = {}) => {
 
 The model must reject records without `report_id`, normalize status copy, use `simulation_id` as the primary deduplication key, sort by `completed_at`/`created_at`, and associate by `graph_id` before `simulation_id`.
 
-- [ ] **Step 4: Run focused tests and record GREEN**
+- [x] **Step 4: Run focused tests and record GREEN**
 
 Run: `node --test tests/reportApi.test.js tests/reportCenterModel.test.js`
 
 Expected: all focused tests pass.
 
-- [ ] **Step 5: Commit the model boundary**
+- [x] **Step 5: Commit the model boundary**
 
 ```powershell
 git add -- src/api/report.js src/features/reports/reportCenterModel.js tests/reportApi.test.js tests/reportCenterModel.test.js
@@ -89,7 +89,7 @@ git commit -m "feat: add saved report list model"
 - Consumes: `buildReportCenterItems(rawReports, monitor.state.items)`.
 - Produces: report cards linking to `{ name: 'Report', params: { reportId } }`.
 
-- [ ] **Step 1: Replace passive-page assertions with failing report-center contracts**
+- [x] **Step 1: Replace passive-page assertions with failing report-center contracts**
 
 ```js
 assert.match(source, /listReports/)
@@ -100,13 +100,13 @@ assert.doesNotMatch(source, /generateReport|force_regenerate|\/api\/report\/gene
 
 Add SSR assertions for the loading shell and stable page heading.
 
-- [ ] **Step 2: Run the view tests and record RED**
+- [x] **Step 2: Run the view tests and record RED**
 
 Run: `node --test tests/reportNavigation.test.js`
 
 Expected: failures because the view is still a passive empty state.
 
-- [ ] **Step 3: Implement loading, success, empty, and error states**
+- [x] **Step 3: Implement loading, success, empty, and error states**
 
 ```js
 const reports = ref([])
@@ -129,13 +129,13 @@ async function loadReports() {
 
 Render a header with refresh action, distinct loading/error/empty states, and responsive report cards. Cards show title, project name, status, dates, and link to the real detail route.
 
-- [ ] **Step 4: Run report-center regression tests**
+- [x] **Step 4: Run report-center regression tests**
 
 Run: `node --test tests/reportNavigation.test.js tests/reportApi.test.js tests/reportCenterModel.test.js tests/singleReportFlow.test.js`
 
 Expected: all tests pass and generation tests still prove `force_regenerate: false`.
 
-- [ ] **Step 5: Commit the page**
+- [x] **Step 5: Commit the page**
 
 ```powershell
 git add -- src/views/ReportCenterView.vue tests/reportNavigation.test.js
@@ -151,25 +151,25 @@ git commit -m "feat: show saved reports in report center"
 - Consumes: completed Tasks 1 and 2.
 - Produces: verified build and regression evidence.
 
-- [ ] **Step 1: Run all report-focused tests**
+- [x] **Step 1: Run all report-focused tests**
 
 Run: `node --test tests/reportApi.test.js tests/reportCenterModel.test.js tests/reportNavigation.test.js tests/singleReportFlow.test.js tests/workflowRouteCache.test.js`
 
 Expected: all tests pass.
 
-- [ ] **Step 2: Run the full frontend suite**
+- [x] **Step 2: Run the full frontend suite**
 
 Run: `node --test tests/*.test.js`
 
 Expected: zero failures.
 
-- [ ] **Step 3: Build the production bundle**
+- [x] **Step 3: Build the production bundle**
 
 Run: `npm run build`
 
 Expected: Vite exits with code 0.
 
-- [ ] **Step 4: Check the final diff and repository boundary**
+- [x] **Step 4: Check the final diff and repository boundary**
 
 ```powershell
 git diff --check 6a4cd12..HEAD
@@ -179,6 +179,21 @@ git diff --name-only 6a4cd12..HEAD
 
 Expected: no whitespace errors; only planned frontend/test/plan files are changed; `tmp/` remains untracked and unstaged; no backend file appears.
 
-- [ ] **Step 5: Record final verification**
+- [x] **Step 5: Record final verification**
 
 Append the exact focused/full/build results to `docs/superpowers/plans/2026-08-11-report-center-list.md`, then commit only that documentation update with `docs: record report center verification`.
+
+## Final Verification Record
+
+- TDD API/model RED: focused command failed because `listReports` and `reportCenterModel.js` did not yet exist.
+- TDD API/model GREEN: `node --test tests/reportApi.test.js tests/reportCenterModel.test.js` passed 6/6.
+- TDD report-center RED: `tests/reportNavigation.test.js` failed on the missing loading shell and missing read-only list wiring.
+- TDD report-center GREEN: report API/model/navigation/single-report run passed 16/16.
+- TDD report-list entry RED: the focused source contract failed because retained `ReportView` had no route back to `/reports`.
+- TDD report-list entry GREEN: focused entry test passed 1/1; report navigation plus workflow cache passed 7/7.
+- Final focused command passed 19/19.
+- Real read-only API check through `http://127.0.0.1:3000/api/report/list?limit=50` and direct `http://127.0.0.1:5002/api/report/list?limit=50` both returned `success=true`, `count=6`; no POST was issued.
+- Real report/project metadata comparison found 6 saved reports, 6 unique simulations and 4 direct `graph_id` project matches; unmatched reports remain visible with the explicit fallback required by the design.
+- Final full suite: `node --test tests/*.test.js` passed 305/305 with 0 failures in 18.42788 seconds.
+- Final production build: `npm run build` completed successfully with Vite 7.2.7, 756 transformed modules, in 4.23 seconds.
+- The existing D3 shared-chunk warning remains unchanged and is unrelated to the report center.
