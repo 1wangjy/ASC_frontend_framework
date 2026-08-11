@@ -35,7 +35,7 @@
 - Produces: `buildReportProgress(report, sections) -> { completed, total, percent }`.
 - Produces: `renderReportMarkdown(markdown) -> string` with escaped raw HTML and controlled Markdown tags.
 
-- [ ] **Step 1: Write failing report model tests**
+- [x] **Step 1: Write failing report model tests**
 
 ```js
 test('names a report from its graph project', () => {
@@ -61,7 +61,7 @@ test('orders saved sections and restores titles from the outline', () => {
 })
 ```
 
-- [ ] **Step 2: Write failing safe Markdown tests**
+- [x] **Step 2: Write failing safe Markdown tests**
 
 ```js
 test('renders report Markdown without executing raw backend HTML', () => {
@@ -73,13 +73,13 @@ test('renders report Markdown without executing raw backend HTML', () => {
 })
 ```
 
-- [ ] **Step 3: Run focused tests and record RED**
+- [x] **Step 3: Run focused tests and record RED**
 
 Run: `node --test tests/reportReaderModel.test.js tests/reportMarkdown.test.js`
 
 Expected: failure because both report reader modules do not exist.
 
-- [ ] **Step 4: Implement the pure model and renderer**
+- [x] **Step 4: Implement the pure model and renderer**
 
 ```js
 export function buildProjectReportTitle(projectName) {
@@ -98,13 +98,13 @@ export function normalizeReportStatus(value) {
 
 `renderReportMarkdown` must escape `& < > " '` before applying controlled heading, emphasis, list, quote, code, table, and newline transforms. It must never pass raw backend HTML through `v-html` unchanged.
 
-- [ ] **Step 5: Run focused tests and record GREEN**
+- [x] **Step 5: Run focused tests and record GREEN**
 
 Run: `node --test tests/reportReaderModel.test.js tests/reportMarkdown.test.js`
 
 Expected: all focused tests pass.
 
-- [ ] **Step 6: Commit the model boundary**
+- [x] **Step 6: Commit the model boundary**
 
 ```powershell
 git add -- src/features/reports/reportReaderModel.js src/features/reports/reportMarkdown.js tests/reportReaderModel.test.js tests/reportMarkdown.test.js
@@ -123,7 +123,7 @@ git commit -m "feat: add report reader model"
 - Produces controller methods: `open({ reportId, taskId })`, `refresh()`, `stop()`, and `snapshot()`.
 - Publishes state: `{ reportId, taskId, loading, report, sectionsResponse, agentLogs, status, error }`.
 
-- [ ] **Step 1: Write lifecycle and stale-response tests**
+- [x] **Step 1: Write lifecycle and stale-response tests**
 
 ```js
 test('completed reports load once and do not start polling', async () => {
@@ -162,13 +162,13 @@ test('a late old report response cannot replace the active report', async () => 
 
 Add explicit tests that capture the scheduled callback and verify: an active report schedules exactly one timer; two concurrent `refresh()` calls share one request; a backend task status of `failed` cancels the timer and publishes the error; `stop()` prevents a deferred response from publishing; opening a different report cancels the previous timer and resets the section/log cursor.
 
-- [ ] **Step 2: Run controller tests and record RED**
+- [x] **Step 2: Run controller tests and record RED**
 
 Run: `node --test tests/reportReaderController.test.js`
 
 Expected: failure because `reportReaderController.js` does not exist.
 
-- [ ] **Step 3: Implement generation-guarded polling**
+- [x] **Step 3: Implement generation-guarded polling**
 
 ```js
 export function createReportReaderController({
@@ -206,13 +206,13 @@ export function createReportReaderController({
 
 The controller must stop scheduling when normalized status becomes `completed` or `failed`. A failed status lookup may update the visible error but must never start report generation.
 
-- [ ] **Step 4: Run controller tests and record GREEN**
+- [x] **Step 4: Run controller tests and record GREEN**
 
 Run: `node --test tests/reportReaderController.test.js tests/reportStatusPoller.test.js`
 
 Expected: all controller and existing polling tests pass.
 
-- [ ] **Step 5: Commit the controller**
+- [x] **Step 5: Commit the controller**
 
 ```powershell
 git add -- src/features/reports/reportReaderController.js tests/reportReaderController.test.js
@@ -230,7 +230,7 @@ git commit -m "feat: load report reader state"
 - Emits: none; the component owns only read and poll lifecycle.
 - Consumes: Task 1 model/renderer, Task 2 controller, and existing read/status API wrappers.
 
-- [ ] **Step 1: Write failing rendered-shell and source-boundary tests**
+- [x] **Step 1: Write failing rendered-shell and source-boundary tests**
 
 ```js
 test('renders a focused report reader shell', async () => {
@@ -249,13 +249,13 @@ test('reader uses only report read and status APIs', async () => {
 })
 ```
 
-- [ ] **Step 2: Run the component test and record RED**
+- [x] **Step 2: Run the component test and record RED**
 
 Run: `node --test tests/reportReaderView.test.js`
 
 Expected: failure because `ReportReader.vue` does not exist.
 
-- [ ] **Step 3: Implement the focused reader UI**
+- [x] **Step 3: Implement the focused reader UI**
 
 ```vue
 <article class="report-reader" :aria-busy="state.loading">
@@ -279,13 +279,13 @@ Expected: failure because `ReportReader.vue` does not exist.
 
 If backend `markdown_content` is non-empty and status is completed, render it as the canonical complete document instead of duplicating saved sections.
 
-- [ ] **Step 4: Run component/model/controller tests and record GREEN**
+- [x] **Step 4: Run component/model/controller tests and record GREEN**
 
 Run: `node --test tests/reportReaderView.test.js tests/reportReaderModel.test.js tests/reportMarkdown.test.js tests/reportReaderController.test.js`
 
 Expected: all focused tests pass.
 
-- [ ] **Step 5: Commit the reader component**
+- [x] **Step 5: Commit the reader component**
 
 ```powershell
 git add -- src/components/ReportReader.vue tests/reportReaderView.test.js
@@ -309,7 +309,7 @@ git commit -m "feat: show focused report document"
 - `ReportCenterItem` gains `displayTitle` from `buildProjectReportTitle(projectName)`.
 - Existing report route name/path remain `Report` and `/report/:reportId`.
 
-- [ ] **Step 1: Write failing route and naming contracts**
+- [x] **Step 1: Write failing route and naming contracts**
 
 ```js
 assert.match(reportView, /<ReportReader/)
@@ -320,13 +320,13 @@ assert.match(reportCenterView, /item\.displayTitle/)
 
 Update the old report task-ID test to require `ReportView -> ReportReader -> reportReaderController -> getReportStatus({ taskId })`. Update cached-route module overrides to replace `ReportReader.vue`, not deleted `Step4Report.vue`.
 
-- [ ] **Step 2: Run route regressions and record RED**
+- [x] **Step 2: Run route regressions and record RED**
 
 Run: `node --test tests/reportNavigation.test.js tests/reportCenterModel.test.js tests/ascLabExperience.test.js tests/workflowPageContinuity.test.js`
 
 Expected: failures because the route still imports the old graph/workflow components and cards still use the backend title as the main heading.
 
-- [ ] **Step 3: Replace `ReportView` with the focused route shell**
+- [x] **Step 3: Replace `ReportView` with the focused route shell**
 
 ```vue
 <main class="report-view">
@@ -343,17 +343,17 @@ Expected: failures because the route still imports the old graph/workflow compon
 
 Resolve the project name by `graph_id`, then `simulation_id`, then the existing `report -> simulation -> project` read-only chain. Do not load graph visualization data.
 
-- [ ] **Step 4: Align report-center card titles and remove the old component**
+- [x] **Step 4: Align report-center card titles and remove the old component**
 
 Use `item.displayTitle` as the card `<h2>` and show `item.title` below it as the report topic. Remove `Step4Report.vue` only after all imports/tests have moved to `ReportReader.vue`.
 
-- [ ] **Step 5: Run report and route regressions**
+- [x] **Step 5: Run report and route regressions**
 
 Run: `node --test tests/reportNavigation.test.js tests/reportCenterModel.test.js tests/reportReaderView.test.js tests/ascLabExperience.test.js tests/workflowPageContinuity.test.js tests/singleReportFlow.test.js`
 
 Expected: all focused route tests pass; the single-report flow still proves `force_regenerate: false`.
 
-- [ ] **Step 6: Commit the route replacement**
+- [x] **Step 6: Commit the route replacement**
 
 ```powershell
 git add -- src/views/ReportView.vue src/views/ReportCenterView.vue src/features/reports/reportCenterModel.js src/components/ReportReader.vue tests/reportNavigation.test.js tests/reportCenterModel.test.js tests/ascLabExperience.test.js tests/workflowPageContinuity.test.js
@@ -370,34 +370,45 @@ git commit -m "refactor: isolate report reading from workflow"
 - Consumes: completed Tasks 1-4.
 - Produces: verified report reader and repository boundary evidence.
 
-- [ ] **Step 1: Run all report-focused tests**
+- [x] **Step 1: Run all report-focused tests**
 
 Run: `node --test tests/reportApi.test.js tests/reportCenterModel.test.js tests/reportNavigation.test.js tests/reportReaderModel.test.js tests/reportMarkdown.test.js tests/reportReaderController.test.js tests/reportReaderView.test.js tests/singleReportFlow.test.js tests/workflowPageContinuity.test.js`
 
 Expected: zero failures.
 
-- [ ] **Step 2: Run the full frontend suite**
+- [x] **Step 2: Run the full frontend suite**
 
 Run: `node --test tests/*.test.js`
 
 Expected: zero failures.
 
-- [ ] **Step 3: Build the production bundle**
+- [x] **Step 3: Build the production bundle**
 
 Run: `npm run build`
 
 Expected: Vite exits with code 0.
 
-- [ ] **Step 4: Perform a real GET-only smoke check**
+- [x] **Step 4: Perform a real GET-only smoke check**
 
 Read one real report through the existing port-3000 proxy and verify that its graph project display name, backend title, saved Markdown, and completed/generating state render. Network audit must show no `/api/report/generate`, report delete, graph build, or simulation create request.
 
-- [ ] **Step 5: Check repository boundaries**
+- [x] **Step 5: Check repository boundaries**
 
 Run: `git diff --check 4a1971b..HEAD`, `git status --short`, and `git diff --name-only 4a1971b..HEAD`.
 
 Expected: no whitespace errors, no backend files, and unrelated `tmp/` remains untracked and unstaged.
 
-- [ ] **Step 6: Record and commit verification evidence**
+- [x] **Step 6: Record and commit verification evidence**
 
 Append exact test/build/smoke results to this plan, stage only this plan file, and commit with `docs: record clean report reader verification`.
+
+## Verification Record — 2026-08-11
+
+- Report-focused suite: `38/38` passed, `0` failed.
+- Full frontend suite: `324/324` passed, `0` failed in `18.585s`.
+- Production build: Vite `7.2.7`, `758` modules transformed, completed in `2.79s` with exit code `0`.
+- Real port-3000 proxy smoke: GET-only reads loaded `report_be1f77825163`, status `completed`, `2370` saved Markdown characters, and `3/3` saved sections from port 5002.
+- Real association chain: `report_be1f77825163 -> sim_4861fc4cec88 -> proj_3a65ef421cc6`; the project name resolved as `第三个测试 · Professional Research`.
+- Browser smoke: the real `/report/report_be1f77825163` route rendered `第三个测试 · 研究报告`, the backend research topic, report ID, completed state, and saved Markdown. The old `Step 4/5`, graph visualization, analysis dashboard, and workflow console were absent.
+- Write-boundary audit: the report reader, route, and center contain `0` references to report generation, report deletion, graph build, simulation creation, or `force_regenerate` capabilities.
+- Repository boundary: `git diff --check 4a1971b..HEAD` returned no errors; changes are frontend source, tests, and docs only. Unrelated `tmp/` remains untracked and unstaged.
