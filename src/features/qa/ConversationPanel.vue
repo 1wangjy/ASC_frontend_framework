@@ -45,23 +45,27 @@
           </button>
         </header>
 
-        <p class="answer-summary">{{ state.answer.summary }}</p>
+        <p class="answer-summary">
+          <QaAnswerText
+            :text="state.answer.summary"
+            :references="state.references"
+            :domain-terms="domainTerms"
+            @citation="emit('citation', $event)"
+          />
+        </p>
 
         <ol class="answer-sections">
           <li v-for="section in state.answer.sections" :key="section.title">
             <div>
               <strong>{{ section.title }}</strong>
               <p>
-                {{ section.body }}
-                <button
-                  v-for="citation in section.citations"
-                  :key="citation"
-                  type="button"
-                  class="citation"
-                  @click="$emit('citation', citation)"
-                >
-                  [{{ citation }}]
-                </button>
+                <QaAnswerText
+                  :text="section.body"
+                  :references="state.references"
+                  :domain-terms="domainTerms"
+                  :citation-ids="section.citations"
+                  @citation="emit('citation', $event)"
+                />
               </p>
             </div>
           </li>
@@ -80,11 +84,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import AscIcon from '../../components/ui/AscIcon.vue'
+import { buildAscDomainTerms } from '../../utils/ascDomainHighlighter.js'
 import { normalizeAnswerExcerpt } from './answerEvaluationModel.js'
+import QaAnswerText from './QaAnswerText.js'
 
-defineProps({
+const props = defineProps({
   state: {
     type: Object,
     required: true
@@ -93,6 +99,14 @@ defineProps({
 
 const emit = defineEmits(['citation', 'open-evidence', 'answer-selection', 'retry'])
 const answerCard = ref(null)
+const domainTerms = computed(() => buildAscDomainTerms({
+  content: [
+    props.state?.answer?.summary,
+    ...(props.state?.answer?.sections || []).map(section => section?.body)
+  ].filter(Boolean).join('\n'),
+  question: props.state?.question,
+  result: props.state?.qaResult
+}))
 
 function captureAnswerSelection() {
   const selection = window.getSelection()
@@ -238,15 +252,54 @@ function captureAnswerSelection() {
   line-height: 1.75;
 }
 
-.citation {
-  display: inline;
-  margin-left: 3px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--asc-primary);
-  font-size: 12px;
-  font-weight: 800;
+.answer-card :deep(.qa-answer-rich-text) {
+  white-space: pre-wrap;
+}
+
+.answer-card :deep(.qa-inline-citation) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  margin: 0 2px;
+  padding: 0 5px;
+  border: 1px solid #c7d2fe;
+  border-radius: 5px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1;
+  vertical-align: baseline;
+  cursor: pointer;
+}
+
+.answer-card :deep(.qa-inline-citation:hover),
+.answer-card :deep(.qa-inline-citation:focus-visible) {
+  border-color: #4f46e5;
+  background: #e0e7ff;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.answer-card :deep(.qa-domain-term) {
+  border-radius: 3px;
+  color: #123f46;
+  font-weight: 850;
+  text-decoration-skip-ink: auto;
+  transition: color 0.16s ease, background-color 0.16s ease;
+}
+
+.answer-card :deep(.qa-domain-term:hover) {
+  background: rgba(20, 184, 166, 0.09);
+  color: #0f766e;
+}
+
+.answer-card :deep(.qa-domain-term u) {
+  font-weight: inherit;
+  text-decoration-color: #14b8a6;
+  text-decoration-thickness: 1.7px;
+  text-underline-offset: 3px;
 }
 
 .answer-card footer {

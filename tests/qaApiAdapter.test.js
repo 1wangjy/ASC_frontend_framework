@@ -316,7 +316,7 @@ test('allows evaluation only for a completed live answer', () => {
   assert.equal(canEvaluateAnswer(loading), false)
 })
 
-test('extracts and removes the citation markers emitted by the backend', () => {
+test('extracts and preserves the citation markers emitted by the backend', () => {
   const adapted = adaptCodGraphRagResponse({
     success: true,
     data: {
@@ -327,8 +327,22 @@ test('extracts and removes the citation markers emitted by the backend', () => {
     }
   })
 
-  assert.equal(adapted.answer.sections[0].body, '碳化硅改善性能。')
+  assert.equal(adapted.answer.sections[0].body, '碳化硅改善性能<c>R1</c>。')
   assert.deepEqual(adapted.answer.sections[0].citations, ['R1'])
+})
+
+test('preserves ordinary bracketed answer text while validating citation markers', () => {
+  const adapted = adaptCodGraphRagResponse({
+    success: true,
+    data: {
+      qa_run_id: 'qarun_brackets',
+      final_answer: '## 结论\nASC [Al2O3-SiC-C] 体系<c>R1</c>。',
+      references: [{ reference_id: 'R1', source_label: 'paper.pdf' }],
+      citation_bindings: []
+    }
+  })
+
+  assert.equal(adapted.answer.sections[0].body, 'ASC [Al2O3-SiC-C] 体系<c>R1</c>。')
 })
 
 test('rejects a successful response that contains no real answer text', () => {

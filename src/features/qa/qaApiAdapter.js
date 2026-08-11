@@ -86,15 +86,15 @@ function unique(values = []) {
 function explicitCitations(value) {
   const answer = String(value ?? '')
   return unique([
-    ...[...answer.matchAll(/<c>\s*([^<]+?)\s*<\/c>/gi)].map((match) => match[1].trim()),
-    ...[...answer.matchAll(/\[([^\[\]]+)\]/g)].map((match) => match[1].trim())
+    ...[...answer.matchAll(/<c>\s*(R\d+)\s*<\/c>/gi)].map((match) => match[1].toUpperCase()),
+    ...[...answer.matchAll(/\[(R\d+)\]/gi)].map((match) => match[1].toUpperCase())
   ])
 }
 
-function cleanCitationMarkers(value) {
+function stripCitationMarkers(value) {
   return String(value ?? '')
-    .replace(/\s*<c>\s*[^<]+?\s*<\/c>/gi, '')
-    .replace(/\s*\[[^\[\]]+\]/g, '')
+    .replace(/\s*<c>\s*R\d+\s*<\/c>/gi, '')
+    .replace(/\s*\[R\d+\]/gi, '')
     .trim()
 }
 
@@ -118,14 +118,17 @@ function parseAnswer(markdown, bindings, referenceIds) {
   }
 
   const summaryRaw = summaryLines.join('\n').trim()
-  const summary = cleanCitationMarkers(summaryRaw || sections[0]?.lines.join('\n') || '后端已完成回答。')
+  const summary = String(summaryRaw || sections[0]?.lines.join('\n') || '后端已完成回答。').trim()
   const normalizedSections = sections.map((section) => {
     const rawBody = section.lines.join('\n').trim()
-    const body = cleanCitationMarkers(rawBody)
+    const body = rawBody
     const boundIds = bindings
       .filter((binding) => {
         const excerpt = String(binding?.answer_excerpt ?? '').trim()
-        return excerpt && (rawBody.includes(excerpt) || body.includes(cleanCitationMarkers(excerpt)))
+        return excerpt && (
+          rawBody.includes(excerpt)
+          || stripCitationMarkers(rawBody).includes(stripCitationMarkers(excerpt))
+        )
       })
       .map((binding) => String(binding.reference_id ?? '').trim())
 
@@ -191,7 +194,7 @@ function researchPathOf(result) {
 
 export function adaptCodGraphRagResponse(payload = {}) {
   const result = unwrapResult(payload)
-  const meaningfulAnswer = cleanCitationMarkers(result.final_answer)
+  const meaningfulAnswer = stripCitationMarkers(result.final_answer)
     .replace(/^#{1,6}\s+.*$/gm, '')
     .trim()
   if (!meaningfulAnswer) {
