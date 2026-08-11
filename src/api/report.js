@@ -4,13 +4,22 @@ import {
   buildReportSectionsRequest,
   buildReportStatusRequest
 } from './requestContracts.js'
+import { buildSingleReportGenerationPayload } from '../features/reports/singleReportModel.js'
 
 /**
  * 开始报告生成
- * @param {Object} data - { simulation_id, force_regenerate? }
+ * @param {Object} data - { simulation_id }；前端固定禁止 force_regenerate
  */
 export const generateReport = (data) => {
-  return requestWithRetry(() => service.post('/api/report/generate', data), 3, 1000)
+  const payload = buildSingleReportGenerationPayload(data?.simulation_id)
+  return service.post('/api/report/generate', payload)
+}
+
+/** 查询当前模拟是否已经拥有唯一的完成报告。 */
+export const checkReportForSimulation = (simulationId) => {
+  const id = String(simulationId ?? '').trim()
+  if (!id) return Promise.reject(new Error('simulation_id is required'))
+  return service.get(`/api/report/check/${encodeURIComponent(id)}`)
 }
 
 /**

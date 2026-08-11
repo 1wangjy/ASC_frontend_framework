@@ -407,9 +407,13 @@ test('carries the backend report task id into the report status polling page', a
     new URL('../src/components/Step5Interaction.vue', import.meta.url),
     'utf8'
   )
+  const singleReportModel = await readFile(
+    new URL('../src/features/reports/singleReportModel.js', import.meta.url),
+    'utf8'
+  )
 
-  assert.match(simulation, /res\.data\.task_id/)
-  assert.match(simulation, /query:\s*\{\s*taskId/)
+  assert.match(singleReportModel, /taskId:\s*text\(response\.data\.task_id\)/)
+  assert.match(simulation, /openReport:[\s\S]*?query:\s*taskId\s*\?\s*\{\s*taskId\s*\}/)
   assert.match(reportView, /:reportTaskId="reportTaskId"/)
   assert.match(reportStep, /getReportStatus\(\{\s*taskId:\s*props\.reportTaskId\s*\}\)/)
   assert.match(reportStep, /watch\(\s*\[\(\) => props\.reportId, \(\) => props\.reportTaskId\][\s\S]*?if \(reportChanged\)[\s\S]*?startPolling\(\)[\s\S]*?return[\s\S]*?if \(taskChanged\)[\s\S]*?reportStatusPoller\.stop\(\)[\s\S]*?isComplete\.value = false[\s\S]*?emit\('update-status', 'processing'\)[\s\S]*?startStatusPolling\(\)/)
