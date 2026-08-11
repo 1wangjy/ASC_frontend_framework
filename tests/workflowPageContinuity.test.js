@@ -107,12 +107,10 @@ test('cached report instances do not load another report route in the background
   const fixture = await mountWorkflowRoutes({
     initialPath: '/report/report_1?taskId=task_1',
     moduleOverrides: {
-      'src/components/GraphPanel.vue': inertComponentSource,
-      'src/components/Step4Report.vue': inertComponentSource,
-      'src/components/WorkflowProgressBar.vue': inertComponentSource,
-      'src/api/graph': graphApiSource,
-      'src/api/simulation': simulationApiSource,
-      'src/api/report': reportApiProbeSource
+      'src/components/ReportReader.vue': inertComponentSource,
+      'src/api/graph.js': graphApiSource,
+      'src/api/simulation.js': simulationApiSource,
+      'src/api/report.js': reportApiProbeSource
     },
     routes: [
       {

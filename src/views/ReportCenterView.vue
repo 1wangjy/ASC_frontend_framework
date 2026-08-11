@@ -40,13 +40,14 @@
       >
         <article>
           <header class="report-card__header">
-            <span class="report-card__project">{{ item.projectName }}</span>
+            <span class="report-card__project">KG REPORT</span>
             <span class="report-card__status" :class="`report-card__status--${item.status}`">
               {{ item.statusLabel }}
             </span>
           </header>
 
-          <h2>{{ item.title }}</h2>
+          <h2>{{ item.displayTitle }}</h2>
+          <p v-if="item.title" class="report-card__topic">研究主题：{{ item.title }}</p>
           <p v-if="item.subtitle" class="report-card__summary">{{ item.subtitle }}</p>
           <p v-else class="report-card__summary report-card__summary--muted">暂无报告简介</p>
 
@@ -316,6 +317,14 @@ onMounted(loadReports)
   line-height: 1.6;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.report-card__topic {
+  margin: 0 0 8px;
+  color: var(--asc-heading);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.55;
 }
 
 .report-card__summary--muted {

@@ -1,3 +1,5 @@
+import { buildProjectReportTitle } from './reportReaderModel.js'
+
 function text(value) {
   return String(value ?? '').trim()
 }
@@ -89,6 +91,7 @@ export function buildReportCenterItems(reports = [], projects = []) {
         title: text(report.title) || '未命名研究报告',
         subtitle: text(report.subtitle || report.simulation_requirement),
         projectName: projectName(project),
+        displayTitle: buildProjectReportTitle(project ? projectName(project) : ''),
         status: status.status,
         statusLabel: status.label,
         createdAt: text(report.created_at),

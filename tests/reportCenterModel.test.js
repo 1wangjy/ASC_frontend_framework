@@ -56,6 +56,7 @@ test('deduplicates reports by simulation, sorts newest first, and links graph pr
 
   assert.deepEqual(items.map(item => item.reportId), ['report-new', 'report-other'])
   assert.equal(items[0].projectName, '哈哈哈')
+  assert.equal(items[0].displayTitle, '哈哈哈 · 研究报告')
   assert.equal(items[0].status, 'generating')
   assert.equal(items[0].statusLabel, '生成中')
   assert.equal(items[1].projectName, '第二个项目')
@@ -76,6 +77,7 @@ test('keeps unmatched reports visible with an explicit project fallback', () => 
   ], [])
 
   assert.equal(item.projectName, '未关联项目')
+  assert.equal(item.displayTitle, '未关联图谱 · 研究报告')
   assert.equal(item.title, '未命名研究报告')
   assert.equal(item.statusLabel, '已完成')
 })

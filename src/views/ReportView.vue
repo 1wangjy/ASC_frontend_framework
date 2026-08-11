@@ -1,394 +1,150 @@
 <template>
-  <div class="main-view">
-    <!-- Header -->
-    <header class="app-header">
-      <div class="header-left">
-        <div class="brand" @click="router.push('/')">NEXUS</div>
-        <button class="report-list-link" type="button" @click="router.push('/reports')">
-          报告列表
-        </button>
-      </div>
-      
-      <div class="header-center">
-        <div class="view-switcher">
-          <button 
-            v-for="mode in ['graph', 'split', 'workbench']" 
-            :key="mode"
-            class="switch-btn"
-            :class="{ active: viewMode === mode }"
-            @click="viewMode = mode"
-          >
-            {{ { graph: '图谱', split: '双栏', workbench: '工作台' }[mode] }}
-          </button>
-        </div>
-      </div>
-
-      <div class="header-right">
-        <div class="workflow-step">
-          <span class="step-num">Step 4/5</span>
-          <span class="step-name">报告生成</span>
-        </div>
-        <div class="step-divider"></div>
-        <span class="status-indicator" :class="statusClass">
-          <span class="dot"></span>
-          {{ statusText }}
-        </span>
-      </div>
+  <main class="report-view">
+    <header class="report-view__toolbar">
+      <button type="button" @click="router.push('/reports')">
+        <span aria-hidden="true">←</span>
+        报告列表
+      </button>
+      <span>REPORT DETAIL</span>
     </header>
 
-    <WorkflowProgressBar
-      :currentStep="4"
-      :stepProgress="stepProgress"
+    <ReportReader
+      :report-id="ownedReportId"
+      :task-id="reportTaskId"
+      :project-name="projectName"
     />
-
-    <!-- Main Content Area -->
-    <main class="content-area">
-      <!-- Left Panel: Graph -->
-      <div class="panel-wrapper left" :style="leftPanelStyle">
-        <GraphPanel 
-          :graphData="graphData"
-          :loading="graphLoading"
-          :currentPhase="4"
-          :isSimulating="false"
-          @refresh="refreshGraph"
-          @toggle-maximize="toggleMaximize('graph')"
-        />
-      </div>
-
-      <!-- Right Panel: Step4 报告生成 -->
-      <div class="panel-wrapper right" :style="rightPanelStyle">
-        <Step4Report
-          :reportId="currentReportId"
-          :reportTaskId="reportTaskId"
-          :simulationId="simulationId"
-          :systemLogs="systemLogs"
-          @add-log="addLog"
-          @update-status="updateStatus"
-        />
-      </div>
-    </main>
-  </div>
+  </main>
 </template>
 
 <script setup>
 defineOptions({ name: 'ReportView' })
 
-import { ref, computed, onMounted, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import GraphPanel from '../components/GraphPanel.vue'
-import Step4Report from '../components/Step4Report.vue'
-import WorkflowProgressBar from '../components/WorkflowProgressBar.vue'
-import { getProject, getGraphData } from '../api/graph'
-import { getSimulation } from '../api/simulation'
-import { getReport } from '../api/report'
+
+import { getProject } from '../api/graph.js'
+import { getReport } from '../api/report.js'
+import { getSimulation } from '../api/simulation.js'
+import ReportReader from '../components/ReportReader.vue'
+import { buildLogicalGraphProjects } from '../features/projects/logicalGraphProjectModel.js'
+import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
+
+const props = defineProps({
+  reportId: { type: String, default: '' }
+})
 
 const route = useRoute()
 const router = useRouter()
-const ownedReportId = String(route.params.reportId || '').trim()
+const monitor = useGraphTaskMonitor()
+const ownedReportId = String(props.reportId || route.params.reportId || '').trim()
+const reportTaskId = String(route.query.taskId || '').trim()
+const reportData = ref(null)
+const fallbackProject = ref(null)
+const associationError = ref('')
+let associationVersion = 0
 
-// Props
-const props = defineProps({
-  reportId: String
+const logicalProjects = computed(() => buildLogicalGraphProjects(monitor.state.items))
+const matchedProject = computed(() => {
+  const graphId = String(reportData.value?.graph_id || '').trim()
+  const simulationId = String(reportData.value?.simulation_id || '').trim()
+  return logicalProjects.value.find(project => (
+    (graphId && String(project.graphId || project.graph_id || '').trim() === graphId)
+    || (simulationId && String(project.simulationId || project.simulation_id || '').trim() === simulationId)
+  )) || null
 })
+const projectName = computed(() => String(
+  matchedProject.value?.name
+  || matchedProject.value?.project_name
+  || fallbackProject.value?.project_name
+  || fallbackProject.value?.name
+  || ''
+).trim())
+const ownsActiveRoute = computed(() => (
+  route.name === 'Report'
+  && String(route.params.reportId || '').trim() === ownedReportId
+))
 
-// Layout State - 默认切换到工作台视角
-const viewMode = ref('workbench')
+async function loadProjectAssociation() {
+  if (!ownedReportId) return
+  const version = ++associationVersion
+  associationError.value = ''
+  fallbackProject.value = null
 
-// Data State
-const currentReportId = ref(route.params.reportId)
-const reportTaskId = computed(() => String(route.query.taskId || '').trim())
-const simulationId = ref(null)
-const projectData = ref(null)
-const graphData = ref(null)
-const graphLoading = ref(false)
-const systemLogs = ref([])
-const currentStatus = ref('processing') // processing | completed | error
-
-// --- Computed Layout Styles ---
-const leftPanelStyle = computed(() => {
-  if (viewMode.value === 'graph') return { width: '100%', opacity: 1, transform: 'translateX(0)' }
-  if (viewMode.value === 'workbench') return { width: '0%', opacity: 0, transform: 'translateX(-20px)' }
-  return { width: '50%', opacity: 1, transform: 'translateX(0)' }
-})
-
-const rightPanelStyle = computed(() => {
-  if (viewMode.value === 'workbench') return { width: '100%', opacity: 1, transform: 'translateX(0)' }
-  if (viewMode.value === 'graph') return { width: '0%', opacity: 0, transform: 'translateX(20px)' }
-  return { width: '50%', opacity: 1, transform: 'translateX(0)' }
-})
-
-// --- Status Computed ---
-const statusClass = computed(() => {
-  return currentStatus.value
-})
-
-const statusText = computed(() => {
-  if (currentStatus.value === 'error') return 'Error'
-  if (currentStatus.value === 'completed') return 'Completed'
-  return 'Generating'
-})
-
-const stepProgress = computed(() => {
-  if (currentStatus.value === 'completed') return 100
-  if (currentStatus.value === 'error') return 95
-  return 65
-})
-
-// --- Helpers ---
-const addLog = (msg) => {
-  const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) + '.' + new Date().getMilliseconds().toString().padStart(3, '0')
-  systemLogs.value.push({ time, msg })
-  if (systemLogs.value.length > 200) {
-    systemLogs.value.shift()
-  }
-}
-
-const updateStatus = (status) => {
-  currentStatus.value = status
-}
-
-// --- Layout Methods ---
-const toggleMaximize = (target) => {
-  if (viewMode.value === target) {
-    viewMode.value = 'split'
-  } else {
-    viewMode.value = target
-  }
-}
-
-// --- Data Logic ---
-const loadReportData = async () => {
   try {
-    addLog(`加载报告数据: ${currentReportId.value}`)
-    
-    // 获取 report 信息以获取 simulation_id
-    const reportRes = await getReport(currentReportId.value)
-    if (reportRes.success && reportRes.data) {
-      const reportData = reportRes.data
-      simulationId.value = reportData.simulation_id
-      
-      if (simulationId.value) {
-        // 获取 simulation 信息
-        const simRes = await getSimulation(simulationId.value)
-        if (simRes.success && simRes.data) {
-          const simData = simRes.data
-          
-          // 获取 project 信息
-          if (simData.project_id) {
-            const projRes = await getProject(simData.project_id)
-            if (projRes.success && projRes.data) {
-              projectData.value = projRes.data
-              addLog(`项目加载成功: ${projRes.data.project_id}`)
-              
-              // 获取 graph 数据
-              if (projRes.data.graph_id) {
-                await loadGraph(projRes.data.graph_id)
-              }
-            }
-          }
-        }
-      }
-    } else {
-      addLog(`获取报告信息失败: ${reportRes.error || '未知错误'}`)
+    const reportResponse = await getReport(ownedReportId)
+    if (version !== associationVersion || !ownsActiveRoute.value) return
+    if (reportResponse?.success !== true || !reportResponse?.data) return
+    reportData.value = reportResponse.data
+
+    if (matchedProject.value) return
+    const simulationId = String(reportData.value.simulation_id || '').trim()
+    if (!simulationId) return
+
+    const simulationResponse = await getSimulation(simulationId)
+    if (version !== associationVersion || !ownsActiveRoute.value) return
+    const projectId = String(simulationResponse?.data?.project_id || '').trim()
+    if (simulationResponse?.success !== true || !projectId) return
+
+    const projectResponse = await getProject(projectId)
+    if (version !== associationVersion || !ownsActiveRoute.value) return
+    if (projectResponse?.success === true && projectResponse?.data) {
+      fallbackProject.value = projectResponse.data
     }
-  } catch (err) {
-    addLog(`加载异常: ${err.message}`)
-  }
-}
-
-const loadGraph = async (graphId) => {
-  graphLoading.value = true
-  
-  try {
-    const res = await getGraphData(graphId)
-    if (res.success) {
-      graphData.value = res.data
-      addLog('图谱数据加载成功')
+  } catch (error) {
+    if (version === associationVersion && ownsActiveRoute.value) {
+      associationError.value = error?.message || '图谱项目名称读取失败'
     }
-  } catch (err) {
-    addLog(`图谱加载失败: ${err.message}`)
-  } finally {
-    graphLoading.value = false
   }
 }
 
-const refreshGraph = () => {
-  if (projectData.value?.graph_id) {
-    loadGraph(projectData.value.graph_id)
-  }
-}
-
-// Watch route params
-watch(() => (
-  route.name === 'Report' && String(route.params.reportId || '').trim() === ownedReportId
-    ? ownedReportId
-    : ''
-), (newId) => {
-  if (newId && newId !== currentReportId.value) {
-    currentReportId.value = newId
-    loadReportData()
-  }
+watch(ownsActiveRoute, active => {
+  if (active && !reportData.value) loadProjectAssociation()
 }, { immediate: true })
-
-onMounted(() => {
-  addLog('ReportView 初始化')
-  loadReportData()
-})
 </script>
 
 <style scoped>
-.main-view {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #FFF;
-  overflow: hidden;
-  font-family: 'Space Grotesk', 'Noto Sans SC', system-ui, sans-serif;
+.report-view {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 22px clamp(18px, 4vw, 54px) 64px;
+  overflow-y: auto;
+  background: var(--asc-canvas);
 }
 
-/* Header */
-.app-header {
-  height: 60px;
-  border-bottom: 1px solid #EAEAEA;
+.report-view__toolbar {
+  width: min(920px, 100%);
+  margin: 0 auto 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
-  background: #FFF;
-  z-index: 100;
-  position: relative;
+  gap: 20px;
 }
 
-.header-center {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.brand {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 800;
-  font-size: 18px;
-  letter-spacing: 1px;
-  cursor: pointer;
-}
-
-.header-left {
-  display: flex;
+.report-view__toolbar button {
+  min-height: 40px;
+  display: inline-flex;
   align-items: center;
-  gap: 16px;
-}
-
-.report-list-link {
-  padding: 6px 10px;
-  border: 1px solid #D8E4EC;
-  border-radius: 6px;
-  background: #FFF;
-  color: #1E638F;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--asc-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--asc-primary);
   font: inherit;
-  font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
 }
 
-.report-list-link:hover {
-  background: #F1F8FC;
+.report-view__toolbar > span {
+  color: var(--asc-muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .14em;
 }
 
-.view-switcher {
-  display: flex;
-  background: #F5F5F5;
-  padding: 4px;
-  border-radius: 6px;
-  gap: 4px;
-}
-
-.switch-btn {
-  border: none;
-  background: transparent;
-  padding: 6px 16px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.switch-btn.active {
-  background: #FFF;
-  color: #000;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.workflow-step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-}
-
-.step-num {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 700;
-  color: #999;
-}
-
-.step-name {
-  font-weight: 700;
-  color: #000;
-}
-
-.step-divider {
-  width: 1px;
-  height: 14px;
-  background-color: #E0E0E0;
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
-  font-weight: 500;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #CCC;
-}
-
-.status-indicator.processing .dot { background: #FF9800; animation: pulse 1s infinite; }
-.status-indicator.completed .dot { background: #4CAF50; }
-.status-indicator.error .dot { background: #F44336; }
-
-@keyframes pulse { 50% { opacity: 0.5; } }
-
-/* Content */
-.content-area {
-  flex: 1;
-  display: flex;
-  position: relative;
-  overflow: hidden;
-}
-
-.panel-wrapper {
-  height: 100%;
-  overflow: hidden;
-  transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease, transform 0.3s ease;
-  will-change: width, opacity, transform;
-}
-
-.panel-wrapper.left {
-  border-right: 1px solid #EAEAEA;
+@media (max-width: 760px) {
+  .report-view {
+    padding: 16px 12px 42px;
+  }
 }
 </style>

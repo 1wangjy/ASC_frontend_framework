@@ -34,6 +34,7 @@ test('loads the report center from the read-only list and opens real report ids'
   assert.match(source, /buildReportCenterItems/)
   assert.match(source, /buildLogicalGraphProjects/)
   assert.match(source, /name:\s*['"]Report['"]/)
+  assert.match(source, /item\.displayTitle/)
   assert.match(source, /报告列表加载失败/)
   assert.match(source, /尚无报告/)
   assert.match(source, /重新加载/)
@@ -48,4 +49,7 @@ test('keeps a direct report-list entry on the retained report detail page', asyn
 
   assert.match(source, /报告列表/)
   assert.match(source, /router\.push\(['"]\/reports['"]\)/)
+  assert.match(source, /<ReportReader/)
+  assert.match(source, /:report-id="ownedReportId"/)
+  assert.doesNotMatch(source, /GraphPanel|WorkflowProgressBar|Step4Report|view-switcher|Step 4\/5/)
 })
