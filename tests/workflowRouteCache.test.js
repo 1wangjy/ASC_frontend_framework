@@ -17,6 +17,7 @@ test('uses bounded workflow cache keys without query-driven duplicates', () => {
     'GraphProjectWorkspaceView',
     'SimulationView',
     'SimulationRunView',
+    'ReportCenterView',
     'ReportView',
     'InteractionView'
   ])
@@ -25,6 +26,7 @@ test('uses bounded workflow cache keys without query-driven duplicates', () => {
   assert.equal(workflowRouteViewKey({ name: 'Documents', fullPath: '/documents' }), 'workflow:Documents')
   assert.equal(workflowRouteViewKey({ name: 'Process', fullPath: '/process/p1' }), 'workflow:Process')
   assert.equal(workflowRouteViewKey({ name: 'Process', fullPath: '/process/p2' }), 'workflow:Process')
+  assert.equal(workflowRouteViewKey({ name: 'Reports', fullPath: '/reports' }), 'workflow:Reports')
   assert.equal(
     workflowRouteViewKey({ name: 'Simulation', params: { simulationId: 'sim_1' }, fullPath: '/simulation/sim_1' }),
     'workflow:Simulation:sim_1'

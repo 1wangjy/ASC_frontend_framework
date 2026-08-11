@@ -29,6 +29,7 @@ test('keeps QA, documents, graph evolution, and report generation as primary des
     ['Process', '/process/:projectId?'],
     ['Simulation', '/simulation/:simulationId'],
     ['SimulationRun', '/simulation/:simulationId/start'],
+    ['Reports', '/reports'],
     ['Report', '/report/:reportId'],
     ['Interaction', '/interaction/:reportId']
   ])
@@ -39,9 +40,9 @@ test('renders a distinct report navigation icon', async () => {
   assert.match(html, /M6 3h9l3 3v18H6z/)
 })
 
-test('keeps analysis preparation and its downstream workflow under graph construction navigation', () => {
+test('assigns graph evolution, report generation, and interaction to separate navigation areas', () => {
   const workflowRoutes = ascRouteDefinitions.filter(route => (
-    ['Simulation', 'SimulationRun', 'Report', 'Interaction'].includes(route.name)
+    ['Simulation', 'SimulationRun', 'Reports', 'Report', 'Interaction'].includes(route.name)
   ))
 
   assert.deepEqual(
@@ -49,8 +50,9 @@ test('keeps analysis preparation and its downstream workflow under graph constru
     [
       ['Simulation', '/process'],
       ['SimulationRun', '/process'],
-      ['Report', '/process'],
-      ['Interaction', '/process']
+      ['Reports', '/reports'],
+      ['Report', '/reports'],
+      ['Interaction', undefined]
     ]
   )
 })

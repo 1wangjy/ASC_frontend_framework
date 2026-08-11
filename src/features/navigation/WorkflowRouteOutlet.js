@@ -7,11 +7,12 @@ export const WORKFLOW_VIEW_NAMES = Object.freeze([
   'GraphProjectWorkspaceView',
   'SimulationView',
   'SimulationRunView',
+  'ReportCenterView',
   'ReportView',
   'InteractionView'
 ])
 
-const SINGLETON_WORKFLOW_ROUTE_NAMES = new Set(['AscQa', 'Documents', 'Process'])
+const SINGLETON_WORKFLOW_ROUTE_NAMES = new Set(['AscQa', 'Documents', 'Process', 'Reports'])
 const SCOPED_WORKFLOW_ROUTE_PARAMS = Object.freeze({
   Simulation: 'simulationId',
   SimulationRun: 'simulationId',

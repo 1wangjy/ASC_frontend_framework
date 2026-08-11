@@ -33,18 +33,24 @@ export const ascRouteDefinitions = [
     meta: { title: '证据推理', navigationPath: '/process' }
   },
   {
+    path: '/reports',
+    name: 'Reports',
+    component: () => import('../views/ReportCenterView.vue'),
+    meta: { title: '报告生成', navigationPath: '/reports' }
+  },
+  {
     path: '/report/:reportId',
     name: 'Report',
     component: () => import('../views/ReportView.vue'),
     props: true,
-    meta: { title: '研究报告', navigationPath: '/process' }
+    meta: { title: '研究报告', navigationPath: '/reports' }
   },
   {
     path: '/interaction/:reportId',
     name: 'Interaction',
     component: () => import('../views/InteractionView.vue'),
     props: true,
-    meta: { title: '问答与证据评估', navigationPath: '/process' }
+    meta: { title: '问答与证据评估' }
   }
 ]
 
