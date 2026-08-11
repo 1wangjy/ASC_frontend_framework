@@ -45,7 +45,7 @@
           </button>
         </header>
 
-        <p class="answer-summary">
+        <p v-if="state.answer.summary" class="answer-summary">
           <QaAnswerText
             :text="state.answer.summary"
             :references="state.references"

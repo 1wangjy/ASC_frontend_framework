@@ -58,11 +58,11 @@ function isSelected(item) {
 
 function statusCopy(item) {
   return {
-    created: item.stage === 'professional' ? '准备最终图谱' : '准备基础图谱',
-    ontology_generating: item.stage === 'professional' ? '正在生成最终本体' : '正在生成基础本体',
-    ontology_generated: item.stage === 'professional' ? '等待构建最终图谱' : '等待构建基础图谱',
-    graph_building: item.stage === 'professional' ? '正在构建最终图谱' : '正在构建基础图谱',
-    base_completed: '基础阶段完成，等待 Professional Research',
+    created: '准备构建图谱',
+    ontology_generating: '正在准备图谱',
+    ontology_generated: '等待构建图谱',
+    graph_building: '正在构建图谱',
+    base_completed: '正在完善图谱',
     graph_completed: '知识图谱构建完成',
     failed: '构建失败'
   }[item.status] || '准备中'

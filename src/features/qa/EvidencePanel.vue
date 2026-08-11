@@ -3,7 +3,7 @@
     <header class="evidence-panel__header">
       <div>
         <span>ASC REVIEW</span>
-        <h2>证据与评估</h2>
+        <h2>引用证据</h2>
       </div>
       <button type="button" aria-label="关闭证据面板" @click="$emit('close')">
         <AscIcon name="close" />
@@ -48,7 +48,14 @@
       <p>请先完成一次真实图谱问答，再使用人工评估或 LLM 评估。</p>
     </section>
 
-    <section v-else class="evaluation-workspace" aria-label="回答评估工作台">
+    <section v-else class="evaluation-workspace" aria-label="回答质量评估">
+      <div class="evaluation-heading">
+        <div>
+          <span>可选</span>
+          <h3>回答质量评估</h3>
+        </div>
+        <p>用于检查回答是否准确、证据是否充分，不影响当前回答和引用内容。</p>
+      </div>
       <div class="evaluation-switch" role="tablist" aria-label="评估方式">
         <button
           type="button"
@@ -312,6 +319,38 @@ function toggleIssue(issueId) {
 
 .evaluation-workspace {
   padding-top: 18px;
+}
+
+.evaluation-heading {
+  margin-bottom: 12px;
+}
+
+.evaluation-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.evaluation-heading span {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--asc-primary-soft);
+  color: var(--asc-primary);
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.evaluation-heading h3 {
+  margin: 0;
+  color: var(--asc-heading);
+  font-size: 12px;
+}
+
+.evaluation-heading p {
+  margin: 6px 0 0;
+  color: var(--asc-muted);
+  font-size: 9px;
+  line-height: 1.55;
 }
 
 .evaluation-unavailable {

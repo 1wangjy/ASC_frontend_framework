@@ -327,8 +327,9 @@ test('extracts and preserves the citation markers emitted by the backend', () =>
     }
   })
 
-  assert.equal(adapted.answer.sections[0].body, '碳化硅改善性能<c>R1</c>。')
-  assert.deepEqual(adapted.answer.sections[0].citations, ['R1'])
+  assert.equal(adapted.answer.summary, '碳化硅改善性能<c>R1</c>。')
+  assert.deepEqual(adapted.answer.sections, [])
+  assert.deepEqual(adapted.answer.citationIds, ['R1'])
 })
 
 test('preserves ordinary bracketed answer text while validating citation markers', () => {
@@ -342,7 +343,39 @@ test('preserves ordinary bracketed answer text while validating citation markers
     }
   })
 
-  assert.equal(adapted.answer.sections[0].body, 'ASC [Al2O3-SiC-C] 体系<c>R1</c>。')
+  assert.equal(adapted.answer.summary, 'ASC [Al2O3-SiC-C] 体系<c>R1</c>。')
+  assert.deepEqual(adapted.answer.sections, [])
+})
+
+test('does not render an unstructured backend answer twice as summary and section', () => {
+  const adapted = adaptCodGraphRagResponse({
+    success: true,
+    data: {
+      qa_run_id: 'qarun_single_answer',
+      final_answer: 'SiC 改善 ASC 材料的抗氧化性能<c>R1</c>。',
+      references: [{ reference_id: 'R1', source_label: 'paper.pdf' }],
+      citation_bindings: []
+    }
+  })
+
+  assert.equal(adapted.answer.summary, 'SiC 改善 ASC 材料的抗氧化性能<c>R1</c>。')
+  assert.deepEqual(adapted.answer.sections, [])
+})
+
+test('removes a generic answer section when it repeats the direct answer', () => {
+  const answer = '界面反应层决定渣蚀路径<c>R1</c>。'
+  const adapted = adaptCodGraphRagResponse({
+    success: true,
+    data: {
+      qa_run_id: 'qarun_repeated_answer',
+      final_answer: `${answer}\n\n## 回答\n${answer}`,
+      references: [{ reference_id: 'R1', source_label: 'paper.pdf' }],
+      citation_bindings: []
+    }
+  })
+
+  assert.equal(adapted.answer.summary, answer)
+  assert.deepEqual(adapted.answer.sections, [])
 })
 
 test('rejects a successful response that contains no real answer text', () => {

@@ -23,11 +23,19 @@
         <span class="mobile-header__mark">ASC</span>
         <strong>{{ route.meta.title || 'ASC LAB' }}</strong>
       </header>
-      <slot />
+      <div
+        class="app-shell__route-frame"
+        :class="{ 'app-shell__route-frame--graph': isGraphWorkflowRoute }"
+      >
+        <GraphProjectWorkspacePanel v-if="isGraphWorkflowRoute" />
+        <div class="app-shell__route-content">
+          <slot />
+        </div>
+      </div>
     </div>
 
     <GlobalGraphTaskIndicator
-      :items="monitor.state.items"
+      :items="logicalGraphProjects"
       :connection="monitor.state.connection"
       :last-synced-at="monitor.state.lastSyncedAt"
       @refresh="monitor.refresh"
@@ -38,22 +46,36 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AscSidebar from '../components/navigation/AscSidebar.vue'
 import AscIcon from '../components/ui/AscIcon.vue'
+import GraphProjectWorkspacePanel from '../features/projects/GraphProjectWorkspacePanel.vue'
 import GlobalGraphTaskIndicator from '../features/tasks/GlobalGraphTaskIndicator.vue'
 import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
 import { navigateGraphProjectToQa } from '../features/projects/graphQaNavigation.js'
+import { buildLogicalGraphProjects } from '../features/projects/logicalGraphProjectModel.js'
+import { useGraphWorkflowSession } from '../features/navigation/graphWorkflowSession.js'
 
 const route = useRoute()
 const router = useRouter()
 const monitor = useGraphTaskMonitor()
+const workflowSession = useGraphWorkflowSession()
 const mobileNavOpen = ref(false)
 const sidebarCollapsed = ref(false)
+const isGraphWorkflowRoute = computed(() => route.meta.navigationPath === '/process')
+const logicalGraphProjects = computed(() => buildLogicalGraphProjects(monitor.state.items))
 
 function viewProject(projectId) {
   if (!projectId) return
+  const logicalProject = logicalGraphProjects.value.find(item => (
+    item.projectId === projectId || item.memberProjectIds?.includes(projectId)
+  ))
+  const resumeRoute = workflowSession.resolve(logicalProject?.memberProjectIds || [projectId])
+  if (resumeRoute) {
+    if (route.fullPath !== resumeRoute) router.push(resumeRoute)
+    return
+  }
   router.push({ name: 'Process', params: { projectId } })
 }
 
@@ -82,6 +104,22 @@ onUnmounted(monitor.stop)
 
 .app-shell--sidebar-collapsed .app-shell__body {
   margin-left: var(--asc-sidebar-collapsed-width);
+}
+
+.app-shell__route-frame {
+  min-width: 0;
+  min-height: 100vh;
+}
+
+.app-shell__route-frame--graph {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  background: var(--asc-canvas);
+}
+
+.app-shell__route-content {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .mobile-header {
@@ -147,6 +185,12 @@ onUnmounted(monitor.stop)
   .mobile-header strong {
     color: var(--asc-heading);
     font-size: 14px;
+  }
+}
+
+@media (max-width: 980px) {
+  .app-shell__route-frame--graph {
+    grid-template-columns: 1fr;
   }
 }
 </style>

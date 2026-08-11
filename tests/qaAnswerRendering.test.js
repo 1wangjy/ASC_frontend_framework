@@ -7,6 +7,8 @@ import { createServer } from 'vite'
 import { buildAscDomainTerms } from '../src/utils/ascDomainHighlighter.js'
 import { buildQaAnswerSegments } from '../src/features/qa/qaAnswerRenderingModel.js'
 import QaAnswerText from '../src/features/qa/QaAnswerText.js'
+import { createQaState } from '../src/features/qa/qaDemoModel.js'
+import { renderSfc } from './helpers/renderSfc.js'
 
 test('keeps backend citation anchors inline and highlights ASC domain terms', () => {
   const text = 'ASC 中的 SiC 改善抗氧化性能<c>r1</c>，并形成 SiO2 玻璃相[R2]。'
@@ -135,4 +137,18 @@ test('the real conversation panel renders backend citations inline with domain h
   } finally {
     await server.close()
   }
+})
+
+test('separates cited sources from the optional answer-quality evaluation area', async () => {
+  const html = await renderSfc('/src/features/qa/EvidencePanel.vue', {
+    references: [{ id: 'R1', title: 'paper.pdf', authors: '', source: 'pdf', year: 2026, excerpt: '证据' }],
+    selectedCitationId: 'R1',
+    evaluation: createQaState().evaluation,
+    evaluationEnabled: true
+  })
+
+  assert.match(html, /引用证据/)
+  assert.match(html, /回答质量评估/)
+  assert.match(html, /可选/)
+  assert.doesNotMatch(html, /证据与评估/)
 })

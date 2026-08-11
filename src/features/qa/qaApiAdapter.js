@@ -98,6 +98,19 @@ function stripCitationMarkers(value) {
     .trim()
 }
 
+function comparableAnswerText(value) {
+  return stripCitationMarkers(value)
+    .replace(/<\/?(?:i|em|strong|b)>/gi, '')
+    .replace(/\*\*|__|`/g, '')
+    .replace(/^(?:直接回答|回答|结论|答案|direct answer|answer|conclusion)\s*[:：]\s*/i, '')
+    .replace(/\s+/g, '')
+    .trim()
+}
+
+function isGenericAnswerTitle(value) {
+  return /^(?:直接回答|回答|结论|答案|direct answer|answer|conclusion)$/i.test(String(value ?? '').trim())
+}
+
 function parseAnswer(markdown, bindings, referenceIds) {
   const lines = String(markdown ?? '').replace(/\r\n?/g, '\n').split('\n')
   const summaryLines = []
@@ -118,8 +131,8 @@ function parseAnswer(markdown, bindings, referenceIds) {
   }
 
   const summaryRaw = summaryLines.join('\n').trim()
-  const summary = String(summaryRaw || sections[0]?.lines.join('\n') || '后端已完成回答。').trim()
-  const normalizedSections = sections.map((section) => {
+  let summary = summaryRaw
+  let normalizedSections = sections.map((section) => {
     const rawBody = section.lines.join('\n').trim()
     const body = rawBody
     const boundIds = bindings
@@ -139,15 +152,17 @@ function parseAnswer(markdown, bindings, referenceIds) {
     }
   })
 
-  if (!normalizedSections.length) {
-    normalizedSections.push({
-      title: '回答',
-      body: summary,
-      citations: unique([
-        ...explicitCitations(summaryRaw),
-        ...bindings.map((binding) => String(binding?.reference_id ?? '').trim())
-      ]).filter((id) => referenceIds.includes(id))
-    })
+  if (!summary && normalizedSections.length && isGenericAnswerTitle(normalizedSections[0].title)) {
+    summary = normalizedSections[0].body
+    normalizedSections = normalizedSections.slice(1)
+  }
+
+  if (summary) {
+    const comparableSummary = comparableAnswerText(summary)
+    normalizedSections = normalizedSections.filter(section => !(
+      isGenericAnswerTitle(section.title)
+      && comparableAnswerText(section.body) === comparableSummary
+    ))
   }
 
   return { summary, sections: normalizedSections }

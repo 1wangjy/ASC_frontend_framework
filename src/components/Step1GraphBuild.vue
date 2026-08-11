@@ -565,6 +565,7 @@ import { computed, ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { importBaseMetadata, updateGraphNodeMetadata } from '../api/graph'
 import { createSimulation } from '../api/simulation'
+import { useGraphWorkflowSession } from '../features/navigation/graphWorkflowSession.js'
 import { baseGraphExportFilename, buildBaseGraphExport } from '../utils/baseGraphMetadata'
 import {
   canBuildGraphProject,
@@ -573,6 +574,7 @@ import {
 import { isFinalGraphProject } from '../features/projects/logicalGraphProjectModel.js'
 
 const router = useRouter()
+const workflowSession = useGraphWorkflowSession()
 
 const props = defineProps({
   currentPhase: { type: Number, default: 0 },
@@ -1015,6 +1017,13 @@ const handleEnterEnvSetup = async () => {
   if (!projectResearchQuestion(props.projectData)) {
     return
   }
+
+  const projectIds = [props.projectData.project_id, props.projectData.base_project_id].filter(Boolean)
+  const resumeRoute = workflowSession.resolve(projectIds)
+  if (resumeRoute) {
+    if (router.currentRoute.value.fullPath !== resumeRoute) await router.push(resumeRoute)
+    return
+  }
   
   creatingSimulation.value = true
   
@@ -1027,11 +1036,16 @@ const handleEnterEnvSetup = async () => {
     })
     
     if (res.success && res.data?.simulation_id) {
-      // 跳转到 simulation 页面
-      router.push({
+      const destination = router.resolve({
         name: 'Simulation',
         params: { simulationId: res.data.simulation_id }
       })
+      workflowSession.remember({
+        projectIds,
+        simulationId: res.data.simulation_id,
+        route: destination.fullPath
+      })
+      await router.push(destination)
     } else {
       console.error('创建模拟失败:', res.error)
       alert('创建模拟失败: ' + (res.error || '未知错误'))

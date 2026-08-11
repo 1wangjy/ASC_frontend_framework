@@ -28,6 +28,15 @@ test('renders completed graph task details in SSR', async () => {
   assert.match(html, /去问答/)
 })
 
+test('describes a base-only result as waiting for the complete knowledge graph', async () => {
+  const html = await renderSfc('/src/features/tasks/GlobalGraphTaskIndicator.vue', {
+    items: [{ ...completedItem, status: 'base_completed', canOpenQa: false }]
+  })
+
+  assert.match(html, /等待完善图谱/)
+  assert.doesNotMatch(html, /Professional Research|基础图谱/)
+})
+
 test('hides QA action for a task that is not ready', async () => {
   const html = await renderSfc('/src/features/tasks/GlobalGraphTaskIndicator.vue', {
     items: [{ ...completedItem, status: 'graph_building', progress: 42, active: true, canOpenQa: false }]
@@ -74,7 +83,8 @@ test('wires the singleton monitor and graph actions through the persistent shell
   assert.match(source, /onMounted\(monitor\.start\)/)
   assert.match(source, /onUnmounted\(monitor\.stop\)/)
   assert.match(source, /GlobalGraphTaskIndicator/)
-  assert.match(source, /:items="monitor\.state\.items"/)
+  assert.match(source, /const logicalGraphProjects = computed/)
+  assert.match(source, /:items="logicalGraphProjects"/)
   assert.match(source, /:connection="monitor\.state\.connection"/)
   assert.match(source, /:last-synced-at="monitor\.state\.lastSyncedAt"/)
   assert.match(source, /@refresh="monitor\.refresh"/)

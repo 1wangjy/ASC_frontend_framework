@@ -113,6 +113,34 @@ test('groups Base and Professional backend records into one user-visible project
   assert.deepEqual(logical[0].memberProjectIds, ['pro-1', 'base-1'])
 })
 
+test('groups the generated Professional record by workflow name when the backend omits base_project_id', () => {
+  const logical = buildLogicalGraphProjects([
+    {
+      projectId: 'base-haha',
+      graphId: 'base-g',
+      name: '哈哈哈',
+      stage: 'base',
+      status: 'graph_completed',
+      active: false,
+      updatedAt: 1
+    },
+    {
+      projectId: 'pro-haha',
+      graphId: 'pro-g',
+      name: '哈哈哈 · Professional Research',
+      status: 'graph_completed',
+      active: false,
+      updatedAt: 2
+    }
+  ])
+
+  assert.equal(logical.length, 1)
+  assert.equal(logical[0].name, '哈哈哈')
+  assert.equal(logical[0].projectId, 'pro-haha')
+  assert.equal(logical[0].canOpenQa, true)
+  assert.deepEqual(logical[0].memberProjectIds, ['pro-haha', 'base-haha'])
+})
+
 test('treats only a completed Professional record as the final graph', () => {
   assert.equal(isFinalGraphProject(null), false)
 
@@ -236,8 +264,8 @@ test('renders active and completed projects with status-aware actions', async ()
   })
 
   assert.match(html, /project_2/)
-  assert.match(html, /正在构建基础图谱/)
-  assert.match(html, /基础阶段完成，等待 Professional Research/)
+  assert.match(html, /正在构建图谱/)
+  assert.match(html, /正在完善图谱/)
   assert.match(html, /project_1/)
   assert.match(html, /知识图谱构建完成/)
   assert.match(html, /删除/)
@@ -245,6 +273,7 @@ test('renders active and completed projects with status-aware actions', async ()
   assert.equal((html.match(/去问答/g) || []).length, 1)
   assert.doesNotMatch(html, /\d+%/)
   assert.doesNotMatch(html, /graph-project-card__progress/)
+  assert.doesNotMatch(html, /Professional Research|基础图谱|最终图谱/)
   assert.match(html, /graph-project-card--selected/)
 })
 
@@ -303,7 +332,7 @@ test('renders an accessible in-page confirmation for an active project', async (
 })
 
 test('workspace uses the in-page confirmation instead of a native browser dialog', async () => {
-  const source = await readFile(new URL('../src/views/GraphProjectWorkspaceView.vue', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../src/features/projects/GraphProjectWorkspacePanel.vue', import.meta.url), 'utf8')
 
   assert.match(source, /GraphProjectDeleteDialog/)
   assert.doesNotMatch(source, /globalThis\.confirm|window\.confirm/)

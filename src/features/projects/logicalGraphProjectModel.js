@@ -14,11 +14,24 @@ function baseProjectIdOf(project = {}) {
   return text(project?.baseProjectId || project?.base_project_id)
 }
 
+function projectNameOf(project = {}) {
+  return text(project?.name || project?.project_name)
+}
+
+function workflowNameOf(project = {}) {
+  return projectNameOf(project)
+    .replace(/\s*[·\-–—:]?\s*Professional Research(?:\s+Graph Project)?\s*$/i, '')
+    .trim()
+    .toLocaleLowerCase()
+}
+
 export function isProfessionalGraphProject(project = {}) {
   const stage = text(
     project?.stage || project?.graph_build_stage || project?.build_stage
   ).toLowerCase()
-  return stage === 'professional' || Boolean(baseProjectIdOf(project))
+  return stage === 'professional'
+    || Boolean(baseProjectIdOf(project))
+    || /Professional Research/i.test(projectNameOf(project))
 }
 
 export function isFinalGraphProject(project = {}) {
@@ -43,6 +56,23 @@ export function buildLogicalGraphProjects(items = []) {
     const siblings = childrenByRoot.get(baseProjectId) || []
     siblings.push(item)
     childrenByRoot.set(baseProjectId, siblings)
+    linkedChildren.add(projectId)
+  })
+
+  projects.forEach(item => {
+    const projectId = projectIdOf(item)
+    if (linkedChildren.has(projectId) || !isProfessionalGraphProject(item)) return
+    const workflowName = workflowNameOf(item)
+    if (!workflowName) return
+    const candidates = projects.filter(candidate => (
+      !isProfessionalGraphProject(candidate)
+      && workflowNameOf(candidate) === workflowName
+    ))
+    if (candidates.length !== 1) return
+    const rootProjectId = projectIdOf(candidates[0])
+    const siblings = childrenByRoot.get(rootProjectId) || []
+    siblings.push(item)
+    childrenByRoot.set(rootProjectId, siblings)
     linkedChildren.add(projectId)
   })
 

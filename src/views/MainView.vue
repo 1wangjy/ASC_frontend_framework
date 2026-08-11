@@ -76,18 +76,7 @@
           @base-metadata-imported="handleBaseMetadataImported"
           @professional-files-selected="handleProfessionalFilesSelected"
           @build-professional-graph="startProfessionalGraphBuild"
-          @next-step="handleNextStep"
           @open-qa="openCompletedGraphInQa"
-        />
-        <!-- Step 2: 环境搭建 -->
-        <Step2EnvSetup
-          v-else-if="currentStep === 2"
-          :projectData="projectData"
-          :graphData="graphData"
-          :systemLogs="systemLogs"
-          @go-back="handleGoBack"
-          @next-step="handleNextStep"
-          @add-log="addLog"
         />
       </div>
     </main>
@@ -99,7 +88,6 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import GraphPanel from '../components/GraphPanel.vue'
 import Step1GraphBuild from '../components/Step1GraphBuild.vue'
-import Step2EnvSetup from '../components/Step2EnvSetup.vue'
 import WorkflowProgressBar from '../components/WorkflowProgressBar.vue'
 import { prepareOntologyProject, generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
 import {
@@ -119,7 +107,6 @@ import {
   GRAPH_BUILD_RESEARCH_QUESTION_ERROR,
   runGraphBuildProjectRequest
 } from '../features/research/simulationPreparationModel.js'
-import { isFinalGraphProject } from '../features/projects/logicalGraphProjectModel.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -212,12 +199,6 @@ const statusText = computed(() => {
   if (currentPhase.value === 0 && projectData.value?.ontology) return 'Ready To Build'
   if (currentPhase.value === 0) return 'Generating Ontology'
   return 'Initializing'
-})
-
-watch(projectData, project => {
-  if (currentStep.value === 1 && isFinalGraphProject(project)) {
-    currentStep.value = 2
-  }
 })
 
 const visibleGraphData = computed(() => {
@@ -352,25 +333,6 @@ const toggleMaximize = (target) => {
     viewMode.value = 'split'
   } else {
     viewMode.value = target
-  }
-}
-
-const handleNextStep = (params = {}) => {
-  if (currentStep.value < 5) {
-    currentStep.value++
-    addLog(`进入 Step ${currentStep.value}: ${stepNames[currentStep.value - 1]}`)
-    
-    // 如果是从 Step 2 进入 Step 3，记录分析准备摘要
-    if (currentStep.value === 3 && params.analysisMode) {
-      addLog(`ASC分析模块: ${params.modulesCount || 0} 个`)
-    }
-  }
-}
-
-const handleGoBack = () => {
-  if (currentStep.value > 1) {
-    currentStep.value--
-    addLog(`返回 Step ${currentStep.value}: ${stepNames[currentStep.value - 1]}`)
   }
 }
 

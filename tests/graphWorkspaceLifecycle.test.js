@@ -49,7 +49,8 @@ async function mountGraphWorkspace(initialPath) {
       {
         path: '/process/:projectId?',
         name: 'Process',
-        component: '/src/views/GraphProjectWorkspaceView.vue'
+        component: '/src/views/GraphProjectWorkspaceView.vue',
+        props: true
       }
     ]
   })

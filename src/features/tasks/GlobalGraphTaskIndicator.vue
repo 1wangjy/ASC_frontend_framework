@@ -78,6 +78,7 @@ function statusCopy(status) {
     ontology_generating: '生成本体',
     ontology_generated: '等待构建',
     graph_building: '构建图谱',
+    base_completed: '等待完善图谱',
     graph_completed: '已完成',
     failed: '失败'
   }[status] || '准备中'
