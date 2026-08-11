@@ -779,7 +779,7 @@ test('keeps the three portal entries and the backend workflow routes', () => {
   )
   assert.equal(
     routes.ascRouteDefinitions?.find(route => route.name === 'Interaction')?.meta.navigationPath,
-    '/'
+    '/process'
   )
 })
 

@@ -23,28 +23,28 @@ export const ascRouteDefinitions = [
     name: 'Simulation',
     component: () => import('../views/SimulationView.vue'),
     props: true,
-    meta: { title: '研究配置', navigationPath: '/' }
+    meta: { title: '研究配置', navigationPath: '/process' }
   },
   {
     path: '/simulation/:simulationId/start',
     name: 'SimulationRun',
     component: () => import('../views/SimulationRunView.vue'),
     props: true,
-    meta: { title: '证据推理', navigationPath: '/' }
+    meta: { title: '证据推理', navigationPath: '/process' }
   },
   {
     path: '/report/:reportId',
     name: 'Report',
     component: () => import('../views/ReportView.vue'),
     props: true,
-    meta: { title: '研究报告', navigationPath: '/' }
+    meta: { title: '研究报告', navigationPath: '/process' }
   },
   {
     path: '/interaction/:reportId',
     name: 'Interaction',
     component: () => import('../views/InteractionView.vue'),
     props: true,
-    meta: { title: '问答与证据评估', navigationPath: '/' }
+    meta: { title: '问答与证据评估', navigationPath: '/process' }
   }
 ]
 

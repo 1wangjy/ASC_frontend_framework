@@ -31,6 +31,22 @@ test('keeps QA, documents, and graph construction as primary destinations while 
   ])
 })
 
+test('keeps analysis preparation and its downstream workflow under graph construction navigation', () => {
+  const workflowRoutes = ascRouteDefinitions.filter(route => (
+    ['Simulation', 'SimulationRun', 'Report', 'Interaction'].includes(route.name)
+  ))
+
+  assert.deepEqual(
+    workflowRoutes.map(route => [route.name, route.meta?.navigationPath]),
+    [
+      ['Simulation', '/process'],
+      ['SimulationRun', '/process'],
+      ['Report', '/process'],
+      ['Interaction', '/process']
+    ]
+  )
+})
+
 test('returns to the last selected graph project after visiting another primary page', () => {
   const state = navigation.createPrimaryNavigationState?.()
   assert.ok(state, 'primary navigation should retain the last project-scoped graph route')
