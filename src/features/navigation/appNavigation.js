@@ -4,16 +4,29 @@ export const primaryNavigation = [
   { label: '图谱构建', path: '/process', icon: 'graph' }
 ]
 
+const GRAPH_WORKFLOW_ROUTE_NAMES = new Set([
+  'Simulation',
+  'SimulationRun',
+  'Report',
+  'Interaction'
+])
+
 export function createPrimaryNavigationState() {
   let graphPath = '/process'
 
   return {
     observe(route = {}) {
-      if (route.name !== 'Process') return
-      const projectId = String(route.params?.projectId || '').trim()
-      graphPath = projectId
-        ? String(route.fullPath || `/process/${encodeURIComponent(projectId)}`)
-        : '/process'
+      if (route.name === 'Process') {
+        const projectId = String(route.params?.projectId || '').trim()
+        graphPath = projectId
+          ? String(route.fullPath || `/process/${encodeURIComponent(projectId)}`)
+          : '/process'
+        return
+      }
+
+      if (GRAPH_WORKFLOW_ROUTE_NAMES.has(route.name) && route.fullPath) {
+        graphPath = String(route.fullPath)
+      }
     },
     target(item = {}) {
       return item.path === '/process' ? graphPath : item.path

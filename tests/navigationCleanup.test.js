@@ -84,6 +84,23 @@ test('returns to the last selected graph project after visiting another primary 
   assert.equal(state.target(graphDestination), '/process/new')
 })
 
+test('returns to the exact running analysis stage after visiting another primary page', () => {
+  const graphDestination = primaryNavigation.find(item => item.path === '/process')
+  const cases = [
+    ['Simulation', '/simulation/sim-123'],
+    ['SimulationRun', '/simulation/sim-123/start?maxRounds=24'],
+    ['Report', '/report/report-123?taskId=task-123'],
+    ['Interaction', '/interaction/report-123']
+  ]
+
+  for (const [name, fullPath] of cases) {
+    const state = navigation.createPrimaryNavigationState()
+    state.observe({ name, fullPath, params: {} })
+    state.observe({ name: 'Documents', fullPath: '/documents', params: {} })
+    assert.equal(state.target(graphDestination), fullPath)
+  }
+})
+
 async function clickGraphSidebarEntry(fixture) {
   await nextTick()
   const graphLink = findRenderedLinkByText(fixture.root, '图谱构建')
@@ -120,6 +137,23 @@ test('AscSidebar retains the existing /process/new workflow route', async () => 
     await fixture.router.push('/documents')
     await clickGraphSidebarEntry(fixture)
     assert.equal(fixture.router.currentRoute.value.fullPath, '/process/new')
+  } finally {
+    await fixture.close()
+  }
+})
+
+test('AscSidebar returns to the running simulation stage instead of the project overview', async () => {
+  const fixture = await mountSfcWithMemoryRouter(
+    '/src/components/navigation/AscSidebar.vue',
+    '/simulation/sim-123/start?maxRounds=24'
+  )
+  try {
+    await fixture.router.push('/documents')
+    await clickGraphSidebarEntry(fixture)
+    assert.equal(
+      fixture.router.currentRoute.value.fullPath,
+      '/simulation/sim-123/start?maxRounds=24'
+    )
   } finally {
     await fixture.close()
   }

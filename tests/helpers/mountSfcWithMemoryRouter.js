@@ -73,7 +73,11 @@ export async function mountSfcWithMemoryRouter(modulePath, initialPath) {
           name: 'Process',
           component: EmptyRouteView,
           meta: { navigationPath: '/process' }
-        }
+        },
+        { path: '/simulation/:simulationId', name: 'Simulation', component: EmptyRouteView, meta: { navigationPath: '/process' } },
+        { path: '/simulation/:simulationId/start', name: 'SimulationRun', component: EmptyRouteView, meta: { navigationPath: '/process' } },
+        { path: '/report/:reportId', name: 'Report', component: EmptyRouteView, meta: { navigationPath: '/process' } },
+        { path: '/interaction/:reportId', name: 'Interaction', component: EmptyRouteView, meta: { navigationPath: '/process' } }
       ]
     })
     const { renderer, root } = createMemoryVueRenderer()
