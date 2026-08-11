@@ -39,3 +39,13 @@ test('loads the report center from the read-only list and opens real report ids'
   assert.match(source, /重新加载/)
   assert.doesNotMatch(source, /generateReport|force_regenerate|report\/generate|deleteReport/)
 })
+
+test('keeps a direct report-list entry on the retained report detail page', async () => {
+  const source = await readFile(
+    new URL('../src/views/ReportView.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /报告列表/)
+  assert.match(source, /router\.push\(['"]\/reports['"]\)/)
+})

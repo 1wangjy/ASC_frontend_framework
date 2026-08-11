@@ -4,6 +4,9 @@
     <header class="app-header">
       <div class="header-left">
         <div class="brand" @click="router.push('/')">NEXUS</div>
+        <button class="report-list-link" type="button" @click="router.push('/reports')">
+          报告列表
+        </button>
       </div>
       
       <div class="header-center">
@@ -268,6 +271,28 @@ onMounted(() => {
   font-size: 18px;
   letter-spacing: 1px;
   cursor: pointer;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.report-list-link {
+  padding: 6px 10px;
+  border: 1px solid #D8E4EC;
+  border-radius: 6px;
+  background: #FFF;
+  color: #1E638F;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.report-list-link:hover {
+  background: #F1F8FC;
 }
 
 .view-switcher {
