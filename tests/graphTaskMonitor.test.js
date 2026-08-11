@@ -41,6 +41,7 @@ function createHarness(overrides = {}) {
   const dependencies = {
     listProjects: async () => ({ success: true, data: [] }),
     getTaskStatus: async () => ({ success: true, data: {} }),
+    getSimulationHistory: async () => ({ success: true, data: [] }),
     schedule(callback, delay) { const timer = { callback, delay }; scheduled.push(timer); return timer },
     cancelSchedule(timer) { const index = scheduled.indexOf(timer); if (index >= 0) scheduled.splice(index, 1) },
     browser,
@@ -66,6 +67,61 @@ test('refreshes graph-building projects using distinct task-status progress', as
   assert.deepEqual(listCalls, [{ limit: 50 }])
   assert.deepEqual(taskCalls, ['task-1'])
   assert.equal(monitor.state.items.find(item => item.projectId === 'p1').progress, 73)
+})
+
+test('enriches a completed Professional graph with its latest simulation progress', async () => {
+  const historyCalls = []
+  const { monitor } = createHarness({
+    listProjects: async () => ({
+      success: true,
+      data: [project({
+        status: 'graph_completed',
+        graph_build_stage: 'professional',
+        base_project_id: 'base-1'
+      })]
+    }),
+    getSimulationHistory: async limit => {
+      historyCalls.push(limit)
+      return {
+        success: true,
+        data: [{
+          project_id: 'p1',
+          simulation_id: 's1',
+          runner_status: 'running',
+          current_round: 4,
+          total_rounds: 20,
+          updated_at: '2026-08-11T10:00:00Z'
+        }]
+      }
+    }
+  })
+
+  await monitor.refresh()
+
+  assert.deepEqual(historyCalls, [100])
+  assert.equal(monitor.state.items[0].evolutionStatus, 'evolution_running')
+  assert.equal(monitor.state.items[0].progress, 20)
+  assert.equal(monitor.state.items[0].active, true)
+})
+
+test('keeps project data online when simulation history is unavailable', async () => {
+  const { monitor } = createHarness({
+    listProjects: async () => ({
+      success: true,
+      data: [project({
+        status: 'graph_completed',
+        graph_build_stage: 'professional',
+        base_project_id: 'base-1'
+      })]
+    }),
+    getSimulationHistory: async () => { throw new Error('history unavailable') }
+  })
+
+  await monitor.refresh()
+
+  assert.equal(monitor.state.connection, 'online')
+  assert.equal(monitor.state.items[0].evolutionStatus, 'professional_completed')
+  assert.equal(monitor.state.error, '')
 })
 
 test('preserves the last snapshot and exposes a failed project refresh', async () => {
@@ -194,6 +250,7 @@ test('keeps native global timers bound to the browser receiver', async () => {
     const monitor = createGraphTaskMonitor({
       listProjects: async () => ({ success: true, data: [] }),
       getTaskStatus: async () => ({ success: true, data: {} }),
+      getSimulationHistory: async () => ({ success: true, data: [] }),
       browser: globalThis,
       now: () => 1234
     })

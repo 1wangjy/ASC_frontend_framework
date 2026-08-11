@@ -64,7 +64,7 @@ test('the project table resumes the active workflow route instead of forcing Pro
   )
   const selectBlock = panel.slice(
     panel.indexOf('function selectProject'),
-    panel.indexOf('async function openProjectQa')
+    panel.indexOf('function requestProjectDeletion')
   )
 
   assert.match(panel, /workflowSession\.remember/)
@@ -76,7 +76,7 @@ test('the floating task progress action resumes the active workflow route instea
   const shell = await readFile(new URL('../src/layouts/AscShell.vue', import.meta.url), 'utf8')
   const viewProjectBlock = shell.slice(
     shell.indexOf('function viewProject'),
-    shell.indexOf('async function openProjectQa')
+    shell.indexOf('onMounted(monitor.start)')
   )
 
   assert.match(shell, /const logicalGraphProjects = computed/)

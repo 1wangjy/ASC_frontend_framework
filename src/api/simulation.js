@@ -1,5 +1,5 @@
-import service, { requestWithRetry } from './index'
-import { buildSimulationInterviewRequest } from './requestContracts'
+import service, { requestWithRetry } from './index.js'
+import { buildSimulationInterviewRequest } from './requestContracts.js'
 
 /**
  * 创建ASC文献分析工作台实例（接口路径沿用 simulation）

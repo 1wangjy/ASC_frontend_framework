@@ -10,6 +10,7 @@ const completedItem = {
   graphId: 'graph-1',
   name: '高温材料图谱',
   status: 'graph_completed',
+  evolutionStatus: 'evolution_completed',
   stage: 'professional',
   progress: 100,
   active: false,
@@ -21,25 +22,38 @@ test('renders completed graph task details in SSR', async () => {
     items: [completedItem]
   })
 
-  assert.match(html, /图谱任务/)
+  assert.match(html, /图谱演化任务/)
+  assert.match(html, /知识图谱演化完成/)
   assert.match(html, /高温材料图谱/)
   assert.match(html, /100%/)
   assert.match(html, /查看进度/)
-  assert.match(html, /去问答/)
+  assert.doesNotMatch(html, /去问答/)
 })
 
 test('describes a base-only result as waiting for the complete knowledge graph', async () => {
   const html = await renderSfc('/src/features/tasks/GlobalGraphTaskIndicator.vue', {
-    items: [{ ...completedItem, status: 'base_completed', canOpenQa: false }]
+    items: [{ ...completedItem, status: 'base_completed', evolutionStatus: undefined, canOpenQa: false }]
   })
 
   assert.match(html, /等待完善图谱/)
   assert.doesNotMatch(html, /Professional Research|基础图谱/)
 })
 
+test('distinguishes running and stopped evolution from a completed evolution', async () => {
+  const html = await renderSfc('/src/features/tasks/GlobalGraphTaskIndicator.vue', {
+    items: [
+      { ...completedItem, id: 'running', name: '运行项目', evolutionStatus: 'evolution_running', progress: 25, active: true },
+      { ...completedItem, id: 'stopped', name: '停止项目', evolutionStatus: 'evolution_stopped', progress: 50, active: false }
+    ]
+  })
+
+  assert.match(html, /知识图谱演化中/)
+  assert.match(html, /知识图谱演化已停止/)
+})
+
 test('hides QA action for a task that is not ready', async () => {
   const html = await renderSfc('/src/features/tasks/GlobalGraphTaskIndicator.vue', {
-    items: [{ ...completedItem, status: 'graph_building', progress: 42, active: true, canOpenQa: false }]
+    items: [{ ...completedItem, status: 'graph_building', evolutionStatus: undefined, progress: 42, active: true, canOpenQa: false }]
   })
 
   assert.doesNotMatch(html, /去问答/)
@@ -76,7 +90,7 @@ test('keeps the task indicator display-only and accessible across breakpoints', 
   assert.match(source, /@media \(max-width: 760px\)/)
 })
 
-test('wires the singleton monitor and graph actions through the persistent shell', async () => {
+test('wires the singleton monitor and progress action through the persistent shell', async () => {
   const source = await readFile(new URL('../src/layouts/AscShell.vue', import.meta.url), 'utf8')
 
   assert.match(source, /useGraphTaskMonitor/)
@@ -89,15 +103,15 @@ test('wires the singleton monitor and graph actions through the persistent shell
   assert.match(source, /:last-synced-at="monitor\.state\.lastSyncedAt"/)
   assert.match(source, /@refresh="monitor\.refresh"/)
   assert.match(source, /name:\s*'Process'/)
-  assert.match(source, /navigateGraphProjectToQa/)
+  assert.doesNotMatch(source, /openProjectQa|navigateGraphProjectToQa/)
 })
 
 test('renders a compact graph-task-status trigger with an active count', async () => {
   const html = await renderSfc('/src/features/tasks/GlobalGraphTaskIndicator.vue', {
-    items: [{ ...completedItem, status: 'graph_building', progress: 42, active: true, canOpenQa: false }]
+    items: [{ ...completedItem, status: 'graph_building', evolutionStatus: undefined, progress: 42, active: true, canOpenQa: false }]
   })
 
-  assert.match(html, /\u56fe\u8c31\u4efb\u52a1\u72b6\u6001/)
+  assert.match(html, /图谱演化状态/)
   assert.match(html, /graph-task-indicator__count/)
   assert.doesNotMatch(html, /\u95ee\u7b54\u9996\u9875/)
 })
@@ -114,15 +128,13 @@ test('keeps the task panel collapsible and its task list internally scrollable',
   assert.match(source, /\.graph-task-indicator__list\s*\{[^}]*overflow-y:\s*auto/s)
 })
 
-test('removes the redundant QA-home shortcut while preserving project QA routing', async () => {
+test('removes QA shortcuts from the task indicator until the workflow is ready', async () => {
   const componentSource = await readFile(
     new URL('../src/features/tasks/GlobalGraphTaskIndicator.vue', import.meta.url),
     'utf8'
   )
   const shellSource = await readFile(new URL('../src/layouts/AscShell.vue', import.meta.url), 'utf8')
 
-  assert.doesNotMatch(componentSource, /open-qa-home|graph-task-indicator__qa-home|\u95ee\u7b54\u9996\u9875/)
-  assert.doesNotMatch(shellSource, /@open-qa-home|function openQaHome/)
-  assert.match(shellSource, /@open-qa="openProjectQa"/)
-  assert.match(shellSource, /navigateGraphProjectToQa/)
+  assert.doesNotMatch(componentSource, /open-qa|graph-task-indicator__qa|去问答|问答首页/)
+  assert.doesNotMatch(shellSource, /@open-qa|function openProjectQa|navigateGraphProjectToQa/)
 })

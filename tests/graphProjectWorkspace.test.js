@@ -37,6 +37,7 @@ const completedProject = {
   graphId: 'g-completed',
   name: 'project_1',
   status: 'graph_completed',
+  evolutionStatus: 'professional_completed',
   stage: 'professional',
   progress: 100,
   active: false,
@@ -267,14 +268,29 @@ test('renders active and completed projects with status-aware actions', async ()
   assert.match(html, /正在构建图谱/)
   assert.match(html, /正在完善图谱/)
   assert.match(html, /project_1/)
-  assert.match(html, /知识图谱构建完成/)
+  assert.match(html, /知识图谱专业构建完成/)
   assert.match(html, /删除/)
-  assert.match(html, /去问答/)
-  assert.equal((html.match(/去问答/g) || []).length, 1)
+  assert.doesNotMatch(html, /去问答/)
   assert.doesNotMatch(html, /\d+%/)
   assert.doesNotMatch(html, /graph-project-card__progress/)
   assert.doesNotMatch(html, /Professional Research|基础图谱|最终图谱/)
   assert.match(html, /graph-project-card--selected/)
+})
+
+test('renders the latest graph evolution state supplied by the monitor', async () => {
+  const html = await renderSfc('/src/features/projects/GraphProjectList.vue', {
+    items: [
+      { ...completedProject, projectId: 'running', name: '运行项目', evolutionStatus: 'evolution_running' },
+      { ...completedProject, projectId: 'completed', name: '完成项目', evolutionStatus: 'evolution_completed' },
+      { ...completedProject, projectId: 'failed', name: '失败项目', evolutionStatus: 'evolution_failed' },
+      { ...completedProject, projectId: 'stopped', name: '停止项目', evolutionStatus: 'evolution_stopped' }
+    ]
+  })
+
+  assert.match(html, /知识图谱演化中/)
+  assert.match(html, /知识图谱演化完成/)
+  assert.match(html, /知识图谱演化失败/)
+  assert.match(html, /知识图谱演化已停止/)
 })
 
 test('renders the five-step workflow without a misleading graph percentage', async () => {
@@ -338,11 +354,11 @@ test('workspace uses the in-page confirmation instead of a native browser dialog
   assert.doesNotMatch(source, /globalThis\.confirm|window\.confirm/)
 })
 
-test('registers graph construction as a primary destination with an optional project route', () => {
+test('registers graph evolution as a primary destination with an optional project route', () => {
   assert.deepEqual(primaryNavigation.map(item => [item.label, item.path]), [
     ['问答首页', '/'],
     ['文献管理', '/documents'],
-    ['图谱构建', '/process']
+    ['图谱演化', '/process']
   ])
   assert.equal(
     ascRouteDefinitions.find(route => route.name === 'Process')?.path,

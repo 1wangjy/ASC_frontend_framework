@@ -1,5 +1,5 @@
 <template>
-  <aside class="graph-task-indicator" aria-label="图谱任务状态" @keydown.esc="handleEscape">
+  <aside class="graph-task-indicator" aria-label="图谱演化状态" @keydown.esc="handleEscape">
     <button
       ref="trigger"
       class="graph-task-indicator__trigger"
@@ -9,7 +9,7 @@
       @click="expanded = !expanded"
     >
       <span class="graph-task-indicator__dot" :class="{ 'graph-task-indicator__dot--active': activeCount }" />
-      <span>图谱任务状态</span>
+      <span>图谱演化状态</span>
       <span v-if="activeCount" class="graph-task-indicator__count" :aria-label="`${activeCount} 个进行中任务`">
         {{ activeCount }}
       </span>
@@ -22,8 +22,8 @@
       v-show="expanded"
     >
       <header class="graph-task-indicator__header">
-        <strong>图谱任务</strong>
-        <button type="button" class="graph-task-indicator__close" aria-label="关闭图谱任务" @click="closePopover">×</button>
+        <strong>图谱演化任务</strong>
+        <button type="button" class="graph-task-indicator__close" aria-label="关闭图谱演化任务" @click="closePopover">×</button>
       </header>
 
       <div v-if="connection === 'offline'" class="graph-task-indicator__offline">
@@ -36,7 +36,7 @@
         <li v-for="item in visibleItems" :key="item.id" class="graph-task-indicator__item">
           <div class="graph-task-indicator__item-main">
             <strong>{{ item.name }}</strong>
-            <span>{{ statusCopy(item.status) }}</span>
+            <span>{{ statusCopy(item) }}</span>
           </div>
           <div class="graph-task-indicator__progress" :aria-label="`${item.name} 进度 ${item.progress}%`">
             <span>{{ item.progress }}%</span>
@@ -45,7 +45,6 @@
           <p v-if="item.message" class="graph-task-indicator__message">{{ item.message }}</p>
           <div class="graph-task-indicator__actions">
             <button v-if="item.projectId" type="button" @click="$emit('view-project', item.projectId)">查看进度</button>
-            <button v-if="item.canOpenQa === true" type="button" class="graph-task-indicator__qa" @click="$emit('open-qa', item)">去问答</button>
           </div>
         </li>
       </ul>
@@ -56,7 +55,7 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue'
 
-import { selectVisibleGraphTasks } from './graphTaskMonitorModel.js'
+import { graphEvolutionStatusCopy, selectVisibleGraphTasks } from './graphTaskMonitorModel.js'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -64,7 +63,7 @@ const props = defineProps({
   lastSyncedAt: { type: [Number, String], default: null }
 })
 
-defineEmits(['refresh', 'view-project', 'open-qa'])
+defineEmits(['refresh', 'view-project'])
 
 const expanded = ref(false)
 const trigger = ref(null)
@@ -72,16 +71,18 @@ const visibleItems = computed(() => selectVisibleGraphTasks(props.items))
 const activeCount = computed(() => props.items.filter(item => item.active).length)
 const lastSyncedLabel = computed(() => props.lastSyncedAt ? `：${new Date(props.lastSyncedAt).toLocaleString()}` : '')
 
-function statusCopy(status) {
+function statusCopy(item) {
+  const evolutionCopy = graphEvolutionStatusCopy(item)
+  if (evolutionCopy) return evolutionCopy
   return {
     created: '准备中',
     ontology_generating: '生成本体',
     ontology_generated: '等待构建',
     graph_building: '构建图谱',
     base_completed: '等待完善图谱',
-    graph_completed: '已完成',
+    graph_completed: '知识图谱专业构建完成',
     failed: '失败'
-  }[status] || '准备中'
+  }[item.status] || '准备中'
 }
 
 function closePopover() {
@@ -117,7 +118,6 @@ function handleEscape(event) {
 .graph-task-indicator__progress b { display: block; height: 100%; border-radius: inherit; background: var(--asc-primary); }
 .graph-task-indicator__message { margin: 8px 0 0; }
 .graph-task-indicator__actions { justify-content: flex-end; margin-top: 10px; }
-.graph-task-indicator__qa { padding: 5px 9px; border-radius: 6px !important; background: var(--asc-primary) !important; color: #fff !important; }
 .graph-task-indicator__empty { margin: 0; padding: 16px 14px; }
 
 @media (max-width: 760px) {

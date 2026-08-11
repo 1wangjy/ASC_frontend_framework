@@ -1,8 +1,10 @@
 import { reactive } from 'vue'
 
 import { getTaskStatus, listProjects } from '../../api/graph.js'
+import { getSimulationHistory } from '../../api/simulation.js'
 import {
   getGraphMonitorDelay,
+  mergeGraphEvolutionState,
   normalizeGraphTaskItems,
   unwrapGraphProjects
 } from './graphTaskMonitorModel.js'
@@ -19,6 +21,7 @@ export function createGraphTaskMonitor(dependencies = {}) {
   const api = {
     listProjects: dependencies.listProjects || listProjects,
     getTaskStatus: dependencies.getTaskStatus || getTaskStatus,
+    getSimulationHistory: dependencies.getSimulationHistory || getSimulationHistory,
     schedule: dependencies.schedule || ((callback, delay) => globalThis.setTimeout(callback, delay)),
     cancelSchedule: dependencies.cancelSchedule || (timerId => globalThis.clearTimeout(timerId)),
     browser: dependencies.browser || globalThis,
@@ -67,7 +70,10 @@ export function createGraphTaskMonitor(dependencies = {}) {
     const requestId = ++requestSequence
     state.connection = state.connection === 'idle' ? 'connecting' : 'reconnecting'
     try {
-      const response = await api.listProjects({ limit: 50 })
+      const [response, simulationHistory] = await Promise.all([
+        api.listProjects({ limit: 50 }),
+        api.getSimulationHistory(100).catch(() => [])
+      ])
       const projects = unwrapGraphProjects(response)
       const activeTaskIds = [...new Set(
         projects
@@ -83,7 +89,10 @@ export function createGraphTaskMonitor(dependencies = {}) {
           .filter(result => result.status === 'fulfilled' && result.value[1]?.success)
           .map(result => [result.value[0], result.value[1].data])
       )
-      const nextItems = normalizeGraphTaskItems(projects, taskById)
+      const nextItems = mergeGraphEvolutionState(
+        normalizeGraphTaskItems(projects, taskById),
+        simulationHistory
+      )
       if (requestId !== requestSequence) return state
 
       updateCompletedRevision(nextItems)

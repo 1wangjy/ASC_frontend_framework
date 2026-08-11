@@ -20,7 +20,6 @@
       :selected-project-id="selectedProjectId"
       :deleting-project-id="deletingProjectId"
       @select="selectProject"
-      @open-qa="openProjectQa"
       @delete="requestProjectDeletion"
     />
 
@@ -45,7 +44,6 @@ import { useGraphWorkflowSession } from '../navigation/graphWorkflowSession.js'
 import { useGraphTaskMonitor } from '../tasks/graphTaskMonitor.js'
 import GraphProjectDeleteDialog from './GraphProjectDeleteDialog.vue'
 import GraphProjectList from './GraphProjectList.vue'
-import { navigateGraphProjectToQa } from './graphQaNavigation.js'
 import { deleteLogicalGraphProjectResources } from './graphProjectWorkspaceModel.js'
 import { buildLogicalGraphProjects } from './logicalGraphProjectModel.js'
 import {
@@ -111,14 +109,6 @@ function selectProject(item) {
   if (route.name !== 'Process' || String(route.params.projectId || '') !== item.projectId) {
     router.push({ name: 'Process', params: { projectId: item.projectId } })
   }
-}
-
-async function openProjectQa(item) {
-  await navigateGraphProjectToQa({
-    project: { project_id: item.projectId, graph_id: item.graphId },
-    browser: globalThis,
-    navigate: target => router.push(target)
-  })
 }
 
 function requestProjectDeletion(item) {

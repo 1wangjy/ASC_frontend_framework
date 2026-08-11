@@ -34,7 +34,7 @@ test('defines the three retained ASC LAB destinations in product order', () => {
     [
       ['问答首页', '/'],
       ['文献管理', '/documents'],
-      ['图谱构建', '/process']
+      ['图谱演化', '/process']
     ]
   )
 })
@@ -372,7 +372,7 @@ test('QA view keeps evaluation state outside the evidence drawer', async () => {
 test('requires a backend graph project before opening the answer workflow', async () => {
   const view = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
 
-  assert.match(view, /去图谱构建/)
+  assert.match(view, /去图谱演化/)
   assert.match(view, /router\.push\(\{ name: 'Process' \}\)/)
   assert.doesNotMatch(view, /VITE_DEFAULT_GRAPH_ID/)
   assert.doesNotMatch(view, /openAnswerPreview/)

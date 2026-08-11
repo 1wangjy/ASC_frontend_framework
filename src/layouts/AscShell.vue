@@ -40,7 +40,6 @@
       :last-synced-at="monitor.state.lastSyncedAt"
       @refresh="monitor.refresh"
       @view-project="viewProject"
-      @open-qa="openProjectQa"
     />
   </div>
 </template>
@@ -53,7 +52,6 @@ import AscIcon from '../components/ui/AscIcon.vue'
 import GraphProjectWorkspacePanel from '../features/projects/GraphProjectWorkspacePanel.vue'
 import GlobalGraphTaskIndicator from '../features/tasks/GlobalGraphTaskIndicator.vue'
 import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
-import { navigateGraphProjectToQa } from '../features/projects/graphQaNavigation.js'
 import { buildLogicalGraphProjects } from '../features/projects/logicalGraphProjectModel.js'
 import { useGraphWorkflowSession } from '../features/navigation/graphWorkflowSession.js'
 
@@ -77,14 +75,6 @@ function viewProject(projectId) {
     return
   }
   router.push({ name: 'Process', params: { projectId } })
-}
-
-async function openProjectQa(item) {
-  await navigateGraphProjectToQa({
-    project: { project_id: item.projectId, graph_id: item.graphId },
-    browser: globalThis,
-    navigate: qaRoute => router.push(qaRoute)
-  })
 }
 
 onMounted(monitor.start)

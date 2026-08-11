@@ -38,7 +38,7 @@
             type="button"
             @click="router.push({ name: 'Process' })"
           >
-            去图谱构建
+            去图谱演化
           </button>
         </div>
 
@@ -190,7 +190,7 @@ const evaluationEnabled = computed(() => canEvaluateAnswer(qaState.value))
 const projectUnavailableMessage = computed(() => {
   if (projectsLoading.value) return '正在读取可用于问答的知识图谱项目…'
   if (projectError.value) return projectError.value
-  if (scopeSelectionRequired.value && projects.value.length) return '原知识图谱范围已失效，请前往图谱构建重新选择。'
+  if (scopeSelectionRequired.value && projects.value.length) return '原知识图谱范围已失效，请前往图谱演化重新选择。'
   if (!activeProject.value) return '问答需要基于已完成的知识图谱，请先选择或构建图谱。'
   return ''
 })

@@ -22,14 +22,6 @@
       <div class="graph-project-card__actions">
         <button type="button" @click="$emit('select', item)">查看进度</button>
         <button
-          v-if="item.canOpenQa === true"
-          type="button"
-          class="graph-project-card__qa"
-          @click="$emit('open-qa', item)"
-        >
-          去问答
-        </button>
-        <button
           type="button"
           class="graph-project-card__delete"
           :disabled="deletingProjectId === item.projectId"
@@ -43,13 +35,15 @@
 </template>
 
 <script setup>
+import { graphEvolutionStatusCopy } from '../tasks/graphTaskMonitorModel.js'
+
 const props = defineProps({
   items: { type: Array, default: () => [] },
   selectedProjectId: { type: String, default: '' },
   deletingProjectId: { type: String, default: '' }
 })
 
-defineEmits(['select', 'open-qa', 'delete'])
+defineEmits(['select', 'delete'])
 
 function isSelected(item) {
   return item.projectId === props.selectedProjectId
@@ -57,13 +51,15 @@ function isSelected(item) {
 }
 
 function statusCopy(item) {
+  const evolutionCopy = graphEvolutionStatusCopy(item)
+  if (evolutionCopy) return evolutionCopy
   return {
     created: '准备构建图谱',
     ontology_generating: '正在准备图谱',
     ontology_generated: '等待构建图谱',
     graph_building: '正在构建图谱',
     base_completed: '正在完善图谱',
-    graph_completed: '知识图谱构建完成',
+    graph_completed: '知识图谱专业构建完成',
     failed: '构建失败'
   }[item.status] || '准备中'
 }
@@ -84,6 +80,5 @@ function statusCopy(item) {
 .graph-project-card__actions { justify-content: flex-end; padding: 0 10px 10px; }
 .graph-project-card__actions button { padding: 5px 7px; border: 0; background: transparent; color: var(--asc-primary); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .graph-project-card__actions button:disabled { cursor: wait; opacity: .55; }
-.graph-project-card__actions .graph-project-card__qa { border-radius: 6px; background: var(--asc-primary); color: #fff; }
 .graph-project-card__actions .graph-project-card__delete { color: #b43b32; }
 </style>

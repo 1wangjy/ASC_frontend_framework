@@ -13,11 +13,11 @@ import { renderSfc } from './helpers/renderSfc.js'
 
 const { primaryNavigation, recentConversations } = navigation
 
-test('keeps QA, documents, and graph construction as primary destinations while retaining workflow routes', () => {
+test('keeps QA, documents, and graph evolution as primary destinations while retaining workflow routes', () => {
   assert.deepEqual(primaryNavigation.map(({ label, path }) => [label, path]), [
     ['问答首页', '/'],
     ['文献管理', '/documents'],
-    ['图谱构建', '/process']
+    ['图谱演化', '/process']
   ])
 
   assert.deepEqual(ascRouteDefinitions.map(({ name, path }) => [name, path]), [
@@ -103,7 +103,7 @@ test('returns to the exact running analysis stage after visiting another primary
 
 async function clickGraphSidebarEntry(fixture) {
   await nextTick()
-  const graphLink = findRenderedLinkByText(fixture.root, '图谱构建')
+  const graphLink = findRenderedLinkByText(fixture.root, '图谱演化')
   assert.ok(graphLink, 'rendered sidebar should contain the graph navigation entry')
   await clickRenderedLink(graphLink)
 }

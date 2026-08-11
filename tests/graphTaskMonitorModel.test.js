@@ -3,8 +3,10 @@ import assert from 'node:assert/strict'
 
 import {
   getGraphMonitorDelay,
+  mergeGraphEvolutionState,
   normalizeGraphTaskItems,
   selectVisibleGraphTasks,
+  unwrapSimulationHistory,
   unwrapGraphProjects
 } from '../src/features/tasks/graphTaskMonitorModel.js'
 
@@ -13,6 +15,98 @@ test('unwraps the backend project response envelope', () => {
     unwrapGraphProjects({ success: true, data: [{ project_id: 'p1' }] }),
     [{ project_id: 'p1' }]
   )
+})
+
+test('unwraps the backend simulation history envelope', () => {
+  assert.deepEqual(
+    unwrapSimulationHistory({ success: true, data: [{ simulation_id: 's1' }] }),
+    [{ simulation_id: 's1' }]
+  )
+})
+
+test('uses the latest real simulation to derive graph evolution state', () => {
+  const items = [{
+    projectId: 'p1',
+    status: 'graph_completed',
+    stage: 'professional',
+    progress: 100,
+    active: false
+  }]
+  const [item] = mergeGraphEvolutionState(items, [
+    {
+      record_type: 'analysis',
+      project_id: 'p1',
+      simulation_id: 's-old',
+      runner_status: 'completed',
+      current_round: 24,
+      total_rounds: 24,
+      updated_at: '2026-08-11T09:00:00Z'
+    },
+    {
+      record_type: 'analysis',
+      project_id: 'p1',
+      simulation_id: 's-new',
+      runner_status: 'running',
+      current_round: 6,
+      total_rounds: 24,
+      updated_at: '2026-08-11T10:00:00Z'
+    },
+    {
+      record_type: 'knowledge_graph',
+      project_id: 'p1',
+      simulation_id: null,
+      runner_status: 'not_created',
+      updated_at: '2026-08-11T11:00:00Z'
+    }
+  ])
+
+  assert.equal(item.simulationId, 's-new')
+  assert.equal(item.evolutionStatus, 'evolution_running')
+  assert.equal(item.progress, 25)
+  assert.equal(item.active, true)
+})
+
+test('only a normally completed simulation marks graph evolution complete', () => {
+  const sourceItem = {
+    projectId: 'p1',
+    status: 'graph_completed',
+    stage: 'professional',
+    progress: 100,
+    active: false
+  }
+  const cases = [
+    { runner_status: 'completed', wantStatus: 'evolution_completed', wantProgress: 100 },
+    { runner_status: 'stopped', wantStatus: 'evolution_stopped', wantProgress: 50 },
+    { runner_status: 'failed', wantStatus: 'evolution_failed', wantProgress: 50 },
+    { runner_status: 'idle', wantStatus: 'evolution_ready', wantProgress: 0 }
+  ]
+
+  for (const fixture of cases) {
+    const [item] = mergeGraphEvolutionState([sourceItem], [{
+      project_id: 'p1',
+      simulation_id: `s-${fixture.runner_status}`,
+      runner_status: fixture.runner_status,
+      current_round: 5,
+      total_rounds: 10,
+      updated_at: '2026-08-11T10:00:00Z'
+    }])
+    assert.equal(item.evolutionStatus, fixture.wantStatus)
+    assert.equal(item.progress, fixture.wantProgress)
+    assert.equal(item.active, false)
+  }
+})
+
+test('keeps Professional graph completion distinct when no simulation exists', () => {
+  const [item] = mergeGraphEvolutionState([{
+    projectId: 'p1',
+    status: 'graph_completed',
+    stage: 'professional',
+    progress: 100,
+    active: false
+  }], [])
+
+  assert.equal(item.evolutionStatus, 'professional_completed')
+  assert.equal(item.progress, 100)
 })
 
 test('uses ontology progress and message while generating an ontology', () => {
