@@ -354,11 +354,12 @@ test('workspace uses the in-page confirmation instead of a native browser dialog
   assert.doesNotMatch(source, /globalThis\.confirm|window\.confirm/)
 })
 
-test('registers graph evolution as a primary destination with an optional project route', () => {
+test('registers graph evolution and report generation as separate primary destinations', () => {
   assert.deepEqual(primaryNavigation.map(item => [item.label, item.path]), [
     ['问答首页', '/'],
     ['文献管理', '/documents'],
-    ['图谱演化', '/process']
+    ['图谱演化', '/process'],
+    ['报告生成', '/reports']
   ])
   assert.equal(
     ascRouteDefinitions.find(route => route.name === 'Process')?.path,

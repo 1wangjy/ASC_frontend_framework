@@ -28,13 +28,14 @@ function contrastRatio(foreground, background) {
   )
 }
 
-test('defines the three retained ASC LAB destinations in product order', () => {
+test('defines the four retained ASC LAB destinations in product order', () => {
   assert.deepEqual(
     navigation.primaryNavigation?.map(item => [item.label, item.path]),
     [
       ['问答首页', '/'],
       ['文献管理', '/documents'],
-      ['图谱演化', '/process']
+      ['图谱演化', '/process'],
+      ['报告生成', '/reports']
     ]
   )
 })
@@ -756,7 +757,7 @@ test('adding a literature record to QA changes only the selected record', () => 
   assert.equal(libraryData.documents.find(item => item.id === 'DOC-2022-003').qaIndexed, false)
 })
 
-test('keeps the three portal entries and the backend workflow routes', () => {
+test('keeps the four portal entries and the backend workflow routes', () => {
   assert.deepEqual(
     routes.ascRouteDefinitions?.map(route => [route.name, route.path]),
     [
@@ -765,6 +766,7 @@ test('keeps the three portal entries and the backend workflow routes', () => {
       ['Process', '/process/:projectId?'],
       ['Simulation', '/simulation/:simulationId'],
       ['SimulationRun', '/simulation/:simulationId/start'],
+      ['Reports', '/reports'],
       ['Report', '/report/:reportId'],
       ['Interaction', '/interaction/:reportId']
     ]
@@ -782,8 +784,12 @@ test('keeps the three portal entries and the backend workflow routes', () => {
     '/process'
   )
   assert.equal(
+    routes.ascRouteDefinitions?.find(route => route.name === 'Report')?.meta.navigationPath,
+    '/reports'
+  )
+  assert.equal(
     routes.ascRouteDefinitions?.find(route => route.name === 'Interaction')?.meta.navigationPath,
-    '/process'
+    undefined
   )
 })
 
