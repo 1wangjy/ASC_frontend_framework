@@ -13,12 +13,15 @@ import { renderSfc } from './helpers/renderSfc.js'
 
 const { primaryNavigation, recentConversations } = navigation
 
-test('keeps QA, documents, and graph evolution as primary destinations while retaining workflow routes', () => {
+test('keeps QA, documents, graph evolution, and report generation as primary destinations', () => {
   assert.deepEqual(primaryNavigation.map(({ label, path }) => [label, path]), [
     ['问答首页', '/'],
     ['文献管理', '/documents'],
-    ['图谱演化', '/process']
+    ['图谱演化', '/process'],
+    ['报告生成', '/reports']
   ])
+
+  assert.equal(primaryNavigation.find(item => item.path === '/reports')?.icon, 'report')
 
   assert.deepEqual(ascRouteDefinitions.map(({ name, path }) => [name, path]), [
     ['AscQa', '/'],
@@ -29,6 +32,11 @@ test('keeps QA, documents, and graph evolution as primary destinations while ret
     ['Report', '/report/:reportId'],
     ['Interaction', '/interaction/:reportId']
   ])
+})
+
+test('renders a distinct report navigation icon', async () => {
+  const html = await renderSfc('/src/components/ui/AscIcon.vue', { name: 'report' })
+  assert.match(html, /M6 3h9l3 3v18H6z/)
 })
 
 test('keeps analysis preparation and its downstream workflow under graph construction navigation', () => {
@@ -84,13 +92,11 @@ test('returns to the last selected graph project after visiting another primary 
   assert.equal(state.target(graphDestination), '/process/new')
 })
 
-test('returns to the exact running analysis stage after visiting another primary page', () => {
+test('returns to the exact running graph evolution stage after visiting another primary page', () => {
   const graphDestination = primaryNavigation.find(item => item.path === '/process')
   const cases = [
     ['Simulation', '/simulation/sim-123'],
-    ['SimulationRun', '/simulation/sim-123/start?maxRounds=24'],
-    ['Report', '/report/report-123?taskId=task-123'],
-    ['Interaction', '/interaction/report-123']
+    ['SimulationRun', '/simulation/sim-123/start?maxRounds=24']
   ]
 
   for (const [name, fullPath] of cases) {
@@ -99,6 +105,31 @@ test('returns to the exact running analysis stage after visiting another primary
     state.observe({ name: 'Documents', fullPath: '/documents', params: {} })
     assert.equal(state.target(graphDestination), fullPath)
   }
+})
+
+test('remembers graph evolution and report generation routes independently', () => {
+  const state = navigation.createPrimaryNavigationState()
+  const graphDestination = primaryNavigation.find(item => item.path === '/process')
+  const reportDestination = primaryNavigation.find(item => item.path === '/reports')
+
+  state.observe({
+    name: 'SimulationRun',
+    fullPath: '/simulation/sim-123/start?maxRounds=24',
+    params: { simulationId: 'sim-123' }
+  })
+  state.observe({
+    name: 'Report',
+    fullPath: '/report/report-123?taskId=task-123',
+    params: { reportId: 'report-123' }
+  })
+
+  assert.equal(state.target(graphDestination), '/simulation/sim-123/start?maxRounds=24')
+  assert.equal(state.target(reportDestination), '/report/report-123?taskId=task-123')
+
+  state.observe({ name: 'Reports', fullPath: '/reports', params: {} })
+
+  assert.equal(state.target(graphDestination), '/simulation/sim-123/start?maxRounds=24')
+  assert.equal(state.target(reportDestination), '/reports')
 })
 
 async function clickGraphSidebarEntry(fixture) {

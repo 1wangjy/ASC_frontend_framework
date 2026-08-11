@@ -1,18 +1,20 @@
 export const primaryNavigation = [
   { label: '问答首页', path: '/', icon: 'home' },
   { label: '文献管理', path: '/documents', icon: 'document' },
-  { label: '图谱演化', path: '/process', icon: 'graph' }
+  { label: '图谱演化', path: '/process', icon: 'graph' },
+  { label: '报告生成', path: '/reports', icon: 'report' }
 ]
 
 const GRAPH_WORKFLOW_ROUTE_NAMES = new Set([
   'Simulation',
-  'SimulationRun',
-  'Report',
-  'Interaction'
+  'SimulationRun'
 ])
+
+const REPORT_WORKFLOW_ROUTE_NAMES = new Set(['Report'])
 
 export function createPrimaryNavigationState() {
   let graphPath = '/process'
+  let reportPath = '/reports'
 
   return {
     observe(route = {}) {
@@ -26,10 +28,22 @@ export function createPrimaryNavigationState() {
 
       if (GRAPH_WORKFLOW_ROUTE_NAMES.has(route.name) && route.fullPath) {
         graphPath = String(route.fullPath)
+        return
+      }
+
+      if (route.name === 'Reports') {
+        reportPath = '/reports'
+        return
+      }
+
+      if (REPORT_WORKFLOW_ROUTE_NAMES.has(route.name) && route.fullPath) {
+        reportPath = String(route.fullPath)
       }
     },
     target(item = {}) {
-      return item.path === '/process' ? graphPath : item.path
+      if (item.path === '/process') return graphPath
+      if (item.path === '/reports') return reportPath
+      return item.path
     }
   }
 }

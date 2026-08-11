@@ -23,6 +23,10 @@
       <circle cx="19" cy="18" r="2.5" />
       <path d="m10.8 6.7-4.5 9M13.2 6.7l4.5 9M7.5 18h9" />
     </template>
+    <template v-else-if="name === 'report'">
+      <path d="M6 3h9l3 3v18H6z" />
+      <path d="M15 3v4h4M9 12h6M9 16h6M9 20h4" />
+    </template>
     <template v-else-if="name === 'database'">
       <ellipse cx="12" cy="5" rx="8" ry="3" />
       <path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />
