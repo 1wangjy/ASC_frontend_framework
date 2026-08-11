@@ -56,6 +56,11 @@ export const getReport = (reportId) => {
   return service.get(`/api/report/${reportId}`)
 }
 
+/** 列出后端已经保存的报告；该接口只读，不触发报告生成。 */
+export const listReports = (params = {}) => {
+  return service.get('/api/report/list', { params })
+}
+
 /** 获取后端已生成的报告章节。 */
 export const getReportSections = (reportId) => {
   return service(buildReportSectionsRequest(reportId))
