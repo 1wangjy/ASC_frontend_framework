@@ -141,6 +141,22 @@ async function clickGraphSidebarEntry(fixture) {
   await clickRenderedLink(graphLink)
 }
 
+async function clickReportSidebarEntry(fixture) {
+  await nextTick()
+  const reportLink = findRenderedLinkByText(fixture.root, '报告生成')
+  assert.ok(reportLink, 'rendered sidebar should contain the report navigation entry')
+  await clickRenderedLink(reportLink)
+}
+
+test('AscSidebar recognizes the passive report center route', async () => {
+  const fixture = await mountSfcWithMemoryRouter('/src/components/navigation/AscSidebar.vue', '/reports')
+  try {
+    assert.equal(fixture.router.currentRoute.value.name, 'Reports')
+  } finally {
+    await fixture.close()
+  }
+})
+
 test('AscSidebar returns to the selected graph project through its rendered router-link', async () => {
   const fixture = await mountSfcWithMemoryRouter('/src/components/navigation/AscSidebar.vue', '/process/p1')
   try {
@@ -187,6 +203,20 @@ test('AscSidebar returns to the running simulation stage instead of the project 
       fixture.router.currentRoute.value.fullPath,
       '/simulation/sim-123/start?maxRounds=24'
     )
+  } finally {
+    await fixture.close()
+  }
+})
+
+test('AscSidebar returns to the exact running report after visiting another primary page', async () => {
+  const fixture = await mountSfcWithMemoryRouter(
+    '/src/components/navigation/AscSidebar.vue',
+    '/report/report-1?taskId=task-1'
+  )
+  try {
+    await fixture.router.push('/documents')
+    await clickReportSidebarEntry(fixture)
+    assert.equal(fixture.router.currentRoute.value.fullPath, '/report/report-1?taskId=task-1')
   } finally {
     await fixture.close()
   }
