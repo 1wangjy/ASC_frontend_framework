@@ -27,7 +27,16 @@
           aria-describedby="research-question-error"
         />
         <div class="recommended-questions" aria-label="推荐研究问题">
-          <span>推荐问题</span>
+          <div class="recommended-questions__header">
+            <span>推荐问题</span>
+            <button
+              type="button"
+              class="recommendations-refresh"
+              aria-label="换一批推荐问题"
+              title="换一批推荐问题"
+              @click="refreshRecommendations"
+            >换一批</button>
+          </div>
           <button
             v-for="item in recommendations"
             :key="`${item.categoryId}:${item.question}`"
@@ -53,7 +62,10 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { createResearchQuestionSuggestions } from '../qa/questionGuideModel.js'
+import {
+  createResearchQuestionSuggestions,
+  refreshResearchQuestionSuggestions
+} from '../qa/questionGuideModel.js'
 import { validateResearchBuildDialogSubmission } from './researchQuestionWorkflow.js'
 
 const props = defineProps({
@@ -89,6 +101,10 @@ watch(
 function selectRecommendation(recommendedQuestion) {
   question.value = recommendedQuestion
   validationError.value = ''
+}
+
+function refreshRecommendations() {
+  recommendations.value = refreshResearchQuestionSuggestions(recommendations.value)
 }
 
 function close() {
@@ -190,10 +206,33 @@ input { margin-bottom: 16px; }
   margin-top: 12px;
 }
 
-.recommended-questions > span {
+.recommended-questions__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.recommended-questions__header > span {
   color: var(--asc-muted);
   font-size: 10px;
   font-weight: 750;
+}
+
+.recommendations-refresh {
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--asc-primary);
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.recommendations-refresh:hover,
+.recommendations-refresh:focus-visible {
+  background: var(--asc-primary-soft);
+  outline: none;
 }
 
 .recommended-question {

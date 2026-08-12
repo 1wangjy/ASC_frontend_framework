@@ -103,6 +103,20 @@ export function createResearchQuestionSuggestions(random = Math.random, count = 
   })
 }
 
+export function refreshResearchQuestionSuggestions(current, random = Math.random) {
+  return (current || []).map(item => {
+    const category = questionCategories.find(candidate => candidate.id === item.categoryId)
+    if (!category) return item
+
+    let question = category.questions[questionIndex(random, category.questions.length)]
+    if (question === item.question && category.questions.length > 1) {
+      const currentIndex = Math.max(0, category.questions.indexOf(item.question))
+      question = category.questions[(currentIndex + 1) % category.questions.length]
+    }
+    return { ...item, question }
+  })
+}
+
 export function refreshQuestionGuide(state, categoryId, random = Math.random) {
   const category = questionCategories.find(item => item.id === categoryId)
   if (!category) return state
