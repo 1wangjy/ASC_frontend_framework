@@ -53,22 +53,57 @@ function indexProjects(projects = []) {
     ))
     .slice()
     .sort((left, right) => projectIdOf(left).localeCompare(projectIdOf(right)))
-  const byGraph = new Map()
-  const bySimulation = new Map()
+  const graphOwners = new Map()
+  const simulationOwners = new Map()
+  const scopesByProjectId = new Map()
+  const conflictingProjectIds = new Set()
 
   usable.forEach(project => {
-    if (!byGraph.has(graphIdOf(project))) byGraph.set(graphIdOf(project), project)
+    const projectId = projectIdOf(project)
+    const graphId = graphIdOf(project)
     const simulationId = simulationIdOf(project)
-    if (simulationId && !bySimulation.has(simulationId)) {
-      bySimulation.set(simulationId, project)
+    const scope = [graphId, simulationId].join('\u0000')
+    const previousScope = scopesByProjectId.get(projectId)
+    if (previousScope && previousScope !== scope) {
+      conflictingProjectIds.add(projectId)
+    } else if (!previousScope) {
+      scopesByProjectId.set(projectId, scope)
+    }
+
+    const graphGroup = graphOwners.get(graphId) || new Map()
+    if (!graphGroup.has(projectId)) graphGroup.set(projectId, project)
+    graphOwners.set(graphId, graphGroup)
+
+    if (simulationId) {
+      const simulationGroup = simulationOwners.get(simulationId) || new Map()
+      if (!simulationGroup.has(projectId)) simulationGroup.set(projectId, project)
+      simulationOwners.set(simulationId, simulationGroup)
     }
   })
 
-  return { byGraph, bySimulation }
+  function uniqueOwner(groups, id) {
+    const group = groups.get(id)
+    if (group?.size !== 1) return null
+    const [projectId, project] = [...group.entries()][0]
+    return conflictingProjectIds.has(projectId) ? null : project
+  }
+
+  return {
+    projectForReport(report = {}) {
+      const graphId = graphIdOf(report)
+      if (graphOwners.has(graphId)) return uniqueOwner(graphOwners, graphId)
+
+      const simulationId = simulationIdOf(report)
+      if (simulationOwners.has(simulationId)) {
+        return uniqueOwner(simulationOwners, simulationId)
+      }
+      return null
+    }
+  }
 }
 
 export function buildQualifiedQaProjects(projects = [], reports = []) {
-  const { byGraph, bySimulation } = indexProjects(projects)
+  const { projectForReport } = indexProjects(projects)
   const candidates = []
   const scopesByReportId = new Map()
   const conflictingReportIds = new Set()
@@ -77,8 +112,7 @@ export function buildQualifiedQaProjects(projects = [], reports = []) {
   reportArray(reports).forEach(report => {
     if (!reportIdOf(report) || normalizeReportStatus(report?.status) !== 'completed') return
 
-    const project = byGraph.get(graphIdOf(report))
-      || bySimulation.get(simulationIdOf(report))
+    const project = projectForReport(report)
     if (!project) return
 
     const candidate = {

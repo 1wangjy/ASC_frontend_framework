@@ -192,3 +192,59 @@ test('rejects one report ID claimed by different project and graph scopes', () =
   assert.deepEqual(buildQualifiedQaProjects(projects, reports), [])
   assert.deepEqual(buildQualifiedQaProjects([...projects].reverse(), [...reports].reverse()), [])
 })
+
+test('rejects a shared graph even when the report simulation points at one owner', () => {
+  const conflictingProjects = [
+    { projectId: 'p1', graphId: 'g-shared', simulationId: 's1', name: '项目一' },
+    { projectId: 'p2', graphId: 'g-shared', simulationId: 's2', name: '项目二' }
+  ]
+  const report = {
+    report_id: 'r1', graph_id: 'g-shared', simulation_id: 's2', status: 'completed'
+  }
+
+  assert.deepEqual(buildQualifiedQaProjects(conflictingProjects, [report]), [])
+  assert.deepEqual(buildQualifiedQaProjects([...conflictingProjects].reverse(), [report]), [])
+})
+
+test('rejects a shared simulation when no unique graph owner can resolve the report', () => {
+  const conflictingProjects = [
+    { projectId: 'p1', graphId: 'g1', simulationId: 's-shared', name: '项目一' },
+    { projectId: 'p2', graphId: 'g2', simulationId: 's-shared', name: '项目二' }
+  ]
+  const report = {
+    report_id: 'r1', graph_id: 'stale-graph', simulation_id: 's-shared', status: 'completed'
+  }
+
+  assert.deepEqual(buildQualifiedQaProjects(conflictingProjects, [report]), [])
+  assert.deepEqual(buildQualifiedQaProjects([...conflictingProjects].reverse(), [report]), [])
+})
+
+test('does not treat duplicate rows and field aliases for one project as multiple owners', () => {
+  const duplicateAliases = [
+    { projectId: 'p1', graphId: 'g1', simulationId: 's1', name: '同一项目' },
+    { project_id: 'p1', graph_id: 'g1', simulation_id: 's1', project_name: '同一项目' }
+  ]
+  const report = {
+    report_id: 'r1', graph_id: 'g1', simulation_id: 's1', status: 'completed'
+  }
+
+  assert.deepEqual(
+    buildQualifiedQaProjects(duplicateAliases, [report]).map(record => [
+      record.projectId, record.graphId, record.simulationId, record.reportId
+    ]),
+    [['p1', 'g1', 's1', 'r1']]
+  )
+})
+
+test('rejects duplicate rows for one project when their simulation IDs conflict', () => {
+  const conflictingAliases = [
+    { projectId: 'p1', graphId: 'g1', simulationId: 's-a', name: '同一项目' },
+    { project_id: 'p1', graph_id: 'g1', simulation_id: 's-z', project_name: '同一项目' }
+  ]
+  const report = {
+    report_id: 'r1', graph_id: 'g1', simulation_id: 's-a', status: 'completed'
+  }
+
+  assert.deepEqual(buildQualifiedQaProjects(conflictingAliases, [report]), [])
+  assert.deepEqual(buildQualifiedQaProjects([...conflictingAliases].reverse(), [report]), [])
+})
