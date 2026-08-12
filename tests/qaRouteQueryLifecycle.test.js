@@ -196,6 +196,8 @@ test('selects a qualified project in the overlay and writes the matched project 
       assert.equal(fixture.router.currentRoute.value.query.projectId, 'p1')
       assert.equal(fixture.router.currentRoute.value.query.reportId, 'r1')
     }, 'qualified selection did not update both route IDs')
+    assert.equal(probe.projectLoads.length, 1)
+    assert.equal(probe.reportLoads, 1)
   } finally {
     await fixture.close()
     delete globalThis[QA_PROBE_KEY]

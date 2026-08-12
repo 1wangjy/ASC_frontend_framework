@@ -246,6 +246,8 @@ function selectQualifiedProject(projectId) {
   if (previousProjectId && previousProjectId !== selected.projectId) reset()
   const query = { ...route.query, projectId: selected.projectId, reportId: selected.reportId }
   delete query.conversation
+  consumedQaQueryTokens.projectId = JSON.stringify([selected.projectId])
+  consumedQaQueryTokens.reportId = JSON.stringify([selected.reportId])
   void router.replace({ path: '/', query })
 }
 
