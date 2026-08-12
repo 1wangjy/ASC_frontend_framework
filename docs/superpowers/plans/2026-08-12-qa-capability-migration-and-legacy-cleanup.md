@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the existing QA home accept only graph projects with completed reports, reuse the verified citation/domain-term/evidence behavior already present in the frontend, and retire the old deep-interaction page without changing the QA page's established layout.
+**Goal:** Make the existing QA home accept only graph projects with completed reports, support both the existing CoD GraphRAG transport and the real simulation-scoped Report Agent transport, preserve verified citation/domain-term/evidence behavior, and retire the old deep-interaction page without changing the QA page's established layout.
 
-**Architecture:** A pure eligibility model joins backend graph projects and completed reports. A request-safe context controller owns the qualified project list and last selection, while `AscQaView` keeps its current visual structure and opens a temporary selector from the existing project control. The current CoD QA adapter remains the only answer transport; report qualification is revalidated before a question is sent. The legacy interaction route is redirected only after all required behavior is covered by the QA home.
+**Architecture:** A pure eligibility model joins backend graph projects and completed reports. A request-safe context controller owns the qualified project list and last selection, while `AscQaView` keeps its current visual structure and opens a temporary selector from the existing project control. `Hybrid RAG` and `NEXUS` continue through the current CoD adapter; one real `Report Agent` option in the existing framework selector uses `/api/report/chat` with the qualified record's `simulation_id`. Report qualification is revalidated before either transport sends. The legacy interaction route is redirected only after both required transports and shared answer behavior are covered by the QA home.
 
 **Tech Stack:** Vue 3 Composition API, Vue Router 4, Axios, Node test runner, Vite 7.
 
@@ -14,11 +14,14 @@
 - Modify frontend code only; do not modify or restart the backend on port 5002.
 - Keep the current QA page's overall interface, spacing, composer, controls, history region, conversation layout, and evidence panel unchanged.
 - Keep the existing model selector in place for future models. Do not add model choices that the backend does not support.
+- Keep the existing framework selector in place. Preserve `Hybrid RAG` and `NEXUS`, and add only the backend-supported `Report Agent` option; do not add a new persistent control.
 - Do not add the legacy LLM toggle; the current QA page has no such control.
 - Do not claim that static example questions are saved history. A real history list still requires backend APIs.
 - Do not add fake report, project, evidence, evaluation, model, or history data.
 - Only a backend report normalized to `completed` qualifies a project for QA.
 - A completed graph without a completed report must not appear in the QA project selector and must not be accepted at send time.
+- Report Agent requests use only the backend-supported `simulation_id`, `message`, and bounded in-memory `chat_history`; never guess a `report_id` request field.
+- Report Agent answers without backend reference identifiers or a CoD `qa_run_id` must not fabricate evidence or enable GraphRAG evaluation.
 - Keep the previous valid project selected when possible. Never silently fall back to an unrelated project.
 - Keep unrelated untracked `tmp/` content untouched and unstaged.
 
@@ -267,7 +270,59 @@ git add -- src/features/qa/qaApiAdapter.js src/views/AscQaView.vue tests/qaApiAd
 git commit -m "fix: require completed reports before QA"
 ```
 
-### Task 5: Preserve references, green domain terms, evidence, and evaluation
+### Task 5: Report Agent transport through the existing QA composer
+
+**Files:**
+- Create: `src/features/qa/qaReportAgentAdapter.js`
+- Create: `tests/qaReportAgentAdapter.test.js`
+- Modify: `src/api/report.js`
+- Modify: `tests/reportApi.test.js`
+- Modify: `src/features/qa/qaDemoModel.js`
+- Modify: `src/features/qa/QuestionComposer.vue`
+- Modify: `src/features/qa/ConversationPanel.vue`
+- Modify: `src/views/AscQaView.vue`
+- Modify: `tests/graphScopedQaFlow.test.js`
+
+**Interfaces:**
+- `buildReportChatPayload({ simulationId, message, chatHistory })` returns exactly `{ simulation_id, message, chat_history }`.
+- `requestReportAgentAnswer({ getProject, getReport, chatWithReport }, context)` revalidates the same qualified `{ projectId, graphId, simulationId, reportId }` before POST.
+- `adaptReportAgentResponse(response)` returns the existing adapted-answer shape with `answerSource: 'report-agent'`, no fabricated `qaRunId`, and evidence only when the backend supplies explicit stable reference IDs and matching markers.
+- The existing framework selector gains exactly one backend-supported option: `Report Agent`.
+
+- [ ] **Step 1: Write failing Report Agent adapter tests**
+
+Cover: exact payload keys; trimmed message; at most the latest ten valid user/assistant messages; completed matching report proceeds; generating/failed/unknown report blocks before POST; report/simulation mismatch blocks; project/graph mismatch blocks; GET failure fails closed; one click causes exactly one HTTP POST with no automatic transport retry; empty response blocks; plain response creates no references; explicit backend reference IDs remain available without inventing mappings.
+
+- [ ] **Step 2: Run the adapter test and record RED**
+
+Run: `node --test tests/qaReportAgentAdapter.test.js`
+
+Expected: failure because `qaReportAgentAdapter.js` does not exist.
+
+- [ ] **Step 3: Implement the isolated transport adapter**
+
+Use only the existing `chatWithReport` API wrapper, and make that wrapper perform one direct `service.post` rather than generic automatic retry. The POST body must not include `report_id`, `project_id`, `graph_id`, model, reasoning, LLM toggle, conversation ID, or saved-history fields. Treat `report_id` as local qualification identity and `simulation_id` as the current backend chat scope.
+
+- [ ] **Step 4: Wire transport selection without changing layout**
+
+Keep the current composer controls and geometry. Add `Report Agent` to the current framework select. `Hybrid RAG` and `NEXUS` still call CoD; `Report Agent` calls the new adapter. Preserve only the current in-memory session's last ten user/assistant messages for report chat, reset that history on New Chat or qualified-project change, and retain it across sidebar navigation through the existing KeepAlive behavior.
+
+When a Report Agent answer has no real references, keep the evidence drawer closed and label the existing answer header as report-context output rather than “0 evidence documents.” Do not enable the GraphRAG evaluation controls without a real CoD `qa_run_id`.
+
+- [ ] **Step 5: Run Report Agent and QA state regressions**
+
+Run: `node --test tests/qaReportAgentAdapter.test.js tests/reportApi.test.js tests/graphScopedQaFlow.test.js tests/qaRouteQueryLifecycle.test.js tests/qaDemoModel.test.js tests/answerEvaluationService.test.js`
+
+Expected: all tests pass; the current QA layout and CoD behavior remain unchanged.
+
+- [ ] **Step 6: Commit the real Report Agent capability**
+
+```powershell
+git add -- src/api/report.js src/features/qa/qaReportAgentAdapter.js src/features/qa/qaDemoModel.js src/features/qa/QuestionComposer.vue src/features/qa/ConversationPanel.vue src/views/AscQaView.vue tests/reportApi.test.js tests/qaReportAgentAdapter.test.js tests/graphScopedQaFlow.test.js
+git commit -m "feat: answer from completed research reports"
+```
+
+### Task 6: Preserve references, green domain terms, evidence, and evaluation
 
 **Files:**
 - Modify: `src/features/qa/qaAnswerRenderingModel.js`
@@ -323,7 +378,7 @@ git commit -m "fix: preserve QA evidence references"
 
 If all production behavior already passes, commit only new regression tests with message `test: lock QA evidence rendering`.
 
-### Task 6: Lock unsupported QA capabilities at the request boundary
+### Task 7: Lock unsupported QA capabilities at the request boundary
 
 **Files:**
 - Modify: `src/features/qa/qaApiAdapter.js`
@@ -333,11 +388,11 @@ If all production behavior already passes, commit only new regression tests with
 **Interfaces:**
 - `buildCodQueryPayload` remains the single source of truth for currently supported CoD request fields.
 - Confirmed payload fields remain `question`, `project_id`, `graph_id`, `reasoning_mode`, plus existing conditional `mode`.
-- Unsupported model, history, report-context, and LLM-toggle fields are excluded until backend contracts exist.
+- Unsupported model, saved-history, `report_id`, conversation-ID, and LLM-toggle fields are excluded until backend contracts exist. The separate Report Agent adapter may send only its currently supported `simulation_id`, `message`, and bounded `chat_history` fields.
 
 - [ ] **Step 1: Write request-boundary regression tests**
 
-Require the existing model selector to remain in source, require no new LLM toggle, require no history-save/list calls, and require CoD request payloads not to include unsupported `model`, `report_id`, `conversation_id`, or `llm_enabled` fields.
+Require the existing model selector to remain in source, require no new LLM toggle, require no history-save/list calls, require CoD request payloads not to include unsupported `model`, `report_id`, `conversation_id`, or `llm_enabled` fields, and require Report Agent payloads to contain exactly `simulation_id`, `message`, and `chat_history`.
 
 - [ ] **Step 2: Run the request-boundary tests before changes**
 
@@ -362,13 +417,11 @@ git add -- src/features/qa/qaApiAdapter.js tests/requestContracts.test.js tests/
 git commit -m "test: lock current QA backend contract"
 ```
 
-### Task 7: Redirect the legacy interaction route and remove dead Step 5 code
+### Task 8: Redirect the legacy interaction route and remove dead Step 5 code
 
 **Files:**
 - Modify: `src/config/ascRoutes.js`
 - Modify: `src/features/navigation/WorkflowRouteOutlet.js`
-- Modify: `src/api/report.js`
-- Modify: `tests/reportApi.test.js`
 - Modify: `tests/ascLabExperience.test.js`
 - Modify: `tests/workflowRouteCache.test.js`
 - Create: `tests/legacyInteractionRemoval.test.js`
@@ -388,7 +441,7 @@ test('redirects old interaction links to the qualified QA home', () => {
 })
 ```
 
-Require that current QA tests cover: project selection, report qualification, references, domain terms, evidence/evaluation, and existing composer controls. Require no imports/references to `InteractionView` or `Step5Interaction` before deletion is accepted. Require the legacy-only `chatWithReport` frontend wrapper to have no remaining caller; do not redirect it into CoD because the backend has not defined a report-enhanced QA contract.
+Require that current QA tests cover: project selection, report qualification, CoD references, domain terms, evidence/evaluation, real Report Agent chat, and existing composer controls. Require no imports/references to `InteractionView` or `Step5Interaction` before deletion is accepted. Require `chatWithReport` to remain called only through `qaReportAgentAdapter`; do not fold it into CoD or remove the real backend capability.
 
 - [ ] **Step 2: Run removal tests and record RED**
 
@@ -405,25 +458,25 @@ Implement the redirect as a pure exported helper in route configuration so it is
 Before deletion run:
 
 ```powershell
-rg -n "InteractionView|Step5Interaction|chatWithReport|name:\s*['\"]Interaction['\"]" src tests
+rg -n "InteractionView|Step5Interaction|name:\s*['\"]Interaction['\"]" src tests
 ```
 
-Expected before deletion: only the route, cache, old component, report API, and removal-test locations planned above. After wiring the redirect and tests, delete the two components with `apply_patch`, remove the now-unused `chatWithReport` export and `requestWithRetry` import from `src/api/report.js`, then rerun the search. Expected after deletion: only intentional legacy URL compatibility text in the route test/helper.
+Expected before deletion: only the route, cache, old component, and removal-test locations planned above. After wiring the redirect and tests, delete the two components with `apply_patch`, then rerun the search. Expected after deletion: only intentional legacy URL compatibility text in the route test/helper. Separately require `rg -n "chatWithReport" src tests` to find the report API export, the new QA adapter caller, and their tests only.
 
 - [ ] **Step 5: Run route and QA regressions**
 
-Run: `node --test tests/legacyInteractionRemoval.test.js tests/ascLabExperience.test.js tests/workflowRouteCache.test.js tests/workflowPageContinuity.test.js tests/reportApi.test.js tests/qaProjectEligibilityModel.test.js tests/graphScopedQaFlow.test.js tests/qaAnswerRendering.test.js tests/qaEvidenceInteraction.test.js`
+Run: `node --test tests/legacyInteractionRemoval.test.js tests/ascLabExperience.test.js tests/workflowRouteCache.test.js tests/workflowPageContinuity.test.js tests/reportApi.test.js tests/qaProjectEligibilityModel.test.js tests/qaReportAgentAdapter.test.js tests/graphScopedQaFlow.test.js tests/qaAnswerRendering.test.js tests/qaEvidenceInteraction.test.js`
 
 Expected: all tests pass and the old URL lands on the current QA home.
 
 - [ ] **Step 6: Commit the final legacy cleanup**
 
 ```powershell
-git add -A -- src/config/ascRoutes.js src/features/navigation/WorkflowRouteOutlet.js src/api/report.js src/views/InteractionView.vue src/components/Step5Interaction.vue tests/reportApi.test.js tests/ascLabExperience.test.js tests/workflowRouteCache.test.js tests/legacyInteractionRemoval.test.js
+git add -A -- src/config/ascRoutes.js src/features/navigation/WorkflowRouteOutlet.js src/views/InteractionView.vue src/components/Step5Interaction.vue tests/ascLabExperience.test.js tests/workflowRouteCache.test.js tests/legacyInteractionRemoval.test.js
 git commit -m "refactor: retire legacy deep interaction page"
 ```
 
-### Task 8: End-to-end verification and handoff
+### Task 9: End-to-end verification and handoff
 
 **Files:**
 - Modify: `docs/superpowers/plans/2026-08-12-qa-capability-migration-and-legacy-cleanup.md` with exact results only.
@@ -435,7 +488,7 @@ git commit -m "refactor: retire legacy deep interaction page"
 
 - [ ] **Step 1: Run the QA-focused suite**
 
-Run: `node --test tests/qaProjectEligibilityModel.test.js tests/qaProjectContextController.test.js tests/qaProjectSelector.test.js tests/qaApiAdapter.test.js tests/qaAnswerRendering.test.js tests/qaEvidenceInteraction.test.js tests/qaRouteQueryLifecycle.test.js tests/requestContracts.test.js tests/graphScopedQaFlow.test.js tests/legacyInteractionRemoval.test.js`
+Run: `node --test tests/qaProjectEligibilityModel.test.js tests/qaProjectContextController.test.js tests/qaProjectSelector.test.js tests/qaApiAdapter.test.js tests/qaReportAgentAdapter.test.js tests/qaAnswerRendering.test.js tests/qaEvidenceInteraction.test.js tests/qaRouteQueryLifecycle.test.js tests/requestContracts.test.js tests/graphScopedQaFlow.test.js tests/legacyInteractionRemoval.test.js`
 
 Expected: zero failures.
 
@@ -462,6 +515,7 @@ Using the existing frontend on port 3000 and backend on port 5002, verify:
 5. `<c>R1</c>` renders as a clickable `[R1]`; the click selects existing evidence; domain terms remain green.
 6. The model selector still displays its current single model and no LLM toggle appears.
 7. The legacy interaction URL redirects to the QA home.
+8. `Hybrid RAG`/`NEXUS` send the existing CoD payload, while `Report Agent` sends exactly `simulation_id`, `message`, and bounded `chat_history`; neither transport sends guessed fields.
 
 Use real GETs for project/report qualification. Send at most one deliberate QA POST with a harmless question and record its exact payload keys. Do not generate reports, graphs, simulations, or delete data during this smoke test.
 
@@ -496,5 +550,6 @@ git commit -m "docs: verify QA capability migration"
 - Model selection beyond the currently wired DeepSeek option and its request parameter schema.
 - Saved QA history, conversation listing, conversation restoration, and deletion.
 - Any report-to-project association fields not currently returned by report list/detail APIs.
+- A future strict report-version chat contract in which `/api/report/chat` accepts and validates `report_id`; the current backend contract is simulation-scoped.
 
 Until those contracts exist, the frontend must neither display the capability as working nor send guessed request fields.
