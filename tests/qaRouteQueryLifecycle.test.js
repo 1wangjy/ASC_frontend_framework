@@ -36,6 +36,8 @@ const graphApiProbeSource = `
   export async function codGraphRAGQuery(payload) {
     probe().qaPosts.push({ ...payload })
     const postNumber = probe().qaPosts.length
+    const deferredAnswer = probe().deferredQaAnswers.shift()
+    if (deferredAnswer) await deferredAnswer
     return {
       success: true,
       data: {
@@ -78,6 +80,7 @@ const reportApiProbeSource = `
   export async function listReports() {
     const probe = globalThis.${QA_PROBE_KEY}
     probe.reportLoads += 1
+    if (probe.reportError) throw probe.reportError
     const deferredLoad = probe.deferredReportLoads.shift()
     if (deferredLoad) await deferredLoad
     return {
@@ -97,6 +100,7 @@ function createProbe() {
     projectLoads: [],
     reportLoads: 0,
     qaPosts: [],
+    deferredQaAnswers: [],
     deferredProjectLoads: [],
     deferredReportLoads: [],
     projects: [
@@ -159,11 +163,22 @@ async function clickButton(root, label) {
     node => node?.type === 'button' && renderedText(node).includes(label)
   )
   assert.ok(button, `expected button ${label}`)
+  button.focus?.()
   const handlers = Array.isArray(button.props.onClick)
     ? button.props.onClick
     : [button.props.onClick]
   for (const handler of handlers) {
     if (typeof handler === 'function') await handler({ stopPropagation() {} })
+  }
+  await settleWorkflowUpdates()
+}
+
+async function submitComposer(root) {
+  const form = findRenderedNode(root, node => node?.type === 'form' && node.props?.class === 'composer')
+  assert.ok(form, 'expected the real QuestionComposer form')
+  const handlers = Array.isArray(form.props.onSubmit) ? form.props.onSubmit : [form.props.onSubmit]
+  for (const handler of handlers) {
+    if (typeof handler === 'function') await handler({ preventDefault() {} })
   }
   await settleWorkflowUpdates()
 }
@@ -242,6 +257,183 @@ test('rejects a route whose project and report do not identify the same qualifie
     assert.equal(probe.qaPosts.length, 0)
   } finally {
     await fixture.close()
+    delete globalThis[QA_PROBE_KEY]
+  }
+})
+
+test('keeps a mismatched route unselected when retry succeeds instead of falling back to storage', async () => {
+  const previousStorage = globalThis.localStorage
+  const values = new Map([['nexus_active_project_id', 'p1']])
+  globalThis.localStorage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key)
+  }
+  const probe = createProbe()
+  probe.reportError = new Error('report service unavailable')
+  globalThis[QA_PROBE_KEY] = probe
+  const fixture = await mountQa('/?projectId=p1&reportId=r2')
+
+  try {
+    await waitFor(() => assert.match(renderedText(fixture.root), /report service unavailable/), 'initial error did not render')
+    probe.reportError = null
+    await clickButton(fixture.root, '重试')
+    await waitFor(() => assert.equal(probe.reportLoads, 2), 'retry did not reload qualification')
+
+    assert.equal(fixture.router.currentRoute.value.query.projectId, 'p1')
+    assert.equal(fixture.router.currentRoute.value.query.reportId, 'r2')
+    assert.doesNotMatch(renderedText(fixture.root), /Project One/)
+    const sendButton = findRenderedNode(
+      fixture.root,
+      node => node?.type === 'button' && node.props?.class === 'send-button'
+    )
+    assert.equal(sendButton?.props?.disabled, true)
+  } finally {
+    await fixture.close()
+    if (previousStorage === undefined) delete globalThis.localStorage
+    else globalThis.localStorage = previousStorage
+    delete globalThis[QA_PROBE_KEY]
+  }
+})
+
+test('changing a qualified route into a mismatched pair clears its old QA context', async () => {
+  const probe = createProbe()
+  globalThis[QA_PROBE_KEY] = probe
+  const fixture = await mountQa('/?projectId=p1&reportId=r1&conversation=thermal-shock')
+
+  try {
+    await waitFor(() => assert.match(renderedText(fixture.root), /answer-for-post-1/), 'initial answer did not finish')
+    await fixture.router.push('/?projectId=p1&reportId=r2')
+    await waitFor(() => {
+      assert.equal(probe.reportLoads, 2)
+      assert.doesNotMatch(renderedText(fixture.root), /answer-for-post-1/)
+      assert.doesNotMatch(renderedText(fixture.root), /Project One/)
+    }, 'mismatched scope did not clear its prior context')
+  } finally {
+    await fixture.close()
+    delete globalThis[QA_PROBE_KEY]
+  }
+})
+
+test('changing the qualified route scope clears old QA and ignores its late answer', async () => {
+  const probe = createProbe()
+  let finishOldAnswer
+  probe.deferredQaAnswers.push(new Promise(resolve => { finishOldAnswer = resolve }))
+  globalThis[QA_PROBE_KEY] = probe
+  const fixture = await mountQa('/?projectId=p1&reportId=r1')
+
+  try {
+    await waitFor(() => assert.match(renderedText(fixture.root), /Project One/), 'initial scope did not qualify')
+    await setDraft(fixture.root, 'old scoped question')
+    await submitComposer(fixture.root)
+    await waitFor(() => assert.equal(probe.qaPosts.length, 1), 'old question did not start')
+
+    await fixture.router.push('/?projectId=p2&reportId=r2')
+    await waitFor(() => assert.match(renderedText(fixture.root), /Project Two/), 'new scope did not qualify')
+    assert.doesNotMatch(renderedText(fixture.root), /old scoped question/)
+
+    finishOldAnswer()
+    await settleWorkflowUpdates()
+    assert.doesNotMatch(renderedText(fixture.root), /answer-for-post-1/)
+
+    await fixture.router.push('/documents')
+    await settleWorkflowUpdates()
+    await fixture.router.push('/?projectId=p2&reportId=r2')
+    await settleWorkflowUpdates()
+    assert.match(renderedText(fixture.root), /Project Two/)
+    assert.equal(probe.projectLoads.length, 2)
+  } finally {
+    await fixture.close()
+    delete globalThis[QA_PROBE_KEY]
+  }
+})
+
+test('project selector traps keyboard focus and restores the opener when closed', async () => {
+  const probe = createProbe()
+  globalThis[QA_PROBE_KEY] = probe
+  const fixture = await mountQa('/?projectId=p1&reportId=r1')
+
+  try {
+    await waitFor(() => assert.match(renderedText(fixture.root), /Project One/), 'initial scope did not qualify')
+    const opener = findRenderedNode(
+      fixture.root,
+      node => node?.type === 'button' && renderedText(node).includes('更换图谱')
+    )
+    assert.ok(opener)
+    opener.focus()
+    await clickButton(fixture.root, '更换图谱')
+
+    const dialog = findRenderedNode(fixture.root, node => node?.props?.role === 'dialog')
+    assert.ok(dialog)
+    assert.equal(fixture.document.activeElement, dialog)
+    const focusable = dialog.querySelectorAll()
+    const first = focusable[0]
+    const last = focusable.at(-1)
+
+    last.focus()
+    let forwardPrevented = false
+    await dialog.props.onKeydown({ key: 'Tab', shiftKey: false, preventDefault: () => { forwardPrevented = true }, stopPropagation() {} })
+    assert.equal(forwardPrevented, true)
+    assert.equal(fixture.document.activeElement, first)
+
+    first.focus()
+    let backwardPrevented = false
+    await dialog.props.onKeydown({ key: 'Tab', shiftKey: true, preventDefault: () => { backwardPrevented = true }, stopPropagation() {} })
+    assert.equal(backwardPrevented, true)
+    assert.equal(fixture.document.activeElement, last)
+
+    await dialog.props.onKeydown({ key: 'Escape', preventDefault() {}, stopPropagation() {} })
+    await settleWorkflowUpdates()
+    assert.equal(findRenderedNode(fixture.root, node => node?.props?.role === 'dialog'), null)
+    assert.equal(fixture.document.activeElement, opener)
+  } finally {
+    await fixture.close()
+    delete globalThis[QA_PROBE_KEY]
+  }
+})
+
+test('deactivation keeps the QA project controller alive but real unmount stops it once', async () => {
+  const probe = createProbe()
+  probe.controllerStops = 0
+  globalThis[QA_PROBE_KEY] = probe
+  const controllerProbeSource = `
+    export function createQaProjectContextController({ onChange }) {
+      const probe = globalThis.${QA_PROBE_KEY}
+      const selected = {
+        projectId: 'p1', graphId: 'g1', simulationId: 's1', reportId: 'r1',
+        projectName: 'Project One', reportStatus: 'completed', project: { project_id: 'p1', graph_id: 'g1' }
+      }
+      const state = { loading: false, records: [selected], selected, error: '', requestVersion: 0 }
+      return {
+        async refresh() { onChange(structuredClone(state)); return structuredClone(state) },
+        select() { return true },
+        clear() { state.selected = null; onChange(structuredClone(state)) },
+        snapshot() { return structuredClone(state) },
+        stop() { probe.controllerStops += 1 }
+      }
+    }
+  `
+  const fixture = await mountWorkflowRoutes({
+    initialPath: '/?projectId=p1&reportId=r1',
+    moduleOverrides: {
+      'src/api/graph.js': graphApiProbeSource,
+      'src/api/report.js': reportApiProbeSource,
+      'src/features/tasks/graphTaskMonitor.js': graphTaskMonitorProbeSource,
+      'src/features/qa/qaProjectContextController.js': controllerProbeSource
+    },
+    routes: [
+      { path: '/', name: 'AscQa', component: '/src/views/AscQaView.vue' },
+      { path: '/documents', name: 'Documents', component: DocumentsView }
+    ]
+  })
+
+  try {
+    await fixture.router.push('/documents')
+    await settleWorkflowUpdates()
+    assert.equal(probe.controllerStops, 0)
+  } finally {
+    await fixture.close()
+    assert.equal(probe.controllerStops, 1)
     delete globalThis[QA_PROBE_KEY]
   }
 })

@@ -81,10 +81,22 @@ test('defines keyboard close and project selection as component events', async (
     'utf8'
   )
 
-  assert.match(source, /@keydown\.esc\.stop="emit\('close'\)"/)
+  assert.match(source, /@keydown\.stop="handleKeydown"/)
   assert.match(source, /@click="emit\('select', project\.projectId\)"/)
   assert.match(source, /defineEmits\(\['select', 'close', 'refresh'\]\)/)
   assert.match(source, /ref="dialog"/)
   assert.match(source, /if \(typeof dialog\.value\?\.focus === 'function'\) dialog\.value\.focus\(\)/)
   assert.doesNotMatch(source, /useRouter|router\.(?:push|replace)/)
+})
+
+test('places the modal above persistent controls and delegates all keyboard handling to its trap', async () => {
+  const source = await readFile(
+    new URL('../src/features/qa/QaProjectSelector.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /@keydown\.stop="handleKeydown"/)
+  assert.match(source, /focusableElements/)
+  assert.match(source, /previousFocus/)
+  assert.match(source, /z-index:\s*1000/)
 })

@@ -32,7 +32,7 @@
 
         <div v-if="projectUnavailableMessage" class="qa-project-message" :class="{ error: projectError }">
           <span>{{ projectUnavailableMessage }}</span>
-          <button v-if="projectError" type="button" @click="refreshQualifiedProjects">重试</button>
+          <button v-if="projectError" type="button" @click="retryQualifiedProjects">重试</button>
           <button v-if="!projectsLoading && !activeProject" type="button" @click="selectorOpen = true">
             选择项目
           </button>
@@ -102,7 +102,7 @@
       :error="projectError"
       @select="selectQualifiedProject"
       @close="selectorOpen = false"
-      @refresh="refreshQualifiedProjects"
+      @refresh="retryQualifiedProjects"
     />
   </div>
 </template>
@@ -110,7 +110,7 @@
 <script setup>
 defineOptions({ name: 'AscQaView' })
 
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import QuestionComposer from '../features/qa/QuestionComposer.vue'
 import TaskShortcuts from '../features/qa/TaskShortcuts.vue'
@@ -234,6 +234,14 @@ async function refreshQualifiedProjects(options = {}) {
   } finally {
     finishCurrentLoad()
   }
+}
+
+function retryQualifiedProjects() {
+  const snapshot = activeQaQuerySnapshot()
+  return refreshQualifiedProjects({
+    routeProjectId: snapshot.projectId.value,
+    routeReportId: snapshot.reportId.value
+  })
 }
 
 function selectQualifiedProject(projectId) {
@@ -484,6 +492,9 @@ async function consumeActiveQaRouteQuery() {
   )
   const newChanged = consumedQaQueryTokens.new !== snapshot.new.token
   const conversationChanged = consumedQaQueryTokens.conversation !== snapshot.conversation.token
+  const previousScope = activeProject.value
+    ? `${activeProject.value.projectId}:${activeProject.value.reportId}`
+    : ''
 
   if (projectChanged) {
     consumedQaQueryTokens.projectId = snapshot.projectId.token
@@ -499,6 +510,11 @@ async function consumeActiveQaRouteQuery() {
     currentConsumption !== qaRouteConsumptionVersion
     || !isCurrentActiveQaSnapshot(snapshot)
   ) return
+
+  const currentScope = activeProject.value
+    ? `${activeProject.value.projectId}:${activeProject.value.reportId}`
+    : ''
+  if (projectChanged && previousScope && currentScope !== previousScope) reset()
 
   if (newChanged) {
     consumedQaQueryTokens.new = snapshot.new.token
@@ -529,6 +545,10 @@ watch(
 )
 
 onMounted(() => { void consumeActiveQaRouteQuery() })
+onUnmounted(() => {
+  requestVersion += 1
+  qaProjectContext.stop()
+})
 </script>
 
 <style scoped>

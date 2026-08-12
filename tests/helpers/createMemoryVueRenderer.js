@@ -8,7 +8,36 @@ function detach(node) {
 }
 
 export function createMemoryVueRenderer() {
-  const root = { type: 'root', children: [], parent: null, props: {}, text: '' }
+  const document = { activeElement: null }
+
+  function descendants(node) {
+    return (node?.children || []).flatMap(child => [child, ...descendants(child)])
+  }
+
+  function createNode(type) {
+    const node = {
+      type,
+      children: [],
+      parent: null,
+      props: {},
+      text: '',
+      ownerDocument: document,
+      focus() { document.activeElement = node },
+      contains(candidate) {
+        return candidate === node || descendants(node).includes(candidate)
+      },
+      querySelectorAll() {
+        return descendants(node).filter(candidate => (
+          ['a', 'button', 'input', 'select', 'textarea'].includes(candidate.type)
+          && candidate.props?.disabled !== true
+          && candidate.props?.tabindex !== '-1'
+        ))
+      }
+    }
+    return node
+  }
+
+  const root = createNode('root')
   const renderer = createRenderer({
     patchProp(node, key, previous, next) { node.props[key] = next },
     insert(child, parent, anchor = null) {
@@ -19,9 +48,9 @@ export function createMemoryVueRenderer() {
       else parent.children.push(child)
     },
     remove(node) { detach(node); node.parent = null },
-    createElement(type) { return { type, children: [], parent: null, props: {}, text: '' } },
-    createText(text) { return { type: '#text', children: [], parent: null, props: {}, text } },
-    createComment(text) { return { type: '#comment', children: [], parent: null, props: {}, text } },
+    createElement(type) { return createNode(type) },
+    createText(text) { const node = createNode('#text'); node.text = text; return node },
+    createComment(text) { const node = createNode('#comment'); node.text = text; return node },
     setText(node, text) { node.text = text },
     setElementText(node, text) { node.children = []; node.text = text },
     parentNode(node) { return node.parent },
@@ -41,7 +70,7 @@ export function createMemoryVueRenderer() {
       return [node, node]
     }
   })
-  return { renderer, root }
+  return { renderer, root, document }
 }
 
 export function renderedText(node) {

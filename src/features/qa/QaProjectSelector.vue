@@ -12,7 +12,7 @@
       aria-modal="true"
       aria-labelledby="qa-project-selector-title"
       tabindex="-1"
-      @keydown.esc.stop="emit('close')"
+      @keydown.stop="handleKeydown"
     >
       <header>
         <div>
@@ -68,12 +68,61 @@ const props = defineProps({
 
 const emit = defineEmits(['select', 'close', 'refresh'])
 const dialog = ref(null)
+let previousFocus = null
+
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])'
+].join(',')
+
+function focusableElements() {
+  if (typeof dialog.value?.querySelectorAll !== 'function') return []
+  return [...dialog.value.querySelectorAll(FOCUSABLE_SELECTOR)]
+}
+
+function handleKeydown(event) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    emit('close')
+    return
+  }
+  if (event.key !== 'Tab') return
+
+  const elements = focusableElements()
+  if (!elements.length) {
+    event.preventDefault()
+    dialog.value?.focus?.()
+    return
+  }
+
+  const activeElement = dialog.value?.ownerDocument?.activeElement
+  const first = elements[0]
+  const last = elements.at(-1)
+  if (event.shiftKey && (activeElement === first || !dialog.value?.contains?.(activeElement))) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && (activeElement === last || !dialog.value?.contains?.(activeElement))) {
+    event.preventDefault()
+    first.focus()
+  }
+}
 
 watch(
   () => props.open,
   (open) => {
-    if (open) nextTick(() => {
-      if (typeof dialog.value?.focus === 'function') dialog.value.focus()
+    if (open) {
+      previousFocus = globalThis.document?.activeElement || null
+      nextTick(() => {
+        if (!previousFocus) previousFocus = dialog.value?.ownerDocument?.activeElement || null
+        if (typeof dialog.value?.focus === 'function') dialog.value.focus()
+      })
+    } else if (previousFocus) nextTick(() => {
+      previousFocus?.focus?.()
+      previousFocus = null
     })
   }
 )
@@ -83,7 +132,7 @@ watch(
 .qa-project-selector {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 1000;
   display: grid;
   place-items: start end;
   padding: 68px 28px 28px;

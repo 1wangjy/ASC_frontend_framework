@@ -114,7 +114,7 @@ export async function mountWorkflowRoutes({ initialPath, moduleOverrides = {}, r
       })
     }
     const router = createRouter({ history: createMemoryHistory(), routes: resolvedRoutes })
-    const { renderer, root } = createMemoryVueRenderer()
+    const { renderer, root, document } = createMemoryVueRenderer()
     app = renderer.createApp(WorkflowRouteOutlet)
     app.use(router)
     app.provide(ssrContextKey, { modules: new Set() })
@@ -127,6 +127,7 @@ export async function mountWorkflowRoutes({ initialPath, moduleOverrides = {}, r
     return {
       app,
       root,
+      document,
       router,
       async close() {
         app.unmount()
