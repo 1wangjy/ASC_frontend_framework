@@ -365,6 +365,8 @@ test('shell collapses the graph project column into a compact reopen control', a
   assert.match(source, /data-tooltip="打开项目栏"/)
   assert.match(source, /@collapse="graphProjectPanelCollapsed = true"/)
   assert.match(source, /grid-template-columns:\s*44px\s+minmax\(0,\s*1fr\)/)
+  assert.match(source, /\.project-panel-rail__open\s*\{[^}]*top:\s*76px/s)
+  assert.match(source, /\.project-panel-rail__open\s*\{[^}]*margin:\s*76px auto 0/s)
 })
 
 test('project panel exposes a compact collapse control', async () => {
@@ -373,6 +375,8 @@ test('project panel exposes a compact collapse control', async () => {
   assert.match(source, /defineEmits\(\['collapse'\]\)/)
   assert.match(source, /aria-label="收起项目栏"/)
   assert.match(source, /\$emit\('collapse'\)/)
+  assert.match(source, /graph-project-panel__header-actions/)
+  assert.doesNotMatch(source, /\.graph-project-panel__collapse\s*\{[^}]*position:\s*absolute/s)
 })
 
 test('registers graph evolution and report generation as separate primary destinations', () => {

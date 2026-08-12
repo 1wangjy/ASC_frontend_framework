@@ -1,22 +1,24 @@
 <template>
   <aside class="graph-project-panel">
-    <button
-      type="button"
-      class="graph-project-panel__collapse"
-      aria-label="收起项目栏"
-      title="收起项目栏"
-      @click="$emit('collapse')"
-    >
-      <span aria-hidden="true">‹</span>
-    </button>
     <header class="graph-project-panel__header">
       <div>
         <h1>知识图谱项目</h1>
         <p>选择项目查看 NEXUS 完整流程</p>
       </div>
-      <button type="button" :disabled="monitor.state.connection === 'connecting'" @click="monitor.refresh">
-        刷新
-      </button>
+      <div class="graph-project-panel__header-actions">
+        <button type="button" :disabled="monitor.state.connection === 'connecting'" @click="monitor.refresh">
+          刷新
+        </button>
+        <button
+          type="button"
+          class="graph-project-panel__collapse"
+          aria-label="收起项目栏"
+          title="收起项目栏"
+          @click="$emit('collapse')"
+        >
+          <span aria-hidden="true">‹</span>
+        </button>
+      </div>
     </header>
 
     <p v-if="workspaceError" class="graph-project-panel__error" role="alert">{{ workspaceError }}</p>
@@ -174,10 +176,6 @@ async function confirmProjectDeletion() {
 }
 
 .graph-project-panel__collapse {
-  position: absolute;
-  top: 28px;
-  right: 8px;
-  z-index: 2;
   display: grid;
   width: 30px;
   height: 30px;
@@ -199,6 +197,13 @@ async function confirmProjectDeletion() {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.graph-project-panel__header-actions {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: 8px;
 }
 
 .graph-project-panel__header h1 {

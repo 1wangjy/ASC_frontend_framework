@@ -138,11 +138,11 @@ onUnmounted(monitor.stop)
 
 .project-panel-rail__open {
   position: sticky;
-  top: 16px;
+  top: 76px;
   display: grid;
   width: 34px;
   height: 34px;
-  margin: 16px auto;
+  margin: 76px auto 0;
   place-items: center;
   padding: 0;
   border: 1px solid var(--asc-border);
