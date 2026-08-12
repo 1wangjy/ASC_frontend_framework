@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import service from '../src/api/index.js'
-import { getReportStatus, listReports } from '../src/api/report.js'
+import { downloadReport, getReportStatus, listReports } from '../src/api/report.js'
 
 test('polls report status with the backend task-id POST contract', async () => {
   const originalAdapter = service.defaults.adapter
@@ -56,6 +56,35 @@ test('lists saved reports through the read-only backend endpoint', async () => {
     assert.equal(requestConfig.url, '/api/report/list')
     assert.deepEqual(requestConfig.params, { limit: 50 })
     assert.equal(requestConfig.data, undefined)
+  } finally {
+    service.defaults.adapter = originalAdapter
+  }
+})
+
+test('downloads reports as a Blob payload rather than response metadata', async () => {
+  const originalAdapter = service.defaults.adapter
+  let requestConfig
+  const blob = new Blob(['# report'], { type: 'text/markdown' })
+
+  service.defaults.adapter = async config => {
+    requestConfig = config
+    return {
+      data: blob,
+      status: 200,
+      statusText: 'OK',
+      headers: { 'content-disposition': 'attachment; filename=ignored.md' },
+      config,
+      request: {}
+    }
+  }
+
+  try {
+    const result = await downloadReport('report / 1')
+
+    assert.equal(result, blob)
+    assert.equal(requestConfig.method, 'get')
+    assert.equal(requestConfig.url, '/api/report/report%20%2F%201/download')
+    assert.equal(requestConfig.responseType, 'blob')
   } finally {
     service.defaults.adapter = originalAdapter
   }
