@@ -70,7 +70,10 @@ import GraphProjectWorkspacePanel from '../features/projects/GraphProjectWorkspa
 import GlobalGraphTaskIndicator from '../features/tasks/GlobalGraphTaskIndicator.vue'
 import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
 import { buildLogicalGraphProjects } from '../features/projects/logicalGraphProjectModel.js'
-import { useGraphWorkflowSession } from '../features/navigation/graphWorkflowSession.js'
+import {
+  resolveGraphProjectResumeRoute,
+  useGraphWorkflowSession
+} from '../features/navigation/graphWorkflowSession.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -87,7 +90,10 @@ function viewProject(projectId) {
   const logicalProject = logicalGraphProjects.value.find(item => (
     item.projectId === projectId || item.memberProjectIds?.includes(projectId)
   ))
-  const resumeRoute = workflowSession.resolve(logicalProject?.memberProjectIds || [projectId])
+  const resumeRoute = resolveGraphProjectResumeRoute(
+    logicalProject,
+    workflowSession.resolve(logicalProject?.memberProjectIds || [projectId])
+  )
   if (resumeRoute) {
     if (route.fullPath !== resumeRoute) router.push(resumeRoute)
     return

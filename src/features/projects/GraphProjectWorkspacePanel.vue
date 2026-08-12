@@ -51,7 +51,10 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { deleteGraph, deleteGraphProject } from '../../api/graph.js'
-import { useGraphWorkflowSession } from '../navigation/graphWorkflowSession.js'
+import {
+  resolveGraphProjectResumeRoute,
+  useGraphWorkflowSession
+} from '../navigation/graphWorkflowSession.js'
 import { useGraphTaskMonitor } from '../tasks/graphTaskMonitor.js'
 import GraphProjectDeleteDialog from './GraphProjectDeleteDialog.vue'
 import GraphProjectList from './GraphProjectList.vue'
@@ -114,7 +117,10 @@ watch([() => route.fullPath, logicalProjects], retainWorkflowContext)
 function selectProject(item) {
   rememberActiveProjectId(browserStorage, item.projectId)
   selectedProjectId.value = item.projectId
-  const resumeRoute = workflowSession.resolve(item.memberProjectIds)
+  const resumeRoute = resolveGraphProjectResumeRoute(
+    item,
+    workflowSession.resolve(item.memberProjectIds)
+  )
   if (resumeRoute) {
     if (route.fullPath !== resumeRoute) router.push(resumeRoute)
     return

@@ -319,9 +319,11 @@ import { useRouter } from 'vue-router'
 import { 
   startSimulation, 
   stopSimulation,
+  getSimulation,
   getRunStatus, 
   getRunStatusDetail
 } from '../api/simulation'
+import { decideSimulationRunResume } from '../features/simulation/simulationRunResumeModel.js'
 
 const props = defineProps({
   simulationId: String,
@@ -604,7 +606,6 @@ const doStartSimulation = async () => {
     const params = {
       simulation_id: props.simulationId,
       platform: 'parallel',
-      force: true,  // 强制重新开始
       enable_graph_memory_update: true  // 传入graph_id用于本地ASC-KG成长产物追踪
     }
     
@@ -827,6 +828,53 @@ const fetchRunStatusDetail = async (options = {}) => {
   }
 }
 
+const restoreSimulationRun = async () => {
+  if (!props.simulationId) return
+
+  let response
+  let simulationResponse
+  try {
+    ;[response, simulationResponse] = await Promise.all([
+      getRunStatus(props.simulationId),
+      getSimulation(props.simulationId)
+    ])
+  } catch (error) {
+    startError.value = error?.message || '读取模拟状态失败'
+    emit('update-status', 'error')
+    return
+  }
+
+  const decision = decideSimulationRunResume(response, simulationResponse)
+  if (decision.action === 'start') {
+    await doStartSimulation()
+    return
+  }
+  if (decision.action === 'error') {
+    startError.value = response?.error || '无法确认模拟运行状态，为避免重复启动已暂停操作'
+    emit('update-status', 'error')
+    return
+  }
+
+  runStatus.value = response.data
+  prevTwitterRound.value = Number(response.data.twitter_current_round || 0)
+  prevRedditRound.value = Number(response.data.reddit_current_round || 0)
+  await fetchRunStatusDetail({ emitGrowthSnapshots: false })
+
+  if (decision.action === 'resume-running') {
+    phase.value = 1
+    emit('update-status', 'processing')
+    startStatusPolling()
+    startDetailPolling()
+    return
+  }
+
+  phase.value = decision.action === 'resume-completed' ? 2 : 0
+  startError.value = decision.action === 'resume-failed'
+    ? response.data.error || '模拟运行失败'
+    : null
+  emit('update-status', decision.status)
+}
+
 // Helpers
 const getActionTypeLabel = (type) => {
   const labels = {
@@ -981,7 +1029,7 @@ watch(() => props.systemLogs?.length, () => {
 onMounted(() => {
   addLog('Step3 ASC-OASIS科研推理初始化')
   if (props.simulationId) {
-    doStartSimulation()
+    restoreSimulationRun()
   }
 })
 

@@ -10,6 +10,27 @@ function intersects(left = [], right = new Set()) {
   return left.some(value => right.has(value))
 }
 
+const SIMULATION_RUN_STATUSES = new Set([
+  'evolution_running',
+  'evolution_completed',
+  'evolution_stopped',
+  'evolution_failed'
+])
+
+export function resolveGraphProjectResumeRoute(project = {}, fallbackRoute = '') {
+  const simulationId = text(project?.simulationId || project?.simulation_id)
+  const evolutionStatus = text(project?.evolutionStatus || project?.evolution_status)
+
+  if (simulationId) {
+    const encodedSimulationId = encodeURIComponent(simulationId)
+    return SIMULATION_RUN_STATUSES.has(evolutionStatus)
+      ? `/simulation/${encodedSimulationId}/start`
+      : `/simulation/${encodedSimulationId}`
+  }
+
+  return text(fallbackRoute)
+}
+
 export function createGraphWorkflowSessionRegistry() {
   const routeByProjectId = new Map()
   const projectIdsBySimulationId = new Map()

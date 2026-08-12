@@ -2,7 +2,33 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
-import { createGraphWorkflowSessionRegistry } from '../src/features/navigation/graphWorkflowSession.js'
+import {
+  createGraphWorkflowSessionRegistry,
+  resolveGraphProjectResumeRoute
+} from '../src/features/navigation/graphWorkflowSession.js'
+
+test('prefers the backend simulation stage when resuming a graph project', () => {
+  assert.equal(resolveGraphProjectResumeRoute({
+    projectId: 'p1',
+    simulationId: 's1',
+    evolutionStatus: 'environment_preparing'
+  }, '/process/p1'), '/simulation/s1')
+
+  for (const evolutionStatus of [
+    'evolution_running',
+    'evolution_completed',
+    'evolution_stopped',
+    'evolution_failed'
+  ]) {
+    assert.equal(resolveGraphProjectResumeRoute({
+      projectId: 'p1',
+      simulationId: 's1',
+      evolutionStatus
+    }, '/process/p1'), '/simulation/s1/start')
+  }
+
+  assert.equal(resolveGraphProjectResumeRoute({ projectId: 'p1' }, '/process/p1'), '/process/p1')
+})
 
 test('keeps one project on its latest environment, simulation, report, and interaction route', () => {
   const registry = createGraphWorkflowSessionRegistry()
