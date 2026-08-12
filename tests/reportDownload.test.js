@@ -88,8 +88,77 @@ test('rejects when injected browser download APIs are unavailable', async () => 
   )
 })
 
+test('downloads a non-empty Blob created by the injected browser realm', async () => {
+  class BrowserBlob {
+    constructor(contents) {
+      this.contents = contents
+      this.size = contents.join('').length
+    }
+  }
+
+  const events = []
+  const browser = {
+    Blob: BrowserBlob,
+    URL: {
+      createObjectURL: blob => {
+        assert.ok(blob instanceof BrowserBlob)
+        events.push('created')
+        return 'blob:browser-realm'
+      },
+      revokeObjectURL: url => events.push(`revoked:${url}`)
+    },
+    document: {
+      createElement: () => ({
+        click() { events.push('clicked') }
+      })
+    }
+  }
+
+  const filename = await saveReportDownload({
+    reportId: 'r1',
+    projectName: 'Graph',
+    downloadReport: async () => new BrowserBlob(['report']),
+    browser
+  })
+
+  assert.equal(filename, 'Graph-研究报告.md')
+  assert.deepEqual(events, ['created', 'clicked', 'revoked:blob:browser-realm'])
+})
+
+test('does not crash when the injected browser Blob constructor is unavailable', async () => {
+  const clicks = []
+  const filename = await saveReportDownload({
+    reportId: 'r1',
+    projectName: 'Graph',
+    downloadReport: async () => new Blob(['report']),
+    browser: { ...createFakeDownloadBrowser(clicks), Blob: {} }
+  })
+
+  assert.equal(filename, 'Graph-研究报告.md')
+  assert.deepEqual(clicks, ['Graph-研究报告.md', 'revoked:blob:report-download'])
+})
+
+test('rejects plain objects that only resemble Blob payloads', async () => {
+  await assert.rejects(
+    saveReportDownload({
+      reportId: 'r1',
+      projectName: 'Graph',
+      downloadReport: async () => ({ data: { size: 6, type: 'text/markdown' } }),
+      browser: createFakeDownloadBrowser([])
+    }),
+    /可下载的报告文件/
+  )
+})
+
 test('uses a safe fallback when every project-name character is invalid', () => {
   assert.equal(buildReportFilename('<>:"/\\|?*'), '未命名项目-研究报告.md')
+})
+
+test('replaces Windows control characters with safe filename separators', () => {
+  const filename = buildReportFilename('alpha\u0000beta\u001fgamma')
+
+  assert.equal(filename, 'alpha-beta-gamma-研究报告.md')
+  assert.doesNotMatch(filename, /[\u0000-\u001f]/)
 })
 
 test('caps the filename basename length before appending the extension', () => {

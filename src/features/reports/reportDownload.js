@@ -1,4 +1,4 @@
-const INVALID_FILENAME_CHARACTERS = /[<>:"/\\|?*]+/g
+const INVALID_FILENAME_CHARACTERS = /[\u0000-\u001f<>:"/\\|?*]+/g
 const SEPARATORS = /[-\s]+/g
 const MAX_BASENAME_LENGTH = 252
 const REPORT_SUFFIX = '-研究报告'
@@ -16,11 +16,18 @@ export function buildReportFilename(projectName) {
   return `${basename}.md`
 }
 
+function isBlobFromKnownRealm(value, browser) {
+  const constructors = [globalThis.Blob, browser?.Blob]
+  return constructors.some(BlobConstructor => (
+    typeof BlobConstructor === 'function' && value instanceof BlobConstructor
+  ))
+}
+
 export async function saveReportDownload({ reportId, projectName, downloadReport, browser }) {
   const response = await downloadReport(reportId)
-  const blob = response instanceof Blob ? response : response?.data
+  const blob = isBlobFromKnownRealm(response, browser) ? response : response?.data
 
-  if (!(blob instanceof Blob) || blob.size === 0) {
+  if (!isBlobFromKnownRealm(blob, browser) || blob.size === 0) {
     throw new Error('后端未返回可下载的报告文件')
   }
 
