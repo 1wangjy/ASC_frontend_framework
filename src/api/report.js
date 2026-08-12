@@ -1,5 +1,6 @@
 import service, { requestWithRetry } from './index.js'
 import {
+  buildReportDeleteRequest,
   buildReportDownloadRequest,
   buildReportSectionsRequest,
   buildReportStatusRequest
@@ -69,6 +70,11 @@ export const getReportSections = (reportId) => {
 /** 下载后端生成的 Markdown 报告。 */
 export const downloadReport = (reportId) => {
   return service(buildReportDownloadRequest(reportId))
+}
+
+/** 删除后端保存的单份报告，不影响图谱项目和模拟数据。 */
+export const deleteReport = (reportId) => {
+  return service(buildReportDeleteRequest(reportId))
 }
 
 /**

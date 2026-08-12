@@ -62,7 +62,7 @@ test('keeps unmatched saved reports as report-only records', () => {
     projectId: '', graphId: 'g-missing', simulationId: 's-missing', projectName: '未关联图谱',
     evolutionStatus: '', reportId: 'r-orphan', reportStatus: 'completed', reportTaskId: '',
     report: { report_id: 'r-orphan', graph_id: 'g-missing', simulation_id: 's-missing', status: 'completed' },
-    canGenerate: false, canPreview: true, canDownload: true, canOpenQa: false
+    canGenerate: false, canPreview: true, canDownload: true, canDelete: true, canOpenQa: false
   })
 })
 

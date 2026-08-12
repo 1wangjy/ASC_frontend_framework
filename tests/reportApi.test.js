@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import service from '../src/api/index.js'
-import { downloadReport, getReportStatus, listReports } from '../src/api/report.js'
+import { deleteReport, downloadReport, getReportStatus, listReports } from '../src/api/report.js'
 
 test('polls report status with the backend task-id POST contract', async () => {
   const originalAdapter = service.defaults.adapter
@@ -85,6 +85,33 @@ test('downloads reports as a Blob payload rather than response metadata', async 
     assert.equal(requestConfig.method, 'get')
     assert.equal(requestConfig.url, '/api/report/report%20%2F%201/download')
     assert.equal(requestConfig.responseType, 'blob')
+  } finally {
+    service.defaults.adapter = originalAdapter
+  }
+})
+
+test('deletes one saved report through the encoded backend endpoint', async () => {
+  const originalAdapter = service.defaults.adapter
+  let requestConfig
+
+  service.defaults.adapter = async config => {
+    requestConfig = config
+    return {
+      data: { success: true, message: 'deleted' },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config,
+      request: {}
+    }
+  }
+
+  try {
+    const result = await deleteReport('report / 1')
+    assert.equal(result.success, true)
+    assert.equal(requestConfig.method, 'delete')
+    assert.equal(requestConfig.url, '/api/report/report%20%2F%201')
+    assert.equal(requestConfig.data, undefined)
   } finally {
     service.defaults.adapter = originalAdapter
   }

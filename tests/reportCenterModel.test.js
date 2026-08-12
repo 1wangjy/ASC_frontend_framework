@@ -19,6 +19,7 @@ test('decorates lifecycle records for the retained report-card presentation', ()
       canGenerate: false,
       canPreview: true,
       canDownload: true,
+      canDelete: true,
       canOpenQa: true,
       report: {
         report_id: 'report-ready',
@@ -46,6 +47,7 @@ test('decorates lifecycle records for the retained report-card presentation', ()
   assert.equal(items[0].statusLabel, '已完成')
   assert.equal(items[0].title, '研究主题')
   assert.equal(items[0].canOpenQa, true)
+  assert.equal(items[0].canDelete, true)
   assert.equal(items[1].status, 'ready')
   assert.equal(items[1].statusLabel, '可生成')
   assert.equal(items[1].canGenerate, true)

@@ -86,6 +86,15 @@
           >
             {{ downloadingReportId === record.reportId ? '下载中' : '下载' }}
           </button>
+          <button
+            v-if="record.canDelete"
+            type="button"
+            class="report-card__delete"
+            :disabled="Boolean(deletingReportId) || Boolean(downloadingReportId)"
+            @click="deleteRecord(record)"
+          >
+            {{ deletingReportId === record.reportId ? '删除中' : '删除' }}
+          </button>
           <button v-if="record.canOpenQa" type="button" @click="openQa(record)">去问答</button>
         </footer>
       </article>
@@ -101,6 +110,7 @@ import { useRouter } from 'vue-router'
 
 import {
   checkReportForSimulation,
+  deleteReport,
   downloadReport,
   generateReport,
   listReports
@@ -121,6 +131,7 @@ const controller = createReportCenterController({
   checkExistingReport: checkReportForSimulation,
   generateReport,
   downloadReport,
+  deleteReport,
   getProjects: () => buildLogicalGraphProjects(monitor.state.items),
   openReport: ({ reportId, taskId }) => router.push({
     name: 'Report',
@@ -137,6 +148,7 @@ const error = computed(() => state.error)
 const actionError = computed(() => state.actionError)
 const mutatingProjectId = computed(() => state.mutatingProjectId)
 const downloadingReportId = computed(() => state.downloadingReportId)
+const deletingReportId = computed(() => state.deletingReportId)
 const records = computed(() => buildReportCenterRecordItems(state.records))
 
 watch(() => monitor.state.items, () => controller.syncProjects(), { deep: true })
@@ -151,6 +163,10 @@ function generateRecord(record) {
 
 function downloadRecord(record) {
   return controller.download(record).catch(() => undefined)
+}
+
+function deleteRecord(record) {
+  return controller.delete(record).catch(() => undefined)
 }
 
 function reportRoute(record) {
@@ -453,6 +469,11 @@ onBeforeUnmount(controller.stop)
 .report-card__actions button:disabled {
   cursor: wait;
   opacity: .6;
+}
+
+.report-card__actions .report-card__delete {
+  border-color: #efc6c2;
+  color: #b42318;
 }
 
 .report-center-view__action-error {

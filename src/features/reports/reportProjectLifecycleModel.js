@@ -73,6 +73,7 @@ function reportRecord(project, report) {
     canGenerate: Boolean(project) && isEvolutionComplete(project) && !hasReport,
     canPreview: completed,
     canDownload: completed,
+    canDelete: hasReport && ['completed', 'failed'].includes(status),
     canOpenQa: Boolean(project) && completed
   }
 }

@@ -16,6 +16,7 @@ export function createReportCenterController({
   checkExistingReport,
   generateReport,
   downloadReport,
+  deleteReport,
   getProjects,
   openReport,
   browser,
@@ -25,6 +26,7 @@ export function createReportCenterController({
   if (typeof checkExistingReport !== 'function') throw new TypeError('checkExistingReport is required')
   if (typeof generateReport !== 'function') throw new TypeError('generateReport is required')
   if (typeof downloadReport !== 'function') throw new TypeError('downloadReport is required')
+  if (typeof deleteReport !== 'function') throw new TypeError('deleteReport is required')
   if (typeof getProjects !== 'function') throw new TypeError('getProjects is required')
   if (typeof openReport !== 'function') throw new TypeError('openReport is required')
 
@@ -32,6 +34,7 @@ export function createReportCenterController({
     loading: true,
     mutatingProjectId: '',
     downloadingReportId: '',
+    deletingReportId: '',
     reports: [],
     records: buildReportProjectRecords(getProjects(), []),
     error: '',
@@ -39,6 +42,7 @@ export function createReportCenterController({
   }
   const generations = new Map()
   let activeDownloadPromise = null
+  const deletions = new Map()
   let lifecycleVersion = 0
   let refreshSequence = 0
   let stopped = false
@@ -169,6 +173,44 @@ export function createReportCenterController({
     return pending
   }
 
+  function deleteRecord(record = {}) {
+    const reportId = text(record.reportId || record.report_id)
+    if (!reportId) return Promise.reject(new Error('report_id is required'))
+    if (stopped) return Promise.reject(new Error('report center is stopped'))
+    if (deletions.has(reportId)) return deletions.get(reportId)
+
+    const projectName = text(record.projectName || record.project_name) || '该项目'
+    const confirmed = browser?.confirm?.(`确认删除“${projectName}”的研究报告吗？此操作不可恢复。`) === true
+    if (!confirmed) return Promise.resolve(false)
+
+    const version = lifecycleVersion
+    state.actionError = ''
+    state.deletingReportId = reportId
+    publish(version)
+
+    const pending = (async () => {
+      try {
+        const result = await deleteReport(reportId)
+        if (active(version)) await refresh({ clearActionError: false })
+        return result
+      } catch (error) {
+        if (active(version)) {
+          state.actionError = message(error, '报告删除失败。')
+          publish(version)
+        }
+        throw error
+      } finally {
+        deletions.delete(reportId)
+        if (active(version) && state.deletingReportId === reportId) {
+          state.deletingReportId = ''
+          publish(version)
+        }
+      }
+    })()
+    deletions.set(reportId, pending)
+    return pending
+  }
+
   function stop() {
     if (stopped) return
     stopped = true
@@ -176,5 +218,5 @@ export function createReportCenterController({
     refreshSequence += 1
   }
 
-  return { state, refresh, syncProjects, generate, download, stop }
+  return { state, refresh, syncProjects, generate, download, delete: deleteRecord, stop }
 }

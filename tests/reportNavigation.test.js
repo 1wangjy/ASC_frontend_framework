@@ -49,6 +49,8 @@ test('wires the report center controller to lifecycle records and separate card 
   assert.match(source, /watch\(\s*\(\)\s*=>\s*monitor\.state\.(?:items|completedRevision)/)
   assert.match(source, /controller\.syncProjects\(\)/)
   assert.match(source, /:disabled="Boolean\(downloadingReportId\)"/)
+  assert.match(source, /deletingReportId/)
+  assert.match(source, /controller\.delete\(record\)/)
 })
 
 test('opens report QA with both project and report scope', async () => {

@@ -276,12 +276,63 @@ test('rejects a second report download while the first remains in flight', async
   assert.equal(controller.state.downloadingReportId, '')
 })
 
+test('confirmed deletion sends one DELETE and refreshes once after success', async () => {
+  const deletion = deferred()
+  const requested = []
+  let listCalls = 0
+  const controller = createController({
+    browser: { confirm: message => { assert.match(message, /删除/); return true } },
+    deleteReport: reportId => { requested.push(reportId); return deletion.promise },
+    listReports: async () => { listCalls += 1; return [] }
+  })
+
+  const first = controller.delete({ reportId: 'report-7', projectName: '七号项目' })
+  const second = controller.delete({ reportId: 'report-7', projectName: '七号项目' })
+  assert.strictEqual(first, second)
+  assert.equal(controller.state.deletingReportId, 'report-7')
+  assert.deepEqual(requested, ['report-7'])
+  deletion.resolve({ success: true })
+  await first
+
+  assert.equal(listCalls, 1)
+  assert.equal(controller.state.deletingReportId, '')
+})
+
+test('cancelled deletion does not call the backend or refresh', async () => {
+  let deleteCalls = 0
+  let listCalls = 0
+  const controller = createController({
+    browser: { confirm: () => false },
+    deleteReport: async () => { deleteCalls += 1 },
+    listReports: async () => { listCalls += 1; return [] }
+  })
+
+  assert.equal(await controller.delete({ reportId: 'report-7' }), false)
+  assert.equal(deleteCalls, 0)
+  assert.equal(listCalls, 0)
+})
+
+test('failed deletion preserves the list and exposes the backend error', async () => {
+  let listCalls = 0
+  const controller = createController({
+    browser: { confirm: () => true },
+    deleteReport: async () => { throw new Error('delete rejected') },
+    listReports: async () => { listCalls += 1; return [] }
+  })
+
+  await assert.rejects(() => controller.delete({ reportId: 'report-7' }), /delete rejected/)
+  assert.equal(listCalls, 0)
+  assert.equal(controller.state.actionError, 'delete rejected')
+  assert.equal(controller.state.deletingReportId, '')
+})
+
 function createController(overrides = {}) {
   return createReportCenterController({
     listReports: async () => [],
     checkExistingReport: async () => ({ success: true, data: { has_report: false, report_id: '' } }),
     generateReport: async () => ({ success: true, data: { report_id: 'report-new' } }),
     downloadReport: async () => new Blob(['report']),
+    deleteReport: async () => ({ success: true }),
     getProjects: () => [evolvedRecord],
     openReport: () => {},
     browser: {},

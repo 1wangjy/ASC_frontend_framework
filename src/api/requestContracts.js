@@ -67,6 +67,13 @@ export function buildReportDownloadRequest(reportId) {
   }
 }
 
+export function buildReportDeleteRequest(reportId) {
+  return {
+    url: `/api/report/${encodePathId(reportId)}`,
+    method: 'delete'
+  }
+}
+
 const interviewPaths = Object.freeze({
   single: '/api/simulation/interview',
   batch: '/api/simulation/interview/batch',
