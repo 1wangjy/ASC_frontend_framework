@@ -63,7 +63,6 @@
           :graphData="graphData"
           :systemLogs="systemLogs"
           @go-back="handleGoBack"
-          @next-step="handleNextStep"
           @add-log="addLog"
           @update-status="updateStatus"
         />
@@ -221,12 +220,6 @@ const handleGoBack = async () => {
   
   // 返回到 Step 2 (环境搭建)
   router.push({ name: 'Simulation', params: { simulationId: currentSimulationId.value } })
-}
-
-const handleNextStep = () => {
-  // Step3Simulation 组件会直接处理报告生成和路由跳转
-  // 这个方法仅作为备用
-  addLog('进入 Step 4: 报告生成')
 }
 
 // --- Data Logic ---

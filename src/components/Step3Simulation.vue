@@ -96,12 +96,11 @@
       <div class="action-controls">
         <button 
           class="action-btn primary"
-          :disabled="phase !== 2 || isGeneratingReport || isCheckingReport"
+          :disabled="!canOpenReportCenter"
           @click="handleNextStep"
         >
-          <span v-if="isGeneratingReport || isCheckingReport" class="loading-spinner-small"></span>
-          {{ reportActionLabel }}
-          <span v-if="!isGeneratingReport && !isCheckingReport" class="arrow-icon">→</span>
+          前往报告生成
+          <span class="arrow-icon">→</span>
         </button>
       </div>
     </div>
@@ -323,8 +322,6 @@ import {
   getRunStatus, 
   getRunStatusDetail
 } from '../api/simulation'
-import { checkReportForSimulation, generateReport } from '../api/report'
-import { createSingleReportFlow } from '../features/reports/singleReportModel.js'
 
 const props = defineProps({
   simulationId: String,
@@ -339,18 +336,11 @@ const props = defineProps({
   systemLogs: Array
 })
 
-const emit = defineEmits(['go-back', 'next-step', 'add-log', 'update-status'])
+const emit = defineEmits(['go-back', 'add-log', 'update-status'])
 
 const router = useRouter()
 
 // State
-const reportFlowState = ref({
-  simulationId: '',
-  reportId: '',
-  checking: false,
-  generating: false,
-  inspected: false
-})
 const phase = ref(0) // 0: 未开始, 1: 运行中, 2: 已完成
 const isStarting = ref(false)
 const isStopping = ref(false)
@@ -444,15 +434,17 @@ const redditActionsCount = computed(() => {
   return allActions.value.filter(a => a.platform === 'reddit').length
 })
 
-const existingReportId = computed(() => reportFlowState.value.reportId)
-const isCheckingReport = computed(() => reportFlowState.value.checking)
-const isGeneratingReport = computed(() => reportFlowState.value.generating)
-const reportActionLabel = computed(() => {
-  if (isCheckingReport.value) return '检查已有报告...'
-  if (isGeneratingReport.value) return '启动中...'
-  if (existingReportId.value) return '查看已有报告'
-  return '生成ASC洞察报告'
-})
+const currentProjectId = computed(() => String(
+  props.projectData?.project_id
+  || props.projectData?.projectId
+  || ''
+).trim())
+const canOpenReportCenter = computed(() => (
+  phase.value === 2
+  && runStatus.value?.runner_status === 'completed'
+  && Boolean(currentProjectId.value)
+  && Boolean(String(props.simulationId || '').trim())
+))
 
 // 格式化ASC-OASIS阶段进度
 const formatElapsedTime = (currentRound) => {
@@ -578,19 +570,6 @@ const addLog = (msg) => {
   emit('add-log', msg)
 }
 
-const reportFlow = createSingleReportFlow({
-  checkExistingReport: checkReportForSimulation,
-  requestReport: generateReport,
-  openReport: ({ reportId, taskId }) => router.push({
-    name: 'Report',
-    params: { reportId },
-    query: taskId ? { taskId } : {}
-  }),
-  onStateChange: state => {
-    reportFlowState.value = state
-  }
-})
-
 // 重置所有状态（用于重新启动ASC-OASIS推理）
 const resetAllState = () => {
   phase.value = 0
@@ -680,9 +659,9 @@ const handleStopSimulation = async () => {
     
     if (res.success) {
       addLog('✓ ASC-OASIS推理已停止')
-      phase.value = 2
+      phase.value = 0
       stopPolling()
-      emit('update-status', 'completed')
+      emit('update-status', 'stopped')
     } else {
       addLog(`停止失败: ${res.error || '未知错误'}`)
     }
@@ -759,17 +738,18 @@ const fetchRunStatus = async () => {
         prevRedditRound.value = data.reddit_current_round
       }
       
-      // 检测ASC-OASIS是否已完成（通过 runner_status 或两个通道完成状态判断）
-      const isCompleted = data.runner_status === 'completed' || data.runner_status === 'stopped'
+      // 仅后端 runner 的 completed 状态表示图谱演化已完成。
+      const isCompleted = data.runner_status === 'completed'
       
       // 额外检查：如果后端还没来得及更新 runner_status，但平台已经报告完成
       // 通过检测 twitter_completed 和 reddit_completed 状态判断
       const platformsCompleted = checkPlatformsCompleted(data)
       
-      if (isCompleted || platformsCompleted) {
-        if (platformsCompleted && !isCompleted) {
-          addLog('✓ 检测到所有ASC-OASIS通道已结束')
-        }
+      if (platformsCompleted && !isCompleted) {
+        addLog('✓ 检测到所有ASC-OASIS通道已结束，等待演化完成状态')
+      }
+
+      if (isCompleted) {
         addLog('✓ ASC-OASIS推理已完成')
         phase.value = 2
         stopPolling()
@@ -979,27 +959,13 @@ const getActionLogicChain = (args = {}) => {
   return args.logic_chain || args.critique_chain || args.audit_chain || args.repair_chain || []
 }
 
-const handleNextStep = async () => {
-  if (!props.simulationId) {
-    addLog('错误：缺少 simulationId')
-    return
-  }
-
-  if (isGeneratingReport.value || isCheckingReport.value) {
-    addLog('报告生成请求已发送，请稍候...')
-    return
-  }
-
-  addLog(existingReportId.value ? '正在打开已有报告...' : '正在启动ASC洞察报告生成...')
-
-  try {
-    const result = await reportFlow.proceed(props.simulationId)
-    addLog(result.reused
-      ? `✓ 已存在报告，直接打开: ${result.reportId}`
-      : `✓ ASC洞察报告生成任务已启动: ${result.reportId}`)
-  } catch (err) {
-    addLog(`✗ 启动报告生成异常: ${err.message}`)
-  }
+const handleNextStep = () => {
+  if (!canOpenReportCenter.value) return
+  const projectId = currentProjectId.value
+  return router.push({
+    name: 'Reports',
+    query: { projectId, simulationId: props.simulationId }
+  })
 }
 
 // Scroll log to bottom
@@ -1012,21 +978,10 @@ watch(() => props.systemLogs?.length, () => {
   })
 })
 
-onMounted(async () => {
+onMounted(() => {
   addLog('Step3 ASC-OASIS科研推理初始化')
   if (props.simulationId) {
-    try {
-      const reportState = await reportFlow.inspect(props.simulationId)
-      if (reportState.reportId) {
-        phase.value = 2
-        addLog(`已存在完成报告: ${reportState.reportId}，禁止重新生成。`)
-        return
-      }
-      await doStartSimulation()
-    } catch (err) {
-      addLog(`检查已有报告失败: ${err.message}。为避免重复报告，本次不启动新流程。`)
-      emit('update-status', 'error')
-    }
+    doStartSimulation()
   }
 })
 

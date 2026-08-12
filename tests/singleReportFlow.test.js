@@ -360,18 +360,18 @@ test('does not retry the non-idempotent report-generation POST after a transport
   assert.equal(attempts, 1)
 })
 
-test('Step3 routes through the single-report flow instead of forcing regeneration', async () => {
+test('Step3 hands completed graph evolution to the report center without report capability', async () => {
   const source = await readFile(
     new URL('../src/components/Step3Simulation.vue', import.meta.url),
     'utf8'
   )
 
-  assert.match(source, /checkReportForSimulation/)
-  assert.match(source, /createSingleReportFlow/)
-  assert.match(source, /reportFlow\.inspect/)
-  assert.match(source, /reportFlow\.proceed/)
-  assert.match(source, /查看已有报告/)
-  assert.doesNotMatch(source, /force_regenerate\s*:\s*true/)
+  assert.match(source, /前往报告生成/)
+  assert.match(source, /name:\s*['"]Reports['"]/)
+  assert.match(source, /query:\s*\{\s*projectId,\s*simulationId:\s*props\.simulationId\s*\}/)
+  assert.doesNotMatch(source, /generateReport|checkReportForSimulation|createSingleReportFlow/)
+  assert.doesNotMatch(source, /reportFlow(?:State)?\.(?:inspect|proceed)|reportFlowState/)
+  assert.doesNotMatch(source, /生成ASC洞察报告|进入问答环节/)
 })
 
 function deferred() {

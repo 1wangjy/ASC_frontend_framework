@@ -391,11 +391,7 @@ test('keeps completed graph workflows visible without a duplicate header QA acti
   assert.match(view, /completeMissingTaskGraphForQa\(\{[\s\S]*?navigateWhenReady:\s*false[\s\S]*?\}\)/)
 })
 
-test('carries the backend report task id into the report status polling page', async () => {
-  const simulation = await readFile(
-    new URL('../src/components/Step3Simulation.vue', import.meta.url),
-    'utf8'
-  )
+test('carries the backend report task id inside the report status polling page', async () => {
   const reportView = await readFile(
     new URL('../src/views/ReportView.vue', import.meta.url),
     'utf8'
@@ -418,13 +414,27 @@ test('carries the backend report task id into the report status polling page', a
   )
 
   assert.match(singleReportModel, /taskId:\s*text\(response\.data\.task_id\)/)
-  assert.match(simulation, /openReport:[\s\S]*?query:\s*taskId\s*\?\s*\{\s*taskId\s*\}/)
   assert.match(reportView, /:task-id="reportTaskId"/)
   assert.match(reportReader, /taskId:\s*props\.taskId/)
   assert.match(reportController, /getStatus\(\{\s*taskId\s*\}\)/)
   assert.match(reportController, /generation !== activeGeneration/)
   assert.doesNotMatch(reportReader, /REF-2024-X92/)
   assert.doesNotMatch(interactionStep, /REF-2024-X92/)
+})
+
+test('treats only a completed simulation as graph-evolution completion', async () => {
+  const simulation = await readFile(
+    new URL('../src/components/Step3Simulation.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(simulation, /data\.runner_status\s*===\s*['"]completed['"]/)
+  assert.doesNotMatch(
+    simulation,
+    /runner_status\s*===\s*['"]completed['"]\s*\|\|\s*data\.runner_status\s*===\s*['"]stopped['"]/
+  )
+  assert.match(simulation, /canOpenReportCenter[\s\S]*?runner_status\s*===\s*['"]completed['"]/)
+  assert.match(simulation, /if\s*\(!canOpenReportCenter\.value\)\s*return/)
 })
 
 test('offers domestic LLM and version pairs with DeepSeek V4 Flash as default', () => {

@@ -92,3 +92,18 @@ test('wires shared completed-report actions without report generation capability
   assert.match(source, /fallbackProject\.value\?\.project_id/)
   assert.doesNotMatch(source, /generateReport|force_regenerate/)
 })
+
+test('hands completed graph evolution to the report center with project and simulation scope', async () => {
+  const [step3Source, runViewSource] = await Promise.all([
+    readFile(new URL('../src/components/Step3Simulation.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/views/SimulationRunView.vue', import.meta.url), 'utf8')
+  ])
+
+  assert.match(step3Source, /name:\s*['"]Reports['"]/)
+  assert.match(step3Source, /projectId/)
+  assert.match(step3Source, /simulationId:\s*props\.simulationId/)
+  assert.doesNotMatch(step3Source, /name:\s*['"]Report['"]/)
+  assert.doesNotMatch(step3Source, /generateReport|checkReportForSimulation|createSingleReportFlow/)
+  assert.doesNotMatch(runViewSource, /@next-step="handleNextStep"/)
+  assert.doesNotMatch(runViewSource, /const handleNextStep\s*=/)
+})
