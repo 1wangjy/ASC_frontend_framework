@@ -43,6 +43,17 @@ test('includes only graph projects with a completed backend report', () => {
   })
 })
 
+test('unwraps the real listReports response before qualifying projects', () => {
+  const records = buildQualifiedQaProjects([projects[0]], {
+    success: true,
+    data: [{
+      report_id: 'r1', graph_id: 'g1', simulation_id: 's1', status: 'completed'
+    }]
+  })
+
+  assert.deepEqual(records.map(record => record.reportId), ['r1'])
+})
+
 test('excludes every normalized status except completed', () => {
   for (const status of ['generating', 'pending', 'processing', 'running', 'failed', 'error', 'unknown', '']) {
     assert.deepEqual(buildQualifiedQaProjects([projects[0]], [{
@@ -147,4 +158,37 @@ test('chooses one newest completed report per project deterministically', () => 
     ['p1', 'r-new'],
     ['p2', 'r-z']
   ])
+})
+
+test('rejects equal-rank duplicate report rows with conflicting simulation scope', () => {
+  const project = { projectId: 'p1', graphId: 'g1', name: '冲突项目' }
+  const reports = [
+    {
+      report_id: 'r1', graph_id: 'g1', simulation_id: 's-a', status: 'completed',
+      completed_at: '2026-08-11T09:00:00Z'
+    },
+    {
+      report_id: 'r1', graph_id: 'g1', simulation_id: 's-z', status: 'completed',
+      completed_at: '2026-08-11T09:00:00Z'
+    }
+  ]
+
+  assert.deepEqual(buildQualifiedQaProjects([project], reports), [])
+  assert.deepEqual(buildQualifiedQaProjects([project], [...reports].reverse()), [])
+})
+
+test('rejects one report ID claimed by different project and graph scopes', () => {
+  const reports = [
+    {
+      report_id: 'r-shared', graph_id: 'g1', simulation_id: 's1', status: 'completed',
+      completed_at: '2026-08-11T09:00:00Z'
+    },
+    {
+      report_id: 'r-shared', graph_id: 'g2', simulation_id: 's2', status: 'completed',
+      completed_at: '2026-08-11T09:00:00Z'
+    }
+  ]
+
+  assert.deepEqual(buildQualifiedQaProjects(projects, reports), [])
+  assert.deepEqual(buildQualifiedQaProjects([...projects].reverse(), [...reports].reverse()), [])
 })

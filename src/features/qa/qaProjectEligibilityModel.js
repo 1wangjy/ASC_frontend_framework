@@ -34,10 +34,15 @@ function reportTimestamp(report = {}) {
 
 function preferReport(candidate, current) {
   if (!current) return true
-  const candidateTime = reportTimestamp(candidate)
-  const currentTime = reportTimestamp(current)
+  const candidateTime = reportTimestamp(candidate.report)
+  const currentTime = reportTimestamp(current.report)
   if (candidateTime !== currentTime) return candidateTime > currentTime
-  return reportIdOf(candidate).localeCompare(reportIdOf(current)) > 0
+  return candidate.reportId.localeCompare(current.reportId) > 0
+}
+
+function reportArray(input = []) {
+  if (Array.isArray(input)) return input
+  return Array.isArray(input?.data) ? input.data : []
 }
 
 function indexProjects(projects = []) {
@@ -53,48 +58,72 @@ function indexProjects(projects = []) {
 
   usable.forEach(project => {
     if (!byGraph.has(graphIdOf(project))) byGraph.set(graphIdOf(project), project)
-    if (!bySimulation.has(simulationIdOf(project))) {
-      bySimulation.set(simulationIdOf(project), project)
+    const simulationId = simulationIdOf(project)
+    if (simulationId && !bySimulation.has(simulationId)) {
+      bySimulation.set(simulationId, project)
     }
   })
 
-  return { usable, byGraph, bySimulation }
+  return { byGraph, bySimulation }
 }
 
 export function buildQualifiedQaProjects(projects = [], reports = []) {
   const { byGraph, bySimulation } = indexProjects(projects)
+  const candidates = []
+  const scopesByReportId = new Map()
+  const conflictingReportIds = new Set()
   const reportsByProject = new Map()
 
-  ;(Array.isArray(reports) ? reports : []).forEach(report => {
+  reportArray(reports).forEach(report => {
     if (!reportIdOf(report) || normalizeReportStatus(report?.status) !== 'completed') return
 
     const project = byGraph.get(graphIdOf(report))
       || bySimulation.get(simulationIdOf(report))
     if (!project) return
 
-    const projectId = projectIdOf(project)
+    const candidate = {
+      report,
+      project,
+      projectId: projectIdOf(project),
+      graphId: graphIdOf(project),
+      simulationId: simulationIdOf(project) || simulationIdOf(report),
+      reportId: reportIdOf(report)
+    }
+    if (!candidate.simulationId) return
+
+    const scope = [
+      candidate.projectId,
+      candidate.graphId,
+      candidate.simulationId,
+      candidate.reportId
+    ].join('\u0000')
+    const previousScope = scopesByReportId.get(candidate.reportId)
+    if (previousScope && previousScope !== scope) {
+      conflictingReportIds.add(candidate.reportId)
+    } else if (!previousScope) {
+      scopesByReportId.set(candidate.reportId, scope)
+    }
+    candidates.push(candidate)
+  })
+
+  candidates.forEach(candidate => {
+    if (conflictingReportIds.has(candidate.reportId)) return
+    const { projectId } = candidate
     const current = reportsByProject.get(projectId)
-    if (preferReport(report, current)) reportsByProject.set(projectId, report)
+    if (preferReport(candidate, current)) reportsByProject.set(projectId, candidate)
   })
 
   return [...reportsByProject.entries()]
     .sort(([leftId], [rightId]) => leftId.localeCompare(rightId))
-    .map(([projectId, report]) => {
-      const project = byGraph.get(graphIdOf(report))
-        || bySimulation.get(simulationIdOf(report))
-      const simulationId = simulationIdOf(project) || simulationIdOf(report)
-      if (!simulationId) return null
-      return {
-        projectId,
-        graphId: graphIdOf(project),
-        simulationId,
-        reportId: reportIdOf(report),
-        projectName: projectNameOf(project) || projectId,
-        reportStatus: 'completed',
-        project
-      }
-    })
-    .filter(Boolean)
+    .map(([projectId, candidate]) => ({
+      projectId,
+      graphId: candidate.graphId,
+      simulationId: candidate.simulationId,
+      reportId: candidate.reportId,
+      projectName: projectNameOf(candidate.project) || projectId,
+      reportStatus: 'completed',
+      project: candidate.project
+    }))
 }
 
 export function resolveQualifiedQaSelection(records = [], request = {}) {
