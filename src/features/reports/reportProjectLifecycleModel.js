@@ -40,22 +40,11 @@ function timestampOf(report = {}) {
   )
 }
 
-function latestReports(reports) {
-  const latestByAssociation = new Map()
-
-  ;(Array.isArray(reports) ? reports : []).forEach((report, index) => {
-    const id = reportId(report)
-    if (!id) return
-    const graph = graphId(report)
-    const simulation = simulationId(report)
-    const key = graph ? `graph:${graph}` : (simulation ? `simulation:${simulation}` : `report:${id}`)
-    const previous = latestByAssociation.get(key)
-    if (!previous || timestampOf(report) >= timestampOf(previous.report)) {
-      latestByAssociation.set(key, { report, index })
-    }
-  })
-
-  return [...latestByAssociation.values()].map(entry => entry.report)
+function isNewerReport(candidate, current) {
+  const candidateTime = timestampOf(candidate)
+  const currentTime = timestampOf(current)
+  if (candidateTime !== currentTime) return candidateTime > currentTime
+  return reportId(candidate).localeCompare(reportId(current)) > 0
 }
 
 function reportRecord(project, report) {
@@ -99,7 +88,8 @@ export function buildReportProjectRecords(projects = [], reports = []) {
   const reportsByProject = new Map()
   const unmatchedReports = []
 
-  latestReports(reports).forEach(report => {
+  ;(Array.isArray(reports) ? reports : []).forEach(report => {
+    if (!reportId(report)) return
     const project = projectsByGraph.get(graphId(report)) || projectsBySimulation.get(simulationId(report))
     if (!project) {
       unmatchedReports.push(report)
@@ -108,7 +98,7 @@ export function buildReportProjectRecords(projects = [], reports = []) {
 
     const key = projectId(project) || `project:${normalizedProjects.indexOf(project)}`
     const previous = reportsByProject.get(key)
-    if (!previous || timestampOf(report) >= timestampOf(previous)) reportsByProject.set(key, report)
+    if (!previous || isNewerReport(report, previous)) reportsByProject.set(key, report)
   })
 
   return [

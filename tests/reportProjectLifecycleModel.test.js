@@ -78,3 +78,28 @@ test('uses the newest duplicate backend row without authorizing another report',
   assert.equal(record.canGenerate, false)
   assert.equal(record.canPreview, true)
 })
+
+test('keeps a simulation-matched report when a newer stale-graph report is unrelated', () => {
+  const [record] = buildReportProjectRecords([{
+    projectId: 'p1', graphId: 'g1', simulationId: 's1', name: '归属', evolutionStatus: 'evolution_completed'
+  }], [
+    { report_id: 'r-owner', graph_id: 'stale', simulation_id: 's1', created_at: '2026-08-10' },
+    { report_id: 'r-other', graph_id: 'stale', simulation_id: 's-other', created_at: '2026-08-11' }
+  ])
+
+  assert.equal(record.reportId, 'r-owner')
+  assert.equal(record.canGenerate, false)
+})
+
+test('chooses equal-timestamp duplicates by report ID regardless of input order', () => {
+  const project = {
+    projectId: 'p1', graphId: 'g1', simulationId: 's1', name: '稳定', evolutionStatus: 'evolution_completed'
+  }
+  const reports = [
+    { report_id: 'r-z', graph_id: 'g1', simulation_id: 's1', status: 'completed', created_at: 'not-a-date' },
+    { report_id: 'r-a', graph_id: 'g1', simulation_id: 's1', status: 'failed', created_at: 'not-a-date' }
+  ]
+
+  assert.equal(buildReportProjectRecords([project], reports)[0].reportId, 'r-z')
+  assert.equal(buildReportProjectRecords([project], [...reports].reverse())[0].reportId, 'r-z')
+})
