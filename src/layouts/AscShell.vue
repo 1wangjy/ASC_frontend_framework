@@ -25,9 +25,26 @@
       </header>
       <div
         class="app-shell__route-frame"
-        :class="{ 'app-shell__route-frame--graph': isGraphWorkflowRoute }"
+        :class="{
+          'app-shell__route-frame--graph': isGraphWorkflowRoute,
+          'app-shell__route-frame--project-panel-collapsed': isGraphWorkflowRoute && graphProjectPanelCollapsed
+        }"
       >
-        <GraphProjectWorkspacePanel v-if="isGraphWorkflowRoute" />
+        <GraphProjectWorkspacePanel
+          v-if="isGraphWorkflowRoute && !graphProjectPanelCollapsed"
+          @collapse="graphProjectPanelCollapsed = true"
+        />
+        <div v-else-if="isGraphWorkflowRoute" class="project-panel-rail">
+          <button
+            type="button"
+            class="project-panel-rail__open"
+            aria-label="打开项目栏"
+            data-tooltip="打开项目栏"
+            @click="graphProjectPanelCollapsed = false"
+          >
+            <span aria-hidden="true" class="project-panel-rail__icon"><i /><i /></span>
+          </button>
+        </div>
         <div class="app-shell__route-content">
           <slot />
         </div>
@@ -61,6 +78,7 @@ const monitor = useGraphTaskMonitor()
 const workflowSession = useGraphWorkflowSession()
 const mobileNavOpen = ref(false)
 const sidebarCollapsed = ref(false)
+const graphProjectPanelCollapsed = ref(false)
 const isGraphWorkflowRoute = computed(() => route.meta.navigationPath === '/process')
 const logicalGraphProjects = computed(() => buildLogicalGraphProjects(monitor.state.items))
 
@@ -106,6 +124,58 @@ onUnmounted(monitor.stop)
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
   background: var(--asc-canvas);
 }
+
+.app-shell__route-frame--project-panel-collapsed {
+  grid-template-columns: 44px minmax(0, 1fr);
+}
+
+.project-panel-rail {
+  position: relative;
+  min-height: 100vh;
+  border-right: 1px solid var(--asc-border);
+  background: #f8fbfd;
+}
+
+.project-panel-rail__open {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  margin: 16px auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--asc-border);
+  border-radius: 8px;
+  background: #fff;
+  color: #1d252c;
+  cursor: pointer;
+}
+
+.project-panel-rail__open::after {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 10px);
+  z-index: 5;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #17191c;
+  color: #fff;
+  content: attr(data-tooltip);
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-4px, -50%);
+  transition: opacity var(--asc-transition), transform var(--asc-transition);
+  white-space: nowrap;
+}
+
+.project-panel-rail__open:hover::after,
+.project-panel-rail__open:focus-visible::after { opacity: 1; transform: translate(0, -50%); }
+.project-panel-rail__icon { display: flex; width: 15px; height: 13px; overflow: hidden; border: 1.5px solid currentColor; border-radius: 3px; }
+.project-panel-rail__icon i:first-child { width: 5px; border-right: 1.5px solid currentColor; }
+.project-panel-rail__icon i:last-child { flex: 1; }
 
 .app-shell__route-content {
   min-width: 0;
@@ -181,6 +251,10 @@ onUnmounted(monitor.stop)
 @media (max-width: 980px) {
   .app-shell__route-frame--graph {
     grid-template-columns: 1fr;
+  }
+
+  .app-shell__route-frame--project-panel-collapsed {
+    grid-template-columns: 44px minmax(0, 1fr);
   }
 }
 </style>

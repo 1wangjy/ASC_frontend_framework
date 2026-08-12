@@ -356,6 +356,25 @@ test('workspace uses the in-page confirmation instead of a native browser dialog
   assert.match(dialogSource, /:disabled="teleportDisabled"/)
 })
 
+test('shell collapses the graph project column into a compact reopen control', async () => {
+  const source = await readFile(new URL('../src/layouts/AscShell.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /graphProjectPanelCollapsed/)
+  assert.match(source, /app-shell__route-frame--project-panel-collapsed/)
+  assert.match(source, /aria-label="打开项目栏"/)
+  assert.match(source, /data-tooltip="打开项目栏"/)
+  assert.match(source, /@collapse="graphProjectPanelCollapsed = true"/)
+  assert.match(source, /grid-template-columns:\s*44px\s+minmax\(0,\s*1fr\)/)
+})
+
+test('project panel exposes a compact collapse control', async () => {
+  const source = await readFile(new URL('../src/features/projects/GraphProjectWorkspacePanel.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /defineEmits\(\['collapse'\]\)/)
+  assert.match(source, /aria-label="收起项目栏"/)
+  assert.match(source, /\$emit\('collapse'\)/)
+})
+
 test('registers graph evolution and report generation as separate primary destinations', () => {
   assert.deepEqual(primaryNavigation.map(item => [item.label, item.path]), [
     ['问答首页', '/'],

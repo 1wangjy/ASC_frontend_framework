@@ -1,5 +1,14 @@
 <template>
   <aside class="graph-project-panel">
+    <button
+      type="button"
+      class="graph-project-panel__collapse"
+      aria-label="收起项目栏"
+      title="收起项目栏"
+      @click="$emit('collapse')"
+    >
+      <span aria-hidden="true">‹</span>
+    </button>
     <header class="graph-project-panel__header">
       <div>
         <h1>知识图谱项目</h1>
@@ -51,6 +60,8 @@ import {
   readActiveProjectId,
   rememberActiveProjectId
 } from './projectContextModel.js'
+
+defineEmits(['collapse'])
 
 const route = useRoute()
 const router = useRouter()
@@ -161,6 +172,26 @@ async function confirmProjectDeletion() {
   border-right: 1px solid var(--asc-border);
   background: #f8fbfd;
 }
+
+.graph-project-panel__collapse {
+  position: absolute;
+  top: 28px;
+  right: 8px;
+  z-index: 2;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--asc-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--asc-primary);
+  box-shadow: 0 4px 12px rgba(4, 28, 49, .12);
+  cursor: pointer;
+}
+
+.graph-project-panel__collapse span { font-size: 23px; line-height: 1; transform: translateY(-1px); }
 
 .graph-project-panel__header {
   display: flex;
