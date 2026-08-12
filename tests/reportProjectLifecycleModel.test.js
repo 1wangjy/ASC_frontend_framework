@@ -103,3 +103,20 @@ test('chooses equal-timestamp duplicates by report ID regardless of input order'
   assert.equal(buildReportProjectRecords([project], reports)[0].reportId, 'r-z')
   assert.equal(buildReportProjectRecords([project], [...reports].reverse())[0].reportId, 'r-z')
 })
+
+test('deduplicates unmatched reports by stable scope without hiding other scopes', () => {
+  const reports = [
+    { report_id: 'r-a', graph_id: 'orphan-g', simulation_id: 'orphan-s', created_at: 'not-a-date' },
+    { report_id: 'r-z', graph_id: 'orphan-g', simulation_id: 'orphan-s', created_at: 'not-a-date' },
+    { report_id: 'r-other', graph_id: 'other-g', simulation_id: 'other-s', created_at: 'not-a-date' }
+  ]
+
+  assert.deepEqual(
+    buildReportProjectRecords([], reports).map(record => record.reportId),
+    ['r-z', 'r-other']
+  )
+  assert.deepEqual(
+    buildReportProjectRecords([], [...reports].reverse()).map(record => record.reportId),
+    ['r-other', 'r-z']
+  )
+})

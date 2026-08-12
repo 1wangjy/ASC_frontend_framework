@@ -47,6 +47,14 @@ function isNewerReport(candidate, current) {
   return reportId(candidate).localeCompare(reportId(current)) > 0
 }
 
+function reportScopeKey(report = {}) {
+  const graph = graphId(report)
+  if (graph) return `graph:${graph}`
+  const simulation = simulationId(report)
+  if (simulation) return `simulation:${simulation}`
+  return `report:${reportId(report)}`
+}
+
 function reportRecord(project, report) {
   const status = report ? normalizeReportStatus(report.status) : ''
   const hasReport = Boolean(reportId(report))
@@ -86,13 +94,15 @@ export function buildReportProjectRecords(projects = [], reports = []) {
   })
 
   const reportsByProject = new Map()
-  const unmatchedReports = []
+  const unmatchedReports = new Map()
 
   ;(Array.isArray(reports) ? reports : []).forEach(report => {
     if (!reportId(report)) return
     const project = projectsByGraph.get(graphId(report)) || projectsBySimulation.get(simulationId(report))
     if (!project) {
-      unmatchedReports.push(report)
+      const key = reportScopeKey(report)
+      const previous = unmatchedReports.get(key)
+      if (!previous || isNewerReport(report, previous)) unmatchedReports.set(key, report)
       return
     }
 
@@ -106,6 +116,6 @@ export function buildReportProjectRecords(projects = [], reports = []) {
       const key = projectId(project) || `project:${index}`
       return reportRecord(project, reportsByProject.get(key))
     }),
-    ...unmatchedReports.map(report => reportRecord(null, report))
+    ...[...unmatchedReports.values()].map(report => reportRecord(null, report))
   ]
 }
