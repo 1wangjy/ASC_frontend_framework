@@ -101,6 +101,110 @@ test('fails closed when has_report is true but report_id is missing', async () =
   assert.equal(generateCalls, 0)
 })
 
+for (const hasReport of [undefined, 'false']) {
+  test(`fails closed when has_report is ${String(hasReport)} and report_id is empty`, async () => {
+    let generateCalls = 0
+    const flow = createSingleReportFlow({
+      checkExistingReport: async () => ({ success: true, data: { has_report: hasReport, report_id: '' } }),
+      requestReport: async () => { generateCalls += 1 },
+      openReport: () => {}
+    })
+
+    await assert.rejects(() => flow.proceed('s1'), /confirm|report/i)
+    assert.equal(generateCalls, 0)
+  })
+}
+
+test('shares one in-flight check and generation request across concurrent proceeds', async () => {
+  let checkCalls = 0
+  let generateCalls = 0
+  const check = deferred()
+  const checkStarted = deferred()
+  const generation = deferred()
+  const flow = createSingleReportFlow({
+    checkExistingReport: async () => {
+      checkCalls += 1
+      checkStarted.resolve()
+      return check.promise
+    },
+    requestReport: async () => { generateCalls += 1; return generation.promise },
+    openReport: () => {}
+  })
+
+  const first = flow.proceed('s1')
+  const second = flow.proceed('s1')
+  await checkStarted.promise
+  assert.equal(checkCalls, 1)
+  check.resolve({ success: true, data: { has_report: false, report_id: '' } })
+  await waitFor(() => generateCalls === 1)
+  assert.equal(generateCalls, 1)
+  generation.resolve({ success: true, data: { report_id: 'r-new', task_id: 't1' } })
+  await Promise.all([first, second])
+})
+
+test('does not open a stale generated report after switching simulations', async () => {
+  const firstGeneration = deferred()
+  const firstGenerationStarted = deferred()
+  let generateCalls = 0
+  const opened = []
+  const flow = createSingleReportFlow({
+    checkExistingReport: async simulationId => simulationId === 's1'
+      ? { success: true, data: { has_report: false, report_id: '' } }
+      : { success: true, data: { has_report: false, report_id: '' } },
+    requestReport: async payload => {
+      generateCalls += 1
+      if (payload.simulation_id === 's1') firstGenerationStarted.resolve()
+      return payload.simulation_id === 's1'
+        ? firstGeneration.promise
+        : { success: true, data: { report_id: 'r-s2', task_id: 't2' } }
+    },
+    openReport: destination => opened.push(destination)
+  })
+
+  const first = flow.proceed('s1')
+  await firstGenerationStarted.promise
+  await flow.inspect('s2')
+  firstGeneration.resolve({ success: true, data: { report_id: 'r-s1', task_id: 't1' } })
+
+  const firstResult = await first
+  assert.equal(firstResult.stale, true)
+  assert.deepEqual(opened, [])
+  assert.equal(flow.snapshot().simulationId, 's2')
+  assert.equal(flow.snapshot().reportId, '')
+
+  const secondResult = await flow.proceed('s2')
+  assert.equal(secondResult.reportId, 'r-s2')
+  assert.deepEqual(opened, [{ reportId: 'r-s2', taskId: 't2' }])
+  assert.equal(generateCalls, 2)
+})
+
+for (const scenario of ['existing', 'generated']) {
+  test(`resets state after ${scenario} report opening fails and does not regenerate`, async () => {
+    let generateCalls = 0
+    let openCalls = 0
+    const flow = createSingleReportFlow({
+      checkExistingReport: async () => scenario === 'existing'
+        ? { success: true, data: { has_report: true, report_id: 'r-existing', task_id: 't1' } }
+        : { success: true, data: { has_report: false, report_id: '' } },
+      requestReport: async () => {
+        generateCalls += 1
+        return { success: true, data: { report_id: 'r-generated', task_id: 't2' } }
+      },
+      openReport: () => {
+        openCalls += 1
+        if (openCalls === 1) throw new Error('navigation failed')
+      }
+    })
+
+    await assert.rejects(() => flow.proceed('s1'), /navigation failed/)
+    assert.equal(flow.snapshot().checking, false)
+    assert.equal(flow.snapshot().generating, false)
+    const result = await flow.proceed('s1')
+    assert.equal(result.reused, true)
+    assert.equal(generateCalls, scenario === 'generated' ? 1 : 0)
+  })
+}
+
 test('shares one generation request across concurrent proceed calls', async () => {
   let generateCalls = 0
   let resolveGeneration
@@ -269,3 +373,17 @@ test('Step3 routes through the single-report flow instead of forcing regeneratio
   assert.match(source, /查看已有报告/)
   assert.doesNotMatch(source, /force_regenerate\s*:\s*true/)
 })
+
+function deferred() {
+  let resolve
+  const promise = new Promise(nextResolve => { resolve = nextResolve })
+  return { promise, resolve }
+}
+
+async function waitFor(predicate) {
+  for (let index = 0; index < 10; index += 1) {
+    if (predicate()) return
+    await Promise.resolve()
+  }
+  assert.equal(predicate(), true)
+}
