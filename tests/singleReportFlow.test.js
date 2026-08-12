@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 import {
   buildSingleReportGenerationPayload,
   completedReportFromStatus,
+  existingReportFromStatus,
   createSingleReportFlow
 } from '../src/features/reports/singleReportModel.js'
 import service from '../src/api/index.js'
@@ -40,6 +41,109 @@ test('reuses only a completed report returned by the simulation status endpoint'
       interview_unlocked: false
     }
   }), '')
+})
+
+test('recognizes any successful status response with a non-empty report ID as report ownership', () => {
+  assert.deepEqual(existingReportFromStatus({
+    success: true,
+    data: { has_report: false, report_id: ' r-owned ', report_status: 'GENERATING', task_id: ' task-1 ' }
+  }), { reportId: 'r-owned', reportStatus: 'generating', taskId: 'task-1' })
+  assert.equal(existingReportFromStatus({ success: true, data: { has_report: true } }), null)
+})
+
+for (const reportStatus of ['generating', 'failed']) {
+  test(`opens an existing ${reportStatus} report instead of creating another one`, async () => {
+    let generateCalls = 0
+    const opened = []
+    const flow = createSingleReportFlow({
+      checkExistingReport: async () => ({ success: true, data: {
+        has_report: true, report_id: `r-${reportStatus}`, report_status: reportStatus, task_id: 't1'
+      }}),
+      requestReport: async () => { generateCalls += 1 },
+      openReport: destination => opened.push(destination)
+    })
+
+    await flow.proceed('s1')
+
+    assert.equal(generateCalls, 0)
+    assert.deepEqual(opened, [{ reportId: `r-${reportStatus}`, taskId: 't1' }])
+    assert.equal(flow.snapshot().reportStatus, reportStatus)
+    assert.equal(flow.snapshot().taskId, 't1')
+  })
+}
+
+test('opens a report ID even when has_report is inconsistent', async () => {
+  let generateCalls = 0
+  const opened = []
+  const flow = createSingleReportFlow({
+    checkExistingReport: async () => ({ success: true, data: {
+      has_report: false, report_id: 'r-inconsistent', report_status: 'completed', task_id: 't2'
+    }}),
+    requestReport: async () => { generateCalls += 1 },
+    openReport: destination => opened.push(destination)
+  })
+
+  await flow.proceed('s1')
+
+  assert.equal(generateCalls, 0)
+  assert.deepEqual(opened, [{ reportId: 'r-inconsistent', taskId: 't2' }])
+})
+
+test('fails closed when has_report is true but report_id is missing', async () => {
+  let generateCalls = 0
+  const flow = createSingleReportFlow({
+    checkExistingReport: async () => ({ success: true, data: { has_report: true, report_id: '' } }),
+    requestReport: async () => { generateCalls += 1 },
+    openReport: () => {}
+  })
+
+  await assert.rejects(() => flow.proceed('s1'), /confirm|report/i)
+  assert.equal(generateCalls, 0)
+})
+
+test('shares one generation request across concurrent proceed calls', async () => {
+  let generateCalls = 0
+  let resolveGeneration
+  const opened = []
+  const generation = new Promise(resolve => { resolveGeneration = resolve })
+  const flow = createSingleReportFlow({
+    checkExistingReport: async () => ({ success: true, data: { has_report: false, report_id: '' } }),
+    requestReport: async () => {
+      generateCalls += 1
+      return generation
+    },
+    openReport: destination => opened.push(destination)
+  })
+
+  const first = flow.proceed('s1')
+  const second = flow.proceed('s1')
+  resolveGeneration({ success: true, data: { report_id: 'r-new', task_id: 't3' } })
+  await Promise.all([first, second])
+
+  assert.equal(generateCalls, 1)
+  assert.deepEqual(opened, [{ reportId: 'r-new', taskId: 't3' }])
+})
+
+test('does not generate for a stale context when its existing-report check finishes late', async () => {
+  let resolveFirstCheck
+  let generateCalls = 0
+  const opened = []
+  const firstCheck = new Promise(resolve => { resolveFirstCheck = resolve })
+  const flow = createSingleReportFlow({
+    checkExistingReport: simulationId => simulationId === 's1'
+      ? firstCheck
+      : Promise.resolve({ success: true, data: { has_report: true, report_id: 'r-s2', task_id: 't4' } }),
+    requestReport: async () => { generateCalls += 1 },
+    openReport: destination => opened.push(destination)
+  })
+
+  const first = flow.proceed('s1')
+  const second = flow.proceed('s2')
+  resolveFirstCheck({ success: true, data: { has_report: false, report_id: '' } })
+  await Promise.all([first, second])
+
+  assert.equal(generateCalls, 0)
+  assert.deepEqual(opened, [{ reportId: 'r-s2', taskId: 't4' }])
 })
 
 test('opens the completed report without issuing another generation request', async () => {

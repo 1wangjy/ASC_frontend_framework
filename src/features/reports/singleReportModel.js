@@ -27,6 +27,17 @@ export function completedReportFromStatus(response = {}) {
   return text(data?.report_id)
 }
 
+export function existingReportFromStatus(response = {}) {
+  const data = response?.data || {}
+  const reportId = text(data.report_id)
+  if (response?.success !== true || !reportId) return null
+  return {
+    reportId,
+    reportStatus: text(data.report_status).toLowerCase() || 'unknown',
+    taskId: text(data.task_id)
+  }
+}
+
 export function createSingleReportFlow({
   checkExistingReport,
   requestReport,
@@ -39,6 +50,9 @@ export function createSingleReportFlow({
 
   let simulationId = ''
   let reportId = ''
+  let reportStatus = ''
+  let taskId = ''
+  let generationAllowed = false
   let checking = false
   let generating = false
   let inspected = false
@@ -47,7 +61,7 @@ export function createSingleReportFlow({
   let generationPromise = null
 
   function snapshot() {
-    return { simulationId, reportId, checking, generating, inspected }
+    return { simulationId, reportId, reportStatus, taskId, checking, generating, inspected }
   }
 
   function publish() {
@@ -59,6 +73,9 @@ export function createSingleReportFlow({
     if (simulationId === nextSimulationId) return nextSimulationId
     simulationId = nextSimulationId
     reportId = ''
+    reportStatus = ''
+    taskId = ''
+    generationAllowed = false
     checking = false
     generating = false
     inspected = false
@@ -83,7 +100,16 @@ export function createSingleReportFlow({
         throw new Error(response?.error || '无法确认当前模拟的报告状态')
       }
       if (version !== contextVersion || simulationId !== activeSimulationId) return snapshot()
-      reportId = completedReportFromStatus(response)
+      const existingReport = existingReportFromStatus(response)
+      if (existingReport) {
+        reportId = existingReport.reportId
+        reportStatus = existingReport.reportStatus
+        taskId = existingReport.taskId
+      } else if (response?.data?.has_report === false) {
+        generationAllowed = true
+      } else {
+        throw new Error('Unable to confirm the current simulation report status')
+      }
       inspected = true
       return snapshot()
     })()
@@ -104,11 +130,14 @@ export function createSingleReportFlow({
     const activeSimulationId = activate(value)
     await inspect(activeSimulationId)
 
+    if (simulationId !== activeSimulationId) return { ...snapshot(), stale: true }
+
     if (reportId) {
-      const destination = { reportId, taskId: '' }
+      const destination = { reportId, taskId }
       await openReport(destination)
       return { ...destination, reused: true }
     }
+    if (!generationAllowed) throw new Error('Unable to confirm the current simulation report status')
     if (generationPromise) return generationPromise
 
     const version = contextVersion
@@ -127,6 +156,8 @@ export function createSingleReportFlow({
         return { ...destination, reused: Boolean(response.data.already_generated), stale: true }
       }
       reportId = destination.reportId
+      reportStatus = text(response.data.report_status || response.data.status).toLowerCase() || 'unknown'
+      taskId = destination.taskId
       await openReport(destination)
       return { ...destination, reused: Boolean(response.data.already_generated) }
     })()
