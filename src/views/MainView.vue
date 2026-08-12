@@ -76,7 +76,6 @@
           @base-metadata-imported="handleBaseMetadataImported"
           @professional-files-selected="handleProfessionalFilesSelected"
           @build-professional-graph="startProfessionalGraphBuild"
-          @open-qa="openCompletedGraphInQa"
         />
       </div>
     </main>
@@ -92,8 +91,7 @@ import WorkflowProgressBar from '../components/WorkflowProgressBar.vue'
 import { prepareOntologyProject, generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
 import {
   completeMissingTaskGraphForQa,
-  completeTaskGraphForQa,
-  navigateGraphProjectToQa
+  completeTaskGraphForQa
 } from '../features/projects/graphQaNavigation.js'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 import {
@@ -223,20 +221,6 @@ const addLog = (msg) => {
   if (systemLogs.value.length > 100) {
     systemLogs.value.shift()
   }
-}
-
-const openCompletedGraphInQa = async (project) => {
-  const navigated = await navigateGraphProjectToQa({
-    project,
-    browser: globalThis,
-    navigate: (qaRoute) => router.replace(qaRoute)
-  })
-  if (!navigated) {
-    error.value = '图谱构建完成响应缺少 project_id 或 graph_id，无法进入问答。'
-    addLog(error.value)
-    return false
-  }
-  return true
 }
 
 const reportGraphCompletionFailure = (result) => {

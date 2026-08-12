@@ -534,12 +534,6 @@
           <p v-if="simulationPreparationError" class="simulation-preparation-error">
             {{ simulationPreparationError }}
           </p>
-          <button
-            v-if="canOpenFinalGraphQa"
-            class="action-btn qa-action-btn"
-            type="button"
-            @click="emit('open-qa', projectData)"
-          >去图谱问答</button>
         </div>
       </div>
     </div>
@@ -571,7 +565,6 @@ import {
   canBuildGraphProject,
   projectResearchQuestion
 } from '../features/research/simulationPreparationModel.js'
-import { isFinalGraphProject } from '../features/projects/logicalGraphProjectModel.js'
 
 const router = useRouter()
 const workflowSession = useGraphWorkflowSession()
@@ -597,11 +590,9 @@ const emit = defineEmits([
   'professional-files-selected',
   'base-node-updated',
   'confirm-base-nodes',
-  'base-metadata-imported',
-  'open-qa'
+  'base-metadata-imported'
 ])
 
-const canOpenFinalGraphQa = computed(() => isFinalGraphProject(props.projectData))
 const selectedOntologyItem = ref(null)
 const logContent = ref(null)
 const creatingSimulation = ref(false)
@@ -610,7 +601,7 @@ const simulationPreparationError = computed(() => {
     && props.projectData?.project_id
     && props.projectData?.graph_id
   return hasCompletedGraph && !projectResearchQuestion(props.projectData)
-    ? '当前项目缺少研究问题，不能进入 ASC 分析准备。你仍可使用图谱问答。'
+    ? '当前项目缺少研究问题，不能进入 ASC 分析准备。'
     : ''
 })
 const entityNodeLimit = ref(260)

@@ -382,12 +382,12 @@ test('requires a completed-report project before opening the answer workflow', a
   assert.doesNotMatch(view, /预览回答页面/)
 })
 
-test('keeps completed graph workflows visible without a duplicate header QA action', async () => {
+test('keeps completed graph workflows visible without an early QA action', async () => {
   const view = await readFile(new URL('../src/views/MainView.vue', import.meta.url), 'utf8')
 
   assert.doesNotMatch(view, /class="qa-entry-button"/)
   assert.doesNotMatch(view, /canOpenCompletedGraphQa/)
-  assert.match(view, /@open-qa="openCompletedGraphInQa"/)
+  assert.doesNotMatch(view, /@open-qa="openCompletedGraphInQa"|openCompletedGraphInQa/)
   assert.match(view, /completeTaskGraphForQa\(\{[\s\S]*?navigateWhenReady:\s*false[\s\S]*?\}\)/)
   assert.match(view, /completeMissingTaskGraphForQa\(\{[\s\S]*?navigateWhenReady:\s*false[\s\S]*?\}\)/)
 })

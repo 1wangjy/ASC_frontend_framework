@@ -302,7 +302,7 @@ test('renders the five-step workflow without a misleading graph percentage', asy
   assert.doesNotMatch(html, /workflow-track|workflow-fill/)
 })
 
-test('shows Step 1 QA only for a completed Professional graph', async () => {
+test('does not expose an early QA action from Step 1 graph construction', async () => {
   const baseHtml = await renderSfc('/src/components/Step1GraphBuild.vue', {
     currentPhase: 4,
     projectData: {
@@ -324,7 +324,7 @@ test('shows Step 1 QA only for a completed Professional graph', async () => {
   })
 
   assert.doesNotMatch(baseHtml, /去图谱问答/)
-  assert.match(professionalHtml, /去图谱问答/)
+  assert.doesNotMatch(professionalHtml, /去图谱问答/)
 })
 
 test('renders a useful empty graph workspace project list', async () => {

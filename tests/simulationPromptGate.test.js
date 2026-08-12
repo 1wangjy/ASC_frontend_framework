@@ -310,7 +310,7 @@ test('builds a stable simulation preparation key from simulation and project ide
   assert.equal(simulationPreparationKey(' s1 ', { project_id: ' p1 ', graph_id: ' g1 ' }), 's1|p1|g1')
 })
 
-test('Step 1 blocks empty questions before simulation creation and keeps graph QA available', async () => {
+test('Step 1 blocks empty questions before simulation creation without exposing early graph QA', async () => {
   const source = await readFile(new URL('../src/components/Step1GraphBuild.vue', import.meta.url), 'utf8')
   const guardIndex = source.indexOf('projectResearchQuestion(props.projectData)')
   const createIndex = source.indexOf('await createSimulation(')
@@ -318,8 +318,7 @@ test('Step 1 blocks empty questions before simulation creation and keeps graph Q
   assert.ok(guardIndex >= 0)
   assert.ok(createIndex > guardIndex)
   assert.match(source, /:disabled="currentPhase < 4 \|\| creatingSimulation \|\| !projectResearchQuestion\(projectData\)"/)
-  assert.match(source, /@click="emit\('open-qa', projectData\)"/)
-  assert.match(source, /当前项目缺少研究问题，不能进入 ASC 分析准备。你仍可使用图谱问答。/)
+  assert.doesNotMatch(source, /open-qa|canOpenFinalGraphQa/)
   assert.match(source, /const simulationPreparationError = computed/)
 })
 
@@ -335,13 +334,13 @@ test('Step 2 defers preparation until project data is ready and exposes the miss
   assert.match(source, /@click="emit\('go-qa', projectData\)"/)
 })
 
-test('MainView and SimulationView route project-scoped QA actions through the shared navigator', async () => {
+test('only the later simulation workflow retains its project-scoped QA action', async () => {
   const [mainView, simulationView] = await Promise.all([
     readFile(new URL('../src/views/MainView.vue', import.meta.url), 'utf8'),
     readFile(new URL('../src/views/SimulationView.vue', import.meta.url), 'utf8')
   ])
 
-  assert.match(mainView, /@open-qa="openCompletedGraphInQa"/)
+  assert.doesNotMatch(mainView, /@open-qa="openCompletedGraphInQa"|openCompletedGraphInQa/)
   assert.match(simulationView, /@go-qa="openProjectGraphInQa"/)
   assert.match(simulationView, /navigateGraphProjectToQa/)
   assert.match(simulationView, /project:\s*projectData\.value/)
