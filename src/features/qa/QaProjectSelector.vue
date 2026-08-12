@@ -102,10 +102,18 @@ function handleKeydown(event) {
   const activeElement = dialog.value?.ownerDocument?.activeElement
   const first = elements[0]
   const last = elements.at(-1)
-  if (event.shiftKey && (activeElement === first || !dialog.value?.contains?.(activeElement))) {
+  if (event.shiftKey && (
+    activeElement === dialog.value
+    || activeElement === first
+    || !dialog.value?.contains?.(activeElement)
+  )) {
     event.preventDefault()
     last.focus()
-  } else if (!event.shiftKey && (activeElement === last || !dialog.value?.contains?.(activeElement))) {
+  } else if (!event.shiftKey && (
+    activeElement === dialog.value
+    || activeElement === last
+    || !dialog.value?.contains?.(activeElement)
+  )) {
     event.preventDefault()
     first.focus()
   }

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 import { defineComponent, h, nextTick, reactive } from 'vue'
@@ -349,6 +350,9 @@ test('changing the qualified route scope clears old QA and ignores its late answ
 })
 
 test('project selector traps keyboard focus and restores the opener when closed', async () => {
+  const selectorSource = readFileSync(new URL('../src/features/qa/QaProjectSelector.vue', import.meta.url), 'utf8')
+  assert.match(selectorSource, /activeElement\s*===\s*dialog\.value/)
+
   const probe = createProbe()
   globalThis[QA_PROBE_KEY] = probe
   const fixture = await mountQa('/?projectId=p1&reportId=r1')
@@ -366,9 +370,38 @@ test('project selector traps keyboard focus and restores the opener when closed'
     const dialog = findRenderedNode(fixture.root, node => node?.props?.role === 'dialog')
     assert.ok(dialog)
     assert.equal(fixture.document.activeElement, dialog)
+    assert.equal(dialog.contains(fixture.document.activeElement), true)
     const focusable = dialog.querySelectorAll()
     const first = focusable[0]
     const last = focusable.at(-1)
+    assert.notEqual(first, dialog)
+    assert.notEqual(last, dialog)
+
+    let initialBackwardPrevented = false
+    let initialBackwardActiveElement = null
+    await dialog.props.onKeydown({
+      key: 'Tab',
+      shiftKey: true,
+      preventDefault: () => {
+        initialBackwardActiveElement = fixture.document.activeElement
+        initialBackwardPrevented = true
+      },
+      stopPropagation() {}
+    })
+    assert.equal(initialBackwardActiveElement, dialog)
+    assert.equal(initialBackwardPrevented, true)
+    assert.equal(fixture.document.activeElement, last)
+
+    dialog.focus()
+    let initialForwardPrevented = false
+    await dialog.props.onKeydown({
+      key: 'Tab',
+      shiftKey: false,
+      preventDefault: () => { initialForwardPrevented = true },
+      stopPropagation() {}
+    })
+    assert.equal(initialForwardPrevented, true)
+    assert.equal(fixture.document.activeElement, first)
 
     last.focus()
     let forwardPrevented = false
