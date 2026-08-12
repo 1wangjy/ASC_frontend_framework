@@ -106,6 +106,8 @@ const props = defineProps({
   projectName: { type: String, default: '' }
 })
 
+const emit = defineEmits(['report-state'])
+
 const state = ref({
   reportId: String(props.reportId || '').trim(),
   taskId: String(props.taskId || '').trim(),
@@ -125,6 +127,10 @@ const controller = createReportReaderController({
   getStatus: getReportStatus,
   onChange: nextState => {
     state.value = nextState
+    emit('report-state', {
+      report: nextState.report,
+      status: nextState.status
+    })
   }
 })
 

@@ -38,3 +38,16 @@ test('the completed document prefers canonical saved Markdown over duplicate sec
   assert.match(source, /v-if="completedMarkdown"/)
   assert.match(source, /v-else[\s\S]*?v-for="section in sections"/)
 })
+
+test('publishes the current report and status after every reader controller publication', async () => {
+  const source = await readFile(
+    new URL('../src/components/ReportReader.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /defineEmits\(\[['"]report-state['"]\]\)/)
+  assert.match(
+    source,
+    /onChange:\s*nextState\s*=>\s*\{[\s\S]*?state\.value\s*=\s*nextState[\s\S]*?emit\(\s*['"]report-state['"]\s*,\s*\{\s*report:\s*nextState\.report,\s*status:\s*nextState\.status\s*\}\s*\)/
+  )
+})

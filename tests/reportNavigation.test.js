@@ -74,3 +74,21 @@ test('keeps a direct report-list entry on the retained report detail page', asyn
   assert.match(source, /:report-id="ownedReportId"/)
   assert.doesNotMatch(source, /GraphPanel|WorkflowProgressBar|Step4Report|view-switcher|Step 4\/5/)
 })
+
+test('wires shared completed-report actions without report generation capability', async () => {
+  const source = await readFile(
+    new URL('../src/views/ReportView.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /<ReportActions/)
+  assert.match(source, /@report-state="handleReportState"/)
+  assert.match(source, /saveReportDownload\s*\(/)
+  assert.match(source, /reportApi\.downloadReport/)
+  assert.match(source, /name:\s*['"]AscQa['"]/)
+  assert.match(source, /projectId:\s*projectId\.value/)
+  assert.match(source, /reportId:\s*ownedReportId/)
+  assert.match(source, /matchedProject\.value\?\.projectId/)
+  assert.match(source, /fallbackProject\.value\?\.project_id/)
+  assert.doesNotMatch(source, /generateReport|force_regenerate/)
+})

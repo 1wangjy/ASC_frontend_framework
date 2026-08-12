@@ -8,10 +8,22 @@
       <span>REPORT DETAIL</span>
     </header>
 
+    <ReportActions
+      :report-id="ownedReportId"
+      :project-id="projectId"
+      :project-name="projectName"
+      :status="readerState.status"
+      @download="downloadCurrentReport"
+      @open-qa="openQa"
+    />
+    <p v-if="actionError" class="report-view__error" role="alert">
+      {{ actionError }}
+    </p>
     <ReportReader
       :report-id="ownedReportId"
       :task-id="reportTaskId"
       :project-name="projectName"
+      @report-state="handleReportState"
     />
   </main>
 </template>
@@ -23,10 +35,12 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { getProject } from '../api/graph.js'
-import { getReport } from '../api/report.js'
+import * as reportApi from '../api/report.js'
 import { getSimulation } from '../api/simulation.js'
 import ReportReader from '../components/ReportReader.vue'
 import { buildLogicalGraphProjects } from '../features/projects/logicalGraphProjectModel.js'
+import ReportActions from '../features/reports/ReportActions.vue'
+import { saveReportDownload } from '../features/reports/reportDownload.js'
 import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
 
 const props = defineProps({
@@ -41,7 +55,10 @@ const reportTaskId = String(route.query.taskId || '').trim()
 const reportData = ref(null)
 const fallbackProject = ref(null)
 const associationError = ref('')
+const actionError = ref('')
+const readerState = ref({ report: null, status: 'unknown' })
 let associationVersion = 0
+let downloadPromise = null
 
 const logicalProjects = computed(() => buildLogicalGraphProjects(monitor.state.items))
 const matchedProject = computed(() => {
@@ -59,6 +76,13 @@ const projectName = computed(() => String(
   || fallbackProject.value?.name
   || ''
 ).trim())
+const projectId = computed(() => String(
+  matchedProject.value?.projectId
+  || matchedProject.value?.project_id
+  || fallbackProject.value?.project_id
+  || fallbackProject.value?.projectId
+  || ''
+).trim())
 const ownsActiveRoute = computed(() => (
   route.name === 'Report'
   && String(route.params.reportId || '').trim() === ownedReportId
@@ -71,7 +95,7 @@ async function loadProjectAssociation() {
   fallbackProject.value = null
 
   try {
-    const reportResponse = await getReport(ownedReportId)
+    const reportResponse = await reportApi.getReport(ownedReportId)
     if (version !== associationVersion || !ownsActiveRoute.value) return
     if (reportResponse?.success !== true || !reportResponse?.data) return
     reportData.value = reportResponse.data
@@ -95,6 +119,42 @@ async function loadProjectAssociation() {
       associationError.value = error?.message || '图谱项目名称读取失败'
     }
   }
+}
+
+function handleReportState(nextState) {
+  readerState.value = {
+    report: nextState?.report || null,
+    status: String(nextState?.status || 'unknown').trim().toLowerCase()
+  }
+}
+
+function downloadCurrentReport() {
+  if (downloadPromise) return downloadPromise
+  actionError.value = ''
+
+  downloadPromise = saveReportDownload({
+    reportId: ownedReportId,
+    projectName: projectName.value,
+    downloadReport: reportApi.downloadReport,
+    browser: globalThis
+  }).catch(error => {
+    actionError.value = error?.message || '报告下载失败'
+  }).finally(() => {
+    downloadPromise = null
+  })
+
+  return downloadPromise
+}
+
+function openQa() {
+  if (!projectId.value || !ownedReportId || readerState.value.status !== 'completed') return
+  return router.push({
+    name: 'AscQa',
+    query: {
+      projectId: projectId.value,
+      reportId: ownedReportId
+    }
+  })
 }
 
 watch(ownsActiveRoute, active => {
@@ -140,6 +200,18 @@ watch(ownsActiveRoute, active => {
   font-size: 11px;
   font-weight: 900;
   letter-spacing: .14em;
+}
+
+.report-view__error {
+  width: min(920px, 100%);
+  box-sizing: border-box;
+  margin: -8px auto 20px;
+  padding: 12px 14px;
+  border: 1px solid #f0c5bf;
+  border-radius: 10px;
+  background: #fffafa;
+  color: #a8322a;
+  line-height: 1.5;
 }
 
 @media (max-width: 760px) {
