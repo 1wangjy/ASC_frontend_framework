@@ -1,31 +1,33 @@
 <template>
-  <div
-    class="project-delete-dialog"
-    role="alertdialog"
-    aria-modal="true"
-    aria-labelledby="project-delete-title"
-    aria-describedby="project-delete-description"
-    tabindex="-1"
-    @keydown.esc="cancel"
-  >
-    <section class="project-delete-dialog__panel">
-      <span class="project-delete-dialog__eyebrow">删除项目</span>
-      <h2 id="project-delete-title">确认删除 {{ projectName }}？</h2>
-      <p id="project-delete-description">{{ warning }}</p>
+  <Teleport to="body" :disabled="teleportDisabled">
+    <div
+      class="project-delete-dialog"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="project-delete-title"
+      aria-describedby="project-delete-description"
+      tabindex="-1"
+      @keydown.esc="cancel"
+    >
+      <section class="project-delete-dialog__panel">
+        <span class="project-delete-dialog__eyebrow">删除项目</span>
+        <h2 id="project-delete-title">确认删除 {{ projectName }}？</h2>
+        <p id="project-delete-description">{{ warning }}</p>
 
-      <div class="project-delete-dialog__actions">
-        <button type="button" :disabled="deleting" @click="cancel">取消</button>
-        <button
-          type="button"
-          class="project-delete-dialog__confirm"
-          :disabled="deleting"
-          @click="$emit('confirm')"
-        >
-          {{ deleting ? '删除中…' : '确认删除' }}
-        </button>
-      </div>
-    </section>
-  </div>
+        <div class="project-delete-dialog__actions">
+          <button type="button" :disabled="deleting" @click="cancel">取消</button>
+          <button
+            type="button"
+            class="project-delete-dialog__confirm"
+            :disabled="deleting"
+            @click="$emit('confirm')"
+          >
+            {{ deleting ? '删除中…' : '确认删除' }}
+          </button>
+        </div>
+      </section>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -39,6 +41,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['confirm', 'cancel'])
+const teleportDisabled = typeof document === 'undefined'
 
 const projectName = computed(() => (
   normalizeProjectName(props.project?.name || props.project?.project_name) || '该项目'

@@ -348,9 +348,12 @@ test('renders an accessible in-page confirmation for an active project', async (
 
 test('workspace uses the in-page confirmation instead of a native browser dialog', async () => {
   const source = await readFile(new URL('../src/features/projects/GraphProjectWorkspacePanel.vue', import.meta.url), 'utf8')
+  const dialogSource = await readFile(new URL('../src/features/projects/GraphProjectDeleteDialog.vue', import.meta.url), 'utf8')
 
   assert.match(source, /GraphProjectDeleteDialog/)
   assert.doesNotMatch(source, /globalThis\.confirm|window\.confirm/)
+  assert.match(dialogSource, /<Teleport\s+to="body"/)
+  assert.match(dialogSource, /:disabled="teleportDisabled"/)
 })
 
 test('registers graph evolution and report generation as separate primary destinations', () => {
