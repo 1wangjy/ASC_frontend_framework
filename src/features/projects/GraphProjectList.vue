@@ -35,7 +35,7 @@
 </template>
 
 <script setup>
-import { graphEvolutionStatusCopy } from '../tasks/graphTaskMonitorModel.js'
+import { graphTaskStageCopy } from '../tasks/graphTaskMonitorModel.js'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -51,17 +51,7 @@ function isSelected(item) {
 }
 
 function statusCopy(item) {
-  const evolutionCopy = graphEvolutionStatusCopy(item)
-  if (evolutionCopy) return evolutionCopy
-  return {
-    created: '准备构建图谱',
-    ontology_generating: '正在准备图谱',
-    ontology_generated: '等待构建图谱',
-    graph_building: '正在构建图谱',
-    base_completed: '正在完善图谱',
-    graph_completed: '知识图谱专业构建完成',
-    failed: '构建失败'
-  }[item.status] || '准备中'
+  return graphTaskStageCopy(item)
 }
 </script>
 

@@ -128,7 +128,7 @@ async function confirmProjectDeletion() {
   deletingProjectId.value = item.projectId
   workspaceError.value = ''
   try {
-    await deleteLogicalGraphProjectResources({ deleteGraph, deleteGraphProject }, item)
+    const deletionResult = await deleteLogicalGraphProjectResources({ deleteGraph, deleteGraphProject }, item)
     workflowSession.clear(item.memberProjectIds)
     if (item.memberProjectIds?.includes(readActiveProjectId(browserStorage))) {
       rememberActiveProjectId(browserStorage, '')
@@ -138,6 +138,9 @@ async function confirmProjectDeletion() {
       await router.replace({ name: 'Process' })
     }
     await monitor.refresh()
+    if (deletionResult.cleanupWarnings.length) {
+      workspaceError.value = `项目已删除，但远端图谱清理未完成：${deletionResult.cleanupWarnings.join('；')}`
+    }
   } catch (error) {
     workspaceError.value = error?.message || '删除图谱项目失败。'
   } finally {

@@ -35,13 +35,22 @@ export async function deleteGraphProjectResources(dependencies, project = {}) {
   const graphId = normalizeProjectName(project.graphId || project.graph_id)
   if (!projectId) throw new Error('缺少项目 ID，无法删除。')
 
-  if (graphId) {
-    const graphResponse = await dependencies.deleteGraph(graphId)
-    assertSuccessfulDeletion(graphResponse, '删除远端图谱失败。')
-  }
-
   const projectResponse = await dependencies.deleteGraphProject(projectId)
   assertSuccessfulDeletion(projectResponse, '删除图谱项目失败。')
+
+  const cleanupWarnings = []
+  if (graphId) {
+    try {
+      const graphResponse = await dependencies.deleteGraph(graphId)
+      if (graphResponse?.success === false) {
+        cleanupWarnings.push(graphResponse.error || graphResponse.message || '删除远端图谱失败。')
+      }
+    } catch (error) {
+      cleanupWarnings.push(error?.message || '删除远端图谱失败。')
+    }
+  }
+
+  return { deletedProjectId: projectId, cleanupWarnings }
 }
 
 export async function deleteLogicalGraphProjectResources(dependencies, project = {}) {
@@ -49,11 +58,15 @@ export async function deleteLogicalGraphProjectResources(dependencies, project =
     ? project.resources
     : [project]
   const deletedProjectIds = new Set()
+  const cleanupWarnings = []
 
   for (const resource of resources) {
     const projectId = normalizeProjectName(resource.projectId || resource.project_id)
     if (!projectId || deletedProjectIds.has(projectId)) continue
-    await deleteGraphProjectResources(dependencies, resource)
+    const result = await deleteGraphProjectResources(dependencies, resource)
+    cleanupWarnings.push(...result.cleanupWarnings)
     deletedProjectIds.add(projectId)
   }
+
+  return { deletedProjectIds: [...deletedProjectIds], cleanupWarnings }
 }

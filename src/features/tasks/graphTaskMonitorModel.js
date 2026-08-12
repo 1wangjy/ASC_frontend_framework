@@ -3,16 +3,40 @@ import { isFinalGraphProject } from '../projects/logicalGraphProjectModel.js'
 const ACTIVE_STATUSES = new Set(['ontology_generating', 'graph_building'])
 
 const EVOLUTION_STATUS_COPY = {
-  professional_completed: '知识图谱专业构建完成',
-  evolution_ready: '等待知识图谱演化',
-  evolution_running: '知识图谱演化中',
-  evolution_completed: '知识图谱演化完成',
-  evolution_failed: '知识图谱演化失败',
-  evolution_stopped: '知识图谱演化已停止'
+  professional_completed: 'Professional 构建完成，等待环境搭建',
+  environment_preparing: '正在环境搭建',
+  evolution_ready: '环境搭建完成，等待开始模拟',
+  evolution_running: '正在模拟组会',
+  evolution_completed: '模拟组会已完成',
+  evolution_failed: '模拟组会失败',
+  evolution_stopped: '模拟组会已停止'
 }
 
 export function graphEvolutionStatusCopy(item = {}) {
   return EVOLUTION_STATUS_COPY[item?.evolutionStatus] || ''
+}
+
+export function graphTaskStageCopy(item = {}) {
+  const evolutionCopy = graphEvolutionStatusCopy(item)
+  if (evolutionCopy) return evolutionCopy
+
+  if (item?.status === 'graph_building') {
+    return item?.stage === 'professional' ? '正在 Professional 构建' : '正在 Base 构建'
+  }
+
+  if (item?.status === 'graph_completed') {
+    return item?.stage === 'professional'
+      ? 'Professional 构建完成，等待环境搭建'
+      : 'Base 构建完成，等待 Professional 构建'
+  }
+
+  return {
+    created: '等待图谱初始化',
+    ontology_generating: '正在图谱初始化',
+    ontology_generated: '等待 Base 构建',
+    base_completed: 'Base 构建完成，等待 Professional 构建',
+    failed: '图谱构建失败'
+  }[item?.status] || '等待开始'
 }
 
 export function unwrapGraphProjects(response = []) {
@@ -51,10 +75,12 @@ function simulationProgress(record = {}) {
 
 function evolutionStatusOf(record = {}) {
   const runnerStatus = text(record.runner_status || record.status).toLowerCase()
+  const simulationStatus = text(record.status).toLowerCase()
   if (runnerStatus === 'completed') return 'evolution_completed'
   if (runnerStatus === 'failed') return 'evolution_failed'
   if (runnerStatus === 'stopped') return 'evolution_stopped'
   if (['running', 'starting', 'processing'].includes(runnerStatus)) return 'evolution_running'
+  if (simulationStatus === 'preparing') return 'environment_preparing'
   return 'evolution_ready'
 }
 
@@ -95,7 +121,7 @@ export function mergeGraphEvolutionState(items = [], history = []) {
       simulationId: text(simulation.simulation_id),
       evolutionStatus,
       progress,
-      active: evolutionStatus === 'evolution_running'
+      active: ['environment_preparing', 'evolution_running'].includes(evolutionStatus)
     }
   })
 }

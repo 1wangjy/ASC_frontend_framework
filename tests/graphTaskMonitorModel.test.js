@@ -96,6 +96,28 @@ test('only a normally completed simulation marks graph evolution complete', () =
   }
 })
 
+test('distinguishes environment preparation from a ready simulation', () => {
+  const sourceItem = {
+    projectId: 'p1',
+    status: 'graph_completed',
+    stage: 'professional',
+    progress: 100,
+    active: false
+  }
+
+  const [preparing] = mergeGraphEvolutionState([sourceItem], [{
+    project_id: 'p1', simulation_id: 's-preparing', status: 'preparing', runner_status: 'idle'
+  }])
+  const [ready] = mergeGraphEvolutionState([sourceItem], [{
+    project_id: 'p1', simulation_id: 's-ready', status: 'ready', runner_status: 'idle'
+  }])
+
+  assert.equal(preparing.evolutionStatus, 'environment_preparing')
+  assert.equal(preparing.active, true)
+  assert.equal(ready.evolutionStatus, 'evolution_ready')
+  assert.equal(ready.active, false)
+})
+
 test('keeps Professional graph completion distinct when no simulation exists', () => {
   const [item] = mergeGraphEvolutionState([{
     projectId: 'p1',

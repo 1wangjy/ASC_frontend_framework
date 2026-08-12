@@ -38,10 +38,6 @@
             <strong>{{ item.name }}</strong>
             <span>{{ statusCopy(item) }}</span>
           </div>
-          <div class="graph-task-indicator__progress" :aria-label="`${item.name} 进度 ${item.progress}%`">
-            <span>{{ item.progress }}%</span>
-            <i><b :style="{ width: `${item.progress}%` }" /></i>
-          </div>
           <p v-if="item.message" class="graph-task-indicator__message">{{ item.message }}</p>
           <div class="graph-task-indicator__actions">
             <button v-if="item.projectId" type="button" @click="$emit('view-project', item.projectId)">查看进度</button>
@@ -55,7 +51,7 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue'
 
-import { graphEvolutionStatusCopy, selectVisibleGraphTasks } from './graphTaskMonitorModel.js'
+import { graphTaskStageCopy, selectVisibleGraphTasks } from './graphTaskMonitorModel.js'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -72,17 +68,7 @@ const activeCount = computed(() => props.items.filter(item => item.active).lengt
 const lastSyncedLabel = computed(() => props.lastSyncedAt ? `：${new Date(props.lastSyncedAt).toLocaleString()}` : '')
 
 function statusCopy(item) {
-  const evolutionCopy = graphEvolutionStatusCopy(item)
-  if (evolutionCopy) return evolutionCopy
-  return {
-    created: '准备中',
-    ontology_generating: '生成本体',
-    ontology_generated: '等待构建',
-    graph_building: '构建图谱',
-    base_completed: '等待完善图谱',
-    graph_completed: '知识图谱专业构建完成',
-    failed: '失败'
-  }[item.status] || '准备中'
+  return graphTaskStageCopy(item)
 }
 
 function closePopover() {
@@ -112,10 +98,6 @@ function handleEscape(event) {
 .graph-task-indicator__list { min-height: 0; margin: 0; padding: 0; overflow-y: auto; list-style: none; overscroll-behavior: contain; }
 .graph-task-indicator__item { padding: 12px 14px; border-bottom: 1px solid var(--asc-border); }
 .graph-task-indicator__item-main span, .graph-task-indicator__message, .graph-task-indicator__empty { color: var(--asc-muted); }
-.graph-task-indicator__progress { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
-.graph-task-indicator__progress span { min-width: 34px; font-variant-numeric: tabular-nums; }
-.graph-task-indicator__progress i { flex: 1; height: 5px; overflow: hidden; border-radius: 999px; background: var(--asc-primary-soft); }
-.graph-task-indicator__progress b { display: block; height: 100%; border-radius: inherit; background: var(--asc-primary); }
 .graph-task-indicator__message { margin: 8px 0 0; }
 .graph-task-indicator__actions { justify-content: flex-end; margin-top: 10px; }
 .graph-task-indicator__empty { margin: 0; padding: 16px 14px; }

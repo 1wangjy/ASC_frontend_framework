@@ -23,9 +23,10 @@ test('renders completed graph task details in SSR', async () => {
   })
 
   assert.match(html, /图谱演化任务/)
-  assert.match(html, /知识图谱演化完成/)
+  assert.match(html, /模拟组会已完成/)
   assert.match(html, /高温材料图谱/)
-  assert.match(html, /100%/)
+  assert.doesNotMatch(html, /100%/)
+  assert.doesNotMatch(html, /graph-task-indicator__progress/)
   assert.match(html, /查看进度/)
   assert.doesNotMatch(html, /去问答/)
 })
@@ -35,7 +36,7 @@ test('describes a base-only result as waiting for the complete knowledge graph',
     items: [{ ...completedItem, status: 'base_completed', evolutionStatus: undefined, canOpenQa: false }]
   })
 
-  assert.match(html, /等待完善图谱/)
+  assert.match(html, /Base 构建完成，等待 Professional 构建/)
   assert.doesNotMatch(html, /Professional Research|基础图谱/)
 })
 
@@ -47,8 +48,25 @@ test('distinguishes running and stopped evolution from a completed evolution', a
     ]
   })
 
-  assert.match(html, /知识图谱演化中/)
-  assert.match(html, /知识图谱演化已停止/)
+  assert.match(html, /正在模拟组会/)
+  assert.match(html, /模拟组会已停止/)
+})
+
+test('shows stable workflow stage text instead of a synthetic percentage', async () => {
+  const html = await renderSfc('/src/features/tasks/GlobalGraphTaskIndicator.vue', {
+    items: [
+      { ...completedItem, id: 'base', status: 'graph_building', stage: 'base', evolutionStatus: undefined, progress: 22, active: true },
+      { ...completedItem, id: 'professional', status: 'graph_building', stage: 'professional', evolutionStatus: undefined, progress: 67, active: true },
+      { ...completedItem, id: 'environment', status: 'graph_completed', evolutionStatus: 'environment_preparing', progress: 0, active: true },
+      { ...completedItem, id: 'meeting', status: 'graph_completed', evolutionStatus: 'evolution_running', progress: 21, active: true }
+    ]
+  })
+
+  assert.match(html, /正在 Base 构建/)
+  assert.match(html, /正在 Professional 构建/)
+  assert.match(html, /正在环境搭建/)
+  assert.match(html, /正在模拟组会/)
+  assert.doesNotMatch(html, /22%|67%|21%/)
 })
 
 test('hides QA action for a task that is not ready', async () => {

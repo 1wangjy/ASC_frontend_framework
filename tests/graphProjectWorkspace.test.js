@@ -200,14 +200,14 @@ test('warns explicitly before deleting an active graph project', () => {
   assert.doesNotMatch(projectDeletionMessage({ name: 'project_2', active: false }), /正在构建/)
 })
 
-test('deletes the remote graph before the local project', async () => {
+test('deletes the authoritative project record before cleaning the remote graph', async () => {
   const calls = []
   await deleteGraphProjectResources({
     deleteGraph: async id => { calls.push(['graph', id]); return { success: true } },
     deleteGraphProject: async id => { calls.push(['project', id]); return { success: true } }
   }, { projectId: 'p1', graphId: 'g1' })
 
-  assert.deepEqual(calls, [['graph', 'g1'], ['project', 'p1']])
+  assert.deepEqual(calls, [['project', 'p1'], ['graph', 'g1']])
 })
 
 test('deletes a graph-building project that does not have a graph id yet', async () => {
@@ -228,24 +228,23 @@ test('deletes every backend record in a logical project from child to root', asy
   }, completedProject)
 
   assert.deepEqual(calls, [
-    ['graph', 'g-completed'],
     ['project', 'p-completed'],
-    ['graph', 'base-g'],
-    ['project', 'base-completed']
+    ['graph', 'g-completed'],
+    ['project', 'base-completed'],
+    ['graph', 'base-g']
   ])
 })
 
-test('stops local deletion when remote graph deletion resolves as failed', async () => {
+test('keeps the project deleted when remote graph cleanup resolves as failed', async () => {
   let projectDeleteCalls = 0
 
-  await assert.rejects(
-    deleteGraphProjectResources({
-      deleteGraph: async () => ({ success: false, error: 'remote graph is busy' }),
-      deleteGraphProject: async () => { projectDeleteCalls += 1; return { success: true } }
-    }, { projectId: 'p1', graphId: 'g1' }),
-    /remote graph is busy/
-  )
-  assert.equal(projectDeleteCalls, 0)
+  const result = await deleteGraphProjectResources({
+    deleteGraph: async () => ({ success: false, error: 'remote graph is busy' }),
+    deleteGraphProject: async () => { projectDeleteCalls += 1; return { success: true } }
+  }, { projectId: 'p1', graphId: 'g1' })
+
+  assert.equal(projectDeleteCalls, 1)
+  assert.deepEqual(result.cleanupWarnings, ['remote graph is busy'])
 })
 
 test('requires a project id before issuing destructive requests', async () => {
@@ -265,10 +264,10 @@ test('renders active and completed projects with status-aware actions', async ()
   })
 
   assert.match(html, /project_2/)
-  assert.match(html, /正在构建图谱/)
-  assert.match(html, /正在完善图谱/)
+  assert.match(html, /正在 Base 构建/)
+  assert.match(html, /Base 构建完成，等待 Professional 构建/)
   assert.match(html, /project_1/)
-  assert.match(html, /知识图谱专业构建完成/)
+  assert.match(html, /Professional 构建完成，等待环境搭建/)
   assert.match(html, /删除/)
   assert.doesNotMatch(html, /去问答/)
   assert.doesNotMatch(html, /\d+%/)
@@ -287,10 +286,10 @@ test('renders the latest graph evolution state supplied by the monitor', async (
     ]
   })
 
-  assert.match(html, /知识图谱演化中/)
-  assert.match(html, /知识图谱演化完成/)
-  assert.match(html, /知识图谱演化失败/)
-  assert.match(html, /知识图谱演化已停止/)
+  assert.match(html, /正在模拟组会/)
+  assert.match(html, /模拟组会已完成/)
+  assert.match(html, /模拟组会失败/)
+  assert.match(html, /模拟组会已停止/)
 })
 
 test('renders the five-step workflow without a misleading graph percentage', async () => {
