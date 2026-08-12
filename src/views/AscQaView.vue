@@ -15,7 +15,7 @@
         <div class="qa-project-context">
           <span>当前图谱</span>
           <strong>{{ activeProject ? projectLabel(activeProject) : '未选择' }}</strong>
-          <button type="button" @click="router.push({ name: 'Process' })">
+          <button type="button" @click="selectorOpen = true">
             {{ activeProject ? '更换图谱' : '选择图谱' }}
           </button>
         </div>
@@ -32,13 +32,9 @@
 
         <div v-if="projectUnavailableMessage" class="qa-project-message" :class="{ error: projectError }">
           <span>{{ projectUnavailableMessage }}</span>
-          <button v-if="projectError" type="button" @click="loadProjects">重试</button>
-          <button
-            v-if="!projectsLoading && !activeProject"
-            type="button"
-            @click="router.push({ name: 'Process' })"
-          >
-            去图谱演化
+          <button v-if="projectError" type="button" @click="refreshQualifiedProjects">重试</button>
+          <button v-if="!projectsLoading && !activeProject" type="button" @click="selectorOpen = true">
+            选择项目
           </button>
         </div>
 
@@ -97,6 +93,17 @@
       @run-llm="runLlmEvaluation"
       @save-llm="saveLlmEvaluation"
     />
+
+    <QaProjectSelector
+      :open="selectorOpen"
+      :projects="projects"
+      :selected-project-id="activeProjectId"
+      :loading="projectsLoading"
+      :error="projectError"
+      @select="selectQualifiedProject"
+      @close="selectorOpen = false"
+      @refresh="refreshQualifiedProjects"
+    />
   </div>
 </template>
 
@@ -110,13 +117,14 @@ import TaskShortcuts from '../features/qa/TaskShortcuts.vue'
 import ConversationPanel from '../features/qa/ConversationPanel.vue'
 import EvidencePanel from '../features/qa/EvidencePanel.vue'
 import RecentConversationsPanel from '../features/qa/RecentConversationsPanel.vue'
+import QaProjectSelector from '../features/qa/QaProjectSelector.vue'
 import {
   codGraphRAGQuery,
   getProject,
-  listProjects,
   judgeQAWithLLM,
   submitQAFeedback
 } from '../api/graph.js'
+import { listReports } from '../api/report.js'
 import { recentConversations } from '../features/navigation/appNavigation.js'
 import { findRecentConversation } from '../features/navigation/recentConversationModel.js'
 import {
@@ -143,13 +151,8 @@ import {
   isInvalidGraphScopeError,
   requestCodAnswer
 } from '../features/qa/qaApiAdapter.js'
-import {
-  getBrowserStorage,
-  readActiveProjectId,
-  rememberActiveProjectId,
-  resolveProjectAfterRefresh,
-  listGraphProjects
-} from '../features/projects/projectContextModel.js'
+import { getBrowserStorage } from '../features/projects/projectContextModel.js'
+import { createQaProjectContextController } from '../features/qa/qaProjectContextController.js'
 import {
   createQuestionGuideState,
   refreshQuestionGuide
@@ -167,72 +170,83 @@ const projects = ref([])
 const activeProjectId = ref('')
 const projectsLoading = ref(true)
 const projectError = ref('')
+const selectorOpen = ref(false)
 const scopeSelectionRequired = ref(false)
 const evaluationService = createAnswerEvaluationService({
   mode: 'api',
   api: { judgeQAWithLLM, submitQAFeedback }
 })
 let requestVersion = 0
-let projectsRequestVersion = 0
 let qaRouteConsumptionVersion = 0
 let currentProjectsLoad = Promise.resolve()
 const unconsumedQaQuery = Symbol('unconsumed-qa-query')
 const consumedQaQueryTokens = {
   new: unconsumedQaQuery,
   projectId: unconsumedQaQuery,
+  reportId: unconsumedQaQuery,
   conversation: unconsumedQaQuery
 }
 
 const activeProject = computed(
-  () => projects.value.find((project) => project.project_id === activeProjectId.value) ?? null
+  () => projects.value.find((project) => project.projectId === activeProjectId.value) ?? null
 )
 const evaluationEnabled = computed(() => canEvaluateAnswer(qaState.value))
 const projectUnavailableMessage = computed(() => {
   if (projectsLoading.value) return '正在读取可用于问答的知识图谱项目…'
   if (projectError.value) return projectError.value
-  if (scopeSelectionRequired.value && projects.value.length) return '原知识图谱范围已失效，请前往图谱演化重新选择。'
-  if (!activeProject.value) return '问答需要基于已完成的知识图谱，请先选择或构建图谱。'
+  if (scopeSelectionRequired.value && projects.value.length) return '原问答项目资格已失效，请重新选择已完成报告的图谱项目。'
+  if (!activeProject.value) return '问答需要基于已完成报告的图谱项目，请先选择项目。'
   return ''
 })
 
 function projectLabel(project) {
-  return project.project_name || project.name || project.project_id
+  return project.projectName || project.projectId
 }
 
-async function loadProjects(options = {}) {
+const qaProjectContext = createQaProjectContextController({
+  refreshProjects: () => graphTaskMonitor.refresh(),
+  getProjects: () => graphTaskMonitor.state.items,
+  listReports,
+  storage: browserStorage,
+  onChange(snapshot) {
+    projects.value = snapshot.records
+    activeProjectId.value = snapshot.selected?.projectId ?? ''
+    projectsLoading.value = snapshot.loading
+    projectError.value = snapshot.error
+  }
+})
+
+async function refreshQualifiedProjects(options = {}) {
   const requireManualSelection = options?.requireManualSelection === true || scopeSelectionRequired.value
-  const routeProjectId = Object.prototype.hasOwnProperty.call(options, 'routeProjectId')
-    ? options.routeProjectId
-    : route.query.projectId
-  const currentRequest = ++projectsRequestVersion
   let finishCurrentLoad
   currentProjectsLoad = new Promise(resolve => { finishCurrentLoad = resolve })
-  projectsLoading.value = true
-  projectError.value = ''
   scopeSelectionRequired.value = requireManualSelection
 
   try {
-    const response = await listProjects({ limit: 50 })
-    if (currentRequest !== projectsRequestVersion) return
-    projects.value = listGraphProjects(response)
-    const selected = resolveProjectAfterRefresh(projects.value, {
-      routeProjectId,
-      storedProjectId: readActiveProjectId(browserStorage),
-      requireManualSelection,
-      allowFallback: false
-    })
-    activeProjectId.value = selected?.project_id ?? ''
-    rememberActiveProjectId(browserStorage, activeProjectId.value)
-  } catch (error) {
-    if (currentRequest !== projectsRequestVersion) return
-    projects.value = []
-    activeProjectId.value = ''
-    rememberActiveProjectId(browserStorage, '')
-    projectError.value = error?.message || '无法从后端读取可用知识图谱，请确认 5002 服务正在运行。'
+    const selectionRequest = requireManualSelection
+      ? {}
+      : {
+          routeProjectId: options.routeProjectId,
+          routeReportId: options.routeReportId
+        }
+    if (requireManualSelection) qaProjectContext.clear()
+    await qaProjectContext.refresh(selectionRequest)
   } finally {
-    if (currentRequest === projectsRequestVersion) projectsLoading.value = false
     finishCurrentLoad()
   }
+}
+
+function selectQualifiedProject(projectId) {
+  const previousProjectId = activeProjectId.value
+  if (!qaProjectContext.select(projectId)) return
+  const selected = qaProjectContext.snapshot().selected
+  scopeSelectionRequired.value = false
+  selectorOpen.value = false
+
+  if (previousProjectId && previousProjectId !== selected.projectId) reset()
+  const query = { ...route.query, projectId: selected.projectId, reportId: selected.reportId }
+  delete query.conversation
+  void router.replace({ path: '/', query })
 }
 
 async function waitForCurrentProjectsLoad() {
@@ -255,7 +269,11 @@ async function sendQuestion(question = draft.value) {
   try {
     const adapted = await requestCodAnswer({ codGraphRAGQuery, getProject }, {
       question: nextState.question,
-      project: activeProject.value,
+      project: {
+        ...activeProject.value.project,
+        project_id: activeProject.value.projectId,
+        graph_id: activeProject.value.graphId
+      },
       settings: nextState.settings
     })
     if (currentRequest === requestVersion) {
@@ -266,7 +284,7 @@ async function sendQuestion(question = draft.value) {
       qaState.value = failApiAnswer(qaState.value, error)
       if (isInvalidGraphScopeError(error)) {
         draft.value = qaState.value.question
-        await loadProjects({ requireManualSelection: true })
+        await refreshQualifiedProjects({ requireManualSelection: true })
       }
     }
   }
@@ -414,7 +432,14 @@ function openConversation(conversation) {
     return
   }
 
-  router.push({ path: '/', query: { conversation: conversation.id } })
+  router.push({
+    path: '/',
+    query: {
+      projectId: activeProject.value?.projectId,
+      reportId: activeProject.value?.reportId,
+      conversation: conversation.id
+    }
+  })
 }
 
 function qaQueryDescriptor(key) {
@@ -435,6 +460,7 @@ function activeQaQuerySnapshot() {
   return {
     new: qaQueryDescriptor('new'),
     projectId: qaQueryDescriptor('projectId'),
+    reportId: qaQueryDescriptor('reportId'),
     conversation: qaQueryDescriptor('conversation')
   }
 }
@@ -450,13 +476,20 @@ async function consumeActiveQaRouteQuery() {
   if (route.name !== 'AscQa') return
 
   const snapshot = activeQaQuerySnapshot()
-  const projectChanged = consumedQaQueryTokens.projectId !== snapshot.projectId.token
+  const projectChanged = (
+    consumedQaQueryTokens.projectId !== snapshot.projectId.token
+    || consumedQaQueryTokens.reportId !== snapshot.reportId.token
+  )
   const newChanged = consumedQaQueryTokens.new !== snapshot.new.token
   const conversationChanged = consumedQaQueryTokens.conversation !== snapshot.conversation.token
 
   if (projectChanged) {
     consumedQaQueryTokens.projectId = snapshot.projectId.token
-    void loadProjects({ routeProjectId: snapshot.projectId.value })
+    consumedQaQueryTokens.reportId = snapshot.reportId.token
+    void refreshQualifiedProjects({
+      routeProjectId: snapshot.projectId.value,
+      routeReportId: snapshot.reportId.value
+    })
   }
   await waitForCurrentProjectsLoad()
 
@@ -484,7 +517,7 @@ async function consumeActiveQaRouteQuery() {
 watch(
   () => graphTaskMonitor.state.completedRevision,
   (current, previous) => {
-    if (current > previous) loadProjects()
+    if (current > previous) refreshQualifiedProjects()
   }
 )
 

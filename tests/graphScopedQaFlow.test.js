@@ -23,13 +23,13 @@ function extractBlockAfter(source, marker) {
   throw new Error(`expected a closing block for ${marker}`)
 }
 
-test('QA discovers graph projects from the backend instead of the local registry', async () => {
+test('QA discovers only joined completed-report projects through the qualification controller', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
 
-  assert.match(source, /listProjects/)
-  assert.match(source, /await listProjects\(\{\s*limit:\s*50\s*\}\)/)
-  assert.match(source, /route\.query\.projectId/)
-  assert.doesNotMatch(source, /getRegisteredProjectIds|getProject\(/)
+  assert.match(source, /createQaProjectContextController/)
+  assert.match(source, /listReports/)
+  assert.match(source, /QaProjectSelector/)
+  assert.doesNotMatch(source, /getRegisteredProjectIds/)
   assert.doesNotMatch(source, /projectRegistry/)
 })
 
@@ -39,9 +39,9 @@ test('invalid QA scope refreshes into manual selection without resending the que
 
   assert.match(source, /requestCodAnswer\(\{\s*codGraphRAGQuery,\s*getProject\s*\}/)
   assert.match(invalidScopeRecovery, /draft\.value\s*=\s*qaState\.value\.question/)
-  assert.match(invalidScopeRecovery, /await\s+loadProjects\(\{\s*requireManualSelection:\s*true\s*\}\)/)
+  assert.match(invalidScopeRecovery, /await\s+refreshQualifiedProjects\(\{\s*requireManualSelection:\s*true\s*\}\)/)
   assert.doesNotMatch(invalidScopeRecovery, /sendQuestion\s*\(/)
-  assert.match(source, /resolveProjectAfterRefresh/)
+  assert.match(source, /qaProjectContext\.clear\(\)/)
 })
 
 test('QA reloads projects when graph completion revision increases without owning the monitor lifecycle', async () => {
@@ -51,46 +51,28 @@ test('QA reloads projects when graph completion revision increases without ownin
   assert.match(source, /const graphTaskMonitor = useGraphTaskMonitor\(\)/)
   assert.match(
     source,
-    /watch\(\s*\(\)\s*=>\s*graphTaskMonitor\.state\.completedRevision\s*,\s*\(current, previous\)\s*=>\s*\{\s*if\s*\(current > previous\)\s*loadProjects\(\)\s*}\s*\)/
+    /watch\(\s*\(\)\s*=>\s*graphTaskMonitor\.state\.completedRevision\s*,\s*\(current, previous\)\s*=>\s*\{\s*if\s*\(current > previous\)\s*refreshQualifiedProjects\(\)\s*}\s*\)/
   )
   assert.doesNotMatch(source, /graphTaskMonitor\.(?:start|stop)\s*\(/)
 })
 
-test('QA project refreshes suppress stale success, error, and loading updates', async () => {
+test('QA delegates race-safe project refresh state to the qualification controller', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
-  const loadProjectsSource = extractBlockAfter(source, 'async function loadProjects')
-  const successSource = loadProjectsSource.slice(
-    loadProjectsSource.indexOf('const response = await listProjects'),
-    loadProjectsSource.indexOf('} catch (error)')
-  )
-  const errorSource = extractBlockAfter(loadProjectsSource, '} catch (error)')
-  const finallySource = extractBlockAfter(loadProjectsSource, '} finally')
-  const staleGuard = 'if (currentRequest !== projectsRequestVersion) return'
 
-  assert.match(source, /let projectsRequestVersion = 0/)
-  assert.match(loadProjectsSource, /const currentRequest = \+\+projectsRequestVersion/)
-  assert.ok(successSource.indexOf(staleGuard) >= 0, 'expected a stale guard in the success branch')
-  assert.ok(
-    successSource.indexOf(staleGuard) < successSource.indexOf('projects.value ='),
-    'expected the success guard before project state changes'
-  )
-  assert.ok(errorSource.indexOf(staleGuard) >= 0, 'expected a stale guard in the error branch')
-  assert.ok(
-    errorSource.indexOf(staleGuard) < errorSource.indexOf('projects.value ='),
-    'expected the error guard before clearing project state'
-  )
-  assert.match(finallySource, /if \(currentRequest === projectsRequestVersion\) projectsLoading\.value = false/)
+  assert.match(source, /const qaProjectContext = createQaProjectContextController\(/)
+  assert.match(source, /onChange\(snapshot\)/)
+  assert.doesNotMatch(source, /projectsRequestVersion/)
 })
 
-test('removes the graph project picker and exposes the graph workspace instead', async () => {
+test('opens the qualified project selector from the existing control without a Process route', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
 
   assert.doesNotMatch(source, /qa-project-picker|changeActiveProject|<select/)
   assert.match(source, /qa-project-context/)
   assert.match(source, /当前图谱/)
   assert.match(source, /更换图谱/)
-  assert.match(source, /name:\s*'Process'/)
-  assert.match(source, /allowFallback:\s*false/)
+  assert.match(source, /@click="selectorOpen = true"/)
+  assert.doesNotMatch(source, /name:\s*'Process'/)
 })
 
 test('completed graph builds route to QA and no longer write a local registry', async () => {
