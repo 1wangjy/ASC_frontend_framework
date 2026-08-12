@@ -51,13 +51,13 @@ export function createReportCenterController({
     if (active(version)) onChange({ ...state })
   }
 
-  function refresh() {
+  function refresh({ clearActionError = true } = {}) {
     if (stopped) return Promise.resolve(state)
     const version = lifecycleVersion
     const requestId = ++refreshSequence
     state.loading = true
     state.error = ''
-    state.actionError = ''
+    if (clearActionError) state.actionError = ''
     publish(version)
 
     return (async () => {
@@ -120,7 +120,7 @@ export function createReportCenterController({
         }
         throw error
       } finally {
-        if (requested && active(version)) await refresh()
+        if (requested && active(version)) await refresh({ clearActionError: false })
         generations.delete(key)
         if (active(version) && state.mutatingProjectId === projectId) {
           state.mutatingProjectId = ''

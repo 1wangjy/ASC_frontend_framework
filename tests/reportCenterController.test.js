@@ -142,6 +142,20 @@ test('a completed generation triggers exactly one list refresh', async () => {
   assert.deepEqual(opened, [{ reportId: 'report-new', taskId: 'task-new' }])
 })
 
+test('a failed generation POST refreshes once and keeps its final action error visible', async () => {
+  let listCalls = 0
+  const controller = createController({
+    listReports: async () => { listCalls += 1; return [] },
+    checkExistingReport: async () => ({ success: true, data: { has_report: false, report_id: '' } }),
+    generateReport: async () => { throw new Error('generation POST failed') }
+  })
+
+  await assert.rejects(() => controller.generate(evolvedRecord), /generation POST failed/)
+
+  assert.equal(listCalls, 1)
+  assert.equal(controller.state.actionError, 'generation POST failed')
+})
+
 test('a completed POST still refreshes once when report navigation fails', async () => {
   let listCalls = 0
   const controller = createController({
@@ -154,6 +168,7 @@ test('a completed POST still refreshes once when report navigation fails', async
   await assert.rejects(() => controller.generate(evolvedRecord), /navigation failed/)
 
   assert.equal(listCalls, 1)
+  assert.equal(controller.state.actionError, 'navigation failed')
 })
 
 test('stop suppresses late refresh and action state mutations', async () => {

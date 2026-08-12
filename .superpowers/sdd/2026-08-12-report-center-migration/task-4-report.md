@@ -174,3 +174,61 @@ Observed result: exit 0 with 761 modules transformed. The same pre-existing mixe
 - No known blocking concern before independent review.
 
 Fix-round commit subject: `fix: synchronize report center lifecycle actions`.
+
+## Fix Round 2
+
+Fix base: `e148cc7259cb768cb8f83c89364695f78faf855d`.
+
+### Finding and root cause
+
+When report generation reached its POST, the controller marked `requested = true`. Both a POST rejection and a later `openReport`/navigation rejection were caught and published as `actionError`, but the shared `finally` then called public `refresh()`. Fix Round 1 made public refresh clear stale action errors, so the internal post-generation refresh erased the newly published generation failure before `generate()` settled.
+
+### RED evidence
+
+Exact command:
+
+```powershell
+node --test tests/reportCenterController.test.js
+```
+
+Observed result before the production fix: 13 tests total; 11 passed and 2 failed. The POST-failure and navigation-failure tests both expected their final error message but observed an empty `actionError`. Both also exercised the real controller and required one list refresh.
+
+### Minimal fix and GREEN evidence
+
+`refresh({ clearActionError = true } = {})` keeps the public/default refresh behavior from Fix Round 1. The generation `finally` is the sole caller passing `{ clearActionError: false }`, preserving the current action failure while still refreshing once after any attempted POST.
+
+Focused command:
+
+```powershell
+node --test tests/reportCenterController.test.js
+```
+
+Observed result: 13 tests, 13 passed, 0 failed.
+
+Full Task 4 plus download command:
+
+```powershell
+node --test tests/reportCenterController.test.js tests/reportProjectLifecycleModel.test.js tests/reportCenterModel.test.js tests/reportNavigation.test.js tests/singleReportFlow.test.js tests/reportDownload.test.js
+```
+
+Observed result: 63 tests, 63 passed, 0 failed.
+
+Build and diff:
+
+```powershell
+npm run build
+git diff --check
+git diff --name-only e148cc7259cb768cb8f83c89364695f78faf855d
+```
+
+Observed result: build exit 0 with 761 modules transformed and only the pre-existing `d3` warning; diff check exit 0; business changes are limited to `reportCenterController.js` and its behavior test.
+
+### Self-review and concerns
+
+- Public/user refresh still clears action errors by default, covered by the existing successful-refresh behavior test.
+- POST failure and navigation failure both retain their final action error and both trigger exactly one list refresh.
+- If that internal list refresh also fails, the controller retains the generation `actionError` and separately sets list `error`; both are real failures and this round intentionally does not add UI precedence policy.
+- No other behavior or file is changed in this round.
+- Independent read-only review: APPROVED with no Critical, Important, or Minor findings; the reviewer confirmed public/internal refresh semantics and the one-refresh boundary.
+
+Fix-round commit subject: `fix: preserve report generation errors`.
