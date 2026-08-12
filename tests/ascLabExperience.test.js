@@ -437,6 +437,17 @@ test('treats only a completed simulation as graph-evolution completion', async (
   assert.match(simulation, /if\s*\(!canOpenReportCenter\.value\)\s*return/)
 })
 
+test('shows stopped simulation status without completed workflow progress', async () => {
+  const runView = await readFile(
+    new URL('../src/views/SimulationRunView.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(runView, /currentStatus\.value\s*===\s*['"]stopped['"]\)\s*return\s*['"]Stopped['"]/)
+  assert.match(runView, /currentStatus\.value\s*===\s*['"]stopped['"]\)\s*return\s*50/)
+  assert.doesNotMatch(runView, /currentStatus\.value\s*===\s*['"]stopped['"]\)\s*return\s*100/)
+})
+
 test('offers domestic LLM and version pairs with DeepSeek V4 Flash as default', () => {
   const state = qa.createQaState?.()
 

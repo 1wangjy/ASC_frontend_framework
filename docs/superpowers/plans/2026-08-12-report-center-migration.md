@@ -452,3 +452,20 @@ Append exact test counts, build output, browser URLs, report/project IDs, reques
 git add -- docs/superpowers/plans/2026-08-12-report-center-migration.md
 git commit -m "docs: verify report center migration"
 ```
+
+#### Task 7 verification results (2026-08-12)
+
+- Report-focused command: `node --test tests/reportApi.test.js tests/reportProjectLifecycleModel.test.js tests/reportDownload.test.js tests/reportCenterController.test.js tests/reportCenterModel.test.js tests/reportNavigation.test.js tests/reportReaderModel.test.js tests/reportReaderController.test.js tests/reportReaderView.test.js tests/reportActions.test.js tests/singleReportFlow.test.js tests/workflowPageContinuity.test.js` — exit 0; 90 tests, 90 passed, 0 failed.
+- Full frontend command: `node --test tests/*.test.js` — exit 0; 382 tests, 382 passed, 0 failed.
+- Production build: `npm run build` — exit 0; Vite 7.2.7 transformed 763 modules. The only warning was the pre-existing mixed dynamic/static `d3` import warning.
+- Reviewer-minor TDD closeout: before the implementation, `node --test tests/ascLabExperience.test.js` reported 58 tests, 57 passed and 1 failed because stopped simulations still displayed `Running` with the default progress; after the implementation it reported 58 tests, 58 passed. Stopped now displays `Stopped` at 50%, never completed/100%.
+- Port ownership: existing `http://127.0.0.1:3000` was PID 11728 running Vite from `D:\ASC\AI4Sci-NEXUS-ASC-Development-Domain-main\frontend`, not this worktree. It was left untouched. The current worktree was verified on temporary `http://127.0.0.1:4175` against the existing `http://127.0.0.1:5002` backend (PID 14132), using Chrome 151.0.7922.76 with a separate headless profile.
+- Real backend inventory before the browser smoke: `GET /api/report/list` returned 7 reports, all `completed`; `GET /api/graph/project/list` returned 8 projects. No generating report existed in the current backend data.
+- Report-center browser result: 6 rendered lifecycle cards: 5 completed report cards and 1 unmatched/unknown project record; 5 Preview links, 5 Download buttons, and 3 project-qualified QA buttons. The real completed fixture was project `proj_3a65ef421cc6`, simulation `sim_1df0b4f7267d`, graph `nexus_b1826c08d4ab49bc`, report `report_1a6c38f80e39`.
+- Existing-report reuse: browser-issued `GET /api/report/check/sim_1df0b4f7267d` returned `has_report: true`, `report_status: completed`, and `report_id: report_1a6c38f80e39`; no generation request followed.
+- Preview: `http://127.0.0.1:4175/report/report_1a6c38f80e39` rendered the completed document, Download, and qualified QA action. Returning to `/reports` used only GET/status/read requests.
+- Download: one deliberate completed-report Download click issued exactly one `GET /api/report/report_1a6c38f80e39/download` and no write request.
+- Network audit: 15 backend API requests, all 15 GET and all 15 HTTP 200; write attempts 0; automatic `/api/report/generate` 0; graph build/ontology generation 0; simulation create/start 0. Report count after the smoke remained 7, all completed.
+- Controlled generation-click result: the real backend snapshot exposed no eligible Generate button and no disposable project was authorized, so no generation click was performed. Generation attempts and POSTs were 0. The one-click/one-POST behavior remains covered by the controller regression; no backend state was invented to force a browser POST.
+- Generating-display gap: the backend had no generating report, so that visual state could not be proven against live data. It remains covered by `reportActions`, reader-controller, lifecycle-model, and report-center tests.
+- Boundary commands: `git diff --check 192e1c6..HEAD` exited 0; `git diff --name-only 192e1c6..HEAD` contained frontend plans/reports, frontend source, and frontend tests only, with no backend path; worktree `tmp/` was absent. No file under `D:/WEB`, no port-5002 backend file, and no port-3001 reference-frontend file was modified.

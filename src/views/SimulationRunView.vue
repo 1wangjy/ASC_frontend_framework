@@ -113,7 +113,7 @@ const projectData = ref(null)
 const graphData = ref(null)
 const graphLoading = ref(false)
 const systemLogs = ref([])
-const currentStatus = ref('processing') // processing | completed | error
+const currentStatus = ref('processing') // processing | completed | stopped | error
 
 // --- Computed Layout Styles ---
 const leftPanelStyle = computed(() => {
@@ -136,12 +136,14 @@ const statusClass = computed(() => {
 const statusText = computed(() => {
   if (currentStatus.value === 'error') return 'Error'
   if (currentStatus.value === 'completed') return 'Completed'
+  if (currentStatus.value === 'stopped') return 'Stopped'
   return 'Running'
 })
 
 const stepProgress = computed(() => {
   if (currentStatus.value === 'completed') return 100
   if (currentStatus.value === 'error') return 95
+  if (currentStatus.value === 'stopped') return 50
   return 60
 })
 
@@ -445,6 +447,7 @@ onUnmounted(() => {
 
 .status-indicator.processing .dot { background: #FF5722; animation: pulse 1s infinite; }
 .status-indicator.completed .dot { background: #4CAF50; }
+.status-indicator.stopped .dot { background: #9E9E9E; }
 .status-indicator.error .dot { background: #F44336; }
 
 @keyframes pulse { 50% { opacity: 0.5; } }
