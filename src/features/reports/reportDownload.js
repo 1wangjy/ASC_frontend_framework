@@ -23,13 +23,20 @@ function isBlobFromKnownRealm(value, browser) {
   ))
 }
 
-export async function saveReportDownload({ reportId, projectName, downloadReport, browser }) {
+export async function saveReportDownload({
+  reportId,
+  projectName,
+  downloadReport,
+  browser,
+  shouldSave = () => true
+}) {
   const response = await downloadReport(reportId)
   const blob = isBlobFromKnownRealm(response, browser) ? response : response?.data
 
   if (!isBlobFromKnownRealm(blob, browser) || blob.size === 0) {
     throw new Error('后端未返回可下载的报告文件')
   }
+  if (!shouldSave()) return ''
 
   const document = browser?.document
   const urlApi = browser?.URL

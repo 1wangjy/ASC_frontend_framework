@@ -81,7 +81,7 @@
           <button
             v-if="record.canDownload"
             type="button"
-            :disabled="downloadingReportId === record.reportId"
+            :disabled="Boolean(downloadingReportId)"
             @click="downloadRecord(record)"
           >
             {{ downloadingReportId === record.reportId ? '下载中' : '下载' }}
@@ -96,7 +96,7 @@
 <script setup>
 defineOptions({ name: 'ReportCenterView' })
 
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import {
@@ -138,6 +138,8 @@ const actionError = computed(() => state.actionError)
 const mutatingProjectId = computed(() => state.mutatingProjectId)
 const downloadingReportId = computed(() => state.downloadingReportId)
 const records = computed(() => buildReportCenterRecordItems(state.records))
+
+watch(() => monitor.state.items, () => controller.syncProjects(), { deep: true })
 
 function refreshReports() {
   return controller.refresh()

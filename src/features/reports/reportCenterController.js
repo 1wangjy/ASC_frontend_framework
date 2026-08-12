@@ -38,7 +38,7 @@ export function createReportCenterController({
     actionError: ''
   }
   const generations = new Map()
-  const downloads = new Map()
+  let activeDownloadPromise = null
   let lifecycleVersion = 0
   let refreshSequence = 0
   let stopped = false
@@ -57,6 +57,7 @@ export function createReportCenterController({
     const requestId = ++refreshSequence
     state.loading = true
     state.error = ''
+    state.actionError = ''
     publish(version)
 
     return (async () => {
@@ -77,6 +78,13 @@ export function createReportCenterController({
       }
       return state
     })()
+  }
+
+  function syncProjects() {
+    if (stopped) return state
+    state.records = buildReportProjectRecords(getProjects(), state.reports)
+    publish()
+    return state
   }
 
   function generate(record = {}) {
@@ -127,8 +135,8 @@ export function createReportCenterController({
   function download(record = {}) {
     const reportId = text(record.reportId || record.report_id)
     if (!reportId) return Promise.reject(new Error('report_id is required'))
-    if (downloads.has(reportId)) return downloads.get(reportId)
     if (stopped) return Promise.reject(new Error('report center is stopped'))
+    if (activeDownloadPromise) return Promise.reject(new Error('report download already in progress'))
 
     const version = lifecycleVersion
     state.actionError = ''
@@ -140,7 +148,8 @@ export function createReportCenterController({
           reportId,
           projectName: record.projectName,
           downloadReport,
-          browser
+          browser,
+          shouldSave: () => active(version)
         })
       } catch (error) {
         if (active(version)) {
@@ -149,14 +158,14 @@ export function createReportCenterController({
         }
         throw error
       } finally {
-        downloads.delete(reportId)
+        if (activeDownloadPromise === pending) activeDownloadPromise = null
         if (active(version) && state.downloadingReportId === reportId) {
           state.downloadingReportId = ''
           publish(version)
         }
       }
     })()
-    downloads.set(reportId, pending)
+    activeDownloadPromise = pending
     return pending
   }
 
@@ -167,5 +176,5 @@ export function createReportCenterController({
     refreshSequence += 1
   }
 
-  return { state, refresh, generate, download, stop }
+  return { state, refresh, syncProjects, generate, download, stop }
 }

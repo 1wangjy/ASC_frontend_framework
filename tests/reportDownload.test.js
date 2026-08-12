@@ -62,6 +62,29 @@ test('rethrows backend download failures without creating a browser download', a
   assert.deepEqual(clicks, [])
 })
 
+test('guard false after the response suppresses every browser download side effect', async () => {
+  const events = []
+  const browser = {
+    Blob,
+    document: { createElement: () => { events.push('element'); return { click: () => events.push('click') } } },
+    URL: {
+      createObjectURL: () => { events.push('url'); return 'blob:guarded' },
+      revokeObjectURL: () => events.push('revoke')
+    }
+  }
+
+  const result = await saveReportDownload({
+    reportId: 'r1',
+    projectName: 'Graph',
+    downloadReport: async () => new Blob(['report']),
+    browser,
+    shouldSave: () => false
+  })
+
+  assert.equal(result, '')
+  assert.deepEqual(events, [])
+})
+
 test('rejects an empty backend blob without creating an object URL', async () => {
   const clicks = []
   await assert.rejects(

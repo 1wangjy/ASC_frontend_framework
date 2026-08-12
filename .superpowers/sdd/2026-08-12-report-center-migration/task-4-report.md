@@ -117,3 +117,60 @@ Final result: `git diff --check` exited 0. Business changes are limited to the s
 Commit subject: `feat: manage reports from the report center`
 
 This report is included in that same content-addressed commit; its final SHA is recorded in the task handoff.
+
+## Fix Round 1
+
+Fix base: `0021185dd526f3fa43af389dabeafa529a933264`.
+
+### Review findings addressed
+
+- Added `syncProjects()` so graph-monitor project changes recompute lifecycle records from current projects plus the controller's cached reports without another report-list request. `ReportCenterView` deep-watches `monitor.state.items` and calls this method; it still never starts or stops the global monitor.
+- Added a post-response `shouldSave` guard to `saveReportDownload`. The controller passes its lifecycle guard, so a download resolved after `stop()` performs no object-URL, anchor, click, or revoke side effect.
+- Serialized report downloads behind one active controller promise. A second report download is rejected before its network call, while every download button is disabled whenever `downloadingReportId` is non-empty.
+- `refresh()` now clears stale `actionError` when the new refresh begins.
+
+### RED evidence
+
+Exact command:
+
+```powershell
+node --test tests/reportCenterController.test.js tests/reportDownload.test.js tests/reportNavigation.test.js
+```
+
+Observed result before production changes: 28 tests total; 22 passed, 5 failed, and 1 was cancelled. The failures proved the missing `syncProjects` API, retained action error, late browser side effects after stop, ignored helper guard, and absent view watch/global disable contracts. The concurrent-download test was cancelled because the old per-report map incorrectly started a second request and left it pending.
+
+### GREEN evidence
+
+Exact focused command:
+
+```powershell
+node --test tests/reportCenterController.test.js tests/reportDownload.test.js tests/reportNavigation.test.js
+```
+
+Observed result: 28 tests, 28 passed, 0 failed, 0 cancelled.
+
+Exact full Task 4 plus download command:
+
+```powershell
+node --test tests/reportCenterController.test.js tests/reportProjectLifecycleModel.test.js tests/reportCenterModel.test.js tests/reportNavigation.test.js tests/singleReportFlow.test.js tests/reportDownload.test.js
+```
+
+Observed result: 62 tests, 62 passed, 0 failed.
+
+Build:
+
+```powershell
+npm run build
+```
+
+Observed result: exit 0 with 761 modules transformed. The same pre-existing mixed dynamic/static `d3` import warning remains.
+
+### Fix-round self-review and concerns
+
+- `shouldSave` defaults to true, preserving all existing callers. It runs only after validating the response as a non-empty known-realm Blob, and before reading browser download APIs or creating an object URL; existing error and revoke tests remain green.
+- `syncProjects()` only derives and publishes records. It does not list reports or mutate monitor lifecycle.
+- The chosen public-state-compatible download policy is rejection, not queueing or cross-record promise sharing. This prevents a second network call and keeps `downloadingReportId` unambiguous.
+- After `stop()`, the controller intentionally suppresses all public state mutation, so its frozen busy ID is not cleared. The view is unmounted at the same lifecycle point, while the download guard prevents browser side effects.
+- No known blocking concern before independent review.
+
+Fix-round commit subject: `fix: synchronize report center lifecycle actions`.

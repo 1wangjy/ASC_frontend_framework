@@ -58,6 +58,28 @@ test('refresh suppresses a stale list response and derives lifecycle records fro
   assert.equal(controller.state.loading, false)
 })
 
+test('syncProjects recomputes records from cached reports without listing again', async () => {
+  let projects = []
+  let listCalls = 0
+  const changes = []
+  const controller = createController({
+    listReports: async () => {
+      listCalls += 1
+      return []
+    },
+    getProjects: () => projects,
+    onChange: state => changes.push(structuredClone(state))
+  })
+  await controller.refresh()
+  projects = [evolvedRecord]
+
+  controller.syncProjects()
+
+  assert.equal(listCalls, 1)
+  assert.equal(changes.at(-1).records[0].projectId, 'project-1')
+  assert.equal(controller.state.records[0].canGenerate, true)
+})
+
 test('an existing report opens after a fresh check instead of generating', async () => {
   const opened = []
   let checkCalls = 0
@@ -91,6 +113,17 @@ test('a failed fresh check blocks the generation POST and exposes an action erro
   assert.equal(generateCalls, 0)
   assert.equal(controller.state.actionError, 'status unavailable')
   assert.equal(controller.state.mutatingProjectId, '')
+})
+
+test('a successful refresh clears a previous action error', async () => {
+  const controller = createController({
+    checkExistingReport: async () => { throw new Error('status unavailable') }
+  })
+  await assert.rejects(() => controller.generate(evolvedRecord), /status unavailable/)
+
+  await controller.refresh()
+
+  assert.equal(controller.state.actionError, '')
 })
 
 test('a completed generation triggers exactly one list refresh', async () => {
@@ -175,6 +208,57 @@ test('download state is scoped by report ID and forwards the browser only to the
   assert.equal(controller.state.downloadingReportId, '')
   assert.deepEqual(clicked, ['clicked'])
   assert.deepEqual(revoked, ['blob:report'])
+})
+
+test('stop prevents a late download response from creating browser side effects', async () => {
+  const response = deferred()
+  const events = []
+  const controller = createController({
+    downloadReport: () => response.promise,
+    browser: {
+      Blob,
+      document: { createElement: () => { events.push('element'); return { click: () => events.push('click') } } },
+      URL: {
+        createObjectURL: () => { events.push('url'); return 'blob:late' },
+        revokeObjectURL: () => events.push('revoke')
+      }
+    }
+  })
+  const pending = controller.download({ reportId: 'report-late', projectName: '迟到项目' })
+  controller.stop()
+
+  response.resolve(new Blob(['report']))
+  await pending
+
+  assert.deepEqual(events, [])
+})
+
+test('rejects a second report download while the first remains in flight', async () => {
+  const firstResponse = deferred()
+  const requested = []
+  const browser = {
+    Blob,
+    document: { createElement: () => ({ click() {} }) },
+    URL: { createObjectURL: () => 'blob:first', revokeObjectURL() {} }
+  }
+  const controller = createController({
+    browser,
+    downloadReport: reportId => {
+      requested.push(reportId)
+      return firstResponse.promise
+    }
+  })
+
+  const first = controller.download({ reportId: 'r1', projectName: '一号' })
+  await assert.rejects(
+    () => controller.download({ reportId: 'r2', projectName: '二号' }),
+    /download.*progress/i
+  )
+  assert.deepEqual(requested, ['r1'])
+  assert.equal(controller.state.downloadingReportId, 'r1')
+  firstResponse.resolve(new Blob(['report']))
+  await first
+  assert.equal(controller.state.downloadingReportId, '')
 })
 
 function createController(overrides = {}) {
