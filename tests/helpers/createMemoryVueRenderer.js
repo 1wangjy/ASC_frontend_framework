@@ -22,6 +22,8 @@ export function createMemoryVueRenderer() {
       props: {},
       text: '',
       ownerDocument: document,
+      addEventListener() {},
+      removeEventListener() {},
       focus() { document.activeElement = node },
       contains(candidate) {
         return candidate === node || descendants(node).includes(candidate)

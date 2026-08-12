@@ -89,6 +89,20 @@ export function createQuestionGuideState(random = Math.random) {
   return questionCategories.map(category => createGuide(category, random))
 }
 
+export function createResearchQuestionSuggestions(random = Math.random, count = 3) {
+  const suggestionCount = Math.min(Math.max(0, count), questionCategories.length)
+  const categoryStart = questionIndex(random, questionCategories.length)
+
+  return Array.from({ length: suggestionCount }, (_, offset) => {
+    const category = questionCategories[(categoryStart + offset) % questionCategories.length]
+    return {
+      categoryId: category.id,
+      categoryTitle: category.title,
+      question: category.questions[questionIndex(random, category.questions.length)]
+    }
+  })
+}
+
 export function refreshQuestionGuide(state, categoryId, random = Math.random) {
   const category = questionCategories.find(item => item.id === categoryId)
   if (!category) return state

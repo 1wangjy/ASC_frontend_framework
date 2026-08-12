@@ -50,7 +50,7 @@ async function loadClientRenderableSfc(server, modulePath, loaded = new Set()) {
   return module.default
 }
 
-export async function mountSfcWithMemoryRouter(modulePath, initialPath) {
+export async function mountSfcWithMemoryRouter(modulePath, initialPath, props = {}) {
   const server = await createServer({
     root: projectRoot,
     configFile: false,
@@ -61,6 +61,7 @@ export async function mountSfcWithMemoryRouter(modulePath, initialPath) {
   })
 
   let app
+  let previousDocumentDescriptor
   try {
     const component = await loadClientRenderableSfc(server, modulePath)
     const router = createRouter({
@@ -81,8 +82,10 @@ export async function mountSfcWithMemoryRouter(modulePath, initialPath) {
         { path: '/interaction/:reportId', name: 'Interaction', component: EmptyRouteView }
       ]
     })
-    const { renderer, root } = createMemoryVueRenderer()
-    app = renderer.createApp(component)
+    const { renderer, root, document } = createMemoryVueRenderer()
+    previousDocumentDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'document')
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: document })
+    app = renderer.createApp(component, props)
     app.use(router)
     app.provide(ssrContextKey, { modules: new Set() })
 
@@ -98,11 +101,21 @@ export async function mountSfcWithMemoryRouter(modulePath, initialPath) {
       async close() {
         app.unmount()
         await server.close()
+        if (previousDocumentDescriptor) {
+          Object.defineProperty(globalThis, 'document', previousDocumentDescriptor)
+        } else {
+          delete globalThis.document
+        }
       }
     }
   } catch (error) {
     app?.unmount()
     await server.close()
+    if (previousDocumentDescriptor) {
+      Object.defineProperty(globalThis, 'document', previousDocumentDescriptor)
+    } else {
+      delete globalThis.document
+    }
     throw error
   }
 }
