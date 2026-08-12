@@ -21,6 +21,17 @@ function hasExplicitRouteSelection(request = {}) {
   )
 }
 
+function cloneValue(value) {
+  if (value instanceof Date) return new Date(value.getTime())
+  if (Array.isArray(value)) return value.map(cloneValue)
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [key, cloneValue(nested)])
+    )
+  }
+  return value
+}
+
 export function createQaProjectContextController({
   refreshProjects,
   getProjects,
@@ -40,16 +51,17 @@ export function createQaProjectContextController({
     requestVersion: 0
   }
   let currentVersion = 0
+  let selectionVersion = 0
   let stopped = false
 
   function snapshot() {
-    return {
+    return cloneValue({
       loading: state.loading,
-      records: state.records.slice(),
+      records: state.records,
       selected: state.selected,
       error: state.error,
       requestVersion: state.requestVersion
-    }
+    })
   }
 
   function publish(version, changes) {
@@ -63,6 +75,7 @@ export function createQaProjectContextController({
     if (stopped) return snapshot()
 
     const version = ++currentVersion
+    const refreshSelectionVersion = selectionVersion
     publish(version, {
       loading: true,
       error: '',
@@ -79,7 +92,8 @@ export function createQaProjectContextController({
       const logicalProjects = buildLogicalGraphProjects(getProjects())
       const records = buildQualifiedQaProjects(logicalProjects, reportResponse)
       const explicitRoute = hasExplicitRouteSelection(selectionRequest)
-      const selected = resolveQualifiedQaSelection(records, explicitRoute
+      const routeStillOwnsSelection = selectionVersion === refreshSelectionVersion
+      const selected = resolveQualifiedQaSelection(records, explicitRoute && routeStillOwnsSelection
         ? selectionRequest
         : {
             storedProjectId: state.selected?.projectId
@@ -88,7 +102,13 @@ export function createQaProjectContextController({
 
       if (!publish(version, { records, selected, error: '' })) return snapshot()
 
-      if (selected && readActiveProjectId(storage) !== selected.projectId) {
+      if (
+        !stopped
+        && version === currentVersion
+        && selectionVersion === refreshSelectionVersion
+        && selected
+        && readActiveProjectId(storage) !== selected.projectId
+      ) {
         rememberActiveProjectId(storage, selected.projectId)
       }
     } catch (error) {
@@ -110,6 +130,7 @@ export function createQaProjectContextController({
     const selected = state.records.find(record => record.projectId === normalizedId) || null
     if (!selected) return false
 
+    selectionVersion += 1
     state.selected = selected
     rememberActiveProjectId(storage, selected.projectId)
     onChange(snapshot())
@@ -118,6 +139,7 @@ export function createQaProjectContextController({
 
   function clear() {
     if (stopped) return
+    selectionVersion += 1
     state.selected = null
     rememberActiveProjectId(storage, '')
     onChange(snapshot())

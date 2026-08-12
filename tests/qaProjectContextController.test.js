@@ -209,6 +209,220 @@ test('keeps a manual selection made while a background refresh is in flight', as
   assert.equal(controller.snapshot().selected.projectId, 'p2')
 })
 
+test('does not revive an explicit route after a manual selection during its delayed refresh', async () => {
+  const delayedProjects = deferred()
+  const delayedReports = deferred()
+  const projects = [
+    graphProject(),
+    graphProject({ projectId: 'p2', graphId: 'g2', simulationId: 's2', name: 'Project two' })
+  ]
+  const reports = [
+    completedReport(),
+    completedReport({ projectId: 'p2', graphId: 'g2', simulationId: 's2', reportId: 'r2' })
+  ]
+  let monitorItems = projects
+  let projectRefreshCount = 0
+  let reportRefreshCount = 0
+  const storage = memoryStorage('p2')
+  const controller = createQaProjectContextController({
+    refreshProjects() {
+      if (projectRefreshCount++ === 0) return Promise.resolve()
+      return delayedProjects.promise.then((items) => { monitorItems = items })
+    },
+    getProjects: () => monitorItems,
+    listReports() {
+      if (reportRefreshCount++ === 0) return Promise.resolve({ success: true, data: reports })
+      return delayedReports.promise
+    },
+    storage
+  })
+
+  await controller.refresh()
+
+  const refresh = controller.refresh({ routeProjectId: 'p1', routeReportId: 'r1' })
+  assert.equal(controller.select('p2'), true)
+  delayedProjects.resolve(projects)
+  delayedReports.resolve({ success: true, data: reports })
+  await refresh
+
+  assert.equal(controller.snapshot().selected?.projectId, 'p2')
+  assert.equal(storage.getItem('nexus_active_project_id'), 'p2')
+  assert.equal(storage.writes.some(([, , value]) => value === 'p1'), false)
+})
+
+test('does not revive an explicit route after clear during its delayed refresh', async () => {
+  const delayedProjects = deferred()
+  const delayedReports = deferred()
+  let monitorItems = [graphProject()]
+  let projectRefreshCount = 0
+  let reportRefreshCount = 0
+  const storage = memoryStorage('p1')
+  const controller = createQaProjectContextController({
+    refreshProjects() {
+      if (projectRefreshCount++ === 0) return Promise.resolve()
+      return delayedProjects.promise.then((items) => { monitorItems = items })
+    },
+    getProjects: () => monitorItems,
+    listReports() {
+      if (reportRefreshCount++ === 0) {
+        return Promise.resolve({ success: true, data: [completedReport()] })
+      }
+      return delayedReports.promise
+    },
+    storage
+  })
+
+  await controller.refresh()
+
+  const refresh = controller.refresh({ routeProjectId: 'p1', routeReportId: 'r1' })
+  controller.clear()
+  delayedProjects.resolve([graphProject()])
+  delayedReports.resolve({ success: true, data: [completedReport()] })
+  await refresh
+
+  assert.equal(controller.snapshot().selected, null)
+  assert.equal(storage.getItem('nexus_active_project_id'), null)
+})
+
+test('returns shape-compatible detached snapshots that cannot mutate nested controller data', async () => {
+  const generatedAt = new Date('2026-08-12T10:30:00Z')
+  const project = {
+    ...graphProject(),
+    metadata: { generatedAt }
+  }
+  const { dependencies } = createDependencies({ projects: [project] })
+  const controller = createQaProjectContextController(dependencies)
+  await controller.refresh({ routeProjectId: 'p1', routeReportId: 'r1' })
+
+  const external = controller.snapshot()
+  external.records[0].projectName = 'tampered record'
+  external.records[0].project.name = 'tampered nested project'
+  external.selected.reportId = 'tampered report'
+
+  const internal = controller.snapshot()
+  assert.equal(internal.records[0].projectName, 'Project one')
+  assert.equal(internal.records[0].project.name, 'Project one')
+  assert.equal(internal.selected.reportId, 'r1')
+  assert.ok(internal.records[0].project.metadata.generatedAt instanceof Date)
+  assert.equal(internal.records[0].project.metadata.generatedAt.toISOString(), generatedAt.toISOString())
+})
+
+test('isolates onChange snapshots from callback mutation', async () => {
+  const changes = []
+  const { dependencies } = createDependencies({
+    onChange(snapshot) {
+      changes.push(snapshot)
+      if (snapshot.records[0]) {
+        snapshot.records[0].projectName = 'callback tampering'
+        snapshot.records[0].project.name = 'callback nested tampering'
+      }
+      if (snapshot.selected) snapshot.selected.reportId = 'callback report tampering'
+    }
+  })
+  const controller = createQaProjectContextController(dependencies)
+
+  await controller.refresh({ routeProjectId: 'p1', routeReportId: 'r1' })
+
+  assert.ok(changes.length > 0)
+  assert.equal(controller.snapshot().records[0].projectName, 'Project one')
+  assert.equal(controller.snapshot().records[0].project.name, 'Project one')
+  assert.equal(controller.snapshot().selected.reportId, 'r1')
+})
+
+test('does not write stale storage when publish callback starts a newer refresh', async () => {
+  const storage = memoryStorage()
+  const projects = [
+    graphProject(),
+    graphProject({ projectId: 'p2', graphId: 'g2', simulationId: 's2', name: 'Project two' })
+  ]
+  const reports = [
+    completedReport(),
+    completedReport({ projectId: 'p2', graphId: 'g2', simulationId: 's2', reportId: 'r2' })
+  ]
+  let monitorItems = projects
+  let controller
+  let startedNewerRefresh = false
+  controller = createQaProjectContextController({
+    async refreshProjects() {},
+    getProjects: () => monitorItems,
+    async listReports() {
+      return { success: true, data: reports }
+    },
+    storage,
+    onChange(snapshot) {
+      if (!startedNewerRefresh && snapshot.selected?.projectId === 'p1') {
+        startedNewerRefresh = true
+        void controller.refresh({ routeProjectId: 'p2', routeReportId: 'r2' })
+      }
+    }
+  })
+
+  await controller.refresh({ routeProjectId: 'p1', routeReportId: 'r1' })
+  await new Promise(resolve => setImmediate(resolve))
+
+  assert.equal(controller.snapshot().selected.projectId, 'p2')
+  assert.deepEqual(
+    storage.writes.filter(([operation]) => operation === 'set').map(([, , value]) => value),
+    ['p2']
+  )
+})
+
+test('does not write stale storage when publish callback selects another project', async () => {
+  const storage = memoryStorage()
+  const projects = [
+    graphProject(),
+    graphProject({ projectId: 'p2', graphId: 'g2', simulationId: 's2', name: 'Project two' })
+  ]
+  const reports = [
+    completedReport(),
+    completedReport({ projectId: 'p2', graphId: 'g2', simulationId: 's2', reportId: 'r2' })
+  ]
+  let controller
+  controller = createQaProjectContextController({
+    async refreshProjects() {},
+    getProjects: () => projects,
+    async listReports() {
+      return { success: true, data: reports }
+    },
+    storage,
+    onChange(snapshot) {
+      if (snapshot.selected?.projectId === 'p1') controller.select('p2')
+    }
+  })
+
+  await controller.refresh({ routeProjectId: 'p1', routeReportId: 'r1' })
+
+  assert.equal(controller.snapshot().selected.projectId, 'p2')
+  assert.deepEqual(
+    storage.writes.filter(([operation]) => operation === 'set').map(([, , value]) => value),
+    ['p2']
+  )
+})
+
+test('does not write storage after publish callback stops the controller', async () => {
+  const storage = memoryStorage()
+  let stopped = false
+  let controller
+  controller = createQaProjectContextController({
+    async refreshProjects() {},
+    getProjects: () => [graphProject()],
+    async listReports() {
+      return { success: true, data: [completedReport()] }
+    },
+    storage,
+    onChange(snapshot) {
+      if (!stopped && snapshot.selected?.projectId === 'p1') {
+        stopped = true
+        controller.stop()
+      }
+    }
+  })
+
+  await controller.refresh({ routeProjectId: 'p1', routeReportId: 'r1' })
+
+  assert.deepEqual(storage.writes, [])
+})
+
 test('clears stale qualification and exposes the current endpoint failure', async () => {
   let failReports = false
   const { dependencies } = createDependencies()
