@@ -24,21 +24,39 @@ test('renders a stable report center shell while saved reports are loading', asy
   assert.match(html, /正在读取已保存报告/)
 })
 
-test('loads the report center from the read-only list and opens real report ids', async () => {
+test('wires the report center controller to lifecycle records and separate card actions', async () => {
   const source = await readFile(
     new URL('../src/views/ReportCenterView.vue', import.meta.url),
     'utf8'
   )
 
-  assert.match(source, /listReports\(\{\s*limit:\s*50\s*\}\)/)
-  assert.match(source, /buildReportCenterItems/)
+  assert.match(source, /createReportCenterController/)
+  assert.match(source, /buildReportProjectRecords|buildReportCenterRecordItems/)
   assert.match(source, /buildLogicalGraphProjects/)
   assert.match(source, /name:\s*['"]Report['"]/)
-  assert.match(source, /item\.displayTitle/)
+  assert.match(source, /record\.displayTitle/)
   assert.match(source, /报告列表加载失败/)
   assert.match(source, /尚无报告/)
   assert.match(source, /重新加载/)
-  assert.doesNotMatch(source, /generateReport|force_regenerate|report\/generate|deleteReport/)
+  assert.match(source, /生成报告/)
+  assert.match(source, /预览/)
+  assert.match(source, /下载/)
+  assert.match(source, /去问答/)
+  assert.match(source, /<article\s+v-for=/)
+  assert.doesNotMatch(source, /<router-link\s+v-for=/)
+  assert.doesNotMatch(source, /force_regenerate\s*:\s*true/)
+  assert.doesNotMatch(source, /monitor\.(?:start|stop)\s*\(/)
+})
+
+test('opens report QA with both project and report scope', async () => {
+  const source = await readFile(
+    new URL('../src/views/ReportCenterView.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /name:\s*['"]AscQa['"]/)
+  assert.match(source, /projectId:\s*record\.projectId/)
+  assert.match(source, /reportId:\s*record\.reportId/)
 })
 
 test('keeps a direct report-list entry on the retained report detail page', async () => {

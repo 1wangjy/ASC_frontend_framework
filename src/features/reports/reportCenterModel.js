@@ -30,7 +30,7 @@ function projectSimulationId(project = {}) {
 }
 
 function projectName(project = {}) {
-  return text(project.name || project.project_name) || '未关联项目'
+  return text(project.name || project.projectName || project.project_name) || '未关联项目'
 }
 
 export function unwrapReports(response = []) {
@@ -101,4 +101,27 @@ export function buildReportCenterItems(reports = [], projects = []) {
       }
     })
     .sort((left, right) => right.timestamp - left.timestamp)
+}
+
+export function buildReportCenterRecordItems(records = []) {
+  return (Array.isArray(records) ? records : []).map(record => {
+    const report = record?.report || {}
+    const status = record?.canGenerate
+      ? { status: 'ready', label: '可生成' }
+      : normalizedStatus(record?.reportStatus || report.status)
+    const name = projectName(record)
+
+    return {
+      ...record,
+      title: text(report.title) || (record?.reportId ? '未命名研究报告' : '尚未生成报告'),
+      subtitle: text(report.subtitle || report.simulation_requirement),
+      projectName: name,
+      displayTitle: buildProjectReportTitle(name),
+      status: status.status,
+      statusLabel: status.label,
+      createdAt: text(report.created_at),
+      completedAt: text(report.completed_at),
+      error: text(report.error)
+    }
+  })
 }

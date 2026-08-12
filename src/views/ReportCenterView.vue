@@ -6,7 +6,7 @@
         <h1 id="report-center-title">报告生成</h1>
         <p>查看后端已保存的研究报告，并继续跟踪仍在生成的报告。</p>
       </div>
-      <button type="button" :disabled="loading" @click="loadReports">
+      <button type="button" :disabled="loading" @click="refreshReports">
         {{ loading ? '加载中' : '刷新报告' }}
       </button>
     </header>
@@ -21,57 +21,74 @@
       <span class="report-center-view__state-code">LOAD ERROR</span>
       <h2>报告列表加载失败</h2>
       <p>{{ error }}</p>
-      <button type="button" @click="loadReports">重新加载</button>
+      <button type="button" @click="refreshReports">重新加载</button>
     </section>
 
-    <section v-else-if="!items.length" class="report-center-view__state">
+    <section v-else-if="!records.length" class="report-center-view__state">
       <span class="report-center-view__state-code">NO REPORT</span>
       <h2>尚无报告</h2>
       <p>请先完成图谱演化，再生成并查看对应的研究报告。</p>
       <router-link to="/process">前往图谱演化</router-link>
     </section>
 
-    <section v-else class="report-center-view__grid" aria-label="已保存的研究报告">
-      <router-link
-        v-for="item in items"
-        :key="item.reportId"
-        class="report-card"
-        :to="{ name: 'Report', params: { reportId: item.reportId } }"
-      >
-        <article>
-          <header class="report-card__header">
-            <span class="report-card__project">KG REPORT</span>
-            <span class="report-card__status" :class="`report-card__status--${item.status}`">
-              {{ item.statusLabel }}
-            </span>
-          </header>
+    <p v-if="actionError" class="report-center-view__action-error" role="alert">
+      {{ actionError }}
+    </p>
 
-          <h2>{{ item.displayTitle }}</h2>
-          <p v-if="item.title" class="report-card__topic">研究主题：{{ item.title }}</p>
-          <p v-if="item.subtitle" class="report-card__summary">{{ item.subtitle }}</p>
+    <section v-if="!loading && !error && records.length" class="report-center-view__grid" aria-label="已保存的研究报告">
+      <article
+        v-for="record in records"
+        :key="record.projectId || record.reportId"
+        class="report-card"
+      >
+        <header class="report-card__header">
+          <span class="report-card__project">KG REPORT</span>
+          <span class="report-card__status" :class="`report-card__status--${record.status}`">
+            {{ record.statusLabel }}
+          </span>
+        </header>
+
+        <h2>{{ record.displayTitle }}</h2>
+        <p v-if="record.title" class="report-card__topic">研究主题：{{ record.title }}</p>
+        <p v-if="record.subtitle" class="report-card__summary">{{ record.subtitle }}</p>
           <p v-else class="report-card__summary report-card__summary--muted">暂无报告简介</p>
 
-          <dl class="report-card__meta">
-            <div>
-              <dt>报告 ID</dt>
-              <dd>{{ item.reportId }}</dd>
-            </div>
-            <div>
-              <dt>{{ item.completedAt ? '完成时间' : '创建时间' }}</dt>
-              <dd>{{ formatReportDate(item.completedAt || item.createdAt) }}</dd>
-            </div>
-          </dl>
+        <dl class="report-card__meta">
+          <div>
+            <dt>报告 ID</dt>
+            <dd>{{ record.reportId || '待生成' }}</dd>
+          </div>
+          <div>
+            <dt>{{ record.completedAt ? '完成时间' : '创建时间' }}</dt>
+            <dd>{{ record.completedAt || record.createdAt ? formatReportDate(record.completedAt || record.createdAt) : '时间未知' }}</dd>
+          </div>
+        </dl>
 
-          <p v-if="item.status === 'failed' && item.error" class="report-card__error">
-            {{ item.error }}
-          </p>
+        <p v-if="record.status === 'failed' && record.error" class="report-card__error">
+          {{ record.error }}
+        </p>
 
-          <footer>
-            <span>{{ item.status === 'generating' ? '查看生成进度' : '查看报告' }}</span>
-            <span aria-hidden="true">→</span>
-          </footer>
-        </article>
-      </router-link>
+        <footer class="report-card__actions">
+          <button
+            v-if="record.canGenerate"
+            type="button"
+            :disabled="mutatingProjectId === record.projectId"
+            @click="generateRecord(record)"
+          >
+            {{ mutatingProjectId === record.projectId ? '生成中' : '生成报告' }}
+          </button>
+          <router-link v-if="record.reportId" :to="reportRoute(record)">预览</router-link>
+          <button
+            v-if="record.canDownload"
+            type="button"
+            :disabled="downloadingReportId === record.reportId"
+            @click="downloadRecord(record)"
+          >
+            {{ downloadingReportId === record.reportId ? '下载中' : '下载' }}
+          </button>
+          <button v-if="record.canOpenQa" type="button" @click="openQa(record)">去问答</button>
+        </footer>
+      </article>
     </section>
   </main>
 </template>
@@ -79,38 +96,74 @@
 <script setup>
 defineOptions({ name: 'ReportCenterView' })
 
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 
-import { listReports } from '../api/report.js'
+import {
+  checkReportForSimulation,
+  downloadReport,
+  generateReport,
+  listReports
+} from '../api/report.js'
 import { buildLogicalGraphProjects } from '../features/projects/logicalGraphProjectModel.js'
 import {
-  buildReportCenterItems,
-  formatReportDate,
-  unwrapReports
+  buildReportCenterRecordItems,
+  formatReportDate
 } from '../features/reports/reportCenterModel.js'
+import { createReportCenterController } from '../features/reports/reportCenterController.js'
 import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
 
 const monitor = useGraphTaskMonitor()
-const reports = ref([])
-const loading = ref(true)
-const error = ref('')
-const projects = computed(() => buildLogicalGraphProjects(monitor.state.items))
-const items = computed(() => buildReportCenterItems(reports.value, projects.value))
+const router = useRouter()
+const state = reactive({})
+const controller = createReportCenterController({
+  listReports,
+  checkExistingReport: checkReportForSimulation,
+  generateReport,
+  downloadReport,
+  getProjects: () => buildLogicalGraphProjects(monitor.state.items),
+  openReport: ({ reportId, taskId }) => router.push({
+    name: 'Report',
+    params: { reportId },
+    query: taskId ? { taskId } : {}
+  }),
+  browser: globalThis,
+  onChange: nextState => Object.assign(state, nextState)
+})
+Object.assign(state, controller.state)
 
-async function loadReports() {
-  loading.value = true
-  error.value = ''
-  try {
-    const response = await listReports({ limit: 50 })
-    reports.value = unwrapReports(response)
-  } catch (requestError) {
-    error.value = requestError?.message || '报告列表加载失败。'
-  } finally {
-    loading.value = false
-  }
+const loading = computed(() => state.loading)
+const error = computed(() => state.error)
+const actionError = computed(() => state.actionError)
+const mutatingProjectId = computed(() => state.mutatingProjectId)
+const downloadingReportId = computed(() => state.downloadingReportId)
+const records = computed(() => buildReportCenterRecordItems(state.records))
+
+function refreshReports() {
+  return controller.refresh()
 }
 
-onMounted(loadReports)
+function generateRecord(record) {
+  return controller.generate(record).catch(() => undefined)
+}
+
+function downloadRecord(record) {
+  return controller.download(record).catch(() => undefined)
+}
+
+function reportRoute(record) {
+  return { name: 'Report', params: { reportId: record.reportId } }
+}
+
+function openQa(record) {
+  return router.push({
+    name: 'AscQa',
+    query: { projectId: record.projectId, reportId: record.reportId }
+  })
+}
+
+onMounted(refreshReports)
+onBeforeUnmount(controller.stop)
 </script>
 
 <style scoped>
@@ -235,11 +288,6 @@ onMounted(loadReports)
 
 .report-card {
   min-width: 0;
-  color: inherit;
-  text-decoration: none;
-}
-
-.report-card article {
   height: 100%;
   box-sizing: border-box;
   display: flex;
@@ -252,8 +300,8 @@ onMounted(loadReports)
   transition: transform var(--asc-transition), border-color var(--asc-transition), box-shadow var(--asc-transition);
 }
 
-.report-card:hover article,
-.report-card:focus-visible article {
+.report-card:hover,
+.report-card:focus-within {
   transform: translateY(-2px);
   border-color: #86b8da;
   box-shadow: 0 14px 32px rgba(31, 70, 101, .12);
@@ -300,6 +348,11 @@ onMounted(loadReports)
 .report-card__status--failed {
   background: #fff0ef;
   color: #a8322a;
+}
+
+.report-card__status--ready {
+  background: var(--asc-primary-soft);
+  color: var(--asc-primary);
 }
 
 .report-card h2 {
@@ -373,6 +426,41 @@ onMounted(loadReports)
   font-weight: 800;
 }
 
+.report-card__actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.report-card__actions button,
+.report-card__actions a {
+  min-height: 34px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--asc-border);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--asc-primary);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.report-card__actions button:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.report-center-view__action-error {
+  max-width: 1240px;
+  margin: 0 auto 18px;
+  color: #a8322a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 @keyframes report-center-spin {
   to { transform: rotate(360deg); }
 }
@@ -395,7 +483,7 @@ onMounted(loadReports)
     padding: 38px 22px;
   }
 
-  .report-card article {
+  .report-card {
     padding: 20px;
   }
 }

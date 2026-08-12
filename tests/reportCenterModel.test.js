@@ -2,10 +2,54 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  buildReportCenterRecordItems,
   buildReportCenterItems,
   formatReportDate,
   unwrapReports
 } from '../src/features/reports/reportCenterModel.js'
+
+test('decorates lifecycle records for the retained report-card presentation', () => {
+  const items = buildReportCenterRecordItems([
+    {
+      projectId: 'project-ready',
+      projectName: '已完成项目',
+      evolutionStatus: 'evolution_completed',
+      reportId: 'report-ready',
+      reportStatus: 'completed',
+      canGenerate: false,
+      canPreview: true,
+      canDownload: true,
+      canOpenQa: true,
+      report: {
+        report_id: 'report-ready',
+        title: '研究主题',
+        subtitle: '摘要',
+        completed_at: '2026-08-12T10:00:00+08:00'
+      }
+    },
+    {
+      projectId: 'project-generate',
+      projectName: '待生成项目',
+      evolutionStatus: 'evolution_completed',
+      reportId: '',
+      canGenerate: true,
+      canPreview: false,
+      canDownload: false,
+      canOpenQa: false,
+      report: null
+    }
+  ])
+
+  assert.deepEqual(items.map(item => item.projectId), ['project-ready', 'project-generate'])
+  assert.equal(items[0].displayTitle, '已完成项目 · 研究报告')
+  assert.equal(items[0].status, 'completed')
+  assert.equal(items[0].statusLabel, '已完成')
+  assert.equal(items[0].title, '研究主题')
+  assert.equal(items[0].canOpenQa, true)
+  assert.equal(items[1].status, 'ready')
+  assert.equal(items[1].statusLabel, '可生成')
+  assert.equal(items[1].canGenerate, true)
+})
 
 test('unwraps report arrays without inventing records', () => {
   const reports = [{ report_id: 'report-1' }]
