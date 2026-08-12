@@ -124,7 +124,7 @@ import {
   judgeQAWithLLM,
   submitQAFeedback
 } from '../api/graph.js'
-import { listReports } from '../api/report.js'
+import { getReport, listReports } from '../api/report.js'
 import { recentConversations } from '../features/navigation/appNavigation.js'
 import { findRecentConversation } from '../features/navigation/recentConversationModel.js'
 import {
@@ -149,6 +149,7 @@ import {
 } from '../features/qa/qaDemoModel.js'
 import {
   isInvalidGraphScopeError,
+  isInvalidQaEligibilityError,
   requestCodAnswer
 } from '../features/qa/qaApiAdapter.js'
 import { getBrowserStorage } from '../features/projects/projectContextModel.js'
@@ -277,7 +278,9 @@ async function sendQuestion(question = draft.value) {
   const currentRequest = ++requestVersion
 
   try {
-    const adapted = await requestCodAnswer({ codGraphRAGQuery, getProject }, {
+    const adapted = await requestCodAnswer({ codGraphRAGQuery, getProject, getReport }, {
+      reportId: activeProject.value.reportId,
+      simulationId: activeProject.value.simulationId,
       question: nextState.question,
       project: {
         ...activeProject.value.project,
@@ -292,7 +295,7 @@ async function sendQuestion(question = draft.value) {
   } catch (error) {
     if (currentRequest === requestVersion) {
       qaState.value = failApiAnswer(qaState.value, error)
-      if (isInvalidGraphScopeError(error)) {
+      if (isInvalidGraphScopeError(error) || isInvalidQaEligibilityError(error)) {
         draft.value = qaState.value.question
         await refreshQualifiedProjects({ requireManualSelection: true })
       }

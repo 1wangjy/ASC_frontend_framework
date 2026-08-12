@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   adaptCodGraphRagResponse,
   buildCodQueryPayload,
+  isInvalidQaEligibilityError,
   requestCodAnswer
 } from '../src/features/qa/qaApiAdapter.js'
 import {
@@ -45,6 +46,121 @@ const backendResponse = {
     }
   }
 }
+
+const completedReportResponse = {
+  success: true,
+  data: {
+    report_id: 'r1',
+    project_id: 'p1',
+    graph_id: 'g1',
+    simulation_id: 's1',
+    status: 'completed'
+  }
+}
+
+function authoritativeProjectResponse() {
+  return {
+    success: true,
+    data: {
+      project_id: 'p1',
+      graph_id: 'g1',
+      simulation_id: 's1',
+      project_name: 'Graph one',
+      status: 'graph_completed'
+    }
+  }
+}
+
+test('does not send CoD when the selected report is no longer completed', async () => {
+  let codCalls = 0
+
+  await assert.rejects(
+    requestCodAnswer({
+      getProject: async () => authoritativeProjectResponse(),
+      getReport: async () => ({
+        ...completedReportResponse,
+        data: { ...completedReportResponse.data, status: 'generating' }
+      }),
+      codGraphRAGQuery: async () => { codCalls += 1 }
+    }, {
+      reportId: 'r1',
+      simulationId: 's1',
+      question: 'Keep this question',
+      project: { project_id: 'p1', graph_id: 'g1' }
+    }),
+    (error) => isInvalidQaEligibilityError(error)
+  )
+
+  assert.equal(codCalls, 0)
+})
+
+test('blocks report identity and association changes before CoD submission', async () => {
+  for (const report of [
+    { ...completedReportResponse.data, report_id: 'r2' },
+    { ...completedReportResponse.data, project_id: 'p2' },
+    { ...completedReportResponse.data, graph_id: 'g2' },
+    { ...completedReportResponse.data, simulation_id: 's2' }
+  ]) {
+    let codCalls = 0
+    await assert.rejects(
+      requestCodAnswer({
+        getProject: async () => authoritativeProjectResponse(),
+        getReport: async () => ({ success: true, data: report }),
+        codGraphRAGQuery: async () => { codCalls += 1 }
+      }, {
+        reportId: 'r1',
+        simulationId: 's1',
+        question: 'Keep this question',
+        project: { project_id: 'p1', graph_id: 'g1' }
+      }),
+      (error) => isInvalidQaEligibilityError(error)
+    )
+    assert.equal(codCalls, 0)
+  }
+})
+
+test('fails closed when the report preflight cannot be read', async () => {
+  let codCalls = 0
+  await assert.rejects(
+    requestCodAnswer({
+      getProject: async () => authoritativeProjectResponse(),
+      getReport: async () => { throw new Error('report service unavailable') },
+      codGraphRAGQuery: async () => { codCalls += 1 }
+    }, {
+      reportId: 'r1',
+      simulationId: 's1',
+      question: 'Keep this question',
+      project: { project_id: 'p1', graph_id: 'g1' }
+    }),
+    (error) => isInvalidQaEligibilityError(error)
+  )
+  assert.equal(codCalls, 0)
+})
+
+test('blocks an authoritative project simulation mismatch before reading the report', async () => {
+  let reportCalls = 0
+  let codCalls = 0
+
+  await assert.rejects(
+    requestCodAnswer({
+      getProject: async () => ({
+        ...authoritativeProjectResponse(),
+        data: { ...authoritativeProjectResponse().data, simulation_id: 's2' }
+      }),
+      getReport: async () => { reportCalls += 1; return completedReportResponse },
+      codGraphRAGQuery: async () => { codCalls += 1 }
+    }, {
+      reportId: 'r1',
+      simulationId: 's1',
+      question: 'Keep this question',
+      project: { project_id: 'p1', graph_id: 'g1' }
+    }),
+    (error) => isInvalidQaEligibilityError(error)
+  )
+
+  assert.equal(reportCalls, 0)
+  assert.equal(codCalls, 0)
+})
 
 test('adapts a real CoD GraphRAG response into the current answer UI model', () => {
   const adapted = adaptCodGraphRagResponse(backendResponse)
@@ -111,11 +227,17 @@ test('calls the query API with the exact scoped payload and adapts its response'
         }
       }
     },
+    getReport: async (reportId) => {
+      calls.push(['getReport', reportId])
+      return completedReportResponse
+    },
     codGraphRAGQuery: async (payload) => {
       calls.push(['codGraphRAGQuery', payload])
       return backendResponse
     }
   }, {
+    reportId: 'r1',
+    simulationId: 's1',
     question: 'Q',
     project: { project_id: 'p1', graph_id: 'g1' },
     settings: { framework: 'NEXUS', reasoning: 'Auto' }
@@ -123,6 +245,7 @@ test('calls the query API with the exact scoped payload and adapts its response'
 
   assert.deepEqual(calls, [
     ['getProject', 'p1'],
+    ['getReport', 'r1'],
     ['codGraphRAGQuery', {
       question: 'Q',
       project_id: 'p1',
@@ -142,11 +265,14 @@ test('does not POST when the selected project was deleted before submission', as
   await assert.rejects(
     requestCodAnswer({
       getProject: async () => { throw notFound },
+      getReport: async () => completedReportResponse,
       codGraphRAGQuery: async () => {
         queryCalled = true
         return backendResponse
       }
     }, {
+      reportId: 'r1',
+      simulationId: 's1',
       question: 'Keep this question',
       project: { project_id: 'p1', graph_id: 'g1' }
     }),
@@ -174,11 +300,14 @@ test('does not POST when the authoritative project now points at another graph',
           updated_at: '2026-08-09T00:00:00Z'
         }
       }),
+      getReport: async () => completedReportResponse,
       codGraphRAGQuery: async () => {
         queryCalled = true
         return backendResponse
       }
     }, {
+      reportId: 'r1',
+      simulationId: 's1',
       question: 'Keep this question',
       project: { project_id: 'p1', graph_id: 'g1' }
     }),
@@ -222,8 +351,11 @@ test('rejects a successful answer resolved through the latest-project fallback',
           updated_at: '2026-08-09T00:00:00Z'
         }
       }),
+      getReport: async () => completedReportResponse,
       codGraphRAGQuery: async () => fallbackResponse
     }, {
+      reportId: 'r1',
+      simulationId: 's1',
       question: 'Never show another graph answer',
       project: { project_id: 'p1', graph_id: 'g1' }
     }),
@@ -265,8 +397,11 @@ test('rejects a successful answer whose resolved identifiers differ from the req
           updated_at: '2026-08-09T00:00:00Z'
         }
       }),
+      getReport: async () => completedReportResponse,
       codGraphRAGQuery: async () => mismatchedResponse
     }, {
+      reportId: 'r1',
+      simulationId: 's1',
       question: 'Never show another graph answer',
       project: { project_id: 'p1', graph_id: 'g1' }
     }),

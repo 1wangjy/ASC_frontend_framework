@@ -78,6 +78,12 @@ const graphTaskMonitorProbeSource = `
 `
 
 const reportApiProbeSource = `
+  export async function getReport(reportId) {
+    const report = globalThis.${QA_PROBE_KEY}.reports.find(item => item.report_id === reportId)
+    if (!report) throw new Error('report not found')
+    return { success: true, data: { ...report } }
+  }
+
   export async function listReports() {
     const probe = globalThis.${QA_PROBE_KEY}
     probe.reportLoads += 1

@@ -35,9 +35,15 @@ test('QA discovers only joined completed-report projects through the qualificati
 
 test('invalid QA scope refreshes into manual selection without resending the question', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
-  const invalidScopeRecovery = extractBlockAfter(source, 'if (isInvalidGraphScopeError(error))')
+  const invalidScopeRecovery = extractBlockAfter(
+    source,
+    'if (isInvalidGraphScopeError(error) || isInvalidQaEligibilityError(error))'
+  )
 
-  assert.match(source, /requestCodAnswer\(\{\s*codGraphRAGQuery,\s*getProject\s*\}/)
+  assert.match(source, /requestCodAnswer\(\{\s*codGraphRAGQuery,\s*getProject,\s*getReport\s*\}/)
+  assert.match(source, /reportId:\s*activeProject\.value\.reportId/)
+  assert.match(source, /simulationId:\s*activeProject\.value\.simulationId/)
+  assert.match(invalidScopeRecovery, /isInvalidQaEligibilityError/)
   assert.match(invalidScopeRecovery, /draft\.value\s*=\s*qaState\.value\.question/)
   assert.match(invalidScopeRecovery, /await\s+refreshQualifiedProjects\(\{\s*requireManualSelection:\s*true\s*\}\)/)
   assert.doesNotMatch(invalidScopeRecovery, /sendQuestion\s*\(/)
