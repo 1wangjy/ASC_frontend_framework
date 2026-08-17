@@ -43,3 +43,24 @@ test('returns an empty string for missing report content', () => {
   assert.equal(renderReportMarkdown(''), '')
   assert.equal(renderReportMarkdown(null), '')
 })
+
+test('renders both saved KG discovery marker forms as readable insights', () => {
+  const html = renderReportMarkdown([
+    '本轮发现 ==KG_DISCOVERY:孔隙率下降与抗侵蚀性提升相关==。',
+    '',
+    '补充发现 <kg-discovery>界面结合状态是关键中介变量</kg-discovery>。'
+  ].join('\n'))
+
+  assert.equal((html.match(/class="kg-discovery-insight"/g) || []).length, 2)
+  assert.match(html, />孔隙率下降与抗侵蚀性提升相关<\/span>/)
+  assert.match(html, />界面结合状态是关键中介变量<\/span>/)
+  assert.doesNotMatch(html, /KG_DISCOVERY:|&lt;\/?kg-discovery&gt;/)
+})
+
+test('keeps HTML inside a KG discovery marker escaped', () => {
+  const html = renderReportMarkdown('==KG_DISCOVERY:<img src=x onerror=alert(1)>安全结论==')
+
+  assert.match(html, /class="kg-discovery-insight"/)
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;安全结论/)
+  assert.doesNotMatch(html, /<img /)
+})

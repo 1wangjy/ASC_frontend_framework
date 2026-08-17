@@ -96,7 +96,7 @@ test('recent conversations panel provides quiet expandable example controls', as
   assert.match(source, /overflow-y:\s*auto/)
 })
 
-test('QA owns recent conversations and hides them beside evidence', async () => {
+test('QA owns recent conversations and shows them only on the empty home state', async () => {
   const [view, sidebar, shell] = await Promise.all([
     readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8'),
     readFile(new URL('../src/components/navigation/AscSidebar.vue', import.meta.url), 'utf8'),
@@ -104,7 +104,7 @@ test('QA owns recent conversations and hides them beside evidence', async () => 
   ])
 
   assert.match(view, /RecentConversationsPanel/)
-  assert.match(view, /v-if="!qaState\.evidenceOpen"/)
+  assert.match(view, /v-if="qaState\.phase === 'empty' && !qaState\.evidenceOpen"/)
   assert.match(view, /findRecentConversation/)
   assert.doesNotMatch(sidebar, /最近会话|recentConversations|open-conversation/)
   assert.doesNotMatch(sidebar, /新建问答|new-question|new-chat/)
@@ -346,18 +346,19 @@ test('answer text selection is routed into the evaluation workspace', async () =
   assert.match(view, /selectedExcerpt/)
 })
 
-test('evidence shell keeps sources and removes legacy scoring UI', async () => {
-  const source = await readFile(
-    new URL('../src/features/qa/EvidencePanel.vue', import.meta.url),
-    'utf8'
-  )
+test('quality shell owns Expert Eval and LLM Judge while evidence stays source-only', async () => {
+  const [evidence, quality] = await Promise.all([
+    readFile(new URL('../src/features/qa/EvidencePanel.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/features/qa/QualityPanel.vue', import.meta.url), 'utf8')
+  ])
 
-  assert.match(source, /引用来源/)
-  assert.match(source, /人工评估/)
-  assert.match(source, /LLM 评估/)
-  assert.match(source, /ManualEvaluationPanel/)
-  assert.match(source, /LlmEvaluationPanel/)
-  assert.doesNotMatch(source, /专家评分|LLM Judge|score-summary|metric__track/)
+  assert.match(evidence, /引用来源/)
+  assert.doesNotMatch(evidence, /ManualEvaluationPanel|LlmEvaluationPanel/)
+  assert.match(quality, /Expert Eval/)
+  assert.match(quality, /LLM Judge/)
+  assert.match(quality, /ManualEvaluationPanel/)
+  assert.match(quality, /LlmEvaluationPanel/)
+  assert.doesNotMatch(quality, /专家评分|score-summary/)
 })
 
 test('QA view keeps evaluation state outside the evidence drawer', async () => {

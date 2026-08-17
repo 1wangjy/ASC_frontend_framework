@@ -1,3 +1,10 @@
+import {
+  buildQaAnswerDetails,
+  extractCodDirectAnswerText,
+  normalizeBackendAnswerText
+} from './qaAnswerDetailsModel.js'
+import { formatReferenceLocation } from './qaEvidenceModel.js'
+
 const REASONING_MODES = {
   Auto: 'auto',
   CoT: 'cot',
@@ -6,15 +13,6 @@ const REASONING_MODES = {
 
 const INVALID_GRAPH_SCOPE_CODE = 'INVALID_GRAPH_SCOPE'
 const INVALID_QA_ELIGIBILITY_CODE = 'INVALID_QA_ELIGIBILITY'
-
-const STAGE_LABELS = {
-  query_decomposition: '问题分解',
-  subgraph_retrieval: '子图检索',
-  path_reconstruction: '路径重建',
-  path_verification: '路径验证',
-  answer_generation: '回答生成',
-  llm_answer_refinement: '回答校正'
-}
 
 function unwrapResult(payload) {
   if (!payload) return {}
@@ -218,11 +216,19 @@ function parseAnswer(markdown, bindings, referenceIds) {
 
 function adaptReference(reference = {}) {
   const metadata = reference.metadata && typeof reference.metadata === 'object' ? reference.metadata : {}
+  const evidenceChunk = reference.evidence_chunk && typeof reference.evidence_chunk === 'object'
+    ? reference.evidence_chunk
+    : {}
+  const experimentConditions = reference.experiment_conditions && typeof reference.experiment_conditions === 'object'
+    ? reference.experiment_conditions
+    : {}
   const rawAuthors = metadata.authors ?? metadata.author ?? ''
   const authors = Array.isArray(rawAuthors) ? rawAuthors.join('、') : String(rawAuthors ?? '')
   const pageNumber = reference.page_number
+  const hasScore = Object.prototype.hasOwnProperty.call(reference, 'score')
+    && Number.isFinite(Number(reference.score))
 
-  return {
+  const adapted = {
     id: String(reference.reference_id ?? '').trim(),
     title: String(
       reference.source_label
@@ -234,30 +240,41 @@ function adaptReference(reference = {}) {
     authors,
     source: String(reference.source ?? 'unknown'),
     year: metadata.year ?? '',
-    locator: pageNumber !== null && pageNumber !== undefined
-      ? `第 ${pageNumber} 页`
-      : String(reference.markdown_path ?? ''),
-    excerpt: String(reference.original_quote || reference.evidence_chunk?.quote || ''),
+    pageNumber: pageNumber ?? null,
+    markdownPath: String(reference.markdown_path ?? ''),
+    excerpt: String(reference.original_quote || ''),
+    chunkId: String(evidenceChunk.chunk_id ?? ''),
+    chunkText: String(evidenceChunk.text || evidenceChunk.quote || ''),
+    experimentConditions,
+    score: hasScore ? Number(reference.score) : null,
     sourceFileId: String(reference.source_file_id ?? ''),
+    paperId: String(reference.paper_id ?? ''),
+    bbox: Array.isArray(reference.bbox) ? reference.bbox.slice(0, 4) : [],
+    spatialMetadata: reference.spatial_metadata && typeof reference.spatial_metadata === 'object'
+      ? { ...reference.spatial_metadata }
+      : {},
     deepLink: String(reference.deep_link ?? '')
   }
-}
 
-function researchPathOf(result) {
-  const stages = Array.isArray(result?.debug_trace?.stages) ? result.debug_trace.stages : []
-  const labels = stages.map((stage) => {
-    const key = typeof stage === 'string' ? stage : stage?.stage
-    return STAGE_LABELS[key] || String(key ?? '').trim()
-  }).filter(Boolean)
-
-  return unique(labels).length
-    ? unique(labels)
-    : ['问题分解', '子图检索', '路径验证', '回答生成']
+  return { ...adapted, locator: formatReferenceLocation(adapted) }
 }
 
 export function adaptCodGraphRagResponse(payload = {}) {
   const result = unwrapResult(payload)
-  const meaningfulAnswer = stripCitationMarkers(result.final_answer)
+  const combinedAnswerScaffold = /(?:^|\n)\s*#{1,6}\s*(?:CoD\s*\+\s*OMD\s*本体融合回答|CoD\s*证据主线|本体增强融合分析)\s*$/im
+  const combinedAnswerBlocks = /class=(['"])[^'"]*\b(?:cod-direct-answer-block|omd-direct-answer-block)\b[^'"]*\1/i
+  const cleanCandidate = (value) => {
+    const source = String(value ?? '').trim()
+    return source && !combinedAnswerScaffold.test(source) && !combinedAnswerBlocks.test(source)
+      ? source
+      : ''
+  }
+  const primaryAnswer = normalizeBackendAnswerText(
+    cleanCandidate(result.llm_cod_direct_answer)
+    || cleanCandidate(result.final_answer)
+    || extractCodDirectAnswerText(result.cod_direct_answer)
+  )
+  const meaningfulAnswer = stripCitationMarkers(primaryAnswer)
     .replace(/^#{1,6}\s+.*$/gm, '')
     .trim()
   if (!meaningfulAnswer) {
@@ -267,25 +284,26 @@ export function adaptCodGraphRagResponse(payload = {}) {
   const references = rawReferences.map(adaptReference).filter((reference) => reference.id)
   const referenceIds = references.map((reference) => reference.id)
   const bindings = Array.isArray(result.citation_bindings) ? result.citation_bindings : []
-  const parsed = parseAnswer(result.final_answer, bindings, referenceIds)
+  const parsed = parseAnswer(primaryAnswer, bindings, referenceIds)
 
   return {
     qaRunId: String(result.qa_run_id ?? ''),
     qaResult: result,
+    answerDetails: buildQaAnswerDetails(result),
     answer: {
       summary: parsed.summary,
       sections: parsed.sections,
-      citationIds: referenceIds,
-      researchPath: researchPathOf(result)
+      citationIds: referenceIds
     },
     references
   }
 }
 
-export function buildCodQueryPayload({ question, project, settings = {} } = {}) {
+export function buildCodQueryPayload({ question, project, simulationId, settings = {} } = {}) {
   const normalizedQuestion = String(question ?? '').trim()
   const projectId = String(project?.project_id ?? '').trim()
   const graphId = String(project?.graph_id ?? '').trim()
+  const normalizedSimulationId = String(simulationId ?? '').trim()
 
   if (!normalizedQuestion) throw new Error('question 不能为空')
   if (!projectId || !graphId) throw new Error('问答请求必须同时包含 project_id 和 graph_id')
@@ -294,10 +312,23 @@ export function buildCodQueryPayload({ question, project, settings = {} } = {}) 
     question: normalizedQuestion,
     project_id: projectId,
     graph_id: graphId,
-    reasoning_mode: REASONING_MODES[settings.reasoning] || 'auto'
+    reasoning_mode: REASONING_MODES[settings.reasoning] || 'auto',
+    top_k_subgraphs: 5,
+    top_k_paths: 8,
+    enable_verification: true,
+    enable_llm_decomposition_fallback: false,
+    enable_llm_path_verification: false,
+    enable_llm_reasoning_judge: false,
+    enable_llm_answer_refinement: true,
+    force_llm_answer_refinement: true,
+    enable_graph_mutation_proposal: true,
+    show_audit_appendix: false
   }
 
-  if (settings.framework === 'NEXUS') payload.mode = 'adaptive_cod'
+  if (normalizedSimulationId) payload.simulation_id = normalizedSimulationId
+  if (settings.ontologyEnabled === true || settings.framework === 'NEXUS') {
+    payload.mode = 'ontology_mechanism_query'
+  }
   return payload
 }
 

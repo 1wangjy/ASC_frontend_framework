@@ -1,22 +1,10 @@
 <template>
   <section class="conversation" aria-live="polite">
-    <div class="message-row message-row--user">
-      <div class="avatar avatar--user">你</div>
-      <div class="user-message">{{ state.question }}</div>
-    </div>
-
     <div v-if="state.phase === 'loading'" class="message-row">
-      <div class="avatar avatar--asc">ASC</div>
-      <div class="answer-card answer-card--loading">
-        <span />
-        <span />
-        <span />
-        <p>正在检索文献、核对证据并组织回答…</p>
-      </div>
+      <QaQueryProgress />
     </div>
 
     <div v-else-if="state.phase === 'error'" class="message-row">
-      <div class="avatar avatar--asc">ASC</div>
       <div class="answer-card answer-card--error" role="alert">
         <strong>这次问答没有完成</strong>
         <p>{{ state.errorMessage }}</p>
@@ -25,7 +13,6 @@
     </div>
 
     <div v-else-if="state.answer" class="message-row">
-      <div class="avatar avatar--asc">ASC</div>
       <article
         ref="answerCard"
         class="answer-card"
@@ -38,11 +25,25 @@
         <header>
           <div>
             <span>ASC QA</span>
-            <strong>基于 {{ state.references.length }} 篇证据文献生成</strong>
+            <h2>LLMs + CoD 主回答</h2>
+            <strong>{{ evidenceSummary }}</strong>
           </div>
-          <button type="button" @click="$emit('open-evidence')">
-            {{ state.answerSource === 'preview' ? '查看预览证据' : '查看证据评估' }}
-          </button>
+          <div class="answer-actions">
+            <button
+              v-if="state.references?.length"
+              type="button"
+              @click="$emit('open-evidence')"
+            >
+              查看引用证据
+            </button>
+            <button
+              v-if="hasQualityData || evaluationEnabled"
+              type="button"
+              @click="$emit('open-quality')"
+            >
+              查看质量评估
+            </button>
+          </div>
         </header>
 
         <p v-if="state.answer.summary" class="answer-summary">
@@ -71,13 +72,6 @@
           </li>
         </ol>
 
-        <footer>
-          <span>研究路径</span>
-          <template v-for="(step, index) in state.answer.researchPath" :key="step">
-            <strong>{{ step }}</strong>
-            <AscIcon v-if="index < state.answer.researchPath.length - 1" name="chevron" />
-          </template>
-        </footer>
       </article>
     </div>
   </section>
@@ -85,19 +79,25 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import AscIcon from '../../components/ui/AscIcon.vue'
 import { buildAscDomainTerms } from '../../utils/ascDomainHighlighter.js'
 import { normalizeAnswerExcerpt } from './answerEvaluationModel.js'
 import QaAnswerText from './QaAnswerText.js'
+import { buildQaEvidenceStats } from './qaAnswerRenderingModel.js'
+import { hasQaQualityData } from './qaQualityModel.js'
+import QaQueryProgress from './QaQueryProgress.vue'
 
 const props = defineProps({
   state: {
     type: Object,
     required: true
+  },
+  evaluationEnabled: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['citation', 'open-evidence', 'answer-selection', 'retry'])
+const emit = defineEmits(['citation', 'open-evidence', 'open-quality', 'answer-selection', 'retry'])
 const answerCard = ref(null)
 const domainTerms = computed(() => buildAscDomainTerms({
   content: [
@@ -107,6 +107,14 @@ const domainTerms = computed(() => buildAscDomainTerms({
   question: props.state?.question,
   result: props.state?.qaResult
 }))
+const evidenceSummary = computed(() => {
+  const stats = buildQaEvidenceStats(props.state?.references)
+  const citationLabel = `基于 ${stats.citationCount} 条引用证据生成`
+  return stats.documentCount === null
+    ? citationLabel
+    : `${citationLabel}，来自 ${stats.documentCount} 篇文献`
+})
+const hasQualityData = computed(() => hasQaQualityData(props.state?.qaResult || {}))
 
 function captureAnswerSelection() {
   const selection = window.getSelection()
@@ -131,10 +139,7 @@ function captureAnswerSelection() {
 }
 
 .message-row {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
+  display: block;
 }
 
 .avatar {
@@ -201,6 +206,16 @@ function captureAnswerSelection() {
   gap: 8px;
 }
 
+.answer-card header > div:first-child {
+  min-width: 0;
+}
+
+.answer-card header h2 {
+  margin: 0;
+  color: var(--asc-heading);
+  font-size: 18px;
+}
+
 .answer-card header span {
   color: var(--asc-primary);
   font-size: 11px;
@@ -213,12 +228,33 @@ function captureAnswerSelection() {
   font-size: 11px;
 }
 
-.answer-card header button {
-  border: 0;
-  background: transparent;
+.answer-actions {
+  flex: 0 0 auto;
+}
+
+.answer-card header .answer-actions button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #b9d8eb;
+  border-radius: 7px;
+  background: #fff;
   color: var(--asc-primary);
   font-size: 11px;
   font-weight: 750;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .answer-card header,
+  .answer-card header > div:first-child {
+    align-items: flex-start;
+  }
+
+  .answer-card header,
+  .answer-card header > div:first-child,
+  .answer-actions {
+    flex-direction: column;
+  }
 }
 
 .answer-summary {
@@ -254,6 +290,15 @@ function captureAnswerSelection() {
 
 .answer-card :deep(.qa-answer-rich-text) {
   white-space: pre-wrap;
+}
+
+.answer-card :deep(.qa-answer-format--code) {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #334155;
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: .92em;
 }
 
 .answer-card :deep(.qa-inline-citation) {
@@ -302,57 +347,6 @@ function captureAnswerSelection() {
   text-underline-offset: 3px;
 }
 
-.answer-card footer {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
-  margin-top: 18px;
-  padding: 10px 12px;
-  border-radius: 6px;
-  background: #f4f8fb;
-  color: var(--asc-muted);
-  font-size: 10px;
-}
-
-.answer-card footer span {
-  margin-right: 4px;
-  font-weight: 700;
-}
-
-.answer-card footer strong {
-  color: var(--asc-text);
-  font-weight: 650;
-}
-
-.answer-card--loading {
-  min-height: 160px;
-  overflow: hidden;
-}
-
-.answer-card--loading span {
-  display: block;
-  height: 12px;
-  margin-bottom: 12px;
-  border-radius: 4px;
-  background: #e8eff5;
-  animation: pulse 1.1s ease-in-out infinite alternate;
-}
-
-.answer-card--loading span:nth-child(2) {
-  width: 84%;
-}
-
-.answer-card--loading span:nth-child(3) {
-  width: 64%;
-}
-
-.answer-card--loading p {
-  margin: 24px 0 0;
-  color: var(--asc-muted);
-  font-size: 12px;
-}
-
 .answer-card--error {
   border-color: #e8b8b2;
   background: #fff8f7;
@@ -379,12 +373,6 @@ function captureAnswerSelection() {
   color: #fff;
   font-size: 10px;
   font-weight: 800;
-}
-
-@keyframes pulse {
-  to {
-    background: #d4e3ee;
-  }
 }
 
 @media (max-width: 620px) {

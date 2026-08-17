@@ -49,7 +49,7 @@ export default defineComponent({
       ]
     })
 
-    return () => h('span', { class: 'qa-answer-rich-text' }, segments.value.map((segment, index) => {
+    function renderSegment(segment, index) {
       if (segment.type === 'citation') {
         const reference = referenceMap.value.get(segment.citationId)
         const source = reference?.title || segment.citationId
@@ -77,7 +77,21 @@ export default defineComponent({
         }, [h('u', segment.text)])
       }
 
+      if (segment.type === 'format') {
+        const tag = segment.format === 'strong'
+          ? 'strong'
+          : segment.format === 'code'
+            ? 'code'
+            : 'em'
+        return h(tag, {
+          key: `format-${segment.format}-${index}`,
+          class: `qa-answer-format qa-answer-format--${segment.format}`
+        }, (segment.children || []).map((child, childIndex) => renderSegment(child, `${index}-${childIndex}`)))
+      }
+
       return segment.text
-    }))
+    }
+
+    return () => h('span', { class: 'qa-answer-rich-text' }, segments.value.map(renderSegment))
   }
 })

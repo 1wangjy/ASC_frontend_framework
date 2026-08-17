@@ -8,6 +8,11 @@
       <small>二分类评审</small>
     </div>
 
+    <section v-if="answerSummary" class="answer-summary-card">
+      <span>回答摘要</span>
+      <p>{{ answerSummary }}</p>
+    </section>
+
     <fieldset class="verdict-fieldset" :disabled="disabled || evaluation.saveStatus === 'saving'">
       <legend class="sr-only">选择评审结果</legend>
       <button
@@ -127,6 +132,10 @@ defineProps({
   disabled: {
     type: Boolean,
     default: false
+  },
+  answerSummary: {
+    type: String,
+    default: ''
   }
 })
 
@@ -177,6 +186,30 @@ defineEmits(['patch', 'set-verdict', 'toggle-issue', 'clear-excerpt', 'save'])
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+.answer-summary-card {
+  padding: 12px;
+  border-left: 3px solid #69aeda;
+  border-radius: 0 8px 8px 0;
+  background: #f4f9fc;
+}
+
+.answer-summary-card span {
+  color: var(--asc-primary);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.answer-summary-card p {
+  display: -webkit-box;
+  margin: 6px 0 0;
+  overflow: hidden;
+  color: var(--asc-text);
+  font-size: 11px;
+  line-height: 1.65;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
 }
 
 .verdict {

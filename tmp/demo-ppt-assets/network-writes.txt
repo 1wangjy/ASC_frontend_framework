@@ -1,0 +1,8 @@
+POST http://localhost:3000/api/simulation/env-status
+BLOCKED POST http://localhost:3000/api/simulation/env-status
+POST http://localhost:3000/api/simulation/prepare
+BLOCKED POST http://localhost:3000/api/simulation/prepare
+POST http://localhost:3000/api/simulation/prepare
+BLOCKED POST http://localhost:3000/api/simulation/prepare
+POST http://localhost:3000/api/simulation/prepare
+BLOCKED POST http://localhost:3000/api/simulation/prepare

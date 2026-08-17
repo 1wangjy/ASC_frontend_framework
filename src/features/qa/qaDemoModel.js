@@ -17,11 +17,16 @@ export const PREVIEW_QUESTION = '为什么 SiC 含量会影响 ASC 耐火材料�
 
 const defaultSettings = Object.freeze({
   model: domesticModelOptions[0],
-  framework: 'Hybrid RAG',
+  framework: 'NEXUS',
   reasoning: 'Auto',
   ontologyEnabled: true,
-  ontologyLocked: false
+  ontologyLocked: true
 })
+
+export const qaModeOptions = Object.freeze([
+  { id: 'single', label: '单轮深度' },
+  { id: 'multi', label: '多轮连续' }
+])
 
 const references = Object.freeze([
   {
@@ -83,6 +88,7 @@ const answer = Object.freeze({
 
 export function createQaState() {
   return {
+    mode: 'single',
     phase: 'empty',
     question: '',
     qaRunId: '',
@@ -90,11 +96,28 @@ export function createQaState() {
     answerSource: null,
     errorMessage: '',
     answer: null,
+    answerDetails: [],
     references: [],
     evidenceOpen: false,
     selectedCitationId: null,
     evaluation: createAnswerEvaluationState(),
     settings: { ...defaultSettings }
+  }
+}
+
+export function selectQaMode(state, mode) {
+  if (!state || !qaModeOptions.some(option => option.id === mode)) return state
+
+  const singleTurn = mode === 'single'
+  return {
+    ...state,
+    mode,
+    settings: {
+      ...state.settings,
+      framework: singleTurn ? 'NEXUS' : 'Hybrid RAG',
+      ontologyEnabled: singleTurn,
+      ontologyLocked: singleTurn
+    }
   }
 }
 
@@ -111,6 +134,7 @@ export function submitQuestion(state, question) {
     answerSource: null,
     errorMessage: '',
     answer: null,
+    answerDetails: [],
     references: [],
     evidenceOpen: false,
     selectedCitationId: null,
@@ -122,6 +146,7 @@ export function completeApiAnswer(state, adaptedAnswer) {
   if (!state || state.phase !== 'loading' || !adaptedAnswer?.answer) return state
 
   const references = Array.isArray(adaptedAnswer.references) ? adaptedAnswer.references : []
+  const answerDetails = Array.isArray(adaptedAnswer.answerDetails) ? adaptedAnswer.answerDetails : []
   return {
     ...state,
     phase: 'answered',
@@ -130,8 +155,9 @@ export function completeApiAnswer(state, adaptedAnswer) {
     answerSource: 'live',
     errorMessage: '',
     answer: adaptedAnswer.answer,
+    answerDetails,
     references,
-    evidenceOpen: references.length > 0,
+    evidenceOpen: false,
     selectedCitationId: references[0]?.id ?? null
   }
 }
@@ -147,6 +173,7 @@ export function failApiAnswer(state, error) {
     answerSource: null,
     errorMessage: String(error?.message ?? '').trim() || '问答请求失败，请重新尝试。',
     answer: null,
+    answerDetails: [],
     references: [],
     evidenceOpen: false,
     selectedCitationId: null
@@ -172,6 +199,7 @@ export function completePreviewAnswer(state) {
       citationIds: [...answer.citationIds],
       researchPath: [...answer.researchPath]
     },
+    answerDetails: [],
     references: references.map(reference => ({ ...reference })),
     evidenceOpen: true,
     selectedCitationId: 'R1'

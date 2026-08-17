@@ -16,6 +16,11 @@ function renderInline(value) {
   })
 
   html = html
+    // These are backend-authored knowledge-discovery annotations, not raw HTML.
+    // The complete Markdown string is escaped before it reaches this function,
+    // so only these two known marker forms are restored as presentation markup.
+    .replace(/==KG_DISCOVERY:([\s\S]*?)==/gi, '<span class="kg-discovery-insight">$1</span>')
+    .replace(/&lt;kg-discovery&gt;([\s\S]*?)&lt;\/kg-discovery&gt;/gi, '<span class="kg-discovery-insight">$1</span>')
     .replace(/\[([^\]]+)\]\(#([A-Za-z0-9_-]+)\)/g, '<a class="report-md__link" href="#$2">$1</a>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/__([^_]+)__/g, '<strong>$1</strong>')

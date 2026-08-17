@@ -380,6 +380,18 @@ watch(
   margin: 0 0 1.1em;
 }
 
+.report-reader__markdown :deep(.kg-discovery-insight) {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: rgba(240, 253, 250, .78);
+  color: #0f766e;
+  font-weight: 650;
+  text-decoration-line: underline;
+  text-decoration-color: rgba(20, 184, 166, .58);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
 .report-reader__markdown :deep(.report-md__quote) {
   margin: 1.4em 0;
   padding: 16px 20px;

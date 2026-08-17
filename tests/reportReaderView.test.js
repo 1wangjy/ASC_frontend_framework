@@ -39,6 +39,15 @@ test('the completed document prefers canonical saved Markdown over duplicate sec
   assert.match(source, /v-else[\s\S]*?v-for="section in sections"/)
 })
 
+test('styles saved KG discoveries as distinct report insights', async () => {
+  const source = await readFile(
+    new URL('../src/components/ReportReader.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /\.report-reader__markdown\s+:deep\(\.kg-discovery-insight\)/)
+})
+
 test('publishes the current report and status after every reader controller publication', async () => {
   const source = await readFile(
     new URL('../src/components/ReportReader.vue', import.meta.url),

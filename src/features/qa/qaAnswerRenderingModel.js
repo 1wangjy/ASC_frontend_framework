@@ -1,6 +1,6 @@
 import { findAscDomainTermMatches } from '../../utils/ascDomainHighlighter.js'
 
-const INLINE_CITATION_PATTERN = /<c>\s*(R\d+)\s*<\/c>|\[(R\d+)\]/gi
+const INLINE_MARKUP_PATTERN = /<c>\s*(R\d+)\s*<\/c>|\[(R\d+)\]|<(i|em|strong|b)>([\s\S]*?)<\/\3>|\*\*([^*]+?)\*\*|__([^_]+?)__|`([^`\n]+?)`|\*([^*\n]+?)\*|_([^_\n]+?)_/gi
 
 function appendTextSegments(target, text, domainTerms) {
   if (!text) return
@@ -30,19 +30,70 @@ function appendTextSegments(target, text, domainTerms) {
   }
 }
 
+function sourceDocumentId(reference = {}) {
+  return String(
+    reference.sourceFileId
+    || reference.source_file_id
+    || reference.paperId
+    || reference.paper_id
+    || reference.documentId
+    || reference.document_id
+    || ''
+  ).trim()
+}
+
+export function buildQaEvidenceStats(references = []) {
+  const records = Array.isArray(references) ? references : []
+  const documentIds = records.map(sourceDocumentId)
+  return {
+    citationCount: records.length,
+    documentCount: documentIds.every(Boolean)
+      ? new Set(documentIds).size
+      : null
+  }
+}
+
+function formatSegment(match, options) {
+  const htmlTag = String(match[3] || '').toLowerCase()
+  const format = htmlTag === 'i' || htmlTag === 'em'
+    ? 'emphasis'
+    : htmlTag === 'strong' || htmlTag === 'b'
+      ? 'strong'
+      : match[5] !== undefined || match[6] !== undefined
+        ? 'strong'
+        : match[7] !== undefined
+          ? 'code'
+          : 'emphasis'
+  const content = match[4] ?? match[5] ?? match[6] ?? match[7] ?? match[8] ?? match[9] ?? ''
+
+  return {
+    type: 'format',
+    format,
+    text: String(content),
+    children: format === 'code'
+      ? [{ type: 'text', text: String(content) }]
+      : buildQaAnswerSegments(content, options)
+  }
+}
+
 export function buildQaAnswerSegments(text, { referenceIds = [], domainTerms = [] } = {}) {
   const value = String(text ?? '')
   const knownReferences = new Set(referenceIds.map(id => String(id).toUpperCase()))
+  const options = { referenceIds: [...knownReferences], domainTerms }
   const segments = []
   let cursor = 0
 
-  for (const match of value.matchAll(INLINE_CITATION_PATTERN)) {
+  for (const match of value.matchAll(INLINE_MARKUP_PATTERN)) {
     appendTextSegments(segments, value.slice(cursor, match.index), domainTerms)
     const citationId = String(match[1] || match[2] || '').toUpperCase()
-    if (knownReferences.has(citationId)) {
-      segments.push({ type: 'citation', citationId, text: `[${citationId}]` })
+    if (citationId) {
+      if (knownReferences.has(citationId)) {
+        segments.push({ type: 'citation', citationId, text: `[${citationId}]` })
+      } else {
+        segments.push({ type: 'text', text: `[${citationId}]` })
+      }
     } else {
-      segments.push({ type: 'text', text: `[${citationId}]` })
+      segments.push(formatSegment(match, options))
     }
     cursor = match.index + match[0].length
   }

@@ -44,6 +44,7 @@ const graphApiProbeSource = `
       data: {
         qa_run_id: 'run-' + postNumber,
         final_answer: 'answer-for-post-' + postNumber,
+        ...(probe().qaResponseData || {}),
         references: [],
         citation_bindings: [],
         debug_trace: {
@@ -164,6 +165,19 @@ function findTextarea(root) {
   return findRenderedNode(root, node => node?.type === 'textarea')
 }
 
+function hasRenderedClass(node, className) {
+  const values = Array.isArray(node?.props?.class)
+    ? node.props.class.flat(Infinity)
+    : [node?.props?.class]
+  return values.some(value => String(value || '').split(/\s+/).includes(className))
+}
+
+function findRenderedNodes(node, predicate, matches = []) {
+  if (predicate(node)) matches.push(node)
+  for (const child of node?.children || []) findRenderedNodes(child, predicate, matches)
+  return matches
+}
+
 async function clickButton(root, label) {
   const button = findRenderedNode(
     root,
@@ -238,7 +252,7 @@ test('keeps the composer disabled when no completed report qualifies', async () 
       assert.match(renderedText(fixture.root), /已完成报告的图谱项目/)
       const sendButton = findRenderedNode(
         fixture.root,
-        node => node?.type === 'button' && renderedText(node).includes('生成中')
+        node => node?.type === 'button' && node.props?.class === 'send-button'
       )
       assert.equal(sendButton?.props?.disabled, true)
     }, 'composer was not disabled for an empty qualified-project list')
@@ -258,7 +272,7 @@ test('rejects a route whose project and report do not identify the same qualifie
     assert.doesNotMatch(renderedText(fixture.root), /Project One/)
     const sendButton = findRenderedNode(
       fixture.root,
-      node => node?.type === 'button' && renderedText(node).includes('生成中')
+      node => node?.type === 'button' && node.props?.class === 'send-button'
     )
     assert.equal(sendButton?.props?.disabled, true)
     assert.equal(probe.qaPosts.length, 0)
@@ -477,7 +491,7 @@ test('deactivation keeps the QA project controller alive but real unmount stops 
   }
 })
 
-test('cached AscQaView consumes a qualified conversation query once and preserves its draft and result on same-URL return', async () => {
+test('cached AscQaView consumes a qualified single-turn query once and preserves its result without a follow-up composer', async () => {
   const probe = createProbe()
   globalThis[QA_PROBE_KEY] = probe
   const fixture = await mountQa()
@@ -491,7 +505,7 @@ test('cached AscQaView consumes a qualified conversation query once and preserve
       assert.match(renderedText(fixture.root), /answer-for-post-1/)
     }, 'first conversation query did not finish')
 
-    await setDraft(fixture.root, 'retained follow-up draft')
+    assert.equal(findTextarea(fixture.root), null)
     await fixture.router.push('/documents')
     await settleWorkflowUpdates()
     await fixture.router.push(conversationUrl)
@@ -499,7 +513,7 @@ test('cached AscQaView consumes a qualified conversation query once and preserve
 
     assert.equal(probe.projectLoads.length, 1)
     assert.equal(probe.qaPosts.length, 1)
-    assert.equal(draftValue(fixture.root), 'retained follow-up draft')
+    assert.equal(findTextarea(fixture.root), null)
     assert.match(renderedText(fixture.root), /answer-for-post-1/)
 
     const changedConversationUrl = '/?projectId=p1&reportId=r1&conversation=oxidation'
@@ -514,6 +528,182 @@ test('cached AscQaView consumes a qualified conversation query once and preserve
     await fixture.router.push(changedConversationUrl)
     await settleWorkflowUpdates()
     assert.equal(probe.qaPosts.length, 2)
+  } finally {
+    await fixture.close()
+    delete globalThis[QA_PROBE_KEY]
+  }
+})
+
+test('single-turn result connects the real answer and reasoning modules without mixing their content', async () => {
+  const probe = createProbe()
+  probe.qaResponseData = {
+    llm_cod_direct_answer: '<p>真实 LLMs + CoD 主回答<c>R1</c></p>',
+    cod_direct_answer: [
+      '<div class="cod-direct-answer-block"><i>真实 CoD 内容<c>R1</c></i></div>',
+      '<div class="omd-direct-answer-block"><strong>真实 OMD 内容</strong></div>'
+    ].join(''),
+    logic_chain_derivation: '真实详细推理链内容',
+    qa_quantitative_metrics: {
+      confidence_score: 0.91,
+      evidence_strength_score: 0.82,
+      ontology_alignment_score: 0.77,
+      path_validity_score: 0.84,
+      condition_completeness_score: 0.69,
+      risk_control_score: 0.73
+    },
+    reasoning_route: {
+      selected_mode: 'tot',
+      reason: '真实 ToT 路由',
+      structural_score: 0.75,
+      semantic_score: 0.66,
+      structural_metrics: {
+        mechanism_coverage_score: 0.81,
+        path_evidence_alignment_score: 0.79,
+        reasoning_readiness_score: 0.76,
+        max_path_length: 4
+      }
+    },
+    routed_reasoning_paths: [{ natural_language_path: '路径甲 -> 路径乙' }]
+  }
+  globalThis[QA_PROBE_KEY] = probe
+  const fixture = await mountQa()
+
+  try {
+    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await fixture.router.push('/?projectId=p1&reportId=r1&conversation=thermal-shock')
+    await waitFor(() => {
+      assert.equal(probe.qaPosts.length, 1)
+      assert.match(renderedText(fixture.root), /真实 LLMs \+ CoD 主回答/)
+    }, 'single-turn answer did not finish')
+
+    const pageText = renderedText(fixture.root)
+    assert.match(pageText, /问题摘要/)
+    assert.match(pageText, /当前问答模式/)
+    assert.match(pageText, /单轮深度/)
+    assert.match(pageText, /LLMs \+ CoD 主回答/)
+    assert.doesNotMatch(pageText, /查看引用证据/)
+    assert.match(pageText, /查看质量评估/)
+    assert.match(pageText, /回答详情/)
+    assert.match(pageText, /CoD 直接回答/)
+    assert.match(pageText, /OMD 本体增强/)
+    assert.match(pageText, /详细推理链/)
+    assert.match(pageText, /CoT \/ ToT 逻辑/)
+    assert.doesNotMatch(pageText, /提交时间/)
+    assert.match(pageText, /真实 CoD 内容/)
+
+    await clickButton(fixture.root, 'OMD 本体增强')
+    assert.match(renderedText(fixture.root), /真实 OMD 内容/)
+    await clickButton(fixture.root, '详细推理链')
+    assert.match(renderedText(fixture.root), /真实详细推理链内容/)
+    await clickButton(fixture.root, 'CoT / ToT 逻辑')
+    const reasoningText = renderedText(fixture.root)
+    assert.match(reasoningText, /ToT/)
+    assert.match(reasoningText, /真实 ToT 路由/)
+    assert.match(reasoningText, /路径甲.*路径乙/)
+    await clickButton(fixture.root, '查看质量评估')
+    const qualityText = renderedText(fixture.root)
+    assert.match(qualityText, /回答质量/)
+    assert.match(qualityText, /证据强度82%/)
+    assert.match(qualityText, /推理质量/)
+    assert.match(qualityText, /机制覆盖度81%/)
+    assert.match(qualityText, /最长推理路径4 跳/)
+  } finally {
+    await fixture.close()
+    delete globalThis[QA_PROBE_KEY]
+  }
+})
+
+test('single-turn result hides answer detail modules when the backend returned no detail fields', async () => {
+  const probe = createProbe()
+  globalThis[QA_PROBE_KEY] = probe
+  const fixture = await mountQa()
+
+  try {
+    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await fixture.router.push('/?projectId=p1&reportId=r1&conversation=thermal-shock')
+    await waitFor(() => assert.match(renderedText(fixture.root), /answer-for-post-1/), 'answer did not finish')
+
+    assert.doesNotMatch(renderedText(fixture.root), /回答详情|CoD 直接回答|OMD 本体增强|详细推理链|CoT \/ ToT 逻辑/)
+  } finally {
+    await fixture.close()
+    delete globalThis[QA_PROBE_KEY]
+  }
+})
+
+test('single-turn loading reveals the established query stages without explanatory notices', async () => {
+  const probe = createProbe()
+  let finishAnswer
+  probe.deferredQaAnswers.push(new Promise(resolve => { finishAnswer = resolve }))
+  globalThis[QA_PROBE_KEY] = probe
+  const fixture = await mountQa()
+
+  try {
+    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await fixture.router.push('/?projectId=p1&reportId=r1&conversation=thermal-shock')
+    await waitFor(() => assert.equal(probe.qaPosts.length, 1), 'single-turn query did not start')
+
+    const pageText = renderedText(fixture.root)
+    assert.match(pageText, /正在执行全局查询/)
+    assert.match(pageText, /LLM Initial Answer（初步回答）/)
+    assert.match(pageText, /Query Decomposition/)
+    assert.match(pageText, /Answer Synthesis（受约束综合）/)
+    assert.match(pageText, /执行中/)
+    assert.match(pageText, /等待中/)
+    assert.doesNotMatch(pageText, /已向后端提交请求/)
+    assert.doesNotMatch(pageText, /页面没有卡死/)
+
+    const session = findRenderedNode(fixture.root, node => hasRenderedClass(node, 'qa-session'))
+    const backAction = findRenderedNode(fixture.root, node => hasRenderedClass(node, 'qa-result-back'))
+    const summaryCard = findRenderedNode(fixture.root, node => hasRenderedClass(node, 'qa-result-context'))
+    const summaryQuestion = findRenderedNode(fixture.root, node => hasRenderedClass(node, 'qa-result-context__question'))
+    const modeBadge = findRenderedNode(fixture.root, node => hasRenderedClass(node, 'qa-result-context__mode-badge'))
+    const progressCard = findRenderedNode(fixture.root, node => hasRenderedClass(node, 'query-progress'))
+    const progressTitle = findRenderedNode(fixture.root, node => hasRenderedClass(node, 'query-progress__title'))
+    const elapsed = findRenderedNode(fixture.root, node => hasRenderedClass(node, 'query-progress__elapsed'))
+    const steps = findRenderedNodes(fixture.root, node => hasRenderedClass(node, 'query-progress__step'))
+
+    assert.ok(session)
+    assert.equal(backAction?.parent, session)
+    assert.equal(summaryCard?.parent, session)
+    assert.ok(session.children.indexOf(backAction) < session.children.indexOf(summaryCard))
+    assert.match(renderedText(summaryQuestion), /分析 ASC Al₂O₃-SiC-C 材料体系的热震稳定性及主要影响因素/)
+    assert.equal(renderedText(modeBadge), '单轮深度')
+    assert.match(renderedText(progressTitle), /正在执行全局查询/)
+    assert.match(renderedText(elapsed), /\d+s/)
+    assert.equal(steps.length, 9)
+    assert.equal(hasRenderedClass(steps.at(-1), 'query-progress__step--wide'), true)
+    assert.ok(progressCard)
+
+    finishAnswer()
+    await waitFor(() => assert.match(renderedText(fixture.root), /answer-for-post-1/), 'answer did not finish')
+  } finally {
+    finishAnswer?.()
+    await fixture.close()
+    delete globalThis[QA_PROBE_KEY]
+  }
+})
+
+test('result page returns to the QA home while preserving the selected project and report', async () => {
+  const probe = createProbe()
+  globalThis[QA_PROBE_KEY] = probe
+  const fixture = await mountQa()
+
+  try {
+    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await fixture.router.push('/?projectId=p1&reportId=r1&conversation=thermal-shock')
+    await waitFor(() => assert.match(renderedText(fixture.root), /answer-for-post-1/), 'answer did not finish')
+
+    await clickButton(fixture.root, '返回问答首页')
+    await settleWorkflowUpdates()
+
+    assert.match(renderedText(fixture.root), /今天想研究什么？/)
+    assert.doesNotMatch(renderedText(fixture.root), /answer-for-post-1/)
+    assert.equal(fixture.router.currentRoute.value.path, '/')
+    assert.equal(fixture.router.currentRoute.value.query.projectId, 'p1')
+    assert.equal(fixture.router.currentRoute.value.query.reportId, 'r1')
+    assert.equal(fixture.router.currentRoute.value.query.conversation, undefined)
+    assert.equal(fixture.router.currentRoute.value.query.new, undefined)
+    assert.equal(probe.projectLoads.length, 1)
   } finally {
     await fixture.close()
     delete globalThis[QA_PROBE_KEY]
