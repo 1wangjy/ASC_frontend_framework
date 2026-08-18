@@ -105,7 +105,15 @@
 <script setup>
 defineOptions({ name: 'ReportCenterView' })
 
-import { computed, onBeforeUnmount, onMounted, reactive, watch } from 'vue'
+import {
+  computed,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  onMounted,
+  reactive,
+  watch
+} from 'vue'
 import { useRouter } from 'vue-router'
 
 import {
@@ -118,8 +126,10 @@ import {
 import { buildLogicalGraphProjects } from '../features/projects/logicalGraphProjectModel.js'
 import {
   buildReportCenterRecordItems,
-  formatReportDate
+  formatReportDate,
+  hasGeneratingReports
 } from '../features/reports/reportCenterModel.js'
+import { createReportCenterAutoRefresh } from '../features/reports/reportCenterAutoRefresh.js'
 import { createReportCenterController } from '../features/reports/reportCenterController.js'
 import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
 
@@ -150,11 +160,20 @@ const mutatingProjectId = computed(() => state.mutatingProjectId)
 const downloadingReportId = computed(() => state.downloadingReportId)
 const deletingReportId = computed(() => state.deletingReportId)
 const records = computed(() => buildReportCenterRecordItems(state.records))
+const autoRefresh = createReportCenterAutoRefresh({
+  refresh: options => controller.refresh(options),
+  shouldContinue: () => hasGeneratingReports(state.records),
+  intervalMs: 3000
+})
 
-watch(() => monitor.state.items, () => controller.syncProjects(), { deep: true })
+watch(() => monitor.state.items, () => {
+  controller.syncProjects()
+  autoRefresh.sync()
+}, { deep: true })
+watch(() => state.records, () => autoRefresh.sync(), { deep: true })
 
 function refreshReports() {
-  return controller.refresh()
+  return autoRefresh.refreshNow({ background: false })
 }
 
 function generateRecord(record) {
@@ -180,8 +199,17 @@ function openQa(record) {
   })
 }
 
-onMounted(refreshReports)
-onBeforeUnmount(controller.stop)
+function activateReportCenter() {
+  return autoRefresh.activate({ background: Boolean(state.records?.length) })
+}
+
+onMounted(activateReportCenter)
+onActivated(activateReportCenter)
+onDeactivated(autoRefresh.deactivate)
+onBeforeUnmount(() => {
+  autoRefresh.stop()
+  controller.stop()
+})
 </script>
 
 <style scoped>

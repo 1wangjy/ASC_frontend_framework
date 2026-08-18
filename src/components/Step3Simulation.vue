@@ -96,10 +96,10 @@
       <div class="action-controls">
         <button 
           class="action-btn primary"
-          :disabled="!canOpenReportCenter"
+          :disabled="!canUseReportAction"
           @click="handleNextStep"
         >
-          前往报告生成
+          {{ reportActionLabel }}
           <span class="arrow-icon">→</span>
         </button>
       </div>
@@ -314,7 +314,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, onActivated, onDeactivated, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   startSimulation, 
@@ -323,7 +323,12 @@ import {
   getRunStatus, 
   getRunStatusDetail
 } from '../api/simulation'
+import { checkReportForSimulation } from '../api/report.js'
 import { decideSimulationRunResume } from '../features/simulation/simulationRunResumeModel.js'
+import {
+  buildSimulationReportDestination,
+  deriveSimulationReportHandoff
+} from '../features/reports/simulationReportHandoffModel.js'
 
 const props = defineProps({
   simulationId: String,
@@ -348,6 +353,12 @@ const isStarting = ref(false)
 const isStopping = ref(false)
 const startError = ref(null)
 const runStatus = ref({})
+const reportHandoff = ref(deriveSimulationReportHandoff({
+  success: true,
+  data: { has_report: false }
+}))
+const reportHandoffKnown = ref(false)
+const reportHandoffLoading = ref(false)
 const allActions = ref([]) // 所有动作（增量累积）
 const actionIds = ref(new Set()) // 用于去重的动作ID集合
 const stageGrowthLogCache = ref(new Set()) // 记录已输出过的阶段成长统计快照
@@ -441,11 +452,21 @@ const currentProjectId = computed(() => String(
   || props.projectData?.projectId
   || ''
 ).trim())
+const currentSimulationId = computed(() => String(props.simulationId || '').trim())
 const canOpenReportCenter = computed(() => (
   phase.value === 2
   && runStatus.value?.runner_status === 'completed'
   && Boolean(currentProjectId.value)
-  && Boolean(String(props.simulationId || '').trim())
+  && Boolean(currentSimulationId.value)
+))
+const reportActionLabel = computed(() => {
+  if (!canOpenReportCenter.value) return '前往报告生成'
+  if (reportHandoffLoading.value && !reportHandoffKnown.value) return '检查报告状态'
+  return reportHandoff.value.label
+})
+const canUseReportAction = computed(() => (
+  canOpenReportCenter.value
+  && (!reportHandoffLoading.value || reportHandoffKnown.value)
 ))
 
 // 格式化ASC-OASIS阶段进度
@@ -838,7 +859,7 @@ const restoreSimulationRun = async () => {
       getRunStatus(props.simulationId),
       getSimulation(props.simulationId)
     ])
-  } catch (error) {
+  } catch {
     startError.value = error?.message || '读取模拟状态失败'
     emit('update-status', 'error')
     return
@@ -1007,14 +1028,77 @@ const getActionLogicChain = (args = {}) => {
   return args.logic_chain || args.critique_chain || args.audit_chain || args.repair_chain || []
 }
 
-const handleNextStep = () => {
-  if (!canOpenReportCenter.value) return
-  const projectId = currentProjectId.value
-  return router.push({
-    name: 'Reports',
-    query: { projectId, simulationId: props.simulationId }
-  })
+let reportHandoffTimer = null
+let reportHandoffRequestVersion = 0
+
+const clearReportHandoffTimer = () => {
+  if (!reportHandoffTimer) return
+  clearTimeout(reportHandoffTimer)
+  reportHandoffTimer = null
 }
+
+const stopReportHandoffPolling = () => {
+  clearReportHandoffTimer()
+  reportHandoffRequestVersion += 1
+  reportHandoffLoading.value = false
+}
+
+const scheduleReportHandoffRefresh = () => {
+  clearReportHandoffTimer()
+  if (!reportHandoff.value.shouldPoll || !canOpenReportCenter.value) return
+  reportHandoffTimer = setTimeout(() => {
+    reportHandoffTimer = null
+    refreshReportHandoff()
+  }, 3000)
+}
+
+const refreshReportHandoff = async () => {
+  if (!canOpenReportCenter.value) return
+  const simulationId = currentSimulationId.value
+  const requestVersion = ++reportHandoffRequestVersion
+  clearReportHandoffTimer()
+  reportHandoffLoading.value = true
+
+  try {
+    const response = await checkReportForSimulation(simulationId)
+    if (requestVersion !== reportHandoffRequestVersion || simulationId !== currentSimulationId.value) return
+    reportHandoff.value = deriveSimulationReportHandoff(response)
+    reportHandoffKnown.value = true
+    scheduleReportHandoffRefresh()
+  } catch (error) {
+    if (requestVersion !== reportHandoffRequestVersion || simulationId !== currentSimulationId.value) return
+    if (!reportHandoffKnown.value) {
+      reportHandoff.value = deriveSimulationReportHandoff({ success: false })
+      reportHandoffKnown.value = true
+    }
+    scheduleReportHandoffRefresh()
+  } finally {
+    if (requestVersion === reportHandoffRequestVersion) reportHandoffLoading.value = false
+  }
+}
+
+const handleNextStep = () => {
+  if (!canUseReportAction.value) return
+  return router.push(buildSimulationReportDestination({
+    handoff: reportHandoff.value,
+    projectId: currentProjectId.value,
+    simulationId: currentSimulationId.value
+  }))
+}
+
+watch(
+  () => [canOpenReportCenter.value, currentSimulationId.value],
+  ([eligible, simulationId]) => {
+    stopReportHandoffPolling()
+    reportHandoff.value = deriveSimulationReportHandoff({
+      success: true,
+      data: { has_report: false }
+    })
+    reportHandoffKnown.value = false
+    if (eligible && simulationId) refreshReportHandoff()
+  },
+  { immediate: true }
+)
 
 // Scroll log to bottom
 const logContent = ref(null)
@@ -1033,8 +1117,22 @@ onMounted(() => {
   }
 })
 
+let hasActivatedOnce = false
+onActivated(() => {
+  if (!hasActivatedOnce) {
+    hasActivatedOnce = true
+    return
+  }
+  if (canOpenReportCenter.value) refreshReportHandoff()
+})
+
+onDeactivated(() => {
+  stopReportHandoffPolling()
+})
+
 onUnmounted(() => {
   stopPolling()
+  stopReportHandoffPolling()
 })
 </script>
 

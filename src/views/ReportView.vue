@@ -1,21 +1,20 @@
 <template>
   <main class="report-view">
     <header class="report-view__toolbar">
-      <button type="button" @click="router.push('/reports')">
+      <button class="report-view__secondary-action" type="button" @click="router.push('/reports')">
         <span aria-hidden="true">←</span>
         报告列表
       </button>
       <span>REPORT DETAIL</span>
+      <ReportActions
+        :report-id="ownedReportId"
+        :project-id="projectId"
+        :project-name="projectName"
+        :status="readerState.status"
+        @download="downloadCurrentReport"
+        @open-qa="openQa"
+      />
     </header>
-
-    <ReportActions
-      :report-id="ownedReportId"
-      :project-id="projectId"
-      :project-name="projectName"
-      :status="readerState.status"
-      @download="downloadCurrentReport"
-      @open-qa="openQa"
-    />
     <p v-if="actionError" class="report-view__error" role="alert">
       {{ actionError }}
     </p>
@@ -172,18 +171,19 @@ watch(ownsActiveRoute, active => {
 }
 
 .report-view__toolbar {
-  width: min(920px, 100%);
+  width: min(1420px, 100%);
   margin: 0 auto 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  gap: 12px;
 }
 
-.report-view__toolbar button {
+.report-view__toolbar > button,
+.report-view__toolbar :deep(.report-actions button) {
   min-height: 40px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 0 14px;
   border: 1px solid var(--asc-border);
@@ -195,11 +195,31 @@ watch(ownsActiveRoute, active => {
   cursor: pointer;
 }
 
+.report-view__toolbar :deep(.report-actions button.report-actions__primary) {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary);
+  color: #fff;
+}
+
 .report-view__toolbar > span {
+  margin-right: auto;
   color: var(--asc-muted);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: .14em;
+}
+
+.report-view__toolbar :deep(.report-actions) {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.report-view__toolbar :deep(.report-actions__buttons) {
+  gap: 10px;
 }
 
 .report-view__error {
@@ -217,6 +237,18 @@ watch(ownsActiveRoute, active => {
 @media (max-width: 760px) {
   .report-view {
     padding: 16px 12px 42px;
+  }
+
+  .report-view__toolbar {
+    flex-wrap: wrap;
+  }
+
+  .report-view__toolbar > span {
+    display: none;
+  }
+
+  .report-view__toolbar :deep(.report-actions) {
+    margin-left: auto;
   }
 }
 </style>

@@ -12,24 +12,27 @@
       class="graph-project-card"
       :class="{ 'graph-project-card--selected': isSelected(item) }"
     >
-      <button class="graph-project-card__select" type="button" @click="$emit('select', item)">
-        <span class="graph-project-card__heading">
+      <div class="graph-project-card__topline">
+        <button class="graph-project-card__name" type="button" @click="$emit('select', item)">
           <strong>{{ item.name }}</strong>
-          <small>{{ statusCopy(item) }}</small>
-        </span>
-      </button>
-
-      <div class="graph-project-card__actions">
-        <button type="button" @click="$emit('select', item)">查看进度</button>
-        <button
-          type="button"
-          class="graph-project-card__delete"
-          :disabled="deletingProjectId === item.projectId"
-          @click="$emit('delete', item)"
-        >
-          {{ deletingProjectId === item.projectId ? '删除中…' : '删除' }}
         </button>
+
+        <div class="graph-project-card__actions">
+          <button type="button" @click="$emit('select', item)">查看进度</button>
+          <button
+            type="button"
+            class="graph-project-card__delete"
+            :disabled="deletingProjectId === item.projectId"
+            @click="$emit('delete', item)"
+          >
+            {{ deletingProjectId === item.projectId ? '删除中…' : '删除' }}
+          </button>
+        </div>
       </div>
+
+      <button class="graph-project-card__status" type="button" @click="$emit('select', item)">
+        {{ statusCopy(item) }}
+      </button>
     </article>
   </div>
 </template>
@@ -62,13 +65,12 @@ function statusCopy(item) {
 .graph-project-list__empty p { margin: 8px 0 0; line-height: 1.6; }
 .graph-project-card { overflow: hidden; border: 1px solid var(--asc-border); border-radius: 10px; background: #fff; transition: border-color var(--asc-transition), box-shadow var(--asc-transition); }
 .graph-project-card--selected { border-color: var(--asc-primary); box-shadow: 0 0 0 2px var(--asc-primary-soft); }
-.graph-project-card__select { width: 100%; padding: 13px 14px 10px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
-.graph-project-card__heading, .graph-project-card__actions { display: flex; align-items: center; gap: 10px; }
-.graph-project-card__heading { justify-content: space-between; }
-.graph-project-card__heading strong { overflow: hidden; color: var(--asc-heading); text-overflow: ellipsis; white-space: nowrap; }
-.graph-project-card__heading small { flex: 0 0 auto; color: var(--asc-muted); }
-.graph-project-card__actions { justify-content: flex-end; padding: 0 10px 10px; }
+.graph-project-card__topline { display: flex; align-items: center; gap: 8px; padding: 12px 8px 3px 14px; }
+.graph-project-card__name { min-width: 0; flex: 1 1 auto; overflow: hidden; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.graph-project-card__name strong { display: block; overflow: hidden; color: var(--asc-heading); text-overflow: ellipsis; white-space: nowrap; }
+.graph-project-card__actions { display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 2px; }
 .graph-project-card__actions button { padding: 5px 7px; border: 0; background: transparent; color: var(--asc-primary); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .graph-project-card__actions button:disabled { cursor: wait; opacity: .55; }
 .graph-project-card__actions .graph-project-card__delete { color: #b43b32; }
+.graph-project-card__status { display: block; width: 100%; padding: 3px 14px 12px; border: 0; background: transparent; color: var(--asc-muted); font: inherit; font-size: 12px; line-height: 1.45; text-align: left; cursor: pointer; }
 </style>

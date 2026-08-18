@@ -22,7 +22,7 @@
 
       <div class="header-right">
         <div class="workflow-step">
-          <span class="step-num">Step 3/5</span>
+          <span class="step-num">Step 3/3</span>
           <span class="step-name">开始模拟</span>
         </div>
         <div class="step-divider"></div>

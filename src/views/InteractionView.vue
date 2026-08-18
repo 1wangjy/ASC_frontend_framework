@@ -36,6 +36,7 @@
     <WorkflowProgressBar
       :currentStep="5"
       :stepProgress="stepProgress"
+      :steps="legacyWorkflowSteps"
     />
 
     <!-- Main Content Area -->
@@ -101,6 +102,13 @@ const graphData = ref(null)
 const graphLoading = ref(false)
 const systemLogs = ref([])
 const currentStatus = ref('ready') // ready | processing | completed | error
+const legacyWorkflowSteps = [
+  { id: 1, name: '图谱构建' },
+  { id: 2, name: '环境搭建' },
+  { id: 3, name: '开始模拟' },
+  { id: 4, name: '报告生成' },
+  { id: 5, name: '深度互动' },
+]
 
 // --- Computed Layout Styles ---
 const leftPanelStyle = computed(() => {

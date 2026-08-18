@@ -360,16 +360,16 @@ test('does not retry the non-idempotent report-generation POST after a transport
   assert.equal(attempts, 1)
 })
 
-test('Step3 hands completed graph evolution to the report center without report capability', async () => {
+test('Step3 checks report status and navigates without report-generation capability', async () => {
   const source = await readFile(
     new URL('../src/components/Step3Simulation.vue', import.meta.url),
     'utf8'
   )
 
   assert.match(source, /前往报告生成/)
-  assert.match(source, /name:\s*['"]Reports['"]/)
-  assert.match(source, /query:\s*\{\s*projectId,\s*simulationId:\s*props\.simulationId\s*\}/)
-  assert.doesNotMatch(source, /generateReport|checkReportForSimulation|createSingleReportFlow/)
+  assert.match(source, /checkReportForSimulation/)
+  assert.match(source, /buildSimulationReportDestination/)
+  assert.doesNotMatch(source, /generateReport|createSingleReportFlow/)
   assert.doesNotMatch(source, /reportFlow(?:State)?\.(?:inspect|proceed)|reportFlowState/)
   assert.doesNotMatch(source, /生成ASC洞察报告|进入问答环节/)
 })

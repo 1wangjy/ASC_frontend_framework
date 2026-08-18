@@ -274,6 +274,11 @@ test('renders active and completed projects with status-aware actions', async ()
   assert.doesNotMatch(html, /graph-project-card__progress/)
   assert.doesNotMatch(html, /Professional Research|基础图谱|最终图谱/)
   assert.match(html, /graph-project-card--selected/)
+  assert.match(
+    html,
+    /graph-project-card__topline[\s\S]*graph-project-card__name[\s\S]*graph-project-card__actions/
+  )
+  assert.match(html, /graph-project-card__status/)
 })
 
 test('renders the latest graph evolution state supplied by the monitor', async () => {
@@ -292,14 +297,35 @@ test('renders the latest graph evolution state supplied by the monitor', async (
   assert.match(html, /模拟组会已停止/)
 })
 
-test('renders the five-step workflow without a misleading graph percentage', async () => {
+test('renders the three-step graph evolution workflow without report or interaction entries', async () => {
   const html = await renderSfc('/src/components/WorkflowProgressBar.vue', {
     currentStep: 1
   })
 
-  assert.match(html, /步骤 1\/5/)
+  assert.match(html, /步骤 1\/3/)
+  assert.match(html, /图谱构建/)
+  assert.match(html, /环境搭建/)
+  assert.match(html, /开始模拟/)
+  assert.doesNotMatch(html, /报告生成|深度互动/)
   assert.doesNotMatch(html, /当前步骤\s*\d+%/)
   assert.doesNotMatch(html, /workflow-track|workflow-fill/)
+})
+
+test('allows the retained legacy interaction route to supply its five-step workflow', async () => {
+  const html = await renderSfc('/src/components/WorkflowProgressBar.vue', {
+    currentStep: 5,
+    steps: [
+      { id: 1, name: '图谱构建' },
+      { id: 2, name: '环境搭建' },
+      { id: 3, name: '开始模拟' },
+      { id: 4, name: '报告生成' },
+      { id: 5, name: '深度互动' }
+    ]
+  })
+
+  assert.match(html, /步骤 5\/5/)
+  assert.match(html, /报告生成/)
+  assert.match(html, /深度互动/)
 })
 
 test('does not expose an early QA action from Step 1 graph construction', async () => {

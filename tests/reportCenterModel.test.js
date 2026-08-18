@@ -5,6 +5,7 @@ import {
   buildReportCenterRecordItems,
   buildReportCenterItems,
   formatReportDate,
+  hasGeneratingReports,
   unwrapReports
 } from '../src/features/reports/reportCenterModel.js'
 
@@ -51,6 +52,26 @@ test('decorates lifecycle records for the retained report-card presentation', ()
   assert.equal(items[1].status, 'ready')
   assert.equal(items[1].statusLabel, '可生成')
   assert.equal(items[1].canGenerate, true)
+})
+
+test('shows planning reports as generating and keeps automatic refresh active', () => {
+  const items = buildReportCenterRecordItems([
+    {
+      projectId: 'project-planning',
+      projectName: '第三个',
+      reportId: 'report-planning',
+      reportStatus: 'planning',
+      report: {
+        report_id: 'report-planning',
+        status: 'planning'
+      }
+    }
+  ])
+
+  assert.equal(items[0].status, 'generating')
+  assert.equal(items[0].statusLabel, '生成中')
+  assert.equal(hasGeneratingReports(items), true)
+  assert.equal(hasGeneratingReports([{ status: 'completed' }]), false)
 })
 
 test('unwraps report arrays without inventing records', () => {

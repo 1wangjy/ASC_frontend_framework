@@ -58,6 +58,33 @@ test('refresh suppresses a stale list response and derives lifecycle records fro
   assert.equal(controller.state.loading, false)
 })
 
+test('a background refresh updates records without replacing the visible list with a loading state', async () => {
+  const background = deferred()
+  const changes = []
+  let listCalls = 0
+  const controller = createController({
+    listReports: () => {
+      listCalls += 1
+      return listCalls === 1
+        ? Promise.resolve([{ report_id: 'report-1', simulation_id: 'simulation-1', status: 'planning' }])
+        : background.promise
+    },
+    onChange: state => changes.push(structuredClone(state))
+  })
+
+  await controller.refresh()
+  changes.length = 0
+  const pending = controller.refresh({ background: true })
+
+  assert.equal(controller.state.loading, false)
+  assert.equal(changes.some(change => change.loading), false)
+  background.resolve([{ report_id: 'report-1', simulation_id: 'simulation-1', status: 'completed' }])
+  await pending
+
+  assert.equal(controller.state.records[0].reportStatus, 'completed')
+  assert.equal(controller.state.loading, false)
+})
+
 test('syncProjects recomputes records from cached reports without listing again', async () => {
   let projects = []
   let listCalls = 0

@@ -1,4 +1,4 @@
-import { buildProjectReportTitle } from './reportReaderModel.js'
+import { buildProjectReportTitle, normalizeReportStatus } from './reportReaderModel.js'
 
 function text(value) {
   return String(value ?? '').trim()
@@ -12,13 +12,20 @@ function timestampOf(report = {}) {
 }
 
 function normalizedStatus(value) {
-  const status = text(value).toLowerCase()
+  const status = normalizeReportStatus(value)
   if (status === 'completed') return { status: 'completed', label: '已完成' }
-  if (['generating', 'processing', 'running', 'pending'].includes(status)) {
-    return { status: 'generating', label: '生成中' }
-  }
-  if (['failed', 'error'].includes(status)) return { status: 'failed', label: '生成失败' }
+  if (status === 'generating') return { status: 'generating', label: '生成中' }
+  if (status === 'failed') return { status: 'failed', label: '生成失败' }
   return { status: 'unknown', label: '状态未知' }
+}
+
+export function hasGeneratingReports(records = []) {
+  return (Array.isArray(records) ? records : []).some(record => {
+    const report = record?.report || {}
+    return normalizeReportStatus(
+      record?.reportStatus || report.status || record?.status
+    ) === 'generating'
+  })
 }
 
 function projectGraphId(project = {}) {

@@ -1,10 +1,13 @@
 <template>
   <div class="workflow-progress-bar">
     <div class="workflow-progress-header">
-      <span class="workflow-step-label">步骤 {{ currentStep }}/5</span>
+      <span class="workflow-step-label">步骤 {{ currentStep }}/{{ steps.length }}</span>
     </div>
 
-    <div class="workflow-steps">
+    <div
+      class="workflow-steps"
+      :style="{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }"
+    >
       <div
         v-for="step in steps"
         :key="step.id"
@@ -25,15 +28,15 @@
 <script setup>
 defineProps({
   currentStep: { type: Number, required: true },
+  steps: {
+    type: Array,
+    default: () => ([
+      { id: 1, name: '图谱构建' },
+      { id: 2, name: '环境搭建' },
+      { id: 3, name: '开始模拟' },
+    ]),
+  },
 })
-
-const steps = [
-  { id: 1, name: '图谱构建' },
-  { id: 2, name: '环境搭建' },
-  { id: 3, name: '开始模拟' },
-  { id: 4, name: '报告生成' },
-  { id: 5, name: '深度互动' },
-]
 
 </script>
 
@@ -60,7 +63,6 @@ const steps = [
 
 .workflow-steps {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 

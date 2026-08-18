@@ -55,28 +55,32 @@ export function createReportCenterController({
     if (active(version)) onChange({ ...state })
   }
 
-  function refresh({ clearActionError = true } = {}) {
+  function refresh({ background = false, clearActionError = !background } = {}) {
     if (stopped) return Promise.resolve(state)
     const version = lifecycleVersion
     const requestId = ++refreshSequence
-    state.loading = true
-    state.error = ''
+    const showLoading = !background || state.loading || !state.records.length
+    if (showLoading) {
+      state.loading = true
+      state.error = ''
+    }
     if (clearActionError) state.actionError = ''
-    publish(version)
+    if (showLoading) publish(version)
 
     return (async () => {
       try {
         const response = await listReports({ limit: 50 })
         if (!active(version) || requestId !== refreshSequence) return state
+        state.error = ''
         state.reports = unwrapReports(response)
         state.records = buildReportProjectRecords(getProjects(), state.reports)
       } catch (error) {
-        if (active(version) && requestId === refreshSequence) {
+        if (showLoading && active(version) && requestId === refreshSequence) {
           state.error = message(error, '报告列表加载失败。')
         }
       } finally {
         if (active(version) && requestId === refreshSequence) {
-          state.loading = false
+          if (showLoading) state.loading = false
           publish(version)
         }
       }
