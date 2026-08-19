@@ -2,7 +2,10 @@ export const primaryNavigation = [
   { label: '问答首页', path: '/', icon: 'home' },
   { label: '文献管理', path: '/documents', icon: 'document' },
   { label: '图谱演化', path: '/process', icon: 'graph' },
-  { label: '报告生成', path: '/reports', icon: 'report' }
+  { label: '报告生成', path: '/reports', icon: 'report' },
+  { divider: true },
+  { label: '数据平台', path: '/platform/data', icon: 'database' },
+  { label: '模型入口', path: '/platform/models', icon: 'model' }
 ]
 
 const GRAPH_WORKFLOW_ROUTE_NAMES = new Set([

@@ -27,20 +27,42 @@
     </button>
 
     <nav class="primary-nav" aria-label="主要导航">
-      <router-link
-        v-for="item in primaryNavigation"
-        :key="item.path"
-        :to="navigationState.target(item)"
-        class="nav-item"
-        :class="{ 'router-link-exact-active': route.meta.navigationPath === item.path }"
-        :title="collapsed ? item.label : undefined"
-        @click="$emit('close')"
-      >
-        <AscIcon :name="item.icon" />
-        <span>{{ item.label }}</span>
-      </router-link>
+      <template v-for="item in primaryNavigation" :key="item.path || item.divider">
+        <div v-if="item.divider" class="nav-divider" />
+        <router-link
+          v-else
+          :to="navigationState.target(item)"
+          class="nav-item"
+          :class="{ 'router-link-exact-active': route.meta.navigationPath === item.path }"
+          :title="collapsed ? item.label : undefined"
+          @click="$emit('close')"
+        >
+          <AscIcon :name="item.icon" />
+          <span>{{ item.label }}</span>
+        </router-link>
+      </template>
     </nav>
 
+    <!-- 用户信息栏 -->
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar">{{ authStore.avatarText }}</div>
+        <div class="user-details">
+          <div class="user-name">{{ authStore.isLoggedIn ? authStore.username : '未登录' }}</div>
+          <div class="user-status">{{ authStore.isLoggedIn ? '已登录' : '点击登录' }}</div>
+        </div>
+      </div>
+      <button
+        v-if="!authStore.isLoggedIn"
+        class="sidebar-btn login-btn"
+        @click="authStore.openLoginModal()"
+      >登录</button>
+      <button
+        v-else
+        class="sidebar-btn logout-btn"
+        @click="authStore.logout()"
+      >退出登录</button>
+    </div>
   </aside>
 </template>
 
@@ -52,9 +74,11 @@ import {
   createPrimaryNavigationState,
   primaryNavigation
 } from '../../features/navigation/appNavigation.js'
+import { useAuthStore } from '../../store/auth.js'
 
 const route = useRoute()
 const navigationState = createPrimaryNavigationState()
+const authStore = useAuthStore()
 
 watch(
   () => route.fullPath,
@@ -164,6 +188,12 @@ defineEmits(['close', 'toggle-collapse'])
   margin-top: 4px;
 }
 
+.nav-divider {
+  height: 1px;
+  margin: 8px 10px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
 .nav-item {
   min-height: 42px;
   display: flex;
@@ -187,6 +217,85 @@ defineEmits(['close', 'toggle-collapse'])
   color: #fff;
   box-shadow: inset 3px 0 0 #63c4eb;
 }
+
+/* ── 用户信息栏 ── */
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.06);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #139968, #0869ad);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.user-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 650;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-status {
+  font-size: 11px;
+  color: #aac7df;
+  margin-top: 1px;
+}
+
+.sidebar-btn {
+  width: 100%;
+  padding: 9px;
+  border: 0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.login-btn {
+  background: #0e69a8;
+  color: #fff;
+}
+.login-btn:hover { background: #0a5a91; }
+
+.logout-btn {
+  background: rgba(255,255,255,0.1);
+  color: #d9ebf7;
+}
+.logout-btn:hover { background: rgba(255,255,255,0.16); }
+
+.sidebar--collapsed .sidebar-footer { text-align: center; }
+.sidebar--collapsed .user-info { justify-content: center; padding: 8px; }
+.sidebar--collapsed .user-details { display: none; }
+.sidebar--collapsed .sidebar-btn { font-size: 11px; padding: 6px; }
 
 @media (min-width: 761px) {
   .sidebar--collapsed {
