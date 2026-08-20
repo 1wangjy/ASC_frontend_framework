@@ -25,10 +25,12 @@ function projectName(project = {}) {
 }
 
 function reportId(report = {}) {
+  report = report || {}
   return text(report.reportId || report.report_id)
 }
 
 function reportTaskId(report = {}) {
+  report = report || {}
   return text(report.reportTaskId || report.report_task_id || report.taskId || report.task_id)
 }
 
@@ -40,19 +42,9 @@ function timestampOf(report = {}) {
   )
 }
 
-function isNewerReport(candidate, current) {
-  const candidateTime = timestampOf(candidate)
-  const currentTime = timestampOf(current)
-  if (candidateTime !== currentTime) return candidateTime > currentTime
-  return reportId(candidate).localeCompare(reportId(current)) > 0
-}
-
-function reportScopeKey(report = {}) {
-  const graph = graphId(report)
-  if (graph) return `graph:${graph}`
-  const simulation = simulationId(report)
-  if (simulation) return `simulation:${simulation}`
-  return `report:${reportId(report)}`
+function newestFirst(left, right) {
+  const timestampDifference = timestampOf(right) - timestampOf(left)
+  return timestampDifference || reportId(right).localeCompare(reportId(left))
 }
 
 function reportRecord(project, report) {
@@ -71,6 +63,7 @@ function reportRecord(project, report) {
     reportTaskId: reportTaskId(report),
     report: report || null,
     canGenerate: Boolean(project) && isEvolutionComplete(project) && !hasReport,
+    canRegenerate: Boolean(project) && isEvolutionComplete(project) && hasReport,
     canPreview: completed,
     canDownload: completed,
     canDelete: hasReport && ['completed', 'failed'].includes(status),
@@ -95,28 +88,30 @@ export function buildReportProjectRecords(projects = [], reports = []) {
   })
 
   const reportsByProject = new Map()
-  const unmatchedReports = new Map()
+  const unmatchedReports = []
 
   ;(Array.isArray(reports) ? reports : []).forEach(report => {
     if (!reportId(report)) return
     const project = projectsByGraph.get(graphId(report)) || projectsBySimulation.get(simulationId(report))
     if (!project) {
-      const key = reportScopeKey(report)
-      const previous = unmatchedReports.get(key)
-      if (!previous || isNewerReport(report, previous)) unmatchedReports.set(key, report)
+      unmatchedReports.push(report)
       return
     }
 
     const key = projectId(project) || `project:${normalizedProjects.indexOf(project)}`
-    const previous = reportsByProject.get(key)
-    if (!previous || isNewerReport(report, previous)) reportsByProject.set(key, report)
+    const projectReports = reportsByProject.get(key) || []
+    projectReports.push(report)
+    reportsByProject.set(key, projectReports)
   })
 
   return [
-    ...normalizedProjects.map((project, index) => {
+    ...normalizedProjects.flatMap((project, index) => {
       const key = projectId(project) || `project:${index}`
-      return reportRecord(project, reportsByProject.get(key))
+      const projectReports = (reportsByProject.get(key) || []).slice().sort(newestFirst)
+      return projectReports.length
+        ? projectReports.map(report => reportRecord(project, report))
+        : [reportRecord(project, null)]
     }),
-    ...[...unmatchedReports.values()].map(report => reportRecord(null, report))
+    ...unmatchedReports.slice().sort(newestFirst).map(report => reportRecord(null, report))
   ]
 }

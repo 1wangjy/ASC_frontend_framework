@@ -313,6 +313,33 @@ test('calls the query API with the exact scoped payload and adapts its response'
   assert.equal(adapted.qaRunId, 'qarun_1')
 })
 
+test('accepts the new backend project and graph scope when both resolved identifiers match', async () => {
+  const combinedScopeResponse = {
+    ...backendResponse,
+    data: {
+      ...backendResponse.data,
+      debug_trace: {
+        ...backendResponse.data.debug_trace,
+        graph_context: {
+          ...backendResponse.data.debug_trace.graph_context,
+          scope_resolution: 'project_id+graph_id'
+        }
+      }
+    }
+  }
+
+  const adapted = await requestCodAnswer({
+    getProject: async () => authoritativeProjectResponse(),
+    codGraphRAGQuery: async () => combinedScopeResponse
+  }, {
+    simulationId: 's1',
+    question: 'Q',
+    project: { project_id: 'p1', graph_id: 'g1' }
+  })
+
+  assert.equal(adapted.qaRunId, 'qarun_1')
+})
+
 test('does not POST when the selected project was deleted before submission', async () => {
   let queryCalled = false
   const notFound = new Error('Project not found')

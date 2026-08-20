@@ -107,15 +107,129 @@ function responseData(payload) {
   return {}
 }
 
-function suggestionsOf(value) {
+function decodeSuggestionText(value) {
   return String(value ?? '')
-    .split(/[。；;\n]+/)
-    .map((item) => item.trim())
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '')
+    .replace(/\\t/g, ' ')
+    .replace(/\\([\\'\"])/g, '$1')
+    .trim()
+}
+
+function normalizeSuggestionItem(value) {
+  return decodeSuggestionText(value)
+    .replace(/^\d+\s*[.、]\s*/, '')
+    .trim()
+}
+
+function parseSerializedSuggestionList(value) {
+  const source = String(value ?? '').trim()
+  if (!source.startsWith('[') || !source.endsWith(']')) return null
+
+  try {
+    const parsed = JSON.parse(source)
+    if (Array.isArray(parsed)) return parsed
+  } catch {
+    // The current backend can return a Python-style single-quoted list string.
+  }
+
+  const items = []
+  let index = 1
+  const end = source.length - 1
+  const skipSeparators = () => {
+    while (index < end && /[\s,]/.test(source[index])) index += 1
+  }
+
+  skipSeparators()
+  while (index < end) {
+    const quote = source[index]
+    if (quote !== "'" && quote !== '"') return null
+    index += 1
+
+    let item = ''
+    let closed = false
+    while (index < end) {
+      const character = source[index]
+      if (character === '\\') {
+        const escaped = source[index + 1]
+        const replacements = { n: '\n', r: '', t: ' ', '\\': '\\', "'": "'", '"': '"' }
+        item += Object.prototype.hasOwnProperty.call(replacements, escaped)
+          ? replacements[escaped]
+          : escaped
+        index += 2
+        continue
+      }
+      if (character === quote) {
+        closed = true
+        index += 1
+        break
+      }
+      item += character
+      index += 1
+    }
+    if (!closed) return null
+    items.push(item)
+    skipSeparators()
+  }
+
+  return items.length ? items : null
+}
+
+function suggestionsOf(value) {
+  const candidates = Array.isArray(value)
+    ? value
+    : parseSerializedSuggestionList(value)
+
+  if (candidates) {
+    return candidates
+      .map(normalizeSuggestionItem)
+      .filter(Boolean)
+  }
+
+  const text = decodeSuggestionText(value)
+  const numberedItems = text.split(/(?:^|\n)\s*(?=\d+\s*[.、]\s*)/).filter(Boolean)
+  const items = numberedItems.length > 1
+    ? numberedItems
+    : text.split(/[。；;\n]+/)
+
+  return items
+    .map(normalizeSuggestionItem)
     .filter(Boolean)
+}
+
+function evaluationSource(result) {
+  const fallbackUsed = result?.trace?.fallback_used === true
+    || String(result?.status ?? '').toLowerCase() === 'heuristic'
+    || /heuristic|fallback/i.test(`${result?.method ?? ''} ${result?.written_by ?? ''}`)
+  if (fallbackUsed) {
+    return {
+      sourceKind: 'heuristic',
+      sourceLabel: '规则兜底评估',
+      sourceDescription: '当前结果来自后端规则兜底，未调用大模型。'
+    }
+  }
+
+  const llmApplied = String(result?.status ?? '').toLowerCase() === 'applied'
+    || /llm/i.test(`${result?.method ?? ''} ${result?.written_by ?? ''}`)
+    || Boolean(String(result?.model ?? '').trim())
+  if (llmApplied) {
+    return {
+      sourceKind: 'llm',
+      sourceLabel: '真实 LLM 评估',
+      sourceDescription: '当前结果由后端 LLM Judge 生成。'
+    }
+  }
+
+  return {
+    sourceKind: 'backend',
+    sourceLabel: '后端评估',
+    sourceDescription: '后端未返回可识别的评估来源标识。'
+  }
 }
 
 export function adaptLlmEvaluationResponse(payload = {}) {
   const result = responseData(payload)
+  const source = evaluationSource(result)
   const scores = result.scores && typeof result.scores === 'object' ? result.scores : {}
   const overallScore = Number(result.overall_score)
   const confidence = Number(result.confidence)
@@ -130,6 +244,9 @@ export function adaptLlmEvaluationResponse(payload = {}) {
 
   return {
     isDemo: false,
+    ...source,
+    autoRecorded: Boolean(result?.storage?.judge_record_id),
+    judgeRecordId: String(result?.storage?.judge_record_id || result?.judge_id || ''),
     summary: String(result.rationale || result.comments || '后端已完成 LLM 评估。'),
     confidenceLabel: `总体评分 ${scoreLabel}${confidenceLabel}`,
     model: String(result.model || result.written_by || 'Backend LLM Judge'),
@@ -157,7 +274,11 @@ export function buildLlmFeedbackPayload(context, adaptedResult = {}) {
     error_types: Array.isArray(raw.error_types) ? raw.error_types : [],
     correction_suggestions: String(raw.correction_suggestions ?? ''),
     comments: String(raw.comments || raw.rationale || ''),
-    metadata: { evaluation_source: 'llm', judge_id: raw.judge_id || '' }
+    metadata: {
+      evaluation_source: 'llm',
+      source_kind: adaptedResult.sourceKind || 'backend',
+      judge_id: raw?.storage?.judge_record_id || raw.judge_id || ''
+    }
   }
   if (normalized.qaRunId) payload.qa_run_id = normalized.qaRunId
   return payload
@@ -174,7 +295,7 @@ export function getAnswerEvaluationErrorMessage(error) {
   return message || '评估未能完成，请重新尝试'
 }
 
-export function createAnswerEvaluationService({ mode = 'demo', delay = 320, api = {} } = {}) {
+export function createAnswerEvaluationService({ mode = 'api', delay = 320, api = {} } = {}) {
   if (mode === 'api') {
     return {
       saveManual(context, manual) {

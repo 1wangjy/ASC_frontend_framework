@@ -35,13 +35,11 @@ function cloneValue(value) {
 export function createQaProjectContextController({
   refreshProjects,
   getProjects,
-  listReports,
   storage,
   onChange = () => {}
 } = {}) {
   if (typeof refreshProjects !== 'function') throw new TypeError('refreshProjects is required')
   if (typeof getProjects !== 'function') throw new TypeError('getProjects is required')
-  if (typeof listReports !== 'function') throw new TypeError('listReports is required')
 
   const state = {
     loading: false,
@@ -83,14 +81,11 @@ export function createQaProjectContextController({
     })
 
     try {
-      const [, reportResponse] = await Promise.all([
-        refreshProjects(),
-        listReports()
-      ])
+      await refreshProjects()
       if (stopped || version !== currentVersion) return snapshot()
 
       const logicalProjects = buildLogicalGraphProjects(getProjects())
-      const records = buildQualifiedQaProjects(logicalProjects, reportResponse)
+      const records = buildQualifiedQaProjects(logicalProjects)
       const explicitRoute = hasExplicitRouteSelection(selectionRequest)
       const routeStillOwnsSelection = selectionVersion === refreshSelectionVersion
       const selected = resolveQualifiedQaSelection(records, explicitRoute && routeStillOwnsSelection

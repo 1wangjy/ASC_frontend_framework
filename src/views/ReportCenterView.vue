@@ -35,12 +35,27 @@
       {{ actionError }}
     </p>
 
-    <section v-if="!loading && !error && records.length" class="report-center-view__grid" aria-label="已保存的研究报告">
-      <article
-        v-for="record in records"
-        :key="record.projectId || record.reportId"
-        class="report-card"
+    <section v-if="!loading && !error && records.length" class="report-center-view__groups" aria-label="已保存的研究报告">
+      <section
+        v-for="group in reportGroups"
+        :key="group.key"
+        class="report-project-group"
+        :class="{ 'report-project-group--collection': group.reportCount > 1 }"
       >
+        <header v-if="group.reportCount > 1" class="report-project-group__header">
+          <div>
+            <span>图谱项目报告集</span>
+            <h2>{{ group.projectName }}</h2>
+            <p>共 {{ group.reportCount }} 份报告</p>
+          </div>
+        </header>
+
+        <div class="report-center-view__grid">
+          <article
+            v-for="record in group.records"
+            :key="record.reportId || record.projectId"
+            class="report-card"
+          >
         <header class="report-card__header">
           <span class="report-card__project">KG REPORT</span>
           <span class="report-card__status" :class="`report-card__status--${record.status}`">
@@ -68,7 +83,7 @@
           {{ record.error }}
         </p>
 
-        <footer class="report-card__actions">
+            <footer class="report-card__actions">
           <button
             v-if="record.canGenerate"
             type="button"
@@ -95,9 +110,11 @@
           >
             {{ deletingReportId === record.reportId ? '删除中' : '删除' }}
           </button>
-          <button v-if="record.canOpenQa" type="button" @click="openQa(record)">去问答</button>
-        </footer>
-      </article>
+              <button v-if="record.canOpenQa" type="button" @click="openQa(record)">去问答</button>
+            </footer>
+          </article>
+        </div>
+      </section>
     </section>
   </main>
 </template>
@@ -114,7 +131,7 @@ import {
   reactive,
   watch
 } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import {
   checkReportForSimulation,
@@ -125,7 +142,7 @@ import {
 } from '../api/report.js'
 import { buildLogicalGraphProjects } from '../features/projects/logicalGraphProjectModel.js'
 import {
-  buildReportCenterRecordItems,
+  buildReportProjectGroups,
   formatReportDate,
   hasGeneratingReports
 } from '../features/reports/reportCenterModel.js'
@@ -134,6 +151,7 @@ import { createReportCenterController } from '../features/reports/reportCenterCo
 import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
 
 const monitor = useGraphTaskMonitor()
+const route = useRoute()
 const router = useRouter()
 const state = reactive({})
 const controller = createReportCenterController({
@@ -159,7 +177,8 @@ const actionError = computed(() => state.actionError)
 const mutatingProjectId = computed(() => state.mutatingProjectId)
 const downloadingReportId = computed(() => state.downloadingReportId)
 const deletingReportId = computed(() => state.deletingReportId)
-const records = computed(() => buildReportCenterRecordItems(state.records))
+const reportGroups = computed(() => buildReportProjectGroups(state.records))
+const records = computed(() => reportGroups.value.flatMap(group => group.records))
 const autoRefresh = createReportCenterAutoRefresh({
   refresh: options => controller.refresh(options),
   shouldContinue: () => hasGeneratingReports(state.records),
@@ -180,6 +199,17 @@ function generateRecord(record) {
   return controller.generate(record).catch(() => undefined)
 }
 
+function regenerateGroup(group) {
+  const defaultName = group.nextReportName
+  const enteredName = globalThis.prompt?.('请输入报告名称', defaultName)
+  if (enteredName === null) return Promise.resolve(false)
+  const reportName = String(enteredName || '').trim() || defaultName
+  return controller.generate(group.generationRecord, {
+    forceRegenerate: true,
+    reportName
+  }).catch(() => undefined)
+}
+
 function downloadRecord(record) {
   return controller.download(record).catch(() => undefined)
 }
@@ -195,12 +225,29 @@ function reportRoute(record) {
 function openQa(record) {
   return router.push({
     name: 'AscQa',
-    query: { projectId: record.projectId, reportId: record.reportId }
+    query: { projectId: record.projectId }
   })
 }
 
-function activateReportCenter() {
-  return autoRefresh.activate({ background: Boolean(state.records?.length) })
+async function consumeRegenerationRequest() {
+  if (String(route.query.regenerate || '') !== '1') return
+  const projectId = String(route.query.projectId || '').trim()
+  const simulationId = String(route.query.simulationId || '').trim()
+  const group = reportGroups.value.find(candidate => (
+    (!projectId || candidate.projectId === projectId)
+    && (!simulationId || candidate.generationRecord?.simulationId === simulationId)
+  ))
+  if (!group?.canRegenerate) return
+
+  const nextQuery = { ...route.query }
+  delete nextQuery.regenerate
+  await router.replace({ name: 'Reports', query: nextQuery })
+  await regenerateGroup(group)
+}
+
+async function activateReportCenter() {
+  await autoRefresh.activate({ background: Boolean(state.records?.length) })
+  await consumeRegenerationRequest()
 }
 
 onMounted(activateReportCenter)
@@ -324,9 +371,57 @@ onBeforeUnmount(() => {
   animation: report-center-spin .85s linear infinite;
 }
 
-.report-center-view__grid {
+.report-center-view__groups {
   max-width: 1240px;
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.report-project-group {
+  min-width: 0;
+}
+
+.report-project-group--collection {
+  grid-column: 1 / -1;
+}
+
+.report-project-group:not(.report-project-group--collection) .report-center-view__grid {
+  display: block;
+}
+
+.report-project-group__header {
+  margin-bottom: 14px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border: 1px solid var(--asc-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .72);
+}
+
+.report-project-group__header span {
+  color: var(--asc-primary);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .1em;
+}
+
+.report-project-group__header h2 {
+  margin: 5px 0 2px;
+  font-size: 20px;
+}
+
+.report-project-group__header p {
+  margin: 0;
+  color: var(--asc-muted);
+  font-size: 12px;
+}
+
+.report-center-view__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 18px;
@@ -516,6 +611,12 @@ onBeforeUnmount(() => {
   to { transform: rotate(360deg); }
 }
 
+@media (max-width: 1100px) {
+  .report-center-view__groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 760px) {
   .report-center-view {
     padding: 24px 16px 42px;
@@ -536,6 +637,15 @@ onBeforeUnmount(() => {
 
   .report-card {
     padding: 20px;
+  }
+
+  .report-center-view__groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .report-project-group__header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

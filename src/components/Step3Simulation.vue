@@ -94,6 +94,13 @@
       </div>
 
       <div class="action-controls">
+        <button
+          class="action-btn secondary"
+          :disabled="!canOpenReportCenter"
+          @click="handleOpenQa"
+        >
+          进入图谱问答
+        </button>
         <button 
           class="action-btn primary"
           :disabled="!canUseReportAction"
@@ -101,6 +108,14 @@
         >
           {{ reportActionLabel }}
           <span class="arrow-icon">→</span>
+        </button>
+        <button
+          v-if="canRegenerateReport"
+          class="action-btn secondary"
+          type="button"
+          @click="handleRegenerateReport"
+        >
+          再次生成报告
         </button>
       </div>
     </div>
@@ -343,7 +358,7 @@ const props = defineProps({
   systemLogs: Array
 })
 
-const emit = defineEmits(['go-back', 'add-log', 'update-status'])
+const emit = defineEmits(['go-back', 'add-log', 'update-status', 'go-qa'])
 
 const router = useRouter()
 
@@ -467,6 +482,11 @@ const reportActionLabel = computed(() => {
 const canUseReportAction = computed(() => (
   canOpenReportCenter.value
   && (!reportHandoffLoading.value || reportHandoffKnown.value)
+))
+const canRegenerateReport = computed(() => (
+  canOpenReportCenter.value
+  && reportHandoffKnown.value
+  && reportHandoff.value.state === 'completed'
 ))
 
 // 格式化ASC-OASIS阶段进度
@@ -1086,6 +1106,23 @@ const handleNextStep = () => {
   }))
 }
 
+const handleOpenQa = () => {
+  if (!canOpenReportCenter.value) return
+  emit('go-qa')
+}
+
+const handleRegenerateReport = () => {
+  if (!canRegenerateReport.value) return
+  return router.push({
+    name: 'Reports',
+    query: {
+      projectId: currentProjectId.value,
+      simulationId: currentSimulationId.value,
+      regenerate: '1'
+    }
+  })
+}
+
 watch(
   () => [canOpenReportCenter.value, currentSimulationId.value],
   ([eligible, simulationId]) => {
@@ -1149,22 +1186,27 @@ onUnmounted(() => {
 /* --- Control Bar --- */
 .control-bar {
   background: #FFF;
-  padding: 12px 24px;
+  padding: 16px 24px;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
+  gap: 12px;
   border-bottom: 1px solid #EAEAEA;
   z-index: 10;
-  height: 64px;
+  height: auto;
+  flex-shrink: 0;
 }
 
 .status-group {
+  width: min(100%, 980px);
   display: flex;
   gap: 12px;
 }
 
 /* Platform Status Cards */
 .platform-status {
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1309,11 +1351,22 @@ onUnmounted(() => {
 }
 
 /* Action Button */
+.action-controls {
+  order: -1;
+  width: min(100%, 980px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 12px;
+}
+
 .action-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 10px 20px;
+  min-height: 48px;
+  padding: 10px 16px;
   font-size: 13px;
   font-weight: 600;
   border: none;
@@ -1322,6 +1375,19 @@ onUnmounted(() => {
   transition: all 0.2s ease;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.action-btn.secondary {
+  color: #075f9c;
+  background: #fff;
+  border: 1px solid #a9cde6;
+}
+
+.action-btn.secondary:hover:not(:disabled) {
+  color: #034f84;
+  background: #eff8ff;
+  border-color: #72acd2;
 }
 
 .action-btn.primary {
@@ -1340,7 +1406,9 @@ onUnmounted(() => {
 
 /* --- Main Content Area --- */
 .main-content-area {
-  flex: 1;
+  flex: 0 1 560px;
+  min-height: 320px;
+  max-height: min(54vh, 560px);
   overflow-y: auto;
   position: relative;
   background: #FFF;
@@ -1393,9 +1461,9 @@ onUnmounted(() => {
 
 /* --- Timeline Feed --- */
 .timeline-feed {
-  padding: 24px 0;
+  padding: 16px 0;
   position: relative;
-  min-height: 100%;
+  min-height: auto;
   max-width: 900px;
   margin: 0 auto;
 }
@@ -1413,7 +1481,7 @@ onUnmounted(() => {
 .timeline-item {
   display: flex;
   justify-content: center;
-  margin-bottom: 32px;
+  margin-bottom: 18px;
   position: relative;
   width: 100%;
 }
@@ -1451,7 +1519,7 @@ onUnmounted(() => {
   width: calc(100% - 48px);
   background: #FFF;
   border-radius: 2px;
-  padding: 16px 20px;
+  padding: 12px 16px;
   border: 1px solid #EAEAEA;
   box-shadow: 0 2px 10px rgba(0,0,0,0.02);
   position: relative;
@@ -1488,8 +1556,8 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
   border-bottom: 1px solid #F5F5F5;
 }
 
@@ -1552,7 +1620,7 @@ onUnmounted(() => {
   font-size: 13px;
   line-height: 1.6;
   color: #333;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .content-text.main-text {
@@ -1779,5 +1847,29 @@ onUnmounted(() => {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-right: 6px;
+}
+
+@media (max-width: 640px) {
+  .control-bar {
+    padding: 12px;
+  }
+
+  .action-controls,
+  .status-group {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .action-controls {
+    display: grid;
+  }
+
+  .status-group {
+    flex-direction: column;
+  }
+
+  .main-content-area {
+    min-height: 280px;
+    max-height: 52vh;
+  }
 }
 </style>

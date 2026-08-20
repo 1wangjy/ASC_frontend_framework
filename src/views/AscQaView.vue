@@ -171,7 +171,6 @@ import {
   judgeQAWithLLM,
   submitQAFeedback
 } from '../api/graph.js'
-import { getReport, listReports } from '../api/report.js'
 import { recentConversations } from '../features/navigation/appNavigation.js'
 import { findRecentConversation } from '../features/navigation/recentConversationModel.js'
 import {
@@ -247,8 +246,8 @@ const qaModeLabel = computed(() => qaState.value.mode === 'multi' ? '多轮连�
 const projectUnavailableMessage = computed(() => {
   if (projectsLoading.value) return '正在读取可用于问答的知识图谱项目…'
   if (projectError.value) return projectError.value
-  if (scopeSelectionRequired.value && projects.value.length) return '原问答项目资格已失效，请重新选择已完成报告的图谱项目。'
-  if (!activeProject.value) return '问答需要基于已完成报告的图谱项目，请先选择项目。'
+  if (scopeSelectionRequired.value && projects.value.length) return '原问答项目资格已失效，请重新选择已完成模拟组会的图谱项目。'
+  if (!activeProject.value) return '问答需要基于模拟组会已完成的图谱项目，请先选择项目。'
   return ''
 })
 
@@ -259,7 +258,6 @@ function projectLabel(project) {
 const qaProjectContext = createQaProjectContextController({
   refreshProjects: () => graphTaskMonitor.refresh(),
   getProjects: () => graphTaskMonitor.state.items,
-  listReports,
   storage: browserStorage,
   onChange(snapshot) {
     projects.value = snapshot.records
@@ -305,10 +303,11 @@ function selectQualifiedProject(projectId) {
   selectorOpen.value = false
 
   if (previousProjectId && previousProjectId !== selected.projectId) reset()
-  const query = { ...route.query, projectId: selected.projectId, reportId: selected.reportId }
+  const query = { ...route.query, projectId: selected.projectId }
+  delete query.reportId
   delete query.conversation
   consumedQaQueryTokens.projectId = JSON.stringify([selected.projectId])
-  consumedQaQueryTokens.reportId = JSON.stringify([selected.reportId])
+  consumedQaQueryTokens.reportId = 'absent'
   void router.replace({ path: '/', query })
 }
 
@@ -331,8 +330,7 @@ async function sendQuestion(question = draft.value) {
   const currentRequest = ++requestVersion
 
   try {
-    const adapted = await requestCodAnswer({ codGraphRAGQuery, getProject, getReport }, {
-      reportId: activeProject.value.reportId,
+    const adapted = await requestCodAnswer({ codGraphRAGQuery, getProject }, {
       simulationId: activeProject.value.simulationId,
       question: nextState.question,
       project: {
@@ -527,7 +525,6 @@ function openConversation(conversation) {
     path: '/',
     query: {
       projectId: activeProject.value?.projectId,
-      reportId: activeProject.value?.reportId,
       conversation: conversation.id
     }
   })
@@ -569,12 +566,11 @@ async function consumeActiveQaRouteQuery() {
   const snapshot = activeQaQuerySnapshot()
   const projectChanged = (
     consumedQaQueryTokens.projectId !== snapshot.projectId.token
-    || consumedQaQueryTokens.reportId !== snapshot.reportId.token
   )
   const newChanged = consumedQaQueryTokens.new !== snapshot.new.token
   const conversationChanged = consumedQaQueryTokens.conversation !== snapshot.conversation.token
   const previousScope = activeProject.value
-    ? `${activeProject.value.projectId}:${activeProject.value.reportId}`
+    ? activeProject.value.projectId
     : ''
 
   if (projectChanged) {
@@ -593,7 +589,7 @@ async function consumeActiveQaRouteQuery() {
   ) return
 
   const currentScope = activeProject.value
-    ? `${activeProject.value.projectId}:${activeProject.value.reportId}`
+    ? activeProject.value.projectId
     : ''
   if (projectChanged && previousScope && currentScope !== previousScope) reset()
 

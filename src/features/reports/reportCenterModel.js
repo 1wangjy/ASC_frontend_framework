@@ -132,3 +132,62 @@ export function buildReportCenterRecordItems(records = []) {
     }
   })
 }
+
+function reportName(record = {}, fallback = '') {
+  const report = record?.report || {}
+  return text(report.report_name || report.reportName || fallback)
+}
+
+export function buildReportProjectGroups(records = []) {
+  const groups = new Map()
+
+  buildReportCenterRecordItems(records).forEach((record, index) => {
+    const key = text(record.projectId)
+      ? `project:${text(record.projectId)}`
+      : `unmatched:${text(record.reportId) || index}`
+    const group = groups.get(key) || {
+      key,
+      projectId: text(record.projectId),
+      projectName: record.projectName,
+      records: []
+    }
+    group.records.push(record)
+    groups.set(key, group)
+  })
+
+  return [...groups.values()].map(group => {
+    const reportRecords = group.records.filter(record => text(record.reportId))
+    const sequenceByReportId = new Map(
+      [...reportRecords]
+        .sort((left, right) => {
+          const difference = timestampOf(left.report || {}) - timestampOf(right.report || {})
+          return difference || text(left.reportId).localeCompare(text(right.reportId))
+        })
+        .map((record, index) => [text(record.reportId), index + 1])
+    )
+    const namedRecords = group.records.map(record => {
+      if (!text(record.reportId)) return record
+      const fallback = `report_${sequenceByReportId.get(text(record.reportId)) || 1}`
+      const name = reportName(record, fallback)
+      return {
+        ...record,
+        reportName: name,
+        displayTitle: `${group.projectName} · ${name}`
+      }
+    })
+    const generationRecord = namedRecords.find(record => record.canRegenerate && record.status === 'completed')
+      || namedRecords.find(record => record.canGenerate)
+      || namedRecords[0]
+    const hasGeneratingReport = namedRecords.some(record => record.status === 'generating')
+
+    return {
+      ...group,
+      records: namedRecords,
+      reportCount: reportRecords.length,
+      nextReportName: `report_${reportRecords.length + 1}`,
+      canRegenerate: Boolean(generationRecord?.canRegenerate) && !hasGeneratingReport,
+      hasGeneratingReport,
+      generationRecord
+    }
+  })
+}

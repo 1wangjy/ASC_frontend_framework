@@ -63,6 +63,7 @@
           :graphData="graphData"
           :systemLogs="systemLogs"
           @go-back="handleGoBack"
+          @go-qa="openProjectGraphInQa"
           @add-log="addLog"
           @update-status="updateStatus"
         />
@@ -81,6 +82,7 @@ import Step3Simulation from '../components/Step3Simulation.vue'
 import WorkflowProgressBar from '../components/WorkflowProgressBar.vue'
 import { getProject, getGraphData } from '../api/graph'
 import { getSimulation, getSimulationConfig, stopSimulation, closeSimulationEnv, getEnvStatus } from '../api/simulation'
+import { navigateGraphProjectToQa } from '../features/projects/graphQaNavigation.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -165,6 +167,15 @@ const updateStatus = (status) => {
     addLog('ASC-KG推理完成，刷新图谱成长结果...')
     refreshGraph()
   }
+}
+
+const openProjectGraphInQa = async () => {
+  const navigated = await navigateGraphProjectToQa({
+    project: projectData.value,
+    browser: globalThis,
+    navigate: destination => router.push(destination)
+  })
+  if (!navigated) addLog('当前项目缺少 project_id 或 graph_id，无法进入图谱问答。')
 }
 
 // --- Layout Methods ---

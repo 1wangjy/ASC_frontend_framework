@@ -47,3 +47,16 @@ test('selecting an answer excerpt opens Expert Eval in the quality drawer', asyn
   assert.match(captureBlock, /qualityOpen\.value = true/)
   assert.doesNotMatch(captureBlock, /evidenceOpen: true/)
 })
+
+test('LLM evaluation panel distinguishes evaluation source and feedback persistence', async () => {
+  const source = await readSource('../src/features/qa/LlmEvaluationPanel.vue')
+
+  assert.match(source, /evaluation\.result\.sourceLabel/)
+  assert.match(source, /evaluation\.result\.sourceDescription/)
+  assert.match(source, /规则兜底评估/)
+  assert.match(source, /另存为反馈记录/)
+  assert.match(source, /已由后端自动记录/)
+  assert.match(source, /v-if="evaluation\.result\.dimensions\.length"/)
+  assert.match(source, /v-if="evaluation\.result\.risks\.length"/)
+  assert.match(source, /v-if="evaluation\.result\.suggestions\.length"/)
+})
