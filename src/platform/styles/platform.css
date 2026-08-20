@@ -1,0 +1,205 @@
+/* ── Platform Module Styles ─────────────────────────── */
+/* These styles are scoped to the platform module views  */
+
+.platform-page {
+  padding: 24px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ── Buttons ──────────────────────────────────────── */
+.platform-page .btn {
+  background: linear-gradient(135deg, #005bac 0%, #004a8c 100%);
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.platform-page .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(99,102,241,.4); }
+.platform-page .btn:disabled { background: #dee2e6; color: #6c757d; cursor: not-allowed; transform: none; box-shadow: none; }
+.platform-page .btn-secondary { background: #f3f4f6; color: #212529; }
+.platform-page .btn-secondary:hover { background: #e5e7eb; transform: none; box-shadow: none; }
+.platform-page .btn-danger { background: #ef4444; }
+.platform-page .btn-danger:hover { background: #dc2626; }
+.platform-page .btn-small { font-size: 12px; padding: 6px 12px; }
+
+/* ── Forms ────────────────────────────────────────── */
+.platform-page .form-group { margin-bottom: 20px; }
+.platform-page .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #212529; font-size: 14px; }
+.platform-page .form-group input, .platform-page .form-group select, .platform-page .form-group textarea {
+  width: 100%; padding: 12px 16px; border: 2px solid #dee2e6;
+  border-radius: 6px; font-family: inherit; font-size: 15px; background: white;
+}
+.platform-page .form-group textarea { min-height: 150px; resize: vertical; }
+.platform-page .form-group input:focus, .platform-page .form-group select:focus, .platform-page .form-group textarea:focus {
+  outline: none; border-color: #005bac; box-shadow: 0 0 0 4px rgba(99,102,241,.1);
+}
+.platform-page .checkbox-group { display: flex; align-items: center; gap: 10px; }
+.platform-page .checkbox-group input[type="checkbox"] { width: auto; }
+
+/* ── Card ─────────────────────────────────────────── */
+.platform-page .card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 32px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.07);
+  margin-bottom: 24px;
+}
+.platform-page .card h2 { color: #212529; margin-bottom: 24px; font-size: 20px; font-weight: 700; }
+
+/* ── Section ──────────────────────────────────────── */
+.platform-page .section {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 32px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.07);
+}
+
+/* ── Page Header ──────────────────────────────────── */
+.platform-page .page-header {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.platform-page .page-header h1 { font-size: 32px; font-weight: 800; color: #212529; }
+
+/* ── Back Button ──────────────────────────────────── */
+.platform-page .back-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 24px; background: linear-gradient(135deg, #005bac 0%, #004a8c 100%);
+  color: white; border: none; border-radius: 6px;
+  font-weight: 600; font-size: 14px; cursor: pointer;
+  transition: all 0.2s ease; text-decoration: none;
+}
+
+/* ── Tabs ─────────────────────────────────────────── */
+.platform-page .tab-container { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+.platform-page .tab-btn {
+  padding: 10px 20px; border: none; background: #ffffff;
+  color: #6c757d; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;
+  transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,.05);
+}
+.platform-page .tab-btn:hover { background: rgba(0,91,172,.08); color: #005bac; }
+.platform-page .tab-btn.active { background: linear-gradient(135deg, #005bac 0%, #004a8c 100%); color: white; box-shadow: 0 4px 12px rgba(99,102,241,.3); }
+.platform-page .tab-content { display: none; }
+.platform-page .tab-content.active { display: block; }
+
+/* ── Toolbar & Table ──────────────────────────────── */
+.platform-page .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.platform-page .filter-input { flex: 1; min-width: 200px; padding: 10px 16px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 14px; }
+.platform-page .table-container { overflow-x: auto; border-radius: 6px; border: 1px solid #dee2e6; }
+.platform-page table { width: 100%; border-collapse: collapse; }
+.platform-page thead { background: #f8fafc; }
+.platform-page th { padding: 14px 16px; text-align: left; font-weight: 600; color: #212529; font-size: 13px; border-bottom: 2px solid #dee2e6; white-space: nowrap; }
+.platform-page td { padding: 12px 16px; border-bottom: 1px solid #dee2e6; font-size: 14px; color: #6c757d; }
+.platform-page tbody tr:hover { background: #f8fafc; }
+
+/* ── Result / Status ──────────────────────────────── */
+.platform-page .result-item { margin-bottom: 16px; padding: 16px; background: #f8fafc; border-radius: 6px; }
+.platform-page .result-label { font-weight: 600; color: #212529; display: block; margin-bottom: 8px; }
+.platform-page .result-value { color: #6c757d; font-size: 15px; }
+.platform-page .vector-preview { background: white; padding: 12px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 100px; overflow-y: auto; border: 1px solid #dee2e6; }
+.platform-page .status-message { padding: 14px 16px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
+.platform-page .status-message.success { background-color: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.platform-page .status-message.error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+/* ── ID Badge ─────────────────────────────────────── */
+.platform-page .id-badge {
+  display: inline-block; background: #e0e7ff; color: #4338ca;
+  padding: 4px 8px; border-radius: 4px; font-family: 'Courier New', monospace;
+  font-size: 12px; font-weight: 600;
+}
+
+/* ── Modal ────────────────────────────────────────── */
+.platform-page .modal {
+  display: none; position: fixed; z-index: 2000; left: 0; top: 0;
+  width: 100%; height: 100%; overflow: auto; background: rgba(0,0,0,.6); backdrop-filter: blur(8px);
+}
+.platform-page .modal.active { display: flex; align-items: center; justify-content: center; }
+.platform-page .modal-content {
+  background: white; padding: 40px; border-radius: 10px; width: 90%; max-width: 420px;
+  box-shadow: 0 25px 80px rgba(0,0,0,.3);
+}
+.platform-page .modal-content h2 { margin-bottom: 8px; text-align: center; font-size: 24px; color: #212529; }
+.platform-page .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
+.platform-page .modal-actions .btn { flex: 1; }
+.platform-page .modal-subtitle { text-align: center; color: #6c757d; margin-bottom: 28px; font-size: 14px; }
+.platform-page .error-message { color: #cc0000; margin-bottom: 16px; text-align: center; padding: 12px; background: #fef2f2; border-radius: 4px; font-size: 14px; }
+.platform-page .modal-hint { text-align: center; margin-top: 20px; color: #6c757d; font-size: 13px; }
+
+/* ── File Input ───────────────────────────────────── */
+.platform-page .file-input { width: 100%; padding: 10px; border: 2px dashed #dee2e6; border-radius: 6px; background: #f8fafc; cursor: pointer; font-size: 14px; }
+.platform-page .file-info { margin-top: 8px; font-size: 13px; color: #007d49; padding: 8px 12px; background: #dcfce7; border-radius: 4px; }
+
+/* ── Controls ─────────────────────────────────────── */
+.platform-page .controls { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.platform-page .rotation-controls { margin-bottom: 12px; padding: 12px; background: #fff; border-radius: 8px; border: 1px solid #dee2e6; }
+.platform-page .info-panel { background: #f8fafc; border: 1px solid #dee2e6; border-radius: 6px; padding: 20px; margin-top: 20px; }
+.platform-page .info-item { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; color: #475569; }
+.platform-page .color-bar { width: 100%; height: 30px; margin-top: 20px; background: linear-gradient(to right, blue, cyan, green, yellow, orange, red); border-radius: 4px; }
+.platform-page .color-labels { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: #6c757d; }
+
+/* ── Main Content Layout ──────────────────────────── */
+.platform-page .main-content { display: flex; gap: 24px; flex-wrap: wrap; }
+.platform-page .left-panel { flex: 1; min-width: 320px; background: #fff; border-radius: 10px; padding: 32px; box-shadow: 0 4px 18px rgba(0,0,0,.07); }
+.platform-page .right-panel { flex: 2; min-width: 400px; background: #fff; border-radius: 10px; padding: 32px; box-shadow: 0 4px 18px rgba(0,0,0,.07); }
+.platform-page #canvas-container { width: 100%; height: 500px; background-color: #1a1a1a; border-radius: 8px; position: relative; overflow: hidden; }
+
+/* ── Recipe Parser Specific ────────────────────────── */
+.platform-page .rp-section { background: #fff; border-radius: 10px; padding: 32px; box-shadow: 0 4px 18px rgba(0,0,0,.07); margin-bottom: 24px; }
+.platform-page .rp-label { display: block; margin-bottom: 8px; font-weight: 600; color: #212529; font-size: 14px; }
+.platform-page .rp-textarea { width: 100%; padding: 14px 16px; border: 2px solid #dee2e6; border-radius: 6px; font-family: inherit; font-size: 15px; transition: all .2s ease; background: white; resize: vertical; min-height: 300px; }
+.platform-page .rp-textarea:focus { outline: none; border-color: #005bac; box-shadow: 0 0 0 4px rgba(99,102,241,.1); }
+.platform-page .rp-btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+.platform-page .rp-btn { background: #005bac; color: white; padding: 12px 24px; border: none; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all .2s ease; }
+.platform-page .rp-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(99,102,241,.4); }
+.platform-page .rp-btn:disabled { background: #dee2e6; color: #6c757d; cursor: not-allowed; transform: none; }
+.platform-page .rp-btn-secondary { background: #f3f4f6; color: #212529; }
+.platform-page .rp-btn-secondary:hover { background: #e5e7eb; transform: none; box-shadow: none; }
+.platform-page .rp-table-container { overflow-x: auto; max-height: 500px; overflow-y: auto; border-radius: 6px; border: 1px solid #dee2e6; }
+.platform-page .rp-table { width: 100%; border-collapse: collapse; }
+.platform-page .rp-table th, .platform-page .rp-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #dee2e6; }
+.platform-page .rp-table th { background: #f8fafc; font-weight: 700; color: #212529; }
+.platform-page .rp-table tr:hover { background: #f8fafc; }
+.platform-page .rp-loading { display: inline-block; width: 18px; height: 18px; border: 3px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: #fff; animation: spin .8s ease-in-out infinite; margin-right: 8px; }
+.platform-page .rp-type-select { padding: 4px 8px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px; background: white; }
+.platform-page .rp-info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 20px; margin-bottom: 24px; }
+.platform-page .rp-success { background: #dcfce7; color: #166534; padding: 16px 20px; border-radius: 6px; margin-bottom: 20px; font-weight: 500; }
+.platform-page .rp-warnings { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; padding: 16px; margin-bottom: 24px; }
+.platform-page .rp-embedding-info { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 16px; margin-top: 24px; }
+
+/* ── Search Dropdown ──────────────────────────────── */
+.platform-page .search-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0; max-height: 200px;
+  overflow-y: auto; background: white; border: 1px solid #dee2e6;
+  border-radius: 6px; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,.1);
+}
+.platform-page .search-dropdown-item { padding: 10px 16px; cursor: pointer; font-size: 14px; }
+.platform-page .search-dropdown-item:hover { background: rgba(0,91,172,.08); }
+
+/* ── Loading Animation ───────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.platform-page .loading {
+  display: inline-block; width: 18px; height: 18px;
+  border: 3px solid rgba(255,255,255,.3); border-radius: 50%;
+  border-top-color: #fff; animation: spin .8s ease-in-out infinite; margin-right: 8px;
+}
+
+/* ── Lit Card List ───────────────────────────────── */
+.platform-page .lit-card-list { margin-top: 16px; }
+
+/* ── Optimized Recipe ────────────────────────────── */
+.platform-page .optimized-recipe { background: white; padding: 20px; border-radius: 6px; margin-top: 12px; border: 1px solid #dee2e6; }
+.platform-page .ingredient-list { list-style: none; margin-top: 12px; }
+.platform-page .ingredient-list li { margin-bottom: 8px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+
+/* ── Properties Display ──────────────────────────── */
+.platform-page .properties-display { background: #f8fafc; padding: 8px 12px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; max-height: 150px; overflow-y: auto; }

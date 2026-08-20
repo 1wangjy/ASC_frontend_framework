@@ -51,6 +51,43 @@ export const ascRouteDefinitions = [
     component: () => import('../views/InteractionView.vue'),
     props: true,
     meta: { title: '问答与证据评估' }
+  },
+  // ── Platform module routes (数据平台 & AI模型) ──
+  {
+    path: '/platform/data',
+    name: 'PlatformData',
+    component: () => import('../platform/views/DataManagerView.vue'),
+    meta: { title: '数据平台' }
+  },
+  {
+    path: '/platform/models',
+    name: 'PlatformModels',
+    component: () => import('../platform/views/HomeView.vue'),
+    meta: { title: '模型入口' }
+  },
+  {
+    path: '/platform/model1',
+    name: 'PlatformModel1',
+    component: () => import('../platform/views/Model1View.vue'),
+    meta: { title: '性能预测' }
+  },
+  {
+    path: '/platform/model2',
+    name: 'PlatformModel2',
+    component: () => import('../platform/views/Model2View.vue'),
+    meta: { title: '配方优化' }
+  },
+  {
+    path: '/platform/model3',
+    name: 'PlatformModel3',
+    component: () => import('../platform/views/Model3View.vue'),
+    meta: { title: '服役预测' }
+  },
+  {
+    path: '/platform/model4',
+    name: 'PlatformModel4',
+    component: () => import('../platform/views/Model4View.vue'),
+    meta: { title: '三维重建' }
   }
 ]
 

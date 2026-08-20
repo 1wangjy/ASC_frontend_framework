@@ -1,0 +1,122 @@
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const dotenv = require('dotenv');
+const path = require('path');
+const fs = require('fs');
+
+// 加载环境变量
+dotenv.config();
+
+// 确保 data/uploads 目录存在（embedding 上传需要）
+const uploadsDir = path.join(__dirname, '../data/uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// 数据库连接
+const database = require('./config/database');
+database.connect().catch(error => {
+  console.error('Database connection failed:', error);
+  process.exit(1);
+});
+
+// 创建Express应用
+const app = express();
+
+// 中间件配置
+app.use(cors());
+
+// 安全中间件 - 允许内联脚本（用于 SidebarModule 初始化）
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+      imgSrc: ["'self'", "data:"],
+      fontSrc: ["'self'", "https:", "data:"],
+      connectSrc: ["'self'"],
+    }
+  }
+}));
+
+// API 速率限制
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15分钟
+  max: 100, // 每个IP最多100个请求
+  message: { code: 429, message: '请求过于频繁，请稍后再试' }
+});
+app.use('/api/', apiLimiter);
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// 静态文件服务 - 开发环境禁用缓存
+app.use(express.static(path.join(__dirname, '../public'), {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.js') || path.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
+
+// 路由导入
+const model1Routes = require('./routes/model1');
+const model2Routes = require('./routes/model2');
+const model3Routes = require('./routes/model3');
+const model4Routes = require('./routes/model4');
+const embeddingRoutes = require('./routes/embedding');
+const llmRoutes = require('./routes/llm');
+const recipeParserRoutes = require('./routes/recipeParser');
+const extFieldRoutes = require('./routes/extField');
+const adminRoutes = require('./routes/admin');
+const authRoutes = require('./routes/auth');
+const newDataRoutes = require('./routes/newData');
+const userRoutes = require('./routes/user');
+const attachmentRoutes = require('./routes/attachment');
+
+// 使用路由
+app.use('/api/embedding', embeddingRoutes);
+app.use('/api/llm', llmRoutes);
+app.use('/api/model1', model1Routes);
+app.use('/api/model2', model2Routes);
+app.use('/api/model3', model3Routes);
+app.use('/api/model4', model4Routes);
+app.use('/api/recipe-parser', recipeParserRoutes);
+app.use('/api/ext-field', extFieldRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/new-data', newDataRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/attachment', attachmentRoutes);
+
+// 健康检查
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// 提供 properties-config.json 文件
+app.get('/config/properties-config.json', (req, res) => {
+  res.sendFile(path.join(__dirname, 'config', 'properties-config.json'));
+});
+
+// 404处理
+app.use((req, res) => {
+  res.status(404).json({ code: 404, message: 'Not Found' });
+});
+
+// 全局异常处理
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ code: 500, message: 'Internal Server Error' });
+});
+
+// 启动服务
+const port = process.env.PORT || 3001;
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
