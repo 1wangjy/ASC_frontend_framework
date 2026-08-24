@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const newDbService = require('../services/newDbService');
 const GridFsBucketStorage = require('../services/gridFsBucketStorage');
+const { normalizeUploadFilename } = require('../utils/uploadFilename');
 
 // 连接MongoDB
 const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/asc-platform';
@@ -48,7 +49,7 @@ exports.uploadAttachment = async (req, res) => {
     
     // 获取文献信息，检查是否有DOI
     const lit = await newDbService.getLit(litId);
-    let finalFilename = file.originalname;
+    let finalFilename = normalizeUploadFilename(file.originalname);
     
     if (lit && lit.doi) {
       // 如果有DOI，使用DOI作为文件名
