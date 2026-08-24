@@ -8,6 +8,10 @@ const newDbService = require('../services/newDbService');
 const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/asc-platform';
 let gfs = null;
 
+exports.isAttachmentStorageReady = () => Boolean(
+  gfs && mongoose.connection.readyState === 1
+);
+
 // 尝试连接MongoDB，但不阻止应用启动
 mongoose.connect(mongoURI, {
   useNewUrlParser: true,
