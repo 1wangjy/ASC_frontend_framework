@@ -1,22 +1,18 @@
 const express = require('express');
-const multer = require('multer');
 const mongoose = require('mongoose');
-const Grid = require('gridfs-stream');
 const newDbService = require('../services/newDbService');
+const GridFsBucketStorage = require('../services/gridFsBucketStorage');
 
 // 连接MongoDB
 const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/asc-platform';
-let gfs = null;
+let gridFsStorage = null;
 
 exports.isAttachmentStorageReady = () => Boolean(
-  gfs && mongoose.connection.readyState === 1
+  gridFsStorage && mongoose.connection.readyState === 1
 );
 
 // 尝试连接MongoDB，但不阻止应用启动
-mongoose.connect(mongoURI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).catch(err => {
+mongoose.connect(mongoURI).catch(err => {
   console.warn('MongoDB connection failed (attachment storage will be disabled):', err.message);
 });
 
@@ -25,17 +21,12 @@ const conn = mongoose.connection;
 // 初始化GridFS
 conn.once('open', () => {
   try {
-    gfs = Grid(conn.db, mongoose.mongo);
-    gfs.collection('attachments');
+    gridFsStorage = new GridFsBucketStorage(conn.db, 'attachments');
     console.log('MongoDB connected for attachment storage');
   } catch (err) {
     console.warn('Failed to initialize GridFS:', err.message);
   }
 });
-
-// 配置multer
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
 
 // 上传附件
 exports.uploadAttachment = async (req, res) => {
@@ -50,7 +41,7 @@ exports.uploadAttachment = async (req, res) => {
       return;
     }
     
-    if (!gfs) {
+    if (!gridFsStorage) {
       res.status(503).json({ success: false, error: 'MongoDB未连接，附件存储功能暂时不可用' });
       return;
     }
@@ -67,29 +58,18 @@ exports.uploadAttachment = async (req, res) => {
       finalFilename = `${doiFilename}.${ext}`;
     }
     
-    // 创建GridFS写入流
-    const writeStream = gfs.createWriteStream({
-      filename: finalFilename,
-      bucketName: 'attachments'
-    });
-    
-    // 写入文件
-    writeStream.write(file.buffer);
-    writeStream.end();
-    
-    writeStream.on('finish', async () => {
-      // 更新文献记录，添加附件路径
+    await gridFsStorage.upload(file.buffer, finalFilename, file.mimetype);
+
+    try {
       await newDbService.updateLit(litId, {
         attachment: finalFilename
       });
-      
-      res.json({ success: true, data: { filename: finalFilename } });
-    });
-    
-    writeStream.on('error', (error) => {
-      console.error('Error writing to GridFS:', error);
-      res.status(500).json({ success: false, error: error.message });
-    });
+    } catch (error) {
+      await gridFsStorage.deleteByFilename(finalFilename).catch(() => {});
+      throw error;
+    }
+
+    res.json({ success: true, data: { filename: finalFilename } });
   } catch (error) {
     console.error('Error uploading attachment:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -101,37 +81,31 @@ exports.getAttachment = async (req, res) => {
   try {
     const filename = req.params.filename;
     
-    if (!gfs) {
+    if (!gridFsStorage) {
       res.status(503).json({ success: false, error: 'MongoDB未连接，附件存储功能暂时不可用' });
       return;
     }
-    
-    // 从GridFS中查找文件
-    gfs.files.findOne({ filename: filename }, (err, file) => {
-      if (err) {
-        console.error('Error finding file in GridFS:', err);
-        res.status(500).json({ success: false, error: err.message });
-        return;
-      }
-      
-      if (!file) {
-        res.status(404).json({ success: false, error: '附件不存在' });
-        return;
-      }
-      
-      // 创建GridFS读取流
-      const readStream = gfs.createReadStream({
-        filename: filename,
-        bucketName: 'attachments'
-      });
-      
-      // 设置响应头
-      res.set('Content-Type', file.contentType || 'application/pdf');
-      res.set('Content-Disposition', `inline; filename="${filename}"`);
-      
-      // 管道流到响应
-      readStream.pipe(res);
+
+    const file = await gridFsStorage.findByFilename(filename);
+    if (!file) {
+      res.status(404).json({ success: false, error: '附件不存在' });
+      return;
+    }
+
+    const asciiFilename = filename.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+    res.set('Content-Type', file.contentType || file.metadata?.contentType || 'application/pdf');
+    res.set(
+      'Content-Disposition',
+      `inline; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+    );
+
+    const readStream = gridFsStorage.openDownloadStream(file._id);
+    readStream.once('error', (error) => {
+      console.error('Error reading from GridFS:', error);
+      if (!res.headersSent) res.status(500).json({ success: false, error: error.message });
+      else res.destroy(error);
     });
+    readStream.pipe(res);
   } catch (error) {
     console.error('Error getting attachment:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -152,7 +126,7 @@ exports.removeAttachment = async (req, res) => {
       return;
     }
     
-    if (!gfs) {
+    if (!gridFsStorage) {
       // 即使MongoDB未连接，也要更新文献记录，移除附件路径
       await newDbService.updateLit(litId, {
         attachment: null
@@ -161,21 +135,12 @@ exports.removeAttachment = async (req, res) => {
       return;
     }
     
-    // 从GridFS中删除文件
-    gfs.remove({ filename: lit.attachment, bucketName: 'attachments' }, async (err, gridStore) => {
-      if (err) {
-        console.error('Error removing file from GridFS:', err);
-        res.status(500).json({ success: false, error: err.message });
-        return;
-      }
-      
-      // 更新文献记录，移除附件路径
-      await newDbService.updateLit(litId, {
-        attachment: null
-      });
-      
-      res.json({ success: true });
+    await gridFsStorage.deleteByFilename(lit.attachment);
+    await newDbService.updateLit(litId, {
+      attachment: null
     });
+
+    res.json({ success: true });
   } catch (error) {
     console.error('Error removing attachment:', error);
     res.status(500).json({ success: false, error: error.message });
