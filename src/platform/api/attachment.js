@@ -1,5 +1,5 @@
-import request from './request'
-import { unwrapApiSuccess } from './request'
+import request from './request.js'
+import { unwrapApiSuccess } from './request.js'
 
 export function uploadAttachment(file, litId) {
   const formData = new FormData()
@@ -15,9 +15,18 @@ export function removeAttachment(litId) {
 }
 
 export function testMongoDB() {
-  return request.get('/api/attachment/test').then(unwrapApiSuccess)
+  return request.get('/api/attachment/test')
+    .then(unwrapApiSuccess)
+    .catch((error) => {
+      throw new Error(
+        error?.response?.data?.message
+        || error?.response?.data?.error
+        || error?.message
+        || '附件服务不可用',
+      )
+    })
 }
 
 export function getAttachmentUrl(filename) {
-  return `/api/attachment/${filename}`
+  return `/api/attachment/${encodeURIComponent(filename)}`
 }
