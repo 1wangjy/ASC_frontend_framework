@@ -131,6 +131,7 @@ class SQLiteInitializer {
           abstract TEXT,
           note TEXT,
           entry_type TEXT,
+          attachment TEXT,
           create_time TIMESTAMP NOT NULL,
           update_time TIMESTAMP NOT NULL,
           is_delete INTEGER DEFAULT 0
@@ -259,10 +260,26 @@ class SQLiteInitializer {
           reject(err);
         } else {
           console.log('SQLite tables created successfully');
-          this.initBasicData().then(resolve).catch(reject);
+          this.ensureLiteratureAttachmentColumn()
+            .then(() => this.initBasicData())
+            .then(resolve)
+            .catch(reject);
         }
       });
     });
+  }
+
+  async ensureLiteratureAttachmentColumn() {
+    const columns = await new Promise((resolve, reject) => {
+      this.db.all('PRAGMA table_info(literature)', (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    if (columns.some(column => column.name === 'attachment')) return;
+    await this.dbRun('ALTER TABLE literature ADD COLUMN attachment TEXT', []);
+    console.log('Added literature.attachment column');
   }
 
   async initBasicData() {

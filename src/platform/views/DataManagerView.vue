@@ -53,7 +53,12 @@
         <h2>文献库管理</h2>
         <div class="toolbar" style="margin-bottom:24px">
           <input v-model="litSearchFilter" type="text" placeholder="输入关键词搜索..." class="filter-input" />
-          <button class="btn" @click="openAddLitModal()">添加文献/专利</button>
+          <LiteraturePdfImportActions
+            :busy="isImportingPdf"
+            :status="pdfImportStatus"
+            @file-selected="handleDirectPdfImport"
+            @manual-create="openAddLitModal"
+          />
           <button class="btn" @click="loadLitData()">刷新数据</button>
         </div>
         <div v-if="filteredLitData.length === 0" style="text-align:center;padding:60px 20px;color:#888">
@@ -74,11 +79,7 @@
                 <button class="btn btn-danger btn-small" @click="handleDeleteLit(lit)">删除</button>
               </div>
             </div>
-            <div v-if="lit.attachment" style="margin-top:12px;display:flex;gap:8px">
-              <a :href="'/api/attachment/' + lit.attachment" target="_blank" class="btn btn-secondary btn-small">预览附件</a>
-              <button class="btn btn-danger btn-small" @click="handleRemoveAttachment(lit.lit_id)">删除附件</button>
-            </div>
-            <div v-else style="margin-top:12px"><button class="btn btn-secondary btn-small" @click="handleUploadAttachment(lit.lit_id)">上传附件</button></div>
+            <LiteratureAttachmentActions :literature="lit" @upload="handleUploadAttachment" />
           </div>
         </div>
       </div>
@@ -163,9 +164,12 @@
         <div class="form-group"><label>期刊/会议</label><input v-model="addLitForm.journal" type="text" /></div>
         <div class="form-group"><label>年份</label><input v-model="addLitForm.year" type="number" /></div>
         <div class="form-group"><label>类型</label><select v-model="addLitForm.entry_type"><option v-for="opt in LIT_TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option></select></div>
+        <div class="form-group"><label>Volume</label><input v-model="addLitForm.volume" type="text" /></div>
+        <div class="form-group"><label>Number</label><input v-model="addLitForm.number" type="text" /></div>
+        <div class="form-group"><label>Pages</label><input v-model="addLitForm.pages" type="text" /></div>
         <div class="form-group"><label>摘要</label><textarea v-model="addLitForm.abstract" rows="4"></textarea></div>
         <div class="form-group"><label>DOI</label><input v-model="addLitForm.doi" type="text" /></div>
-        <div class="form-group"><label>附件</label><input type="file" accept=".pdf" @change="onLitFileChange" /></div>
+        <div class="form-group"><label>Note</label><textarea v-model="addLitForm.note" rows="3"></textarea></div>
         <div class="modal-actions"><button class="btn" @click="submitAddLit()">{{ isEditingLit ? '更新' : '保存' }}</button><button class="btn btn-secondary" @click="showAddLitModal = false">取消</button></div>
       </div>
     </div>
@@ -196,8 +200,11 @@ import { usePlatformPropertiesStore } from '../stores/properties'
 import RecipeParserPanel from '../components/RecipeParserPanel.vue'
 import DataTable from '../components/DataTable.vue'
 import ComponentListEditor from '../components/ComponentListEditor.vue'
-import { create, update, remove, getAllLiterature } from '../api/newData'
-import { uploadAttachment, removeAttachment, testMongoDB } from '../api/attachment'
+import LiteratureAttachmentActions from '../components/LiteratureAttachmentActions.vue'
+import LiteraturePdfImportActions from '../components/LiteraturePdfImportActions.vue'
+import { create, update, remove, getAllLiterature, toLiteraturePayload } from '../api/newData'
+import { uploadAttachment, testMongoDB } from '../api/attachment'
+import { importLiteraturePdf } from '../services/literaturePdfImport.js'
 import { MC_TYPE_OPTIONS, MR_TYPE_OPTIONS, LIT_TYPE_OPTIONS, ID_FIELD_MAP } from '../types/entities'
 
 const MAIN_TABS = [{ key: 'parse', label: '数据解析' }, { key: 'manage', label: '数据管理' }, { key: 'literature', label: '文献库管理' }, { key: 'mongodb', label: 'MongoDB测试' }]
@@ -233,8 +240,8 @@ const showAddTpModal = ref(false); const addTpMrId = ref(''); const addTpResults
 const showAddFeModal = ref(false); const addFeConditionName = ref(''); const addFeConditionParams = ref(''); const addFeMrIds = ref('')
 const showAddRuModal = ref(false); const addRuServiceName = ref(''); const addRuServiceParams = ref(''); const addRuFeIds = ref(''); const addRuMrIds = ref('')
 const showAddLitModal = ref(false); const isEditingLit = ref(false); const editingLitId = ref('')
-const addLitForm = ref({ title: '', authors: '', journal: '', year: '', entry_type: 'journal', abstract: '', keywords: '', doi: '', url: '' })
-const addLitAttachment = ref(null)
+const addLitForm = ref({ title: '', authors: '', journal: '', year: '', volume: '', number: '', pages: '', entry_type: 'journal', abstract: '', doi: '', note: '' })
+const isImportingPdf = ref(false); const pdfImportStatus = ref('')
 const showCreateMcModal = ref(false); const createMcBatchNo = ref(''); const createMcType = ref('支撑骨料'); const createMcComponents = ref([{ name: '新建原料', id: null, ratio: 100 }])
 const showCreateMpModal = ref(false); const createMpMcId = ref(''); const createMpProps = ref(''); const createMpTarget = ref(null); const createMpExistingId = ref('')
 
@@ -280,14 +287,13 @@ async function submitAddTp() { const lines = addTpResults.value.split('\n').map(
 async function submitAddFe() { if (!addFeConditionName.value) { alert('请输入工况名称'); return } let params = {}; try { params = addFeConditionParams.value ? JSON.parse(addFeConditionParams.value) : {} } catch { alert('工况参数格式错误'); return } try { await create('fe', { condition_name: addFeConditionName.value, condition_type: '', condition_params: params, mr_ids: addFeMrIds.value ? addFeMrIds.value.split(',').map(s => s.trim()) : [] }); showAddFeModal.value = false; addFeConditionName.value = ''; addFeConditionParams.value = ''; addFeMrIds.value = ''; await loadManageData() } catch (e) { alert('添加失败：' + (e.message || '请重试')) } }
 async function submitAddRu() { if (!addRuServiceName.value) { alert('请输入服役名称'); return } let params = {}; try { params = addRuServiceParams.value ? JSON.parse(addRuServiceParams.value) : {} } catch { alert('服役参数格式错误'); return } try { await create('ru', { service_name: addRuServiceName.value, service_type: '', service_params: params, fe_ids: addRuFeIds.value ? addRuFeIds.value.split(',').map(s => s.trim()) : [], mr_ids: addRuMrIds.value ? addRuMrIds.value.split(',').map(s => s.trim()) : [] }); showAddRuModal.value = false; addRuServiceName.value = ''; addRuServiceParams.value = ''; addRuFeIds.value = ''; addRuMrIds.value = ''; await loadManageData() } catch (e) { alert('添加失败：' + (e.message || '请重试')) } }
 
-function resetLitForm() { addLitForm.value = { title: '', authors: '', journal: '', year: '', entry_type: 'journal', abstract: '', keywords: '', doi: '', url: '' }; addLitAttachment.value = null; isEditingLit.value = false; editingLitId.value = '' }
+function resetLitForm() { addLitForm.value = { title: '', authors: '', journal: '', year: '', volume: '', number: '', pages: '', entry_type: 'journal', abstract: '', doi: '', note: '' }; isEditingLit.value = false; editingLitId.value = '' }
 function openAddLitModal() { resetLitForm(); showAddLitModal.value = true }
-function openEditLitModal(lit) { isEditingLit.value = true; editingLitId.value = lit.lit_id; addLitForm.value = { title: lit.title || '', authors: lit.authors || '', journal: lit.journal || '', year: String(lit.year || ''), entry_type: lit.entry_type || 'journal', abstract: lit.abstract || '', keywords: lit.keywords || '', doi: lit.doi || '', url: lit.url || '' }; addLitAttachment.value = null; showAddLitModal.value = true }
-function onLitFileChange(e) { const target = e.target; if (target.files && target.files[0]) addLitAttachment.value = target.files[0] }
-async function submitAddLit() { const f = addLitForm.value; if (!f.title || !f.authors) { alert('请填写标题和作者'); return } try { if (isEditingLit.value) { await update('lit', editingLitId.value, { title: f.title, authors: f.authors, journal: f.journal, year: f.year, entry_type: f.entry_type, abstract: f.abstract, keywords: f.keywords, doi: f.doi, url: f.url }); if (addLitAttachment.value) await uploadAttachment(addLitAttachment.value, editingLitId.value) } else { const r = await create('lit', { title: f.title, authors: f.authors, journal: f.journal, year: f.year, entry_type: f.entry_type, abstract: f.abstract, keywords: f.keywords, doi: f.doi, url: f.url }); if (addLitAttachment.value && r && r.lit_id) await uploadAttachment(addLitAttachment.value, r.lit_id) }; showAddLitModal.value = false; resetLitForm(); await loadLitData() } catch (e) { alert((isEditingLit.value ? '更新' : '添加') + '失败：' + (e.message || '请重试')) } }
+function openEditLitModal(lit) { isEditingLit.value = true; editingLitId.value = lit.lit_id; addLitForm.value = { title: lit.title || '', authors: lit.authors || '', journal: lit.journal || '', year: String(lit.year || ''), volume: lit.volume || '', number: lit.number || '', pages: lit.pages || '', entry_type: lit.entry_type || 'journal', abstract: lit.abstract || '', doi: lit.doi || '', note: lit.note || '' }; showAddLitModal.value = true }
+async function submitAddLit() { const f = addLitForm.value; if (!f.title || !f.authors) { alert('请填写标题和作者'); return } try { const payload = toLiteraturePayload(f); if (isEditingLit.value) { await update('lit', editingLitId.value, payload) } else { await create('lit', payload) }; showAddLitModal.value = false; resetLitForm(); await loadLitData() } catch (e) { alert((isEditingLit.value ? '更新' : '添加') + '失败：' + (e.response?.data?.error || e.message || '请重试')) } }
 async function handleDeleteLit(lit) { if (!confirm('确定要删除这条文献记录吗？')) return; try { await remove('lit', lit.lit_id); await loadLitData() } catch (e) { alert('删除失败：' + (e.message || '请重试')) } }
-async function handleUploadAttachment(litId) { const input = document.createElement('input'); input.type = 'file'; input.accept = '.pdf'; input.onchange = async () => { const file = input.files?.[0]; if (file) { try { await uploadAttachment(file, litId); await loadLitData() } catch (e) { alert('上传失败：' + (e.message || '请重试')) } }; input.remove() }; input.click() }
-async function handleRemoveAttachment(litId) { if (!confirm('确定要删除附件吗？')) return; try { await removeAttachment(litId); await loadLitData() } catch (e) { alert('删除失败：' + (e.message || '请重试')) } }
+async function handleUploadAttachment(litId) { const input = document.createElement('input'); input.type = 'file'; input.accept = '.pdf,application/pdf'; input.onchange = async () => { const file = input.files?.[0]; if (file) { try { await uploadAttachment(file, litId); await loadLitData(); alert('PDF 上传成功') } catch (e) { alert('上传失败：' + (e.response?.data?.error || e.message || '请重试')) } }; input.remove() }; input.click() }
+async function handleDirectPdfImport(file) { if (isImportingPdf.value) return; const progressText = { validating: '正在检查 PDF…', uploading: '正在上传 PDF…', parsing: '正在解析文献信息…', complete: '导入完成' }; isImportingPdf.value = true; pdfImportStatus.value = ''; try { const result = await importLiteraturePdf(file, { onProgress: stage => { pdfImportStatus.value = progressText[stage] || '' } }); await loadLitData(); pdfImportStatus.value = result.degraded ? 'PDF 已导入，可稍后补充文献信息' : '导入完成' } catch (e) { pdfImportStatus.value = '导入失败：' + (e.response?.data?.error || e.response?.data?.message || e.message || '请重试') } finally { isImportingPdf.value = false } }
 
 function openCreateMc() { showCreateMcModal.value = true }
 async function submitCreateMc() { if (!createMcBatchNo.value) { alert('请输入批次号'); return } try { const r = await create('mc', { batch_no: createMcBatchNo.value, type: createMcType.value, component_list: createMcComponents.value.map(c => [c.name, c.id || null, '{}', c.ratio]) }); showCreateMcModal.value = false; createMcBatchNo.value = ''; createMcComponents.value = [{ name: '新建原料', id: null, ratio: 100 }]; await loadManageData() } catch (e) { alert('创建失败：' + (e.message || '请重试')) } }

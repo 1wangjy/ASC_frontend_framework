@@ -1,5 +1,23 @@
-import request from './request'
-import { unwrapApiSuccess } from './request'
+import request from './request.js'
+import { unwrapApiSuccess } from './request.js'
+
+const LITERATURE_FIELDS = [
+  'title',
+  'authors',
+  'journal',
+  'year',
+  'volume',
+  'number',
+  'pages',
+  'doi',
+  'abstract',
+  'note',
+  'entry_type',
+]
+
+export function toLiteraturePayload(data = {}) {
+  return Object.fromEntries(LITERATURE_FIELDS.map((field) => [field, data[field] ?? '']))
+}
 
 /**
  * 获取整表数据。后端 `/api/new-data/:table` 返回裸数组。
