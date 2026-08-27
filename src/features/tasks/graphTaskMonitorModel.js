@@ -165,9 +165,9 @@ export function normalizeGraphTaskItems(projects = [], taskById = new Map()) {
     .sort((left, right) => Number(right.active) - Number(left.active) || right.updatedAt - left.updatedAt)
 }
 
-export function selectVisibleGraphTasks(items = [], maxRecent = 3) {
+export function selectVisibleGraphTasks(items = []) {
   const active = items.filter(item => item.active)
-  const terminal = items.filter(item => !item.active).slice(0, maxRecent)
+  const terminal = items.filter(item => !item.active)
   return [...active, ...terminal]
 }
 

@@ -6,9 +6,12 @@
         <h1 id="report-center-title">报告生成</h1>
         <p>查看后端已保存的研究报告，并继续跟踪仍在生成的报告。</p>
       </div>
-      <button type="button" :disabled="loading" @click="refreshReports">
-        {{ loading ? '加载中' : '刷新报告' }}
-      </button>
+      <div class="report-center-view__header-actions">
+        <router-link class="report-center-view__home" to="/">← 返回首页</router-link>
+        <button type="button" :disabled="loading" @click="refreshReports">
+          {{ loading ? '加载中' : '刷新报告' }}
+        </button>
+      </div>
     </header>
 
     <section v-if="loading" class="report-center-view__state" role="status">
@@ -379,6 +382,33 @@ onBeforeUnmount(() => {
   gap: 24px;
 }
 
+.report-center-view__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.report-center-view__home {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 16px;
+  border: 1px solid var(--asc-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--asc-primary);
+  font-size: 13px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.report-center-view__home:hover,
+.report-center-view__home:focus-visible {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary-soft);
+  outline: none;
+}
+
 .report-project-group {
   min-width: 0;
 }
@@ -624,6 +654,7 @@ onBeforeUnmount(() => {
 
   .report-center-view__header {
     align-items: flex-start;
+    flex-direction: column;
   }
 
   .report-center-view__header button {
@@ -637,6 +668,11 @@ onBeforeUnmount(() => {
 
   .report-card {
     padding: 20px;
+  }
+
+  .report-center-view__header-actions {
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .report-center-view__groups {

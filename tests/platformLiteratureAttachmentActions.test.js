@@ -13,12 +13,13 @@ test('literature without an attachment shows the upload action', async () => {
   assert.doesNotMatch(html, /预览 PDF/)
 })
 
-test('literature with an attachment shows an encoded preview link only', async () => {
+test('literature with an attachment shows encoded preview and PDF download actions', async () => {
   const html = await renderSfc('/src/platform/components/LiteratureAttachmentActions.vue', {
     literature: { lit_id: 'LIT000001', attachment: 'LIT 论文.pdf' },
   })
 
   assert.match(html, /预览 PDF/)
+  assert.match(html, /下载 PDF/)
   assert.match(html, /\/api\/attachment\/LIT%20%E8%AE%BA%E6%96%87\.pdf/)
-  assert.doesNotMatch(html, /未上传 PDF|下载 PDF|删除附件/)
+  assert.doesNotMatch(html, /未上传 PDF|上传 PDF|删除 PDF/)
 })

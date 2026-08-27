@@ -13,7 +13,6 @@ import { createMemoryVueRenderer, renderedText } from './helpers/createMemoryVue
 test('uses bounded workflow cache keys without query-driven duplicates', () => {
   assert.deepEqual([...WORKFLOW_VIEW_NAMES], [
     'AscQaView',
-    'DocumentLibraryView',
     'GraphProjectWorkspaceView',
     'SimulationView',
     'SimulationRunView',
@@ -23,7 +22,7 @@ test('uses bounded workflow cache keys without query-driven duplicates', () => {
   ])
   assert.equal(workflowRouteViewKey({ name: 'AscQa', fullPath: '/?projectId=p1' }), 'workflow:AscQa')
   assert.equal(workflowRouteViewKey({ name: 'AscQa', fullPath: '/?projectId=p2' }), 'workflow:AscQa')
-  assert.equal(workflowRouteViewKey({ name: 'Documents', fullPath: '/documents' }), 'workflow:Documents')
+  assert.equal(workflowRouteViewKey({ name: 'Documents', fullPath: '/documents' }), '/documents')
   assert.equal(workflowRouteViewKey({ name: 'Process', fullPath: '/process/p1' }), 'workflow:Process')
   assert.equal(workflowRouteViewKey({ name: 'Process', fullPath: '/process/p2' }), 'workflow:Process')
   assert.equal(workflowRouteViewKey({ name: 'Reports', fullPath: '/reports' }), 'workflow:Reports')
@@ -76,7 +75,7 @@ test('keeps QA completion and graph page state alive while another route is visi
       return () => h('p', log.value)
     }
   })
-  const DocumentsView = defineComponent({ name: 'DocumentLibraryView', setup: () => () => h('p', 'documents') })
+  const DocumentsView = defineComponent({ name: 'RetiredDocumentsView', setup: () => () => h('p', 'documents') })
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -128,7 +127,7 @@ test('keeps simulation and report task pages mounted across sidebar navigation',
   let advanceSimulation = () => {}
   let advanceReport = () => {}
 
-  const DocumentsView = defineComponent({ name: 'DocumentLibraryView', setup: () => () => h('p', 'documents') })
+  const DocumentsView = defineComponent({ name: 'RetiredDocumentsView', setup: () => () => h('p', 'documents') })
   const SimulationRunView = defineComponent({
     name: 'SimulationRunView',
     setup() {

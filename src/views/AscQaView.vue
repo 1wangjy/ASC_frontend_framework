@@ -2,7 +2,7 @@
   <div
     class="qa-layout"
     :class="{
-      'qa-layout--recent': qaState.phase === 'empty' && !qaState.evidenceOpen,
+      'qa-layout--recent': qaState.mode === 'multi' && !qaState.evidenceOpen,
       'qa-layout--evidence': qaState.evidenceOpen || qualityOpen
     }"
   >
@@ -15,13 +15,70 @@
         <div class="qa-project-context">
           <span>当前图谱</span>
           <strong>{{ activeProject ? projectLabel(activeProject) : '未选择' }}</strong>
-          <button type="button" @click="selectorOpen = true">
+          <button type="button" :disabled="multiNavigationLocked" @click="selectorOpen = true">
             {{ activeProject ? '更换图谱' : '选择图谱' }}
           </button>
         </div>
       </header>
 
-      <section v-if="qaState.phase === 'empty'" class="qa-empty">
+      <section
+        v-if="qaState.mode === 'multi'"
+        class="qa-multi-page"
+        :class="multiHasHistory ? 'qa-multi-page--history' : 'qa-multi-page--empty'"
+      >
+        <div class="qa-empty__intro qa-multi-page__intro">
+          <div class="asc-orbit" aria-hidden="true">
+            <span>ASC</span>
+          </div>
+          <h1>{{ multiHeroTitle }}</h1>
+          <p>{{ multiHeroSubtitle }}</p>
+          <QaModeSwitcher
+            mode="multi"
+            :disabled="multiNavigationLocked"
+            @update:mode="updateMode"
+          />
+        </div>
+
+        <div v-if="projectUnavailableMessage" class="qa-project-message" :class="{ error: projectError }">
+          <span>{{ projectUnavailableMessage }}</span>
+          <button v-if="projectError" type="button" @click="retryQualifiedProjects">重试</button>
+          <button v-if="!projectsLoading && !activeProject" type="button" @click="selectorOpen = true">
+            选择项目
+          </button>
+        </div>
+
+        <div
+          class="qa-multi-page__workspace"
+          :class="multiHasHistory
+            ? 'qa-multi-page__workspace--history'
+            : 'qa-multi-page__workspace--empty'"
+        >
+          <div class="qa-multi-page__discussion">
+            <MultiDiscussionPanel
+              ref="multiDiscussionPanel"
+              :key="activeProject?.graphId"
+              embedded
+              :graph-options="multiGraphOptions"
+              :selected-graph-id="activeProject?.graphId || ''"
+              @history-change="multiHasHistory = $event"
+              @select-prompt="draft = $event"
+            />
+          </div>
+
+          <QuestionComposer
+            v-model="draft"
+            compact
+            :disabled="multiSending || !activeProject"
+            mode="multi"
+            :settings="qaState.settings"
+            :model-options="composerModelOptions"
+            @update:settings="updateSettings"
+            @submit="sendQuestion"
+          />
+        </div>
+      </section>
+
+      <section v-else-if="showQaHome" class="qa-empty">
         <div class="qa-empty__intro">
           <div class="asc-orbit" aria-hidden="true">
             <span>ASC</span>
@@ -44,6 +101,7 @@
           :mode="qaState.mode"
           :mode-disabled="qaState.phase === 'loading'"
           :settings="qaState.settings"
+          :model-options="composerModelOptions"
           @update:mode="updateMode"
           @update:settings="updateSettings"
           @submit="sendQuestion"
@@ -59,7 +117,7 @@
       <section v-else class="qa-session">
         <button type="button" class="qa-result-back" @click="returnToQaHome">
           <span aria-hidden="true">←</span>
-          返回问答首页
+          返回首页
         </button>
 
         <header class="qa-result-context">
@@ -112,10 +170,11 @@
     </main>
 
     <RecentConversationsPanel
-      v-if="qaState.phase === 'empty' && !qaState.evidenceOpen"
-      :conversations="recentConversations"
-      @select="openConversation"
-      @new-chat="reset"
+      v-if="!qaState.evidenceOpen"
+      :mode="qaState.mode"
+      :disabled="multiNavigationLocked"
+      @new-chat="startNewQa"
+      @exit-multi="exitMultiDiscussion"
     />
 
     <EvidencePanel
@@ -164,7 +223,14 @@ import AnswerDetailsTabs from '../features/qa/AnswerDetailsTabs.vue'
 import EvidencePanel from '../features/qa/EvidencePanel.vue'
 import QualityPanel from '../features/qa/QualityPanel.vue'
 import RecentConversationsPanel from '../features/qa/RecentConversationsPanel.vue'
+import QaModeSwitcher from '../features/qa/QaModeSwitcher.vue'
 import QaProjectSelector from '../features/qa/QaProjectSelector.vue'
+import MultiDiscussionPanel from '../features/qa/multiDiscussion/MultiDiscussionPanel.vue'
+import { getMultiDiscussionCapabilities } from '../features/qa/multiDiscussion/api.js'
+import {
+  clearSavedMultiDiscussion,
+  shouldLockMultiDiscussionNavigation
+} from '../features/qa/multiDiscussion/sessionStorage.js'
 import {
   codGraphRAGQuery,
   getProject,
@@ -186,6 +252,7 @@ import {
   canEvaluateAnswer,
   completeApiAnswer,
   createQaState,
+  domesticModelOptions,
   failApiAnswer,
   resetConversation,
   selectQaMode,
@@ -213,6 +280,13 @@ const graphTaskMonitor = useGraphTaskMonitor()
 const browserStorage = getBrowserStorage(globalThis)
 const qaState = ref(createQaState())
 const draft = ref('')
+const multiDiscussionPanel = ref(null)
+const multiHasHistory = ref(false)
+const multiModelOptions = ref([])
+const modelSelectionByMode = ref({
+  single: qaState.value.settings.model,
+  multi: 'default'
+})
 const questionGuides = ref(createQuestionGuideState())
 const projects = ref([])
 const activeProjectId = ref('')
@@ -243,6 +317,28 @@ const activeProject = computed(
 const evaluationEnabled = computed(() => canEvaluateAnswer(qaState.value))
 const evaluationAnswerSummary = computed(() => String(qaState.value.answer?.summary || '').trim())
 const qaModeLabel = computed(() => qaState.value.mode === 'multi' ? '多轮连续' : '单轮深度')
+const singleModelOptions = domesticModelOptions.map(value => ({ value, label: value }))
+const composerModelOptions = computed(() => (
+  qaState.value.mode === 'multi' ? multiModelOptions.value : singleModelOptions
+))
+const showQaHome = computed(() => qaState.value.phase === 'empty')
+const multiSending = computed(() => Boolean(multiDiscussionPanel.value?.sending))
+const multiNavigationLocked = computed(() => (
+  shouldLockMultiDiscussionNavigation(qaState.value.mode, multiSending.value)
+))
+const multiHeroTitle = computed(() => (
+  multiHasHistory.value ? '与当前图谱持续讨论' : '从一个图谱问题开始'
+))
+const multiHeroSubtitle = computed(() => (
+  multiHasHistory.value
+    ? '延续已有讨论上下文，继续追问、验证与深入分析'
+    : '围绕当前图谱提出第一个问题，后续追问将自动继承上下文'
+))
+const multiGraphOptions = computed(() => activeProject.value ? [{
+  project_id: activeProject.value.projectId,
+  graph_id: activeProject.value.graphId,
+  graph_name: activeProject.value.projectName
+}] : [])
 const projectUnavailableMessage = computed(() => {
   if (projectsLoading.value) return '正在读取可用于问答的知识图谱项目…'
   if (projectError.value) return projectError.value
@@ -296,13 +392,18 @@ function retryQualifiedProjects() {
 }
 
 function selectQualifiedProject(projectId) {
+  if (multiNavigationLocked.value) return
   const previousProjectId = activeProjectId.value
   if (!qaProjectContext.select(projectId)) return
   const selected = qaProjectContext.snapshot().selected
   scopeSelectionRequired.value = false
   selectorOpen.value = false
 
-  if (previousProjectId && previousProjectId !== selected.projectId) reset()
+  if (previousProjectId && previousProjectId !== selected.projectId) {
+    if (qaState.value.mode === 'multi') {
+      draft.value = ''
+    } else reset()
+  }
   const query = { ...route.query, projectId: selected.projectId }
   delete query.reportId
   delete query.conversation
@@ -319,8 +420,26 @@ async function waitForCurrentProjectsLoad() {
   } while (pendingLoad !== currentProjectsLoad)
 }
 
-async function sendQuestion(question = draft.value) {
-  if (qaState.value.mode !== 'single' || !activeProject.value || projectsLoading.value) return
+async function sendQuestion(submission = draft.value) {
+  if (!activeProject.value || projectsLoading.value) return
+  if (qaState.value.mode === 'multi') {
+    const payload = submission && typeof submission === 'object'
+      ? submission
+      : { question: String(submission || ''), image: null, multiModule: 'inline' }
+    if (!payload.question?.trim() && !payload.image) return
+    draft.value = ''
+    await multiDiscussionPanel.value?.submitExternal({
+      ...payload,
+      model: qaState.value.settings.model,
+      reasoning: qaState.value.settings.reasoning
+    })
+    return
+  }
+  await sendSingleQuestion(typeof submission === 'string' ? submission : draft.value)
+}
+
+async function sendSingleQuestion(question = draft.value) {
+  if (!activeProject.value || projectsLoading.value) return
   const nextState = submitQuestion(qaState.value, question)
   if (nextState === qaState.value) return
 
@@ -363,10 +482,35 @@ function retryQuestion() {
 
 function updateSettings(patch) {
   qaState.value = updateQaSettings(qaState.value, patch)
+  if (patch.model) modelSelectionByMode.value[qaState.value.mode] = patch.model
 }
 
-function updateMode(mode) {
+async function loadMultiDiscussionModels() {
+  if (multiModelOptions.value.length) return
+  try {
+    const response = await getMultiDiscussionCapabilities()
+    const modes = Array.isArray(response.data?.model_modes) ? response.data.model_modes : []
+    multiModelOptions.value = modes.map(item => ({
+      value: item.mode,
+      label: [item.label, item.model].filter(Boolean).join(' · ')
+    }))
+    modelSelectionByMode.value.multi = response.data?.default_model_mode || modes[0]?.mode || 'default'
+  } catch (_error) {
+    multiModelOptions.value = [{ value: 'default', label: '默认模式 · Qwen3-VL 32B' }]
+    modelSelectionByMode.value.multi = 'default'
+  }
+}
+
+async function updateMode(mode) {
+  if (mode === qaState.value.mode) return
+  modelSelectionByMode.value[qaState.value.mode] = qaState.value.settings.model
   qaState.value = selectQaMode(qaState.value, mode)
+  if (mode === 'multi') {
+    await loadMultiDiscussionModels()
+    qaState.value = updateQaSettings(qaState.value, { model: modelSelectionByMode.value.multi })
+    return
+  }
+  qaState.value = updateQaSettings(qaState.value, { model: modelSelectionByMode.value.single })
 }
 
 function chooseCitation(citationId) {
@@ -501,7 +645,21 @@ function reset() {
   questionGuides.value = createQuestionGuideState()
 }
 
-async function returnToQaHome() {
+function startNewQa() {
+  if (qaState.value.mode === 'multi') {
+    if (multiNavigationLocked.value) return
+    if (multiDiscussionPanel.value) multiDiscussionPanel.value.startNewDiscussion()
+    else clearSavedMultiDiscussion(browserStorage, activeProject.value?.graphId)
+    draft.value = ''
+    questionGuides.value = createQuestionGuideState()
+    return
+  }
+  reset()
+}
+
+async function exitMultiDiscussion() {
+  if (multiNavigationLocked.value) return
+  await updateMode('single')
   reset()
   const query = { ...route.query }
   delete query.conversation
@@ -509,10 +667,33 @@ async function returnToQaHome() {
   await router.replace({ path: '/', query })
 }
 
+async function returnToQaHome() {
+  if (qaState.value.mode === 'multi') {
+    if (multiNavigationLocked.value) return
+    if (multiDiscussionPanel.value) multiDiscussionPanel.value.startNewDiscussion()
+    else clearSavedMultiDiscussion(browserStorage, activeProject.value?.graphId)
+    draft.value = ''
+  } else reset()
+  const query = { ...route.query }
+  delete query.conversation
+  delete query.new
+  await router.replace({ path: '/', query })
+}
+
 function loadConversation(conversation) {
+  if (qaState.value.mode === 'multi') {
+    multiDiscussionPanel.value?.startNewDiscussion()
+    draft.value = conversation.question
+    void sendQuestion({
+      question: conversation.question,
+      image: null,
+      multiModule: 'inline'
+    })
+    return
+  }
   reset()
   draft.value = conversation.question
-  sendQuestion()
+  void sendQuestion()
 }
 
 function openConversation(conversation) {
@@ -591,7 +772,11 @@ async function consumeActiveQaRouteQuery() {
   const currentScope = activeProject.value
     ? activeProject.value.projectId
     : ''
-  if (projectChanged && previousScope && currentScope !== previousScope) reset()
+  if (projectChanged && previousScope && currentScope !== previousScope) {
+    if (qaState.value.mode === 'multi') {
+      draft.value = ''
+    } else reset()
+  }
 
   if (newChanged) {
     consumedQaQueryTokens.new = snapshot.new.token
@@ -617,6 +802,14 @@ watch(
 )
 
 watch(
+  () => activeProject.value?.graphId || '',
+  (graphId, previousGraphId) => {
+    if (qaState.value.mode !== 'multi' || graphId === previousGraphId) return
+    draft.value = ''
+  }
+)
+
+watch(
   () => route.fullPath,
   () => { void consumeActiveQaRouteQuery() }
 )
@@ -630,6 +823,7 @@ onUnmounted(() => {
 
 <style scoped>
 .qa-layout {
+  position: relative;
   min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -641,7 +835,7 @@ onUnmounted(() => {
 }
 
 .qa-layout--recent {
-  grid-template-columns: minmax(0, 1fr) 176px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .qa-main {
@@ -720,6 +914,26 @@ onUnmounted(() => {
   padding: 42px 0 64px;
 }
 
+.qa-multi-page {
+  width: min(1180px, calc(100% - 48px));
+  min-height: calc(100vh - 58px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 0 auto;
+  padding: 28px 0;
+}
+
+.qa-multi-page--empty {
+  width: min(980px, calc(100% - 48px));
+  justify-content: center;
+  padding-block: 42px 64px;
+}
+
+.qa-multi-page--history {
+  justify-content: flex-start;
+}
+
 .qa-empty__intro {
   width: 100%;
   display: grid;
@@ -747,7 +961,8 @@ onUnmounted(() => {
   line-height: 1;
 }
 
-.qa-empty h1 {
+.qa-empty h1,
+.qa-multi-page h1 {
   width: 100%;
   margin: 0;
   color: var(--asc-heading);
@@ -758,7 +973,99 @@ onUnmounted(() => {
   letter-spacing: 0.015em;
   text-align: center;
   text-wrap: balance;
-  transform: translateX(0.18em);
+}
+
+.qa-multi-page__intro {
+  flex: 0 0 auto;
+}
+
+.qa-multi-page__intro .asc-orbit {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 10px;
+  box-shadow: inset 0 0 0 7px #eff8fd;
+}
+
+.qa-multi-page__intro h1 {
+  font-size: clamp(29px, 3.2vw, 39px);
+}
+
+.qa-multi-page__intro p {
+  margin-bottom: 12px;
+}
+
+.qa-multi-page__workspace {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.qa-multi-page__workspace--history {
+  height: clamp(460px, calc(100vh - 310px), 640px);
+  min-height: 460px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid #b9cedd;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 34px rgba(39, 74, 99, 0.08);
+}
+
+.qa-multi-page__workspace--empty {
+  gap: 16px;
+  overflow: visible;
+}
+
+.qa-multi-page__discussion {
+  min-height: 0;
+}
+
+.qa-multi-page__workspace--history .qa-multi-page__discussion {
+  flex: 1;
+}
+
+.qa-multi-page__workspace--empty .qa-multi-page__discussion {
+  order: 2;
+}
+
+.qa-multi-page__workspace :deep(.multi-discussion.is-embedded) {
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+}
+
+.qa-multi-page__workspace--empty :deep(.multi-discussion.is-empty) {
+  height: auto;
+  overflow: visible;
+  background: transparent;
+}
+
+.qa-multi-page__workspace :deep(.multi-discussion-messages) {
+  background: #f5f8fb;
+}
+
+.qa-multi-page__workspace > :deep(.composer-shell) {
+  flex: 0 0 auto;
+  padding: 12px;
+  border-top: 1px solid #dce6ed;
+  background: rgba(255, 255, 255, .98);
+}
+
+.qa-multi-page__workspace--empty > :deep(.composer-shell) {
+  order: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.qa-multi-page__workspace--empty > :deep(.composer-shell .composer--compact textarea) {
+  min-height: 105px;
+  padding-top: 13px;
+}
+
+.qa-multi-page__workspace > :deep(.composer-shell .composer) {
+  border-color: #c4d5e1;
+  box-shadow: none;
 }
 
 .qa-empty__intro p {
@@ -977,6 +1284,33 @@ onUnmounted(() => {
     min-height: calc(100vh - 56px);
     align-content: start;
     padding-top: 54px;
+  }
+
+  .qa-multi-page {
+    width: calc(100% - 24px);
+    min-height: calc(100vh - 56px);
+    gap: 14px;
+    padding: 20px 0;
+  }
+
+  .qa-multi-page--empty {
+    justify-content: flex-start;
+    padding-top: 38px;
+  }
+
+  .qa-multi-page__intro h1 {
+    font-size: clamp(25px, 8vw, 32px);
+  }
+
+  .qa-multi-page__workspace--history {
+    height: clamp(500px, calc(100dvh - 270px), 640px);
+    min-height: 500px;
+  }
+
+  .qa-multi-page__workspace :deep(.multi-discussion-status) {
+    align-content: center;
+    flex-wrap: wrap;
+    padding-block: 7px;
   }
 
   .qa-session {

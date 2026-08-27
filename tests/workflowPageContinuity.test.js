@@ -54,9 +54,9 @@ const reportApiProbeSource = `
 test('cached environment setup ignores unrelated routes and resumes the same simulation without re-entering', async () => {
   const probe = { entered: [], stopped: 0 }
   globalThis[PROBE_KEY] = probe
-  const DocumentsView = defineComponent({
-    name: 'DocumentLibraryView',
-    setup: () => () => h('p', 'documents')
+  const PlatformDataView = defineComponent({
+    name: 'PlatformDataView',
+    setup: () => () => h('p', 'platform data')
   })
   const fixture = await mountWorkflowRoutes({
     initialPath: '/simulation/sim_1',
@@ -76,13 +76,13 @@ test('cached environment setup ignores unrelated routes and resumes the same sim
         component: '/src/views/SimulationView.vue',
         props: true
       },
-      { path: '/documents', name: 'Documents', component: DocumentsView }
+      { path: '/platform/data', name: 'PlatformData', component: PlatformDataView }
     ]
   })
 
   try {
     assert.deepEqual(probe.entered, ['sim_1'])
-    await fixture.router.push('/documents')
+    await fixture.router.push('/platform/data')
     await settleWorkflowUpdates()
     assert.deepEqual(probe.entered, ['sim_1'])
     assert.equal(probe.stopped, 0)
@@ -100,9 +100,9 @@ test('cached environment setup ignores unrelated routes and resumes the same sim
 test('cached report instances do not load another report route in the background', async () => {
   const probe = { reports: [] }
   globalThis[PROBE_KEY] = probe
-  const DocumentsView = defineComponent({
-    name: 'DocumentLibraryView',
-    setup: () => () => h('p', 'documents')
+  const PlatformDataView = defineComponent({
+    name: 'PlatformDataView',
+    setup: () => () => h('p', 'platform data')
   })
   const fixture = await mountWorkflowRoutes({
     initialPath: '/report/report_1?taskId=task_1',
@@ -119,14 +119,14 @@ test('cached report instances do not load another report route in the background
         component: '/src/views/ReportView.vue',
         props: true
       },
-      { path: '/documents', name: 'Documents', component: DocumentsView }
+      { path: '/platform/data', name: 'PlatformData', component: PlatformDataView }
     ]
   })
 
   try {
     await settleWorkflowUpdates()
     assert.deepEqual(probe.reports, ['report_1'])
-    await fixture.router.push('/documents')
+    await fixture.router.push('/platform/data')
     await settleWorkflowUpdates()
     await fixture.router.push('/report/report_2?taskId=task_2')
     await settleWorkflowUpdates()

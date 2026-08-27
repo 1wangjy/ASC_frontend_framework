@@ -8,8 +8,6 @@ const qa = await import('../src/features/qa/qaDemoModel.js').catch(() => ({}))
 const evaluation = await import('../src/features/qa/answerEvaluationModel.js').catch(() => ({}))
 const evaluationService = await import('../src/features/qa/answerEvaluationService.js').catch(() => ({}))
 const guides = await import('../src/features/qa/questionGuideModel.js').catch(() => ({}))
-const library = await import('../src/features/library/libraryModel.js').catch(() => ({}))
-const libraryData = await import('./fixtures/libraryDocuments.js').catch(() => ({}))
 const routes = await import('../src/config/ascRoutes.js').catch(() => ({}))
 
 function contrastRatio(foreground, background) {
@@ -28,14 +26,13 @@ function contrastRatio(foreground, background) {
   )
 }
 
-test('defines the four retained ASC LAB destinations in product order', () => {
+test('defines the retained ASC LAB sidebar destinations in product order', () => {
   assert.deepEqual(
-    navigation.primaryNavigation?.map(item => [item.label, item.path]),
+    navigation.primaryNavigation?.filter(item => !item.divider).map(item => [item.label, item.path]),
     [
-      ['问答首页', '/'],
-      ['文献管理', '/documents'],
-      ['图谱演化', '/process'],
-      ['报告生成', '/reports']
+      ['首页', '/'],
+      ['数据平台', '/platform/data'],
+      ['模型入口', '/platform/models']
     ]
   )
 })
@@ -96,7 +93,7 @@ test('recent conversations panel provides quiet expandable example controls', as
   assert.match(source, /overflow-y:\s*auto/)
 })
 
-test('QA owns recent conversations and shows them only on the empty home state', async () => {
+test('QA keeps recent conversations and the home layout stable in both answer modes', async () => {
   const [view, sidebar, shell] = await Promise.all([
     readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8'),
     readFile(new URL('../src/components/navigation/AscSidebar.vue', import.meta.url), 'utf8'),
@@ -104,7 +101,10 @@ test('QA owns recent conversations and shows them only on the empty home state',
   ])
 
   assert.match(view, /RecentConversationsPanel/)
-  assert.match(view, /v-if="qaState\.phase === 'empty' && !qaState\.evidenceOpen"/)
+  assert.match(view, /'qa-layout--recent': showQaHome && !qaState\.evidenceOpen/)
+  assert.match(view, /v-if="showQaHome && !qaState\.evidenceOpen"/)
+  assert.match(view, /@new-chat="startNewQa"/)
+  assert.match(view, /function startNewQa\(\)[\s\S]*qaState\.value\.mode === 'multi'/)
   assert.match(view, /findRecentConversation/)
   assert.doesNotMatch(sidebar, /最近会话|recentConversations|open-conversation/)
   assert.doesNotMatch(sidebar, /新建问答|new-question|new-chat/)
@@ -528,185 +528,6 @@ test('selecting an inline citation reopens evidence and selects the matching sou
   assert.equal(selected.references.find(item => item.id === 'R2').title.includes('气孔结构'), true)
 })
 
-test('finds a document by abstract or keyword and intersects it with year', () => {
-  const result = library.filterDocuments?.(libraryData.documents, {
-    query: 'residual strength',
-    type: '',
-    yearPartitions: ['2024']
-  })
-
-  assert.deepEqual(result.map(item => item.id), ['DOC-2024-001'])
-})
-
-test('combines multiple selected years with OR and keyword with AND', () => {
-  const sharedFields = {
-    type: 'journal',
-    doi: '',
-    journal: '',
-    abstract: 'thermal-shock study',
-    authors: [],
-    keywords: [],
-    tags: []
-  }
-  const fixtures = [
-    { ...sharedFields, id: 'Y2024', title: 'Study A', year: 2024 },
-    { ...sharedFields, id: 'Y2023', title: 'Study B', year: 2023 },
-    { ...sharedFields, id: 'Y2022', title: 'Study C', year: 2022 }
-  ]
-  const result = library.filterDocuments?.(fixtures, {
-    query: 'thermal-shock',
-    type: '',
-    yearPartitions: ['2024', '2023']
-  })
-
-  assert.deepEqual(result.map(item => item.id), ['Y2024', 'Y2023'])
-})
-
-test('toggles one year partition without changing the other selections', () => {
-  assert.deepEqual(
-    library.toggleYearPartition?.(['2024'], '2023'),
-    ['2024', '2023']
-  )
-  assert.deepEqual(
-    library.toggleYearPartition?.(['2024', '2023'], '2024'),
-    ['2023']
-  )
-})
-
-test('calculates stable library composition metrics', () => {
-  assert.deepEqual(library.calculateLibraryMetrics?.(libraryData.documents), {
-    total: 5,
-    expertSelected: 3,
-    academicPapers: 4,
-    professionalResources: 1
-  })
-})
-
-test('counts conference papers with journals and keeps all other records complementary', () => {
-  const fixtures = [
-    { type: 'journal', expertSelected: false },
-    { type: 'conference', expertSelected: true },
-    { type: 'book', expertSelected: false },
-    { type: 'standard', expertSelected: false },
-    { type: '', expertSelected: false }
-  ]
-
-  assert.deepEqual(library.calculateLibraryMetrics?.(fixtures), {
-    total: 5,
-    expertSelected: 1,
-    academicPapers: 2,
-    professionalResources: 3
-  })
-})
-
-test('library composition metrics have zero-valued empty state', () => {
-  assert.deepEqual(library.calculateLibraryMetrics?.([]), {
-    total: 0,
-    expertSelected: 0,
-    academicPapers: 0,
-    professionalResources: 0
-  })
-})
-
-test('library overview uses retrieval-oriented metrics instead of processing state', async () => {
-  const source = await readFile(
-    new URL('../src/views/DocumentLibraryView.vue', import.meta.url),
-    'utf8'
-  )
-
-  assert.match(source, /学术论文/)
-  assert.match(source, /专业资料/)
-  assert.match(source, /期刊论文 \+ 会议论文/)
-  assert.match(source, /专著、标准、专利等/)
-  assert.doesNotMatch(
-    source,
-    /近三年文献|近年文献|覆盖年份|完成解析|进入 QA 索引|正文与索引已提取|可引用证据可用/
-  )
-})
-
-test('document library hides large metrics behind the title overview', async () => {
-  const source = await readFile(
-    new URL('../src/views/DocumentLibraryView.vue', import.meta.url),
-    'utf8'
-  )
-
-  assert.match(source, /LibraryOverviewPopover/)
-  assert.match(source, /:metrics="metrics"/)
-  assert.doesNotMatch(source, /class="summary-grid"/)
-})
-
-test('hands selected backend PDF file ids to the existing graph workflow', async () => {
-  const view = await readFile(
-    new URL('../src/views/DocumentLibraryView.vue', import.meta.url),
-    'utf8'
-  )
-  const table = await readFile(
-    new URL('../src/features/library/DocumentTable.vue', import.meta.url),
-    'utf8'
-  )
-
-  assert.match(view, /使用选中文献构建图谱/)
-  const researchWorkflow = await readFile(
-    new URL('../src/features/research/researchQuestionWorkflow.js', import.meta.url),
-    'utf8'
-  )
-
-  assert.match(view, /startResearchBuildFromLibrary/)
-  assert.match(researchWorkflow, /setPendingUpload\(\[\], intent\.queryPrompt,/)
-  assert.match(researchWorkflow, /pdfLibraryFileIds/)
-  assert.match(view, /router\.push\(['"]\/process\/new['"]\)/)
-  assert.match(table, /selectedIds/)
-  assert.match(table, /toggle-selection/)
-})
-
-test('library overview exposes hidden metrics with complete close controls', async () => {
-  const source = await readFile(
-    new URL('../src/features/library/LibraryOverviewPopover.vue', import.meta.url),
-    'utf8'
-  ).catch(() => '')
-
-  assert.match(source, /馆藏概览/)
-  assert.match(source, /aria-expanded/)
-  assert.match(source, /pointerdown/)
-  assert.match(source, /keydown\.esc/)
-  assert.match(source, /trigger\.value\?\.focus/)
-  assert.match(source, /@media \(max-width: 560px\)/)
-})
-
-test('keeps literature curation separate from answer evaluation scores', async () => {
-  const table = await readFile(
-    new URL('../src/features/library/DocumentTable.vue', import.meta.url),
-    'utf8'
-  )
-
-  assert.doesNotMatch(table, /专家评分|处理状态|更新时间/)
-  assert.doesNotMatch(table, /document\.(expertScore|statusLabel|updatedAt)/)
-  assert.match(table, /document\.expertSelected/)
-  assert.equal(
-    libraryData.documents.every(document => (
-      !Object.hasOwn(document, 'expertScore')
-      && !Object.hasOwn(document, 'statusLabel')
-      && !Object.hasOwn(document, 'updatedAt')
-    )),
-    true
-  )
-})
-
-test('shows at most two literature authors without a remainder count', () => {
-  assert.equal(
-    library.summarizeAuthors?.(['Wang Y.', 'Li J.', 'Zhang H.']),
-    'Wang Y., Li J.'
-  )
-  assert.equal(
-    library.summarizeAuthors?.(['Wang Y.', 'Li J.']),
-    'Wang Y., Li J.'
-  )
-  assert.equal(
-    library.summarizeAuthors?.([]),
-    ''
-  )
-})
-
 test('provides a 72px desktop sidebar mode without replacing the mobile drawer', async () => {
   const [shell, sidebar, tokens] = await Promise.all([
     readFile(new URL('../src/layouts/AscShell.vue', import.meta.url), 'utf8'),
@@ -723,63 +544,6 @@ test('provides a 72px desktop sidebar mode without replacing the mobile drawer',
   assert.match(sidebar, /@media \(max-width: 760px\)/)
 })
 
-test('builds four exact years and an older partition', () => {
-  assert.deepEqual(library.getYearPartitions?.(libraryData.documents, 4), {
-    years: [2024, 2023, 2022, 2021],
-    olderBefore: 2021
-  })
-
-  const older = library.filterDocuments?.(libraryData.documents, {
-    query: '',
-    type: '',
-    yearPartitions: ['older:2021']
-  })
-  assert.deepEqual(older.map(item => item.id), ['DOC-2018-004'])
-})
-
-test('paginates with allowed page sizes and corrects an invalid page', () => {
-  const rows = Array.from({ length: 45 }, (_, index) => ({ id: `D${index + 1}` }))
-  const result = library.paginateDocuments?.(rows, 9, 20)
-
-  assert.equal(result.page, 3)
-  assert.equal(result.pageCount, 3)
-  assert.equal(result.items.length, 5)
-  assert.deepEqual(result.pageSizes, [20, 50, 100])
-})
-
-test('opens the first literature detail on desktop but starts with the mobile list unobstructed', () => {
-  assert.equal(
-    library.initialSelectedDocumentId?.(libraryData.documents, false),
-    'DOC-2024-001'
-  )
-  assert.equal(library.initialSelectedDocumentId?.(libraryData.documents, true), '')
-})
-
-test('keeps filtered literature details closed on mobile when the current row disappears', () => {
-  const filtered = libraryData.documents.filter(document => document.year === 2023)
-
-  assert.equal(
-    library.reconcileSelectedDocumentId?.(filtered, '', true),
-    ''
-  )
-  assert.equal(
-    library.reconcileSelectedDocumentId?.(filtered, 'DOC-2024-001', true),
-    ''
-  )
-  assert.equal(
-    library.reconcileSelectedDocumentId?.(filtered, 'DOC-2024-001', false),
-    'DOC-2023-002'
-  )
-})
-
-test('adding a literature record to QA changes only the selected record', () => {
-  const updated = library.addDocumentToQa?.(libraryData.documents, 'DOC-2022-003')
-
-  assert.equal(updated.find(item => item.id === 'DOC-2022-003').qaIndexed, true)
-  assert.equal(updated.find(item => item.id === 'DOC-2021-005').qaIndexed, false)
-  assert.equal(libraryData.documents.find(item => item.id === 'DOC-2022-003').qaIndexed, false)
-})
-
 test('keeps the four portal entries and the backend workflow routes', () => {
   assert.deepEqual(
     routes.ascRouteDefinitions?.map(route => [route.name, route.path]),
@@ -791,7 +555,13 @@ test('keeps the four portal entries and the backend workflow routes', () => {
       ['SimulationRun', '/simulation/:simulationId/start'],
       ['Reports', '/reports'],
       ['Report', '/report/:reportId'],
-      ['Interaction', '/interaction/:reportId']
+      ['Interaction', '/interaction/:reportId'],
+      ['PlatformData', '/platform/data'],
+      ['PlatformModels', '/platform/models'],
+      ['PlatformModel1', '/platform/model1'],
+      ['PlatformModel2', '/platform/model2'],
+      ['PlatformModel3', '/platform/model3'],
+      ['PlatformModel4', '/platform/model4']
     ]
   )
   assert.deepEqual(routes.fallbackRoute, {
@@ -800,7 +570,7 @@ test('keeps the four portal entries and the backend workflow routes', () => {
   })
   assert.equal(
     routes.ascRouteDefinitions?.find(route => route.name === 'AscQa')?.meta.title,
-    '问答首页'
+    '首页'
   )
   assert.equal(
     routes.ascRouteDefinitions?.find(route => route.name === 'Process')?.meta.navigationPath,
@@ -834,20 +604,6 @@ test('keeps QA selector choices through answer completion', () => {
     ontologyEnabled: false,
     ontologyLocked: false
   })
-})
-
-test('literature filters support no-result and full-reset states', () => {
-  const filters = library.createLibraryFilters?.()
-  assert.deepEqual(filters, {
-    query: '',
-    type: '',
-    yearPartitions: []
-  })
-  assert.equal(
-    library.filterDocuments(libraryData.documents, { ...filters, query: '不存在的文献标题' }).length,
-    0
-  )
-  assert.equal(library.filterDocuments(libraryData.documents, filters).length, 5)
 })
 
 test('uses ASC LAB metadata in the application entry document', async () => {

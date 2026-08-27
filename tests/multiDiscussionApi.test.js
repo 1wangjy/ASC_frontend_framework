@@ -30,6 +30,20 @@ test('sends JSON chat requests with the existing contract and timeout', async ()
   })
 })
 
+test('preserves a disabled multimodal response flag for text-only JSON requests', async () => {
+  const { calls, client } = createRecorder()
+  const api = createMultiDiscussionApi(client)
+  const data = {
+    question: 'Q', project_id: 'p', graph_id: 'g',
+    enable_multimodal_response: false,
+    multimodal_render_mode: 'inline', options: {}
+  }
+
+  await api.sendMultiDiscussionMessage(data)
+
+  assert.equal(calls[0].data.enable_multimodal_response, false)
+})
+
 test('sends multipart chat requests with repeated images and string fields', async () => {
   const { calls, client } = createRecorder()
   const api = createMultiDiscussionApi(client)

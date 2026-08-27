@@ -3,12 +3,12 @@ export const ascRouteDefinitions = [
     path: '/',
     name: 'AscQa',
     component: () => import('../views/AscQaView.vue'),
-    meta: { title: '问答首页' }
+    meta: { title: '首页' }
   },
   {
     path: '/documents',
     name: 'Documents',
-    component: () => import('../views/DocumentLibraryView.vue'),
+    redirect: { name: 'PlatformData', query: { mode: 'graph-select' } },
     meta: { title: '文献管理' }
   },
   {

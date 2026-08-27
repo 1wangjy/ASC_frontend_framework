@@ -51,6 +51,9 @@ test('attachment routes reject non-PDF bytes before the upload controller', asyn
     removeAttachment(req, res) {
       res.status(204).end();
     },
+    extractMetadata(req, res) {
+      res.status(200).json({ success: true, data: { litId: req.params.litId } });
+    },
     isAttachmentStorageReady() {
       return false;
     },
@@ -89,6 +92,13 @@ test('attachment routes reject non-PDF bytes before the upload controller', asyn
     assert.equal(testResponse.status, 503);
     const payload = await testResponse.json();
     assert.deepEqual(payload, { success: false, message: 'MongoDB未连接' });
+
+    const metadataResponse = await fetch(`${baseUrl}/metadata/LIT_TEST`, { method: 'POST' });
+    assert.equal(metadataResponse.status, 200);
+    assert.deepEqual(await metadataResponse.json(), {
+      success: true,
+      data: { litId: 'LIT_TEST' },
+    });
 
     const filenameResponse = await fetch(`${baseUrl}/paper.pdf`);
     assert.equal(filenameResponse.status, 418);

@@ -93,8 +93,9 @@ exports.updateMp = async (req, res) => {
 exports.createTp = async (req, res) => {
   try {
     await ensureDbConnected();
-    const { mp_id, test_params, test_results, test_condition } = req.body;
-    const result = await newDbService.createTp(mp_id, test_params, test_results, test_condition);
+    const { mp_id, mr_id, mr_ids, test_params, test_results, test_condition } = req.body;
+    const relatedMrIds = Array.isArray(mr_ids) ? mr_ids : (mr_id ? [mr_id] : []);
+    const result = await newDbService.createTp(mp_id || null, test_params || {}, test_results, test_condition || '无', relatedMrIds);
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Error creating TP:', error);

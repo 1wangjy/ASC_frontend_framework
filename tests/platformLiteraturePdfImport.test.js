@@ -13,7 +13,9 @@ function dependencies(overrides = {}) {
     testMongoDB: async () => {},
     createLiterature: async () => ({ lit_id: 'LIT_1' }),
     uploadAttachment: async () => ({ filename: 'Fallback_Title.pdf' }),
+    extractAttachmentMetadata: async () => ({ metadata: {} }),
     extractPdfMetadata: async () => ({}),
+    reportMetadataError: () => {},
     updateLiterature: async () => ({}),
     removeLiterature: async () => {},
     ...overrides,
@@ -37,7 +39,7 @@ test('does not create a literature when attachment storage preflight fails', asy
   assert.equal(createCount, 0)
 })
 
-test('creates, uploads, extracts and updates a literature in order', async () => {
+test('creates, uploads, extracts remotely and updates a literature in order', async () => {
   const events = []
   let createPayload
   let updatePayload
@@ -52,9 +54,16 @@ test('creates, uploads, extracts and updates a literature in order', async () =>
       events.push(`upload:${litId}`)
       return { filename: file.name }
     },
-    extractPdfMetadata: async () => {
-      events.push('extract')
-      return { title: 'Extracted title', authors: 'Alice' }
+    extractAttachmentMetadata: async (litId) => {
+      events.push(`extract:${litId}`)
+      return {
+        metadata: {
+          title: 'Extracted title',
+          authors: 'Alice',
+          entry_type: null,
+          doi: '',
+        },
+      }
     },
     updateLiterature: async (litId, payload) => {
       events.push(`update:${litId}`)
@@ -65,7 +74,7 @@ test('creates, uploads, extracts and updates a literature in order', async () =>
 
   const result = await importLiteraturePdf(pdfFile(), { dependencies: deps })
 
-  assert.deepEqual(events, ['health', 'create', 'upload:LIT_1', 'extract', 'update:LIT_1'])
+  assert.deepEqual(events, ['health', 'create', 'upload:LIT_1', 'extract:LIT_1', 'update:LIT_1'])
   assert.deepEqual(createPayload, {
     title: 'Fallback_Title',
     authors: '',
@@ -77,9 +86,32 @@ test('creates, uploads, extracts and updates a literature in order', async () =>
     doi: '',
     abstract: '',
     note: '',
-    entry_type: 'journal',
+    entry_type: '',
   })
   assert.deepEqual(updatePayload, { title: 'Extracted title', authors: 'Alice' })
+  assert.equal(result.metadataApplied, true)
+  assert.equal(result.degraded, false)
+})
+
+test('does not send a second frontend update after 3001 persisted remote metadata', async () => {
+  let updateCount = 0
+  const deps = dependencies({
+    extractAttachmentMetadata: async () => ({
+      metadata: { title: 'Server persisted title', authors: 'Alice' },
+      literature: {
+        lit_id: 'LIT_1',
+        title: 'Server persisted title',
+        authors: 'Alice',
+        attachment: 'Fallback_Title.pdf',
+      },
+    }),
+    updateLiterature: async () => { updateCount += 1 },
+  })
+
+  const result = await importLiteraturePdf(pdfFile(), { dependencies: deps })
+
+  assert.equal(updateCount, 0)
+  assert.equal(result.literature.authors, 'Alice')
   assert.equal(result.metadataApplied, true)
   assert.equal(result.degraded, false)
 })
@@ -118,10 +150,34 @@ test('reports a cleanup warning when upload and rollback both fail', async () =>
   )
 })
 
-test('keeps the uploaded literature when metadata extraction fails', async () => {
+test('falls back to local metadata extraction when remote extraction fails', async () => {
+  const events = []
+  const deps = dependencies({
+    extractAttachmentMetadata: async () => {
+      events.push('remote')
+      throw new Error('Mistral unavailable')
+    },
+    extractPdfMetadata: async () => {
+      events.push('local')
+      return { title: 'Local title', year: '2025' }
+    },
+    updateLiterature: async (litId, payload) => {
+      events.push(`update:${litId}:${payload.title}`)
+    },
+  })
+
+  const result = await importLiteraturePdf(pdfFile(), { dependencies: deps })
+
+  assert.deepEqual(events, ['remote', 'local', 'update:LIT_1:Local title'])
+  assert.equal(result.metadataApplied, true)
+  assert.equal(result.degraded, false)
+})
+
+test('keeps the uploaded literature when remote and local metadata extraction both fail', async () => {
   let removeCount = 0
   const progress = []
   const deps = dependencies({
+    extractAttachmentMetadata: async () => { throw new Error('Mistral unavailable') },
     extractPdfMetadata: async () => { throw new Error('metadata unreadable') },
     removeLiterature: async () => { removeCount += 1 },
   })
@@ -140,7 +196,7 @@ test('keeps the uploaded literature when metadata extraction fails', async () =>
 test('keeps the uploaded literature when metadata update fails', async () => {
   let removeCount = 0
   const deps = dependencies({
-    extractPdfMetadata: async () => ({ title: 'Extracted title' }),
+    extractAttachmentMetadata: async () => ({ metadata: { title: 'Extracted title' } }),
     updateLiterature: async () => { throw new Error('SQLite update failed') },
     removeLiterature: async () => { removeCount += 1 },
   })

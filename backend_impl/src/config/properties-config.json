@@ -66,5 +66,28 @@
     { "id": 29, "name": "erosionRate", "label": "侵蚀率", "unit": "%" },
     { "id": 30, "name": "hotModulusOfRupture", "label": "高温抗折强度", "unit": "MPa" },
     { "id": 31, "name": "coldCrushingStrength", "label": "常温耐压强度", "unit": "MPa" }
-  ]
+  ],
+  "measurementProfiles": {
+    "pure": {
+      "temperature": [
+        "specificHeat", "thermalConductivity", "thermalExpansionCoefficient",
+        "elasticModulus", "shearModulus", "poissonRatio", "hardness",
+        "electricalConductivity", "dielectricConstant", "magneticPermeability",
+        "refractiveIndex"
+      ],
+      "temperatureDuration": [
+        "compressiveStrength", "flexuralStrength", "tensileStrength", "fractureToughness"
+      ]
+    },
+    "test": {
+      "temperature": ["linearExpansionCoefficient", "thermalConductivity", "hotModulusOfRupture"]
+    },
+    "valueTypes": {
+      "text": ["color", "crystalStructure"],
+      "grade": [
+        "chemicalStability", "radiationResistance", "oxidationResistance",
+        "corrosionResistance", "acidResistance", "alkaliResistance", "slagResistance"
+      ]
+    }
+  }
 }

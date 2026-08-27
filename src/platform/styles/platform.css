@@ -135,6 +135,203 @@
 .platform-page .error-message { color: #cc0000; margin-bottom: 16px; text-align: center; padding: 12px; background: #fef2f2; border-radius: 4px; font-size: 14px; }
 .platform-page .modal-hint { text-align: center; margin-top: 20px; color: #6c757d; font-size: 13px; }
 
+/* ── Literature Form Modal ────────────────────────── */
+.platform-page .literature-form-backdrop {
+  padding: 24px;
+  overflow: hidden;
+}
+
+.platform-page .literature-form-modal {
+  display: flex;
+  width: min(880px, 100%);
+  max-width: 880px;
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  overflow: hidden;
+  flex-direction: column;
+  border: 1px solid #e5eaf0;
+  border-radius: 16px;
+  box-shadow: 0 28px 90px rgba(15, 35, 55, .32);
+}
+
+.platform-page .literature-form-header {
+  display: flex;
+  padding: 22px 28px 18px;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid #e8edf2;
+  background: #fff;
+}
+
+.platform-page .literature-form-header h2 {
+  margin: 0;
+  color: #17324d;
+  font-size: 22px;
+  line-height: 1.3;
+  text-align: left;
+}
+
+.platform-page .literature-form-header p {
+  margin: 7px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.platform-page .literature-form-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.platform-page .literature-form-close:hover {
+  border-color: #dbe4ec;
+  background: #f5f8fb;
+  color: #17324d;
+}
+
+.platform-page .literature-form-body {
+  padding: 24px 28px 28px;
+  overflow-y: auto;
+  background: #f8fafc;
+}
+
+.platform-page .literature-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
+}
+
+.platform-page .literature-form-grid .form-group {
+  min-width: 0;
+  margin: 0;
+}
+
+.platform-page .literature-form-full {
+  grid-column: 1 / -1;
+}
+
+.platform-page .literature-form-grid .form-group label {
+  margin-bottom: 7px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.platform-page .literature-required {
+  color: #dc2626;
+}
+
+.platform-page .literature-form-grid .form-group input,
+.platform-page .literature-form-grid .form-group select,
+.platform-page .literature-form-grid .form-group textarea {
+  border: 1px solid #cfd9e3;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+
+.platform-page .literature-form-grid .form-group input,
+.platform-page .literature-form-grid .form-group select {
+  min-height: 44px;
+  padding: 10px 13px;
+}
+
+.platform-page .literature-form-grid .form-group input::placeholder,
+.platform-page .literature-form-grid .form-group textarea::placeholder {
+  color: #9aa8b7;
+}
+
+.platform-page .literature-form-grid .form-group input:focus,
+.platform-page .literature-form-grid .form-group select:focus,
+.platform-page .literature-form-grid .form-group textarea:focus {
+  border-color: #397fba;
+  box-shadow: 0 0 0 3px rgba(0, 91, 172, .12);
+}
+
+.platform-page .literature-form-grid .literature-form-textarea {
+  min-height: 118px;
+  padding: 12px 13px;
+  line-height: 1.6;
+}
+
+.platform-page .literature-form-grid .literature-form-note {
+  min-height: 86px;
+}
+
+.platform-page .literature-form-actions {
+  display: flex;
+  margin: 0;
+  padding: 16px 28px;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid #e8edf2;
+  background: #fff;
+}
+
+.platform-page .literature-form-actions .btn {
+  min-width: 104px;
+  min-height: 42px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .platform-page .literature-form-backdrop {
+    padding: 12px;
+  }
+
+  .platform-page .literature-form-modal {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    border-radius: 12px;
+  }
+
+  .platform-page .literature-form-header {
+    padding: 18px 18px 15px;
+  }
+
+  .platform-page .literature-form-header h2 {
+    font-size: 19px;
+  }
+
+  .platform-page .literature-form-body {
+    padding: 18px;
+  }
+
+  .platform-page .literature-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .platform-page .literature-form-full {
+    grid-column: auto;
+  }
+
+  .platform-page .literature-form-actions {
+    padding: 14px 18px;
+  }
+
+  .platform-page .literature-form-actions .btn {
+    min-width: 0;
+    flex: 1;
+  }
+}
+
 /* ── File Input ───────────────────────────────────── */
 .platform-page .file-input { width: 100%; padding: 10px; border: 2px dashed #dee2e6; border-radius: 6px; background: #f8fafc; cursor: pointer; font-size: 14px; }
 .platform-page .file-info { margin-top: 8px; font-size: 13px; color: #007d49; padding: 8px 12px; background: #dcfce7; border-radius: 4px; }

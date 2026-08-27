@@ -100,3 +100,14 @@ test('places the modal above persistent controls and delegates all keyboard hand
   assert.match(source, /previousFocus/)
   assert.match(source, /z-index:\s*1000/)
 })
+
+test('keeps a fixed dialog frame and scrolls only the project list', async () => {
+  const source = await readFile(
+    new URL('../src/features/qa/QaProjectSelector.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /\.qa-project-selector__dialog\s*\{[^}]*height:\s*min\(470px,\s*calc\(100vh - 96px\)\)[^}]*overflow:\s*hidden/s)
+  assert.match(source, /\.qa-project-selector__dialog\s*>\s*header\s*\{[^}]*flex:\s*0 0 auto/s)
+  assert.match(source, /\.qa-project-selector__list\s*\{[^}]*min-height:\s*0[^}]*overflow-y:\s*auto/s)
+})

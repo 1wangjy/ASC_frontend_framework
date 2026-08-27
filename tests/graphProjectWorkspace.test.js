@@ -353,6 +353,25 @@ test('does not expose an early QA action from Step 1 graph construction', async 
   assert.doesNotMatch(professionalHtml, /去图谱问答/)
 })
 
+test('allows completed professional graphs to start another literature reinforcement build', async () => {
+  const html = await renderSfc('/src/components/Step1GraphBuild.vue', {
+    currentPhase: 4,
+    projectData: {
+      project_id: 'pro-1',
+      graph_id: 'pro-g',
+      base_project_id: 'base-1',
+      graph_build_stage: 'professional',
+      status: 'graph_completed'
+    },
+    baseNodesConfirmed: true,
+    baseMetadataPath: 'base_metadata.json',
+    professionalFilesCount: 1
+  })
+
+  assert.match(html, /<button type="button"(?![^>]*disabled)[^>]*>\s*选择文件\s*<\/button>/)
+  assert.match(html, /<button class="action-btn"(?![^>]*disabled)[^>]*>开始 Professional Research 构建<\/button>/)
+})
+
 test('renders a useful empty graph workspace project list', async () => {
   const html = await renderSfc('/src/features/projects/GraphProjectList.vue', { items: [] })
   assert.match(html, /暂无图谱项目/)
@@ -405,12 +424,20 @@ test('project panel exposes a compact collapse control', async () => {
   assert.doesNotMatch(source, /\.graph-project-panel__collapse\s*\{[^}]*position:\s*absolute/s)
 })
 
-test('registers graph evolution and report generation as separate primary destinations', () => {
-  assert.deepEqual(primaryNavigation.map(item => [item.label, item.path]), [
-    ['问答首页', '/'],
-    ['文献管理', '/documents'],
-    ['图谱演化', '/process'],
-    ['报告生成', '/reports']
+test('project panel links new graph projects to the platform literature selector', async () => {
+  const html = await renderSfc('/src/features/projects/GraphProjectWorkspacePanel.vue', {}, { withRouter: true })
+
+  assert.match(html, /返回首页/)
+  assert.match(html, /href="\/"/)
+  assert.match(html, /新建图谱项目/)
+  assert.match(html, /href="\/platform\/data\?mode=graph-select"/)
+})
+
+test('keeps graph evolution and report generation routes after removing their sidebar destinations', () => {
+  assert.deepEqual(primaryNavigation.filter(item => !item.divider).map(item => [item.label, item.path]), [
+    ['首页', '/'],
+    ['数据平台', '/platform/data'],
+    ['模型入口', '/platform/models']
   ])
   assert.equal(
     ascRouteDefinitions.find(route => route.name === 'Process')?.path,

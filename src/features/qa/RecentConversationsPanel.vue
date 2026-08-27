@@ -1,8 +1,11 @@
 <template>
   <aside
     class="recent-conversations"
-    :class="{ 'recent-conversations--compact-open': compactOpen }"
-    :aria-label="title"
+    :class="{
+      'recent-conversations--compact-open': compactOpen,
+      'recent-conversations--workflow': mode === 'single'
+    }"
+    :aria-label="panelTitle"
     @keydown.esc.stop="closeCompactPanel"
   >
     <button
@@ -13,52 +16,43 @@
       aria-controls="recent-conversation-list"
       @click="compactOpen = !compactOpen"
     >
-      <span>{{ title }}</span>
+      <span>{{ panelTitle }}</span>
       <AscIcon name="chevron" :class="{ 'is-open': compactOpen }" />
     </button>
 
-    <div id="recent-conversation-list" class="recent-conversations__content">
+    <div
+      v-if="mode === 'single'"
+      id="recent-conversation-list"
+      class="recent-conversations__content"
+    >
+      <RouterLink class="recent-conversations__workflow-link" to="/process">
+        <AscIcon name="graph" />
+        <span>图谱项目</span>
+      </RouterLink>
+      <RouterLink class="recent-conversations__workflow-link" to="/reports">
+        <AscIcon name="report" />
+        <span>报告中心</span>
+      </RouterLink>
+    </div>
+
+    <div v-else id="recent-conversation-list" class="recent-conversations__content">
       <button
-        class="recent-conversations__new"
+        class="recent-conversations__action recent-conversations__new"
         type="button"
+        :disabled="disabled"
         @click="$emit('new-chat')"
       >
         <AscIcon name="plus" />
-        <span>新建问答</span>
+        <span>新建讨论</span>
       </button>
-
-      <div class="recent-conversations__heading">
-        <div class="recent-conversations__summary">
-          <span>{{ title }}</span>
-          <small>{{ conversations.length }} 条</small>
-        </div>
-      </div>
-
-      <div
-        class="recent-conversations__list"
-        :class="{ 'recent-conversations__list--expanded': expanded }"
-      >
-        <button
-          v-for="conversation in visibleConversations"
-          :key="conversation.id"
-          type="button"
-          class="recent-conversations__item"
-          :title="conversation.title"
-          @click="selectConversation(conversation)"
-        >
-          <span>{{ conversation.title }}</span>
-        </button>
-      </div>
-
       <button
-        v-if="hasMore"
-        class="recent-conversations__more"
+        class="recent-conversations__action recent-conversations__exit"
         type="button"
-        :aria-expanded="expanded"
-        @click="expanded = !expanded"
+        :disabled="disabled"
+        @click="$emit('exit-multi')"
       >
-        <span>{{ expanded ? '收起示例' : '查看更多示例' }}</span>
-        <AscIcon name="chevron" :class="{ 'is-open': expanded }" />
+        <AscIcon name="chevron" />
+        <span>退出多轮</span>
       </button>
     </div>
   </aside>
@@ -67,39 +61,23 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue'
 import AscIcon from '../../components/ui/AscIcon.vue'
-import {
-  DEFAULT_VISIBLE_CONVERSATIONS,
-  getVisibleRecentConversations
-} from '../navigation/recentConversationModel.js'
 
 const props = defineProps({
+  mode: {
+    type: String,
+    default: 'multi'
+  },
   title: {
     type: String,
-    default: '示例问题'
+    default: '多轮讨论'
   },
-  conversations: {
-    type: Array,
-    default: () => []
-  }
+  disabled: Boolean
 })
 
-const emit = defineEmits(['select', 'new-chat'])
-const expanded = ref(false)
+defineEmits(['new-chat', 'exit-multi'])
 const compactOpen = ref(false)
 const compactToggle = ref(null)
-
-const visibleConversations = computed(() => (
-  getVisibleRecentConversations(props.conversations, expanded.value)
-))
-
-const hasMore = computed(() => (
-  props.conversations.length > DEFAULT_VISIBLE_CONVERSATIONS
-))
-
-function selectConversation(conversation) {
-  compactOpen.value = false
-  emit('select', conversation)
-}
+const panelTitle = computed(() => props.mode === 'single' ? '快捷入口' : props.title)
 
 function closeCompactPanel() {
   if (!compactOpen.value) return
@@ -120,6 +98,43 @@ function closeCompactPanel() {
 
 .recent-conversations__compact-toggle {
   display: none;
+}
+
+.recent-conversations__content {
+  display: grid;
+  gap: 8px;
+}
+
+.recent-conversations--workflow {
+  padding-top: 14px;
+}
+
+.recent-conversations__workflow-link {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 0 8px;
+  padding: 0 11px;
+  border: 1px solid #79b5dc;
+  border-radius: 7px;
+  background: #eef7fd;
+  box-shadow: 0 5px 14px rgba(20, 105, 160, 0.1);
+  color: var(--asc-primary);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: color var(--asc-transition), background var(--asc-transition), border-color var(--asc-transition), box-shadow var(--asc-transition);
+}
+
+.recent-conversations__workflow-link:hover,
+.recent-conversations__workflow-link:focus-visible {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary);
+  box-shadow: 0 7px 18px rgba(20, 105, 160, 0.2);
+  color: #fff;
+  outline: none;
 }
 
 .recent-conversations__heading {
@@ -144,28 +159,38 @@ function closeCompactPanel() {
   letter-spacing: 0;
 }
 
-.recent-conversations__new {
-  min-height: 30px;
+.recent-conversations__action {
+  min-height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
+  margin: 0 8px;
   padding: 0 8px;
-  border: 1px solid #9fc4da;
+  border: 1px solid transparent;
   border-radius: 6px;
-  background: #fff;
-  color: var(--asc-primary);
-  font-size: 10px;
-  font-weight: 750;
-  margin: 0 8px 12px;
-  transition: background var(--asc-transition), border-color var(--asc-transition);
+  background: transparent;
+  color: var(--recent-muted);
+  font-size: 12px;
+  font-weight: 700;
+  transition: color var(--asc-transition), background var(--asc-transition), border-color var(--asc-transition);
 }
 
-.recent-conversations__new:hover,
-.recent-conversations__new:focus-visible {
-  border-color: var(--asc-primary);
-  background: var(--asc-primary-soft);
+.recent-conversations__exit :deep(.asc-icon) {
+  transform: rotate(180deg);
+}
+
+.recent-conversations__action:hover,
+.recent-conversations__action:focus-visible {
+  border-color: rgba(159, 196, 218, 0.72);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--asc-primary);
   outline: none;
+}
+
+.recent-conversations__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .recent-conversations__list {
@@ -236,6 +261,16 @@ function closeCompactPanel() {
   transform: rotate(90deg);
 }
 
+@media (min-width: 1121px) {
+  .recent-conversations {
+    position: absolute;
+    z-index: 24;
+    top: 58px;
+    right: 0;
+    width: 176px;
+  }
+}
+
 @media (max-width: 1120px) {
   .recent-conversations {
     position: relative;
@@ -280,7 +315,7 @@ function closeCompactPanel() {
   }
 
   .recent-conversations--compact-open .recent-conversations__content {
-    display: block;
+    display: grid;
   }
 }
 

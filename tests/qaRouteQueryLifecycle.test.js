@@ -78,6 +78,35 @@ const graphTaskMonitorProbeSource = `
   }
 `
 
+const multiDiscussionApiProbeSource = `
+  export async function getMultiDiscussionCapabilities() {
+    return {
+      data: {
+        default_model_mode: 'default',
+        model_modes: [{ mode: 'default', label: '默认模式', model: 'qwen-test' }],
+        vision: { vision_ready: true, vision_model: 'qwen-test' },
+        image_limits: { max_images: 6, max_image_bytes: 12582912 }
+      }
+    }
+  }
+
+  export async function getMultiDiscussionConversation() {
+    return { data: { messages: [] } }
+  }
+
+  export async function getMultiDiscussionProgress() {
+    return { data: {} }
+  }
+
+  export async function sendMultiDiscussionMessage() {
+    throw new Error('sending multi-turn questions is outside this page-switch test')
+  }
+
+  export function resolveMultiDiscussionAssetUrl(path) {
+    return path || ''
+  }
+`
+
 const reportApiProbeSource = `
   export async function getReport(reportId) {
     const report = globalThis.${QA_PROBE_KEY}.reports.find(item => item.report_id === reportId)
@@ -132,14 +161,19 @@ function createProbe() {
   return probe
 }
 
-async function mountQa(initialPath = '/?projectId=p1&reportId=r1') {
+async function mountQa(initialPath = '/?projectId=p1&reportId=r1', options = {}) {
+  const moduleOverrides = {
+    'src/api/graph.js': graphApiProbeSource,
+    'src/api/report.js': reportApiProbeSource,
+    'src/features/tasks/graphTaskMonitor.js': graphTaskMonitorProbeSource
+  }
+  if (options.stubMultiDiscussion === true) {
+    moduleOverrides['src/features/qa/multiDiscussion/api.js'] = multiDiscussionApiProbeSource
+    moduleOverrides['src/features/qa/multiDiscussion/api'] = multiDiscussionApiProbeSource
+  }
   return mountWorkflowRoutes({
     initialPath,
-    moduleOverrides: {
-      'src/api/graph.js': graphApiProbeSource,
-      'src/api/report.js': reportApiProbeSource,
-      'src/features/tasks/graphTaskMonitor.js': graphTaskMonitorProbeSource
-    },
+    moduleOverrides,
     routes: [
       { path: '/', name: 'AscQa', component: '/src/views/AscQaView.vue' },
       { path: '/documents', name: 'Documents', component: DocumentsView }
@@ -164,6 +198,108 @@ async function waitFor(assertion, message) {
 function findTextarea(root) {
   return findRenderedNode(root, node => node?.type === 'textarea')
 }
+
+test('switches between the single-turn home and the graph-scoped multi-turn page', async () => {
+  const probe = createProbe()
+  globalThis[QA_PROBE_KEY] = probe
+  const fixture = await mountQa(undefined, { stubMultiDiscussion: true })
+
+  try {
+    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    assert.match(renderedText(fixture.root), /今天想研究什么？/)
+
+    await clickButton(fixture.root, '多轮连续')
+    await waitFor(
+      () => assert.match(renderedText(fixture.root), /从一个图谱问题开始/),
+      'multi-turn page did not replace the single-turn home'
+    )
+
+    const multiPage = findRenderedNode(fixture.root, node => hasRenderedClass(node, 'qa-multi-page'))
+    assert.ok(multiPage)
+    assert.match(renderedText(multiPage), /围绕当前图谱提出第一个问题，后续追问将自动继承上下文/)
+    assert.doesNotMatch(renderedText(multiPage), /尚未开始会话|固定作用域/)
+    assert.ok(findRenderedNode(multiPage, node => hasRenderedClass(node, 'qa-multi-page__workspace--empty')))
+    assert.match(renderedText(fixture.root), /新建讨论/)
+    assert.match(renderedText(fixture.root), /退出多轮/)
+    assert.match(renderedText(multiPage), /为什么 SiC 含量会影响抗氧化性能？/)
+    assert.match(renderedText(multiPage), /这些机制中，哪一种更可能主导损伤？/)
+    assert.match(renderedText(multiPage), /这个结论有哪些关键依据和适用边界？/)
+    assert.doesNotMatch(renderedText(multiPage), /材料基础与体系设计|制备成型与工艺控制/)
+    assert.equal(
+      findRenderedNodes(multiPage, node => hasRenderedClass(node, 'multi-discussion-guide')).length,
+      3
+    )
+
+    await clickButton(fixture.root, '为什么 SiC 含量会影响抗氧化性能？')
+    assert.equal(draftValue(fixture.root), '为什么 SiC 含量会影响抗氧化性能？')
+
+    await clickButton(fixture.root, '单轮深度')
+    await waitFor(
+      () => assert.match(renderedText(fixture.root), /今天想研究什么？/),
+      'single-turn home did not return'
+    )
+    assert.equal(findRenderedNode(fixture.root, node => hasRenderedClass(node, 'qa-multi-page')), null)
+  } finally {
+    await fixture.close()
+    delete globalThis[QA_PROBE_KEY]
+  }
+})
+
+test('restores a graph discussion into the bounded history workspace', async () => {
+  const previousStorage = globalThis.localStorage
+  const values = new Map([
+    ['nexus_multi_discussion_v1:g1', JSON.stringify({
+      conversationId: 'md_graph_1',
+      messages: [
+        { localId: 'user-1', role: 'user', content: '历史问题', createdAt: '2026-08-21T02:00:00.000Z' },
+        { localId: 'assistant-1', role: 'assistant', content: '历史回答', createdAt: '2026-08-21T02:01:00.000Z' }
+      ]
+    })]
+  ])
+  globalThis.localStorage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: key => values.delete(key)
+  }
+  const probe = createProbe()
+  probe.projects = probe.projects.map(project => ({ ...project, runnerStatus: 'completed' }))
+  globalThis[QA_PROBE_KEY] = probe
+  const fixture = await mountQa(undefined, { stubMultiDiscussion: true })
+
+  try {
+    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await waitFor(
+      () => assert.match(renderedText(fixture.root), /Project One/),
+      'qualified graph project was not selected'
+    )
+    await clickButton(fixture.root, '多轮连续')
+    await waitFor(
+      () => assert.match(renderedText(fixture.root), /与当前图谱持续讨论/),
+      'saved multi-turn history did not select the history presentation'
+    )
+
+    const multiPage = findRenderedNode(fixture.root, node => hasRenderedClass(node, 'qa-multi-page'))
+    assert.match(renderedText(multiPage), /延续已有讨论上下文，继续追问、验证与深入分析/)
+    assert.match(renderedText(multiPage), /已记忆 1 轮/)
+    assert.match(renderedText(multiPage), /历史问题/)
+    assert.ok(findRenderedNode(multiPage, node => hasRenderedClass(node, 'qa-multi-page__workspace--history')))
+    assert.equal(findRenderedNodes(multiPage, node => hasRenderedClass(node, 'multi-discussion-guide')).length, 0)
+
+    await clickButton(fixture.root, '新建讨论')
+    await waitFor(
+      () => assert.match(renderedText(fixture.root), /从一个图谱问题开始/),
+      'new discussion did not return to the empty presentation'
+    )
+    assert.doesNotMatch(renderedText(multiPage), /已记忆 1 轮|固定作用域|历史问题/)
+    assert.ok(findRenderedNode(multiPage, node => hasRenderedClass(node, 'qa-multi-page__workspace--empty')))
+    assert.equal(values.has('nexus_multi_discussion_v1:g1'), false)
+  } finally {
+    await fixture.close()
+    if (previousStorage === undefined) delete globalThis.localStorage
+    else globalThis.localStorage = previousStorage
+    delete globalThis[QA_PROBE_KEY]
+  }
+})
 
 function hasRenderedClass(node, className) {
   const values = Array.isArray(node?.props?.class)
@@ -693,7 +829,7 @@ test('result page returns to the QA home while preserving the selected project a
     await fixture.router.push('/?projectId=p1&reportId=r1&conversation=thermal-shock')
     await waitFor(() => assert.match(renderedText(fixture.root), /answer-for-post-1/), 'answer did not finish')
 
-    await clickButton(fixture.root, '返回问答首页')
+    await clickButton(fixture.root, '返回首页')
     await settleWorkflowUpdates()
 
     assert.match(renderedText(fixture.root), /今天想研究什么？/)

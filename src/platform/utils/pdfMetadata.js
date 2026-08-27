@@ -104,6 +104,79 @@ function findDocumentInfoValue(source, key) {
   return ''
 }
 
+function mapExplicitType(value = '') {
+  const normalized = String(value).replace(/<[^>]+>/g, ' ').toLowerCase()
+
+  if (/\bpatent\b/.test(normalized)) return 'patent'
+  if (/\b(?:conference|proceedings|symposium)\b/.test(normalized)) return 'conference'
+  if (/\b(?:book|monograph|handbook|manual|textbook)\b/.test(normalized)) return 'book'
+  if (/\b(?:journal|article)\b/.test(normalized)) return 'journal'
+  return ''
+}
+
+function findExplicitXmpType(source) {
+  const marker = /<(?:dc:type|prism:publicationType)\b[^>]*>([\s\S]{0,240}?)<\/(?:dc:type|prism:publicationType)>/gi
+  let match = marker.exec(source)
+
+  while (match) {
+    const entryType = mapExplicitType(match[1])
+    if (entryType) return entryType
+    match = marker.exec(source)
+  }
+  return ''
+}
+
+function findFourDigitYear(value = '') {
+  const match = String(value).match(/(?:^|[^\d])((?:18|19|20)\d{2})(?!\d)/)
+  return match?.[1] || ''
+}
+
+function findXmpYear(source, tags) {
+  const tagPattern = tags.join('|')
+  const marker = new RegExp(`<(?:${tagPattern})\\b[^>]*>([\\s\\S]{0,240}?)<\\/(?:${tagPattern})>`, 'gi')
+  let match = marker.exec(source)
+
+  while (match) {
+    const year = findFourDigitYear(match[1].replace(/<[^>]+>/g, ' '))
+    if (year) return year
+    match = marker.exec(source)
+  }
+  return ''
+}
+
+function inferLiteratureYear({ source, title, filename }) {
+  const publicationYear = findXmpYear(source, ['prism:publicationDate', 'prism:coverDate'])
+  if (publicationYear) return publicationYear
+
+  const labelYear = findFourDigitYear(`${title || ''} ${fallbackTitleFromFilename(filename)}`)
+  if (labelYear) return labelYear
+  return ''
+}
+
+function inferLiteratureEntryType({ source, title, filename }) {
+  const explicitType = findExplicitXmpType(source)
+  if (explicitType) return explicitType
+
+  if (/\b(?:CN\s?\d{7,12}[A-Z]\d?|WO\s?\d{4}\/?\d{4,8}[A-Z]\d?|US\s?\d{7,11}[A-Z]\d?)\b/i.test(source)) {
+    return 'patent'
+  }
+  if (/\bISBN(?:-1[03])?\s*:?\s*(?:97[89][\s-]?)?[\dX](?:[\dX\s-]{7,20})\b/i.test(source)) {
+    return 'book'
+  }
+  if (/\bISSN\s*:?\s*\d{4}-?\d{3}[\dX]\b/i.test(source)) {
+    return 'journal'
+  }
+
+  const label = `${title || ''} ${fallbackTitleFromFilename(filename)}`
+  if (/(?:专利|\bpatent\b)/i.test(label)) return 'patent'
+  if (/(?:会议论文|会议录|\bconference\b|\bproceedings\b|\bsymposium\b)/i.test(label)) return 'conference'
+  if (/(?:手册|书籍|图书|辞典|字典|\bhandbook\b|\bmanual\b|\bmonograph\b|\btextbook\b|\breference book\b)/i.test(label)) {
+    return 'book'
+  }
+  if (/(?:期刊论文|\bjournal article\b)/i.test(label)) return 'journal'
+  return ''
+}
+
 export function fallbackTitleFromFilename(filename = '') {
   const rawFilename = String(filename).trim()
   const title = rawFilename.replace(/\.pdf$/i, '').trim()
@@ -125,9 +198,13 @@ export async function extractPdfMetadata(file) {
   const source = new TextDecoder('latin1').decode(bytes)
   const title = findDocumentInfoValue(source, 'Title')
   const authors = findDocumentInfoValue(source, 'Author')
+  const entryType = inferLiteratureEntryType({ source, title, filename: file.name })
+  const year = inferLiteratureYear({ source, title, filename: file.name })
 
   return {
     ...(title ? { title } : {}),
     ...(authors ? { authors } : {}),
+    ...(entryType ? { entry_type: entryType } : {}),
+    ...(year ? { year } : {}),
   }
 }

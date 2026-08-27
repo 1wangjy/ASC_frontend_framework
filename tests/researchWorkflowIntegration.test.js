@@ -48,9 +48,9 @@ test('preserves one normalized dialog question through library storage and both 
 })
 
 test('connects dialog submit through the library and blocks empty questions before simulation creation or preparation', async () => {
-  const [dialogSource, librarySource, mainSource, step1Source, step2Source] = await Promise.all([
+  const [dialogSource, platformLibrarySource, mainSource, step1Source, step2Source] = await Promise.all([
     readFile(new URL('../src/features/research/ResearchQuestionDialog.vue', import.meta.url), 'utf8'),
-    readFile(new URL('../src/views/DocumentLibraryView.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/platform/views/DataManagerView.vue', import.meta.url), 'utf8'),
     readFile(new URL('../src/views/MainView.vue', import.meta.url), 'utf8'),
     readFile(new URL('../src/components/Step1GraphBuild.vue', import.meta.url), 'utf8'),
     readFile(new URL('../src/components/Step2EnvSetup.vue', import.meta.url), 'utf8')
@@ -59,8 +59,10 @@ test('connects dialog submit through the library and blocks empty questions befo
   assert.match(dialogSource, /emit\('submit', result\)/)
   assert.match(dialogSource, /defaultProjectName/)
   assert.match(dialogSource, /图谱名称/)
-  assert.match(librarySource, /@submit="startGraphBuild"/)
-  assert.match(librarySource, /startResearchBuildFromLibrary\(documentRows\.value, selectedDocumentIds\.value, submission\)/)
+  assert.match(platformLibrarySource, /@submit="startGraphBuild"/)
+  assert.match(platformLibrarySource, /prepareDocumentsForGraph\(selected,/)
+  assert.match(platformLibrarySource, /startResearchBuildFromLibrary\(/)
+  assert.match(platformLibrarySource, /router\.push\(['"]\/process\/new['"]\)/)
   assert.match(mainSource, /createBaseResearchRequestIntent\(pending\)/)
   assert.match(mainSource, /runBaseResearchRequests\(\{[\s\S]*pending,/)
   assert.match(mainSource, /runProfessionalResearchRequests\(\{[\s\S]*projectName:/)

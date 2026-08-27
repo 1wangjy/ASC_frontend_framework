@@ -42,15 +42,12 @@
             </template>
             <template v-else-if="table === 'mp'">
               <td><span class="id-badge">{{ getRowId(row) }}</span></td>
-              <td colspan="2"><textarea v-model="editPayload.propertiesText" rows="6" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:4px;font-size:13px;font-family:monospace" placeholder="格式: 属性名: 值" /></td>
+              <td colspan="2"><PropertyMeasurementsEditor v-model="editPayload.fixed_properties" :definitions="pureProperties" @validity-change="propertyEditorValid = $event" /></td>
             </template>
             <template v-else-if="table === 'tp'">
               <td><span class="id-badge">{{ getRowId(row) }}</span></td>
-              <td><select v-model="editPayload.test_condition" style="padding:6px;border:1px solid #e5e7eb;border-radius:4px">
-                <option value="无">无</option><option value="110C24H">110C24H</option><option value="1450C24H">1450C24H</option>
-              </select></td>
-              <td><textarea v-model="editPayload.test_resultsText" rows="6" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:4px;font-size:13px;font-family:monospace" placeholder="格式: 测试项: 值" /></td>
-              <td><span>-</span></td>
+              <td><FormulaSelect v-model="editPayload.mr_id" :options="mrOptions" /></td>
+              <td><PropertyMeasurementsEditor v-model="editPayload.test_results" :definitions="testProperties" @validity-change="propertyEditorValid = $event" /></td>
             </template>
             <template v-else-if="table === 'fe'">
               <td><span class="id-badge">{{ getRowId(row) }}</span></td>
@@ -70,7 +67,7 @@
             <td style="white-space:nowrap;font-size:12px;color:#6b7280;">
               <div>创建: {{ formatTime(row.create_time) }}</div><div>更新: {{ formatTime(row.update_time) }}</div>
             </td>
-            <td><div class="action-buttons"><button class="btn btn-small" @click="handleSave">保存</button><button class="btn btn-secondary btn-small" @click="emit('cancelEdit')">取消</button></div></td>
+            <td><div class="action-buttons"><button class="btn btn-small" :disabled="!propertyEditorValid" @click="handleSave">保存</button><button class="btn btn-secondary btn-small" @click="emit('cancelEdit')">取消</button></div></td>
           </template>
           <!-- ================= 只读模式 ================= -->
           <template v-else>
@@ -102,9 +99,8 @@
             </template>
             <template v-else-if="table === 'tp'">
               <td><span class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'tp', row.tp_id)">{{ row.tp_id }}</span></td>
-              <td>{{ row.test_condition || '无' }}</td>
-              <td><pre class="properties-display" style="margin:0">{{ row.test_results ? renderPropsDisplay(row.test_results.fixed, row.test_results.custom, true) : '暂无测试结果' }}</pre></td>
-              <td><template v-if="Array.isArray(row.mr_ids) && row.mr_ids.length"><span v-for="mr in row.mr_ids" :key="mr" class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'mr', mr)">{{ mr }}</span></template><span v-else>-</span></td>
+              <td><template v-if="primaryMrId(row)"><strong>{{ formulaName(primaryMrId(row)) }}</strong><span class="id-badge formula-id" @click="emit('jumpToTab', 'mr', primaryMrId(row))">{{ primaryMrId(row) }}</span></template><span v-else>-</span></td>
+              <td><pre class="properties-display" style="margin:0">{{ row.test_results ? renderPropsDisplay(row.test_results, [], true) : '暂无测试结果' }}</pre></td>
             </template>
             <template v-else-if="table === 'fe'">
               <td><span class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'fe', row.fe_id)">{{ row.fe_id }}</span></td>
@@ -135,6 +131,9 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import ComponentListEditor from './ComponentListEditor.vue'
+import PropertyMeasurementsEditor from './PropertyMeasurementsEditor.vue'
+import FormulaSelect from './FormulaSelect.vue'
+import { formatPropertyDocument, normalizePropertyDocument } from '../utils/propertyMeasurements.js'
 
 const props = defineProps({
   data: { type: Array, default: () => [] },
@@ -142,6 +141,7 @@ const props = defineProps({
   editingRowId: { type: String, default: null },
   mcOptions: { type: Array, default: () => [] },
   mpOptions: { type: Array, default: () => [] },
+  mrOptions: { type: Array, default: () => [] },
   pureProperties: { type: Array, default: () => [] },
   testProperties: { type: Array, default: () => [] },
 })
@@ -163,8 +163,8 @@ const columnDefs = computed(() => {
       { key: 'mp_id', label: 'ID' }, { key: 'properties', label: '属性' }, { key: 'mc_ids', label: '关联ID' },
     ]
     case 'tp': return [
-      { key: 'tp_id', label: 'ID' }, { key: 'test_condition', label: '测试条件' },
-      { key: 'test_results', label: '内容' }, { key: 'mr_ids', label: '关联ID' },
+      { key: 'tp_id', label: 'ID' }, { key: 'mr_id', label: '关联配方' },
+      { key: 'test_results', label: '内容' },
     ]
     case 'fe': return [
       { key: 'fe_id', label: 'ID' }, { key: 'condition_name', label: '名称' },
@@ -188,6 +188,7 @@ const columnDefs = computed(() => {
 
 const editPayload = ref({})
 const editComponents = ref([])
+const propertyEditorValid = ref(true)
 
 watch(() => props.editingRowId, (newId) => {
   if (!newId) return
@@ -197,12 +198,13 @@ watch(() => props.editingRowId, (newId) => {
 }, { immediate: true })
 
 function initializeEdit(row) {
+  propertyEditorValid.value = true
   const payload = {}
   switch (props.table) {
     case 'mc': payload.type = row.type || '支撑骨料'; payload.batch_no = row.batch_no || ''; break
     case 'mr': payload.formula_name = row.formula_name || ''; payload.formula_type = row.formula_type || '铁线配方'; payload.batch_no = row.batch_no || ''; break
-    case 'mp': payload.propertiesText = formatPropsToText(row.fixed_properties, row.custom_properties, false); break
-    case 'tp': payload.test_condition = row.test_condition || '无'; payload.test_resultsText = row.test_results ? formatPropsToText(row.test_results.fixed, row.test_results.custom, true) : ''; break
+    case 'mp': payload.fixed_properties = normalizePropertyDocument(row.fixed_properties, props.pureProperties); break
+    case 'tp': payload.mr_id = primaryMrId(row); payload.test_results = normalizePropertyDocument(row.test_results, props.testProperties); break
     case 'fe': payload.condition_name = row.condition_name || ''; payload.condition_type = row.condition_type || ''; payload.condition_params = typeof row.condition_params === 'object' ? JSON.stringify(row.condition_params, null, 2) : (row.condition_params || '{}'); payload.mr_ids = Array.isArray(row.mr_ids) ? row.mr_ids.join(', ') : (row.mr_ids || ''); break
     case 'ru': payload.service_name = row.service_name || ''; payload.service_type = row.service_type || ''; payload.service_params = typeof row.service_params === 'object' ? JSON.stringify(row.service_params, null, 2) : (row.service_params || '{}'); payload.fe_ids = Array.isArray(row.fe_ids) ? row.fe_ids.join(', ') : (row.fe_ids || ''); payload.mr_ids = Array.isArray(row.mr_ids) ? row.mr_ids.join(', ') : (row.mr_ids || ''); break
   }
@@ -263,6 +265,7 @@ function parsePropsText(text, isTest) {
 }
 
 function handleSave() {
+  if (!propertyEditorValid.value) { window.alert('请先修正物性测量中的格式或单位错误'); return }
   const payload = { ...editPayload.value }
   switch (props.table) {
     case 'mc': case 'mr':
@@ -273,16 +276,11 @@ function handleSave() {
       }
       payload.component_list = editComponents.value.map(item => [item.name, item.id || null, '{}', item.ratio])
       break
-    case 'mp': {
-      const parsed = parsePropsText(payload.propertiesText || '', false)
-      payload.fixed_properties = parsed.fixed; payload.custom_properties = parsed.custom
-      delete payload.propertiesText
-      break
-    }
+    case 'mp': break
     case 'tp': {
-      const parsed = parsePropsText(payload.test_resultsText || '', true)
-      payload.test_results = { fixed: parsed.fixed, custom: parsed.custom }
-      delete payload.test_resultsText
+      if (!payload.mr_id) { window.alert('请选择关联配方'); return }
+      payload.mr_ids = [payload.mr_id]
+      delete payload.mr_id
       break
     }
     case 'fe':
@@ -308,6 +306,8 @@ function getRowId(row) {
 
 function linkTypeOf(id) { return id && id.startsWith('MC_') ? 'mc' : 'mp' }
 function formatTime(time) { return time ? time.substring(0, 19) : '-' }
+function primaryMrId(row) { return Array.isArray(row?.mr_ids) ? (row.mr_ids[0] || '') : (row?.mr_ids || '') }
+function formulaName(mrId) { return props.mrOptions.find(item => item.mr_id === mrId)?.formula_name?.trim() || '未命名配方' }
 
 function formatJson(obj) {
   if (!obj) return '-'
@@ -315,7 +315,11 @@ function formatJson(obj) {
   return String(obj)
 }
 
-function renderPropsDisplay(fixed, custom, isTest) { return formatPropsToText(fixed, custom, isTest) }
+function renderPropsDisplay(fixed, custom, isTest) {
+  const definitions = isTest ? props.testProperties : props.pureProperties
+  const document = fixed?.schemaVersion ? fixed : { fixed, custom }
+  return formatPropertyDocument(document, definitions)
+}
 
 defineExpose({
   setEditingComponent(itemIndex, patch) {
@@ -334,4 +338,5 @@ defineExpose({
 .action-buttons { display: flex; gap: 8px; }
 .properties-display { background: #f8fafc; padding: 8px 12px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; max-height: 150px; overflow-y: auto; }
 .component-item { padding: 4px 8px; margin-bottom: 4px; border-radius: 4px; font-size: 13px; }
+.formula-id { margin-left: 8px; cursor: pointer; text-decoration: underline; }
 </style>

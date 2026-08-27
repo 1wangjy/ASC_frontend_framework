@@ -20,6 +20,8 @@ test('renders a stable report center shell while saved reports are loading', asy
   const html = await renderSfc('/src/views/ReportCenterView.vue', {}, { withRouter: true })
 
   assert.match(html, /报告生成/)
+  assert.match(html, /返回首页/)
+  assert.match(html, /href="\/"/)
   assert.match(html, /已保存的研究报告/)
   assert.match(html, /正在读取已保存报告/)
 })

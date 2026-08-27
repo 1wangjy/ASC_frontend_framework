@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const newDbService = require('../services/newDbService');
 const GridFsBucketStorage = require('../services/gridFsBucketStorage');
+const pdfMetadataExtractorService = require('../services/pdfMetadataExtractorService');
+const literatureMetadataService = require('../services/literatureMetadataService');
 const { normalizeUploadFilename } = require('../utils/uploadFilename');
 
 // 连接MongoDB
@@ -145,5 +147,49 @@ exports.removeAttachment = async (req, res) => {
   } catch (error) {
     console.error('Error removing attachment:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// 对 GridFS 中已经上传成功的 PDF 做单文件元数据提取。
+exports.extractMetadata = async (req, res) => {
+  try {
+    await newDbService.connect();
+
+    const lit = await newDbService.getLit(req.params.litId);
+    if (!lit) {
+      res.status(404).json({ success: false, error: '文献记录不存在' });
+      return;
+    }
+    if (!lit.attachment) {
+      res.status(409).json({ success: false, error: '该文献尚未上传附件' });
+      return;
+    }
+    if (!gridFsStorage) {
+      res.status(503).json({ success: false, error: 'MongoDB 未连接，无法读取附件' });
+      return;
+    }
+
+    const result = await literatureMetadataService.extractAndPersistMetadata({
+      litId: lit.lit_id,
+      filename: lit.attachment,
+      storage: gridFsStorage,
+      dbService: newDbService,
+      extractorService: pdfMetadataExtractorService,
+      overwriteExisting: req.body?.overwriteExisting === true,
+    });
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error extracting PDF metadata:', error.message);
+    const status = error.code === 'LITERATURE_NOT_FOUND'
+      ? 404
+      : error.code === 'GRIDFS_ATTACHMENT_NOT_READY'
+        ? 503
+        : error.code === 'PDF_METADATA_NOT_CONFIGURED'
+      || error.code === 'PDF_METADATA_START_FAILED'
+      ? 503
+      : error.code === 'PDF_METADATA_TIMEOUT'
+        ? 504
+        : 502;
+    res.status(status).json({ success: false, error: error.message });
   }
 };

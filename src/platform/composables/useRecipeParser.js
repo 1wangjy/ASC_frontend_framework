@@ -4,9 +4,10 @@
  */
 import { ref } from 'vue'
 import yaml from 'js-yaml'
-import { getMcMaterials, getMpProperties, addTableData } from '../api/admin'
-import { submitRecipe, registerTestData, parseRecipeRemote } from '../api/recipeParser'
+import { getMcMaterials, getMpProperties } from '../api/admin'
+import { submitRecipe, parseRecipeRemote } from '../api/recipeParser'
 import { usePlatformPropertiesStore } from '../stores/properties'
+import { findMaterialByReference } from '../types/entities.js'
 
 export function useRecipeParser() {
   const propertiesStore = usePlatformPropertiesStore()
@@ -188,7 +189,7 @@ export function useRecipeParser() {
     return { components, warnings }
   }
 
-  async function parseRecipe(content) {
+  async function parseRecipe(content, options = {}) {
     if (!content.trim()) throw new Error('请输入配方内容')
     await ensureDataLoaded()
     const { components: localComponents, warnings: parseWarnings } = parseRecipeText(content)
@@ -200,7 +201,7 @@ export function useRecipeParser() {
       let matchedMaterial = null, materialName = '未匹配', materialId = ''
       if (comp.mpId) {
         materialId = comp.mpId
-        const found = allMaterials.value.find(m => m.mc_id === comp.mpId || m.MPID === comp.mpId)
+        const found = findMaterialByReference(allMaterials.value, comp.mpId)
         if (found) {
           matchedMaterial = found
           materialName = found.material_type || found.mc_id || '已匹配'
@@ -220,17 +221,19 @@ export function useRecipeParser() {
     if (recipeTableData.value.length === 0) throw new Error('没有解析到有效的配方组分')
     warnings.value = parseWarnings || []
     let embedding, embeddingShape
-    try {
-      const remote = await parseRecipeRemote(toPythonRecipeFormat(content))
-      if (remote.embedding && remote.embedding.length > 0) {
-        embedding = remote.embedding
-        embeddingShape = remote.embedding_shape
+    if (options.generateEmbedding) {
+      try {
+        const remote = await parseRecipeRemote(toPythonRecipeFormat(content))
+        if (remote.embedding && remote.embedding.length > 0) {
+          embedding = remote.embedding
+          embeddingShape = remote.embedding_shape
+        }
+        if (remote.warnings && remote.warnings.length > 0) {
+          warnings.value = [...(parseWarnings || []), ...remote.warnings]
+        }
+      } catch (e) {
+        warnings.value = [...(parseWarnings || []), `后端解析服务不可用，embedding 无法生成: ${e.message}`]
       }
-      if (remote.warnings && remote.warnings.length > 0) {
-        warnings.value = [...(parseWarnings || []), ...remote.warnings]
-      }
-    } catch (e) {
-      warnings.value = [...(parseWarnings || []), `后端解析服务不可用，embedding 无法生成: ${e.message}`]
     }
     return { components: recipeTableData.value, testData: testData.value, warnings: warnings.value, embedding, embeddingShape }
   }
@@ -244,35 +247,16 @@ export function useRecipeParser() {
     const totalPct = recipeTableData.value.reduce((s, r) => s + (r.percentage || 0), 0)
     if (Math.abs(totalPct - 100) > 0.1) return { success: false, message: `组分百分比总和应为100%，当前为${totalPct.toFixed(1)}%` }
     try {
-      const components = await Promise.all(recipeTableData.value.map(async (row) => {
-        if (Object.keys(row.properties).length > 0 && !row.matchedMaterial) {
-          const pw = {}
-          Object.entries(row.properties).forEach(([key, property]) => {
-            let value, unit = ''
-            if (typeof property === 'object' && property !== null) {
-              value = property.value; unit = property.unit || ''
-            } else {
-              value = property
-              const prop = propertiesStore.findPureProperty(key)
-              if (prop) unit = prop.unit || ''
-            }
-            pw[key] = { value, unit }
-          })
-          try {
-            await addTableData('mp_properties', { properties: pw, mcId: row.materialId })
-          } catch (e) { console.error('Error creating mp_properties:', e) }
-        }
-        return { original: row.original, materialId: row.materialId, percentage: row.percentage, properties: row.properties, componentType: row.componentType }
+      const components = recipeTableData.value.map((row) => ({
+        original: row.original,
+        materialId: row.materialId,
+        percentage: row.percentage,
+        properties: row.properties,
+        componentType: row.componentType,
       }))
       const result = await submitRecipe({ name, type, batch, components, testData: testData.value })
       if (result.code === 200) {
         const recipeId = result.data?.recipeId
-        if (Object.keys(testData.value).length > 0) {
-          try {
-            const tr = await registerTestData(recipeId ?? '', testData.value)
-            if (tr.code !== 200) console.error('测试数据注册失败:', tr.message)
-          } catch (e) { console.error('测试数据注册失败:', e) }
-        }
         return { success: true, recipeId }
       }
       return { success: false, message: result.message || '请重试' }

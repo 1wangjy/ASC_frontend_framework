@@ -148,9 +148,11 @@ watch(
 }
 
 .qa-project-selector__dialog {
+  display: flex;
+  flex-direction: column;
   width: min(390px, calc(100vw - 32px));
-  max-height: min(620px, calc(100vh - 96px));
-  overflow: auto;
+  height: min(470px, calc(100vh - 96px));
+  overflow: hidden;
   border: 1px solid var(--asc-border);
   border-radius: 12px;
   background: #fff;
@@ -158,6 +160,7 @@ watch(
 }
 
 .qa-project-selector__dialog > header {
+  flex: 0 0 auto;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -219,9 +222,13 @@ watch(
 
 .qa-project-selector__list {
   display: grid;
+  flex: 1 1 auto;
   gap: 8px;
+  min-height: 0;
   margin: 0;
+  overflow-y: auto;
   padding: 12px;
+  align-content: start;
   list-style: none;
 }
 

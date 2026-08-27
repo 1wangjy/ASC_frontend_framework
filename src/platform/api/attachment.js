@@ -14,6 +14,14 @@ export function removeAttachment(litId) {
   return request.delete(`/api/attachment/remove/${litId}`).then(() => undefined)
 }
 
+export function extractAttachmentMetadata(litId, options = {}) {
+  return request.post(`/api/attachment/metadata/${encodeURIComponent(litId)}`, {
+    overwriteExisting: options.overwriteExisting === true,
+  }, {
+    timeout: 630000,
+  }).then(unwrapApiSuccess)
+}
+
 export function testMongoDB() {
   return request.get('/api/attachment/test')
     .then(unwrapApiSuccess)
@@ -29,4 +37,33 @@ export function testMongoDB() {
 
 export function getAttachmentUrl(filename) {
   return `/api/attachment/${encodeURIComponent(filename)}`
+}
+
+export async function downloadAttachment(filename, browser = globalThis) {
+  const attachmentFilename = String(filename ?? '').trim()
+  if (!attachmentFilename) {
+    throw new Error('附件文件名不能为空')
+  }
+
+  const blob = await request.get(getAttachmentUrl(attachmentFilename), {
+    responseType: 'blob',
+  })
+  const downloadFilename = attachmentFilename.toLowerCase().endsWith('.pdf')
+    ? attachmentFilename
+    : `${attachmentFilename}.pdf`
+  const objectUrl = browser.URL.createObjectURL(blob)
+  const link = browser.document.createElement('a')
+
+  link.href = objectUrl
+  link.download = downloadFilename
+  browser.document.body.appendChild(link)
+
+  try {
+    link.click()
+  } finally {
+    link.remove()
+    browser.URL.revokeObjectURL(objectUrl)
+  }
+
+  return downloadFilename
 }

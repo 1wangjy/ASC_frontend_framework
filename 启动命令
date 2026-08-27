@@ -1,0 +1,8 @@
+cd D:\ASC\AI4Sci-NEXUS-ASC-Development-Domain-main\frontend\backend_impl
+npm run dev
+3001后端启动命令
+
+
+cd D:\ASC\AI4Sci-NEXUS-ASC-Development-Domain-main\frontend
+npm run dev 
+3005前端启动命令

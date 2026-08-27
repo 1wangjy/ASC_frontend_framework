@@ -212,7 +212,7 @@
           >
             <span>当前项目缺少研究问题，不能开始图谱构建。</span>
             <button class="ghost-btn" type="button" @click="router.push({ name: 'AscQa' })">
-              问答首页
+              首页
             </button>
           </div>
           
@@ -739,9 +739,13 @@ const canReviewBaseNodes = computed(() => (
   !props.baseNodesConfirmed
 ))
 
-const canStartProfessionalBuild = computed(() => (
-  props.currentPhase === 2 &&
+const canImportProfessionalFiles = computed(() => (
   props.baseNodesConfirmed &&
+  (props.currentPhase === 2 || props.currentPhase >= 4)
+))
+
+const canStartProfessionalBuild = computed(() => (
+  canImportProfessionalFiles.value &&
   props.professionalFilesCount > 0 &&
   !!props.baseMetadataPath &&
   Number.isFinite(Number(professionalEntityNodeLimit.value)) &&
@@ -751,8 +755,6 @@ const canStartProfessionalBuild = computed(() => (
   Number.isFinite(Number(professionalPostTargetEdgeIterations.value)) &&
   Number(professionalPostTargetEdgeIterations.value) >= 0
 ))
-
-const canImportProfessionalFiles = computed(() => props.currentPhase === 2 && props.baseNodesConfirmed)
 
 const canExportBaseGraph = computed(() => (
   props.currentPhase >= 2 && baseNodes.value.length > 0

@@ -40,6 +40,9 @@ router.get('/test', (req, res) => {
 // 删除附件
 router.delete('/remove/:litId', attachmentController.removeAttachment);
 
+// 从已上传到 GridFS 的单个 PDF 中提取文献元数据。
+router.post('/metadata/:litId', attachmentController.extractMetadata);
+
 // 下载/预览附件（动态路由必须放在 /test 之后）
 router.get('/:filename', attachmentController.getAttachment);
 

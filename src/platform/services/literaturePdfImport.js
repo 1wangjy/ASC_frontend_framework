@@ -1,5 +1,9 @@
 import { create, remove, update } from '../api/newData.js'
-import { testMongoDB, uploadAttachment } from '../api/attachment.js'
+import {
+  extractAttachmentMetadata,
+  testMongoDB,
+  uploadAttachment,
+} from '../api/attachment.js'
 import {
   extractPdfMetadata,
   fallbackTitleFromFilename,
@@ -11,9 +15,53 @@ const defaultDependencies = {
   testMongoDB,
   createLiterature: (payload) => create('lit', payload),
   uploadAttachment,
+  extractAttachmentMetadata,
   extractPdfMetadata,
+  reportMetadataError: ({ litId, error }) => {
+    console.warn(
+      `[literature import] remote metadata extraction failed for ${litId}:`,
+      error?.message || error,
+    )
+  },
   updateLiterature: (litId, payload) => update('lit', litId, payload),
   removeLiterature: (litId) => remove('lit', litId),
+}
+
+const METADATA_FIELDS = [
+  'title',
+  'authors',
+  'journal',
+  'year',
+  'pages',
+  'doi',
+  'abstract',
+  'note',
+  'entry_type',
+]
+
+function usableMetadata(value) {
+  const source = value?.metadata || value || {}
+  return Object.fromEntries(
+    METADATA_FIELDS
+      .filter((field) => source[field] !== null && source[field] !== undefined)
+      .map((field) => [field, typeof source[field] === 'string' ? source[field].trim() : source[field]])
+      .filter(([, fieldValue]) => fieldValue !== ''),
+  )
+}
+
+async function extractRemoteMetadata(dependencies, litId) {
+  try {
+    const result = await dependencies.extractAttachmentMetadata(litId, {
+      overwriteExisting: true,
+    })
+    return {
+      metadata: usableMetadata(result),
+      literature: result?.literature || null,
+    }
+  } catch (error) {
+    dependencies.reportMetadataError?.({ litId, error })
+    return { metadata: {}, literature: null }
+  }
 }
 
 function minimalLiterature(file) {
@@ -28,7 +76,7 @@ function minimalLiterature(file) {
     doi: '',
     abstract: '',
     note: '',
-    entry_type: 'journal',
+    entry_type: '',
   }
 }
 
@@ -68,11 +116,21 @@ export async function importLiteraturePdf(file, options = {}) {
   let metadata = {}
   let metadataApplied = false
   let degraded = false
+  let persistedLiterature = null
 
   try {
-    metadata = await dependencies.extractPdfMetadata(file)
+    const remoteResult = await extractRemoteMetadata(dependencies, litId)
+    metadata = remoteResult.metadata
+    persistedLiterature = remoteResult.literature
+
+    if (!Object.keys(metadata).length) {
+      metadata = usableMetadata(await dependencies.extractPdfMetadata(file))
+    }
+
     if (Object.keys(metadata).length) {
-      await dependencies.updateLiterature(litId, metadata)
+      if (!persistedLiterature?.lit_id) {
+        await dependencies.updateLiterature(litId, metadata)
+      }
       metadataApplied = true
     } else {
       degraded = true
@@ -87,7 +145,8 @@ export async function importLiteraturePdf(file, options = {}) {
     literature: {
       ...created,
       ...metadata,
-      attachment: attachment?.filename || created.attachment || '',
+      ...(persistedLiterature || {}),
+      attachment: persistedLiterature?.attachment || attachment?.filename || created.attachment || '',
     },
     metadataApplied,
     degraded,

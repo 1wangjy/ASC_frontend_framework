@@ -130,7 +130,7 @@ async function handleParse() {
   if (!rawText.value.trim()) { parser.warnings.value = ['请输入配方内容']; return }
   loading.value = true
   try {
-    const result = await parser.parseRecipe(rawText.value)
+    const result = await parser.parseRecipe(rawText.value, { generateEmbedding: props.showEmbedding })
     parsed.value = true; successVisible.value = true
     if (parser.yamlMetaName.value) recipeName.value = parser.yamlMetaName.value
     if (result.embedding && result.embedding.length > 0) {
