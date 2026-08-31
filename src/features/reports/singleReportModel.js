@@ -8,11 +8,22 @@ function requireSimulationId(value) {
   return simulationId
 }
 
-export function buildSingleReportGenerationPayload(simulationId) {
-  return {
+export function buildReportGenerationPayload({
+  simulationId,
+  forceRegenerate = false,
+  reportName = ''
+} = {}) {
+  const payload = {
     simulation_id: requireSimulationId(simulationId),
-    force_regenerate: false
+    force_regenerate: forceRegenerate === true
   }
+  const normalizedReportName = text(reportName)
+  if (normalizedReportName) payload.report_name = normalizedReportName
+  return payload
+}
+
+export function buildSingleReportGenerationPayload(simulationId) {
+  return buildReportGenerationPayload({ simulationId })
 }
 
 export function completedReportFromStatus(response = {}) {

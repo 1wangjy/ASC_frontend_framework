@@ -1,8 +1,46 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 
 import * as qa from '../src/features/qa/qaDemoModel.js'
+import { renderedText } from './helpers/createMemoryVueRenderer.js'
+import { findRenderedNode, mountSfcWithMemoryRouter } from './helpers/mountSfcWithMemoryRouter.js'
 import { renderSfc } from './helpers/renderSfc.js'
+
+test('shared mode switcher emits the selected QA page mode', async () => {
+  let selectedMode = ''
+  const fixture = await mountSfcWithMemoryRouter(
+    '/src/features/qa/QaModeSwitcher.vue',
+    '/',
+    {
+      mode: 'single',
+      'onUpdate:mode': mode => { selectedMode = mode }
+    }
+  )
+
+  try {
+    const multiButton = findRenderedNode(
+      fixture.root,
+      node => node?.type === 'button' && renderedText(node).includes('多轮连续')
+    )
+    assert.ok(multiButton)
+    assert.equal(multiButton.props['aria-pressed'], false)
+    await multiButton.props.onClick()
+    assert.equal(selectedMode, 'multi')
+  } finally {
+    await fixture.close()
+  }
+})
+
+test('centers the shared mode switcher without shifting either page heading', async () => {
+  const [switcherSource, qaViewSource] = await Promise.all([
+    readFile(new URL('../src/features/qa/QaModeSwitcher.vue', import.meta.url), 'utf8'),
+    readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
+  ])
+
+  assert.match(switcherSource, /\.qa-mode-switcher\s*\{[\s\S]*?justify-self:\s*center;/)
+  assert.doesNotMatch(qaViewSource, /\.qa-empty h1,[\s\S]*?transform:\s*translateX/)
+})
 
 test('defaults to single-turn NEXUS with ontology enhancement enabled', () => {
   const state = qa.createQaState()
@@ -45,7 +83,7 @@ test('renders one composer with mode choices, model, reasoning, and no internal 
   assert.doesNotMatch(html, /框架|本体增强/)
 })
 
-test('shows a disabled send entry for multi-turn without invoking the single-turn backend', async () => {
+test('shows a live send entry for multi-turn', async () => {
   const state = qa.selectQaMode?.(qa.createQaState(), 'multi') ?? qa.createQaState()
   const html = await renderSfc('/src/features/qa/QuestionComposer.vue', {
     modelValue: '继续讨论',
@@ -53,7 +91,8 @@ test('shows a disabled send entry for multi-turn without invoking the single-tur
     mode: 'multi'
   })
 
-  assert.match(html, /<button[^>]*class="send-button"[^>]*disabled[^>]*>[\s\S]*发送/)
+  assert.match(html, /<button[^>]*class="send-button"[^>]*>[\s\S]*发送/)
+  assert.doesNotMatch(html, /title="多轮问答接口尚未接入"/)
 })
 
 test('hides the entire compact follow-up composer after a single-turn question', async () => {

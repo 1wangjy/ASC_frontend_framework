@@ -146,6 +146,19 @@ test('keeps the task panel collapsible and its task list internally scrollable',
   assert.match(source, /\.graph-task-indicator__list\s*\{[^}]*overflow-y:\s*auto/s)
 })
 
+test('renders every synchronized graph project instead of truncating completed projects', async () => {
+  const items = Array.from({ length: 10 }, (_, index) => ({
+    ...completedItem,
+    id: `task-${index + 1}`,
+    projectId: `project-${index + 1}`,
+    name: `Project ${index + 1}`
+  }))
+  const html = await renderSfc('/src/features/tasks/GlobalGraphTaskIndicator.vue', { items })
+
+  assert.match(html, /Project 1/)
+  assert.match(html, /Project 10/)
+})
+
 test('removes QA shortcuts from the task indicator until the workflow is ready', async () => {
   const componentSource = await readFile(
     new URL('../src/features/tasks/GlobalGraphTaskIndicator.vue', import.meta.url),

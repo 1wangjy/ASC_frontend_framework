@@ -1,18 +1,11 @@
 <template>
   <div v-if="!compact || mode === 'multi'" class="composer-shell">
-    <div v-if="!compact" class="composer-mode" role="group" aria-label="问答模式">
-      <button
-        v-for="option in qaModeOptions"
-        :key="option.id"
-        type="button"
-        :class="{ active: mode === option.id }"
-        :aria-pressed="mode === option.id"
-        :disabled="modeDisabled"
-        @click="$emit('update:mode', option.id)"
-      >
-        {{ option.label }}
-      </button>
-    </div>
+    <QaModeSwitcher
+      v-if="!compact"
+      :mode="mode"
+      :disabled="modeDisabled"
+      @update:mode="$emit('update:mode', $event)"
+    />
 
     <form class="composer" :class="{ 'composer--compact': compact }" @submit.prevent="submit">
     <textarea
@@ -25,7 +18,15 @@
     />
 
     <div v-if="mode === 'multi' && selectedImage" class="multi-image-preview">
-      <img :src="selectedImage.url" :alt="selectedImage.name" />
+      <button
+        type="button"
+        class="multi-image-preview__zoom"
+        :aria-label="`放大查看 ${selectedImage.name}`"
+        @click="previewOpen = true"
+      >
+        <img :src="selectedImage.url" :alt="selectedImage.name" />
+        <span class="sr-only">放大查看 {{ selectedImage.name }}</span>
+      </button>
       <span :title="selectedImage.name">{{ selectedImage.name }}</span>
       <button type="button" aria-label="删除图片" @click="removeImage">
         <span aria-hidden="true">×</span>
@@ -56,7 +57,9 @@
       <label class="composer-control composer-control--model">
         <span>模型</span>
         <select :value="settings.model" aria-label="模型" @change="updateSetting('model', $event.target.value)">
-          <option v-for="model in domesticModelOptions" :key="model" :value="model">{{ model }}</option>
+          <option v-for="option in normalizedModelOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
         </select>
       </label>
 
@@ -73,17 +76,45 @@
         </select>
       </label>
 
-      <label v-if="mode === 'multi'" class="composer-control composer-control--module">
-        <span>多模块回答</span>
-        <select
-          :value="multiModule"
-          aria-label="多模块回答"
-          @change="multiModule = $event.target.value"
+      <button
+        v-if="mode === 'multi'"
+        type="button"
+        class="multimodal-answer-toggle"
+        :class="{ 'is-active': enableMultimodalResponse }"
+        :aria-pressed="enableMultimodalResponse"
+        :disabled="disabled"
+        title="开启后，回答生成前会检索高相关视觉证据，并用于证据约束与图文布局"
+        @click="enableMultimodalResponse = !enableMultimodalResponse"
+      >
+        <span aria-hidden="true">🖼️</span>
+        <strong>多模态回答</strong>
+        <small>{{ enableMultimodalResponse ? '已开启' : '已关闭' }}</small>
+      </button>
+      <div
+        v-if="mode === 'multi' && enableMultimodalResponse"
+        class="multimodal-render-mode"
+        role="group"
+        aria-label="多模态回答图片展示方式"
+      >
+        <button
+          type="button"
+          :class="{ 'is-active': multiModule === 'inline' }"
+          :aria-pressed="multiModule === 'inline'"
+          :disabled="disabled"
+          @click="multiModule = 'inline'"
         >
-          <option value="inline">正文穿插</option>
-          <option value="evidence">证据区域</option>
-        </select>
-      </label>
+          正文穿插
+        </button>
+        <button
+          type="button"
+          :class="{ 'is-active': multiModule === 'evidence' }"
+          :aria-pressed="multiModule === 'evidence'"
+          :disabled="disabled"
+          @click="multiModule = 'evidence'"
+        >
+          证据区域
+        </button>
+      </div>
 
       <button
         v-if="mode === 'single'"
@@ -98,23 +129,30 @@
         v-if="mode === 'multi'"
         class="send-button"
         type="submit"
-        disabled
-        title="多轮问答接口尚未接入"
+        :disabled="disabled || (!modelValue.trim() && !selectedImage)"
       >
         <span>发送</span>
         <AscIcon name="send" />
       </button>
     </div>
     </form>
+
+    <AscImageLightbox
+      :open="previewOpen"
+      :src="selectedImage?.url || ''"
+      :alt="selectedImage?.name || ''"
+      @close="previewOpen = false"
+    />
   </div>
 </template>
 
 <script setup>
-import { onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import AscIcon from '../../components/ui/AscIcon.vue'
+import AscImageLightbox from '../../components/ui/AscImageLightbox.vue'
+import QaModeSwitcher from './QaModeSwitcher.vue'
 import {
   domesticModelOptions,
-  qaModeOptions,
   reasoningOptions
 } from './qaDemoModel.js'
 
@@ -142,6 +180,10 @@ const props = defineProps({
   modeDisabled: {
     type: Boolean,
     default: false
+  },
+  modelOptions: {
+    type: Array,
+    default: () => domesticModelOptions.map(value => ({ value, label: value }))
   }
 })
 
@@ -154,15 +196,36 @@ const emit = defineEmits([
 
 const fileInput = ref(null)
 const selectedImage = ref(null)
+const previewOpen = ref(false)
+const enableMultimodalResponse = ref(false)
 const multiModule = ref('inline')
+const normalizedModelOptions = computed(() => props.modelOptions
+  .map(option => typeof option === 'string'
+    ? { value: option, label: option }
+    : {
+        value: String(option?.value || ''),
+        label: String(option?.label || option?.value || '')
+      })
+  .filter(option => option.value && option.label))
 
 function updateSetting(key, value) {
   emit('update:settings', { [key]: value })
 }
 
 function submit() {
-  if (props.mode !== 'single' || props.disabled || !props.modelValue.trim()) return
-  emit('submit')
+  if (props.disabled) return
+  if (props.mode === 'multi') {
+    if (!props.modelValue.trim() && !selectedImage.value?.file) return
+    emit('submit', {
+      question: props.modelValue.trim(),
+      image: selectedImage.value?.file || null,
+      enableMultimodalResponse: enableMultimodalResponse.value,
+      multiModule: multiModule.value
+    })
+    removeImage()
+    return
+  }
+  if (props.modelValue.trim()) emit('submit')
 }
 
 function releaseSelectedImage() {
@@ -175,12 +238,14 @@ function selectImage(event) {
 
   releaseSelectedImage()
   selectedImage.value = {
+    file: image,
     name: image.name,
     url: URL.createObjectURL(image)
   }
 }
 
 function removeImage() {
+  previewOpen.value = false
   releaseSelectedImage()
   selectedImage.value = null
   if (fileInput.value) fileInput.value.value = ''
@@ -195,40 +260,6 @@ onBeforeUnmount(releaseSelectedImage)
   width: 100%;
   display: grid;
   gap: 12px;
-}
-
-.composer-mode {
-  width: fit-content;
-  display: inline-flex;
-  justify-self: center;
-  padding: 4px;
-  border: 1px solid var(--asc-border);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, .72);
-}
-
-.composer-mode button {
-  min-height: 34px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--asc-muted);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 750;
-  cursor: pointer;
-}
-
-.composer-mode button.active {
-  background: var(--asc-primary);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(8, 105, 173, .18);
-}
-
-.composer-mode button:disabled {
-  cursor: not-allowed;
-  opacity: .58;
 }
 
 .composer {
@@ -286,6 +317,23 @@ onBeforeUnmount(releaseSelectedImage)
   height: 46px;
   border-radius: 6px;
   object-fit: cover;
+}
+
+.multi-image-preview__zoom {
+  width: 46px;
+  height: 46px;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.multi-image-preview__zoom:focus-visible {
+  outline: 2px solid var(--asc-primary);
+  outline-offset: 2px;
 }
 
 .multi-image-preview > span {
@@ -369,8 +417,74 @@ onBeforeUnmount(releaseSelectedImage)
   max-width: 190px;
 }
 
-.composer-control--module select {
-  max-width: 92px;
+.multimodal-answer-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid #cbd3df;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #556278;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, color .18s ease;
+}
+
+.multimodal-answer-toggle strong {
+  font-size: 9px;
+}
+
+.multimodal-answer-toggle small {
+  padding-left: 6px;
+  border-left: 1px solid currentColor;
+  font-size: 8px;
+  opacity: .72;
+}
+
+.multimodal-answer-toggle.is-active {
+  border-color: #43a789;
+  background: #eaf8f3;
+  color: #08775a;
+  box-shadow: 0 0 0 2px rgba(36, 165, 125, .08);
+}
+
+.multimodal-answer-toggle:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.multimodal-render-mode {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f4f6f9;
+}
+
+.multimodal-render-mode button {
+  min-height: 25px;
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #6a7689;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.multimodal-render-mode button.is-active {
+  background: #fff;
+  color: #4e50bd;
+  box-shadow: 0 1px 4px rgba(51, 62, 85, .13);
+}
+
+.multimodal-render-mode button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
 }
 
 .send-button {
@@ -427,14 +541,6 @@ onBeforeUnmount(releaseSelectedImage)
 
   .composer-control {
     flex: 1 1 calc(50% - 5px);
-  }
-
-  .composer-mode {
-    width: 100%;
-  }
-
-  .composer-mode button {
-    flex: 1;
   }
 
   .send-button {

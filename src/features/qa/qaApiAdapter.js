@@ -69,7 +69,8 @@ function assertResolvedResponseScope(payload, requestScope) {
     throw invalidGraphScope('Successful answer is missing debug_trace.graph_context')
   }
 
-  if (String(graphContext.scope_resolution ?? '').trim() !== 'project_id') {
+  const scopeResolution = String(graphContext.scope_resolution ?? '').trim()
+  if (!['project_id', 'project_id+graph_id'].includes(scopeResolution)) {
     throw invalidGraphScope('Response scope_resolution did not resolve from the requested project_id')
   }
   if (String(graphContext.project_id ?? '').trim() !== requestScope.project_id) {
@@ -88,41 +89,12 @@ function assertAuthoritativeProjectSimulation(response, expectedSimulationId) {
   const project = projectFromResponse(response)
   const simulationId = String(project?.simulation_id ?? project?.simulationId ?? '').trim()
   if (simulationId && simulationId !== expectedSimulationId) {
-    throw invalidQaEligibility('Authoritative project simulation_id does not match the selected report')
+    throw invalidQaEligibility('Authoritative project simulation_id does not match the selected simulation')
   }
 }
 
 export function isInvalidQaEligibilityError(error) {
   return error?.code === INVALID_QA_ELIGIBILITY_CODE
-}
-
-function assertAuthoritativeReportEligibility(response, scope) {
-  if (response?.success === false) {
-    throw invalidQaEligibility(response?.error || 'Selected report is no longer available')
-  }
-
-  const report = projectFromResponse(response)
-  const reportId = String(report?.report_id ?? report?.reportId ?? '').trim()
-  const status = String(report?.status ?? '').trim().toLowerCase()
-  const simulationId = String(report?.simulation_id ?? report?.simulationId ?? '').trim()
-  const projectId = String(report?.project_id ?? report?.projectId ?? '').trim()
-  const graphId = String(report?.graph_id ?? report?.graphId ?? '').trim()
-
-  if (reportId !== scope.reportId) {
-    throw invalidQaEligibility('Authoritative report_id does not match the selected report')
-  }
-  if (status !== 'completed') {
-    throw invalidQaEligibility('Selected report is no longer completed')
-  }
-  if (!simulationId || simulationId !== scope.simulationId) {
-    throw invalidQaEligibility('Authoritative simulation_id does not match the selected report')
-  }
-  if (projectId && projectId !== scope.projectId) {
-    throw invalidQaEligibility('Authoritative report project_id does not match the selected project')
-  }
-  if (graphId && graphId !== scope.graphId) {
-    throw invalidQaEligibility('Authoritative report graph_id does not match the selected graph')
-  }
 }
 
 function unique(values = []) {
@@ -332,27 +304,17 @@ export function buildCodQueryPayload({ question, project, simulationId, settings
   return payload
 }
 
-export async function requestCodAnswer({ codGraphRAGQuery, getProject, getReport } = {}, context) {
+export async function requestCodAnswer({ codGraphRAGQuery, getProject } = {}, context) {
   if (
     typeof getProject !== 'function'
-    || typeof getReport !== 'function'
     || typeof codGraphRAGQuery !== 'function'
   ) {
-    throw new TypeError('requestCodAnswer requires getProject, getReport and codGraphRAGQuery')
+    throw new TypeError('requestCodAnswer requires getProject and codGraphRAGQuery')
   }
 
   const payload = buildCodQueryPayload(context)
-  const reportId = String(context?.reportId ?? '').trim()
   const simulationId = String(context?.simulationId ?? '').trim()
-  if (!reportId || !simulationId) {
-    throw invalidQaEligibility('问答请求必须同时包含 report_id 和 simulation_id 资格上下文')
-  }
-  const eligibilityScope = {
-    projectId: payload.project_id,
-    graphId: payload.graph_id,
-    simulationId,
-    reportId
-  }
+  if (!simulationId) throw invalidQaEligibility('问答请求必须包含 simulation_id 资格上下文')
   let projectResponse
   try {
     projectResponse = await getProject(payload.project_id)
@@ -364,14 +326,6 @@ export async function requestCodAnswer({ codGraphRAGQuery, getProject, getReport
   }
   assertAuthoritativeProjectScope(payload, projectResponse)
   assertAuthoritativeProjectSimulation(projectResponse, simulationId)
-
-  let reportResponse
-  try {
-    reportResponse = await getReport(reportId)
-  } catch (error) {
-    throw invalidQaEligibility('Unable to revalidate the selected report', error)
-  }
-  assertAuthoritativeReportEligibility(reportResponse, eligibilityScope)
 
   let response
   try {

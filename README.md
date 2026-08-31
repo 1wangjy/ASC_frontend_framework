@@ -1,146 +1,349 @@
 # ASC Frontend Framework
 
-ASC 前端项目，基于 Vue 3 + Vite 构建。
+ASC 耐火材料智能研究平台前端项目，基于 Vue 3、Vite 和 Pinia 构建。
 
-集成了**知识图谱问答**（原系统）与**数据平台 + AI 模型**（解耦模块）两大子系统，共享同一套侧边栏导航。
+本仓库包含两部分代码：
 
----
+- Vue 统一前端，开发端口为 `3005`
+- Node.js 数据平台后端，目录为 `backend_impl/`，端口为 `3001`
+
+知识图谱、模拟、报告和问答功能会调用外部 Python 后端 `5001`。该 Python 后端不属于本仓库，本项目不会用 3001 替代 5001。
+
+## 系统边界
+
+| 服务 | 默认端口 | 职责 | 是否包含在本仓库 |
+|---|---:|---|---|
+| Vue + Vite | 3005 | 统一页面、路由和开发代理 | 是 |
+| Node.js | 3001 | 数据平台、登录、文献库、附件和模型接口 | 是，位于 `backend_impl/` |
+| Python | 5001 | 知识图谱、模拟、报告和问答 | 否，需单独取得并启动 |
+| MongoDB | 27017 | GridFS 文献附件存储 | 否，需本机安装 MongoDB Server |
+| SQLite | 无独立端口 | 数据平台业务数据 | 是，运行时在 `backend_impl/data/sqlite/` 生成 |
+
+> MongoDB Compass 只是管理工具，不是 MongoDB Server。使用文献 PDF 上传、预览和下载功能时，必须保证 MongoDB Server 正在监听 `27017`。
 
 ## 环境要求
 
 - Node.js 18+
 - npm
+- MongoDB Server（文献附件功能需要）
+- Python（仅 3001 的配方解析、PDF 元数据提取等可选能力需要）
+- 外部 Python 5001 后端（知识图谱、模拟、报告和问答功能需要）
 
-## 快速启动
+## 首次安装
+
+### 1. 安装前端依赖
+
+在仓库根目录执行：
 
 ```bash
 npm install
-npm run dev
 ```
 
-访问 http://localhost:3000
-
----
-
-## 项目架构
-
-### 模块解耦设计
-
-```
-src/
-├── App.vue                     # 根组件（挂载 LoginModal）
-├── main.js                     # 入口（注册 Pinia + Router）
-├── router/                     # 路由定义
-├── layouts/
-│   └── AscShell.vue            # 全局布局（侧边栏 + 内容区）
-├── components/
-│   ├── navigation/
-│   │   └── AscSidebar.vue      # 侧边栏导航（含用户信息栏）
-│   └── ui/
-│       ├── AscIcon.vue         # 图标组件
-│       └── AscLoginModal.vue   # 登录弹窗
-├── store/
-│   ├── auth.js                 # 全局认证 Store (Pinia)
-│   └── pendingUpload.js        # 上传暂存（原系统）
-├── views/                      # 知识图谱相关页面
-│   ├── AscQaView.vue           # 问答首页
-│   ├── DocumentLibraryView.vue # 文献管理
-│   ├── GraphProjectWorkspaceView.vue  # 图谱演化
-│   └── ...
-├── features/                   # 知识图谱业务逻辑
-├── api/                        # 知识图谱 API 层
-│
-└── platform/                   # ★ 数据平台 & AI 模型模块（完全解耦）
-    ├── api/                    # 独立 API 层（独立 axios 实例）
-    ├── stores/                 # 独立 Pinia Stores
-    ├── composables/            # 业务逻辑 composables
-    ├── types/                  # JSDoc 类型定义
-    ├── utils/                  # 工具函数
-    ├── views/                  # 页面视图
-    │   ├── DataManagerView.vue # 数据平台（6张表 CRUD）
-    │   ├── HomeView.vue        # 模型入口
-    │   ├── Model1View.vue      # 性能预测
-    │   ├── Model2View.vue      # 配方优化
-    │   ├── Model3View.vue      # 服役预测
-    │   └── Model4View.vue      # 3D温度场重建
-    ├── components/             # 平台组件
-    │   ├── DataTable.vue       # 通用数据表格
-    │   ├── ComponentListEditor.vue  # 成分列表编辑器
-    │   ├── RecipeParserPanel.vue    # 配方解析面板
-    │   ├── MaterialSelectModal.vue  # 材料选择弹窗
-    │   └── LoginModal.vue      # 平台登录弹窗
-    └── styles/                 # 独立 CSS（以 .platform-page 为根选择器）
-```
-
-### 后端
-
-```
-backend_impl/                   # ★ 独立 Node.js 后端（从 _code 迁移）
-├── package.json
-├── .env.example
-└── src/
-    ├── index.js                # 入口（端口 3001）
-    ├── config/                 # 数据库配置
-    ├── controllers/            # 控制器
-    ├── routes/                 # 路由定义
-    ├── services/               # 服务层
-    ├── utils/                  # 工具函数
-    └── models/                 # 数据模型
-```
-
----
-
-## 路由一览
-
-| 路径 | 子系统 | 说明 |
-|------|--------|------|
-| `/` | 知识图谱 | 问答首页 |
-| `/documents` | 知识图谱 | 文献管理 |
-| `/process/:projectId?` | 知识图谱 | 图谱演化 |
-| `/reports` | 知识图谱 | 报告生成 |
-| `/platform/data` | 数据平台 | 数据管理（6张表 CRUD + 文献库 + 配方解析） |
-| `/platform/models` | 模型入口 | 模型选择卡片页 |
-| `/platform/model1` | AI 模型 | 性能预测 |
-| `/platform/model2` | AI 模型 | 配方优化 |
-| `/platform/model3` | AI 模型 | 服役预测 |
-| `/platform/model4` | AI 模型 | 3D温度场重建 |
-
----
-
-## 启动后端
+### 2. 安装 3001 后端依赖
 
 ```bash
-# 安装依赖
 cd backend_impl
 npm install
+```
 
-# 启动服务（默认端口 3001）
+### 3. 配置 3001 环境变量
+
+复制配置模板：
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Linux/macOS：
+
+```bash
+cp .env.example .env
+```
+
+然后按本机环境修改 `backend_impl/.env`。不要把真实 `.env`、API Key、管理员信息或数据库文件提交到 Git。
+
+最小开发配置示例：
+
+```dotenv
+PORT=3001
+NODE_ENV=development
+DB_TYPE=sqlite
+MONGODB_URI=mongodb://127.0.0.1:27017/asc-platform
+JWT_SECRET=请替换为随机且足够长的字符串
+PYTHON_CMD=python
+```
+
+其余模型、LLM 和 PDF 元数据提取配置见 [`backend_impl/.env.example`](backend_impl/.env.example)。未配置可选服务时，对应能力可能不可用，但普通 SQLite CRUD 不应受影响。
+
+## 本地启动
+
+建议按照下面的顺序启动。
+
+### 1. 启动 MongoDB Server
+
+确认 MongoDB 正在监听：
+
+```text
+127.0.0.1:27017
+```
+
+如果暂时不使用 PDF 附件，可以先不启动 MongoDB；此时文献记录 CRUD 仍可使用，但附件接口会返回服务不可用。
+
+### 2. 启动外部 Python 后端
+
+知识图谱、模拟、报告和问答功能要求外部 Python 服务运行在：
+
+```text
+http://127.0.0.1:5001
+```
+
+Python 后端的安装、环境变量和启动方式由其独立项目负责，不在本 README 展开。
+
+### 3. 启动 3001 数据平台后端
+
+打开一个终端：
+
+```bash
+cd backend_impl
 npm start
 ```
 
-前端开发服务器会自动将平台 API 请求代理到 `localhost:3001`。
+开发时需要自动重启可使用：
 
----
+```bash
+npm run dev
+```
 
-## 认证系统
+健康检查：
 
-- 侧边栏底部提供用户登录/登出入口
-- 登录状态持久化到 `localStorage`
-- 后端 API: `POST /api/auth/login`
-- 认证代理: `http://localhost:3001`（Node.js 后端）
+```text
+http://127.0.0.1:3001/health
+```
 
----
+MongoDB/GridFS 检查：
 
-## 主要目录说明
+```text
+http://127.0.0.1:3001/api/attachment/test
+```
 
-| 目录 | 说明 |
-|------|------|
-| `src/views/` | 知识图谱页面 |
-| `src/platform/` | 数据平台 & AI 模型模块（完全解耦） |
-| `src/api/` | 知识图谱 API 请求 |
-| `src/store/` | 全局状态管理 |
-| `backend_impl/` | 独立 Node.js 后端 |
-| `docs/` | 文档 |
-| `tests/` | 测试 |
-| `tmp/` | 临时文件 |
-| `done/` | 已完成任务存档 |
+### 4. 启动 3005 前端
+
+回到仓库根目录，打开另一个终端：
+
+```bash
+npm run dev
+```
+
+访问：
+
+```text
+http://localhost:3005
+```
+
+Vite 使用 `strictPort`，如果 3005 已被占用，启动会直接失败。请先关闭重复进程，不要随意改成其他端口。
+
+## API 分流
+
+开发环境通过 `vite.config.js` 代理请求。
+
+### 转发到 3001
+
+- `/api/auth`
+- `/api/new-data`
+- `/api/admin`
+- `/api/recipe-parser`
+- `/api/attachment`
+- `/api/user`
+- `/api/embedding`
+- `/api/llm`
+- `/api/ext-field`
+- `/api/model1`
+- `/api/model2`
+- `/api/model3`
+- `/api/model4`
+- `/config`
+- `/health`
+
+### 转发到 5001
+
+- 其他通用 `/api/*` 请求
+
+代理规则的顺序不能随意调整：3001 的明确路径必须位于通用 `/api` 规则之前，否则数据平台请求会被错误发送到 5001。
+
+Vite proxy 只在开发服务器中生效。部署 `npm run build` 生成的静态文件时，需要由 Nginx、网关或部署平台配置相同的 API 分流。
+
+## 页面路由
+
+| 路径 | 模块 | 说明 |
+|---|---|---|
+| `/` | 首页 | 图谱问答入口 |
+| `/documents` | 兼容路由 | 跳转到数据平台文献库的构图选择模式 |
+| `/process/:projectId?` | 知识图谱 | 图谱项目与构建流程 |
+| `/simulation/:simulationId` | 知识图谱 | 模拟配置 |
+| `/simulation/:simulationId/start` | 知识图谱 | 模拟运行与证据推理 |
+| `/reports` | 报告 | 报告中心 |
+| `/report/:reportId` | 报告 | 报告查看 |
+| `/interaction/:reportId` | 问答 | 报告问答与证据评估 |
+| `/platform/data` | 数据平台 | 原料、配方、物性、测试、工况、服役和文献库管理 |
+| `/platform/models` | 模型入口 | 模型选择页面 |
+| `/platform/model1` | AI 模型 | 性能预测 |
+| `/platform/model2` | AI 模型 | 配方优化 |
+| `/platform/model3` | AI 模型 | 服役预测 |
+| `/platform/model4` | AI 模型 | 三维重建 |
+
+## 项目结构
+
+```text
+frontend/
+├── src/
+│   ├── api/                         # 5001 知识图谱 API
+│   ├── components/                  # 通用及工作流组件
+│   ├── config/                      # 路由等前端配置
+│   ├── features/                    # 图谱、问答、项目等业务逻辑
+│   ├── layouts/                     # 全局 Shell 布局
+│   ├── platform/
+│   │   ├── api/                     # 3001 数据平台 API
+│   │   ├── components/              # 数据表、文献和属性编辑组件
+│   │   ├── composables/             # 数据平台组合逻辑
+│   │   ├── services/                # 文献导入、构图桥接等服务
+│   │   ├── stores/                  # 数据平台状态
+│   │   ├── styles/                  # 数据平台样式
+│   │   ├── types/                   # 实体类型说明
+│   │   ├── utils/                   # 属性、文献等工具函数
+│   │   └── views/                   # 数据平台和模型页面
+│   ├── router/                      # Vue Router
+│   ├── store/                       # 全局 Pinia Store
+│   └── views/                       # 首页、图谱、模拟和报告页面
+├── backend_impl/
+│   ├── .env.example                 # 3001 环境变量模板
+│   ├── package.json
+│   ├── python/                      # 3001 调用的轻量 Python 工具
+│   ├── src/
+│   │   ├── config/                  # SQLite、MongoDB 和属性配置
+│   │   ├── controllers/             # 请求控制器
+│   │   ├── models/                  # 数据访问模型
+│   │   ├── routes/                  # Express 路由
+│   │   ├── services/                # CRUD、附件和元数据服务
+│   │   └── index.js                 # 3001 入口
+│   └── test/                        # 3001 聚焦测试
+├── tests/                            # 前端测试
+├── vite.config.js                   # 3005 与代理配置
+└── package.json
+```
+
+## 数据存储
+
+### SQLite
+
+3001 的业务数据默认保存到：
+
+```text
+backend_impl/data/sqlite/database.db
+```
+
+主要包括用户、原料、配方、物性、测试、工况、服役和文献记录。该文件属于本地运行数据，不应作为源码直接提交。
+
+### MongoDB / GridFS
+
+文献附件存储在 MongoDB GridFS 中，SQLite 文献记录只保存附件对应的 filename。MongoDB 不可用时：
+
+- 3001 服务不应因此崩溃
+- SQLite 文献 CRUD 仍可使用
+- PDF 上传、预览、下载等附件功能不可用
+
+## 认证与开发限流
+
+- 登录接口：`POST /api/auth/login`
+- 前端登录状态和 JWT 保存在 `localStorage`
+- `NODE_ENV=development` 时不启用 API 限流，便于联调
+- `NODE_ENV=production` 时启用 `/api/*` 限流
+- 生产环境必须更换安全的 `JWT_SECRET`
+
+## 可选外部能力
+
+以下功能依赖额外配置，不属于基础 CRUD 的必要条件：
+
+- 文献 PDF 元数据提取：`MISTRAL_API_KEY`
+- LLM/Embedding：`LLM_API_URL`、`LLM_API_KEY`
+- Model1：`LOCAL_MODEL1_URL`，默认指向 8000
+- Model2：`LOCAL_MODEL2_URL`，默认指向 8001
+- Model3：`LOCAL_MODEL3_URL`，默认指向 8002
+
+没有配置对应服务时，应将相关功能视为不可用，不要使用 5001 端口或其他地址冒充 API Key/模型服务。
+
+## 构建与验证
+
+前端生产构建：
+
+```bash
+npm run build
+```
+
+3001 聚焦测试：
+
+```bash
+cd backend_impl
+node --test test/*.test.js
+```
+
+交接前至少确认：
+
+```text
+3005 页面可以打开
+3001 /health 返回成功
+5001 /health 返回成功（需要图谱功能时）
+27017 正在监听（需要附件功能时）
+文献 CRUD 正常
+PDF 上传/预览正常
+原料、配方、物性和测试 CRUD 正常
+npm run build 成功
+```
+
+## Git 提交注意事项
+
+提交前执行：
+
+```bash
+git status --short
+git diff --stat
+```
+
+不要提交：
+
+- `backend_impl/.env`
+- `backend_impl/data/`
+- MongoDB 数据目录
+- API Key、JWT Secret 和管理员密码
+- `node_modules/`
+- `dist/`
+- 本地日志、临时渲染文件和个人文档
+
+建议提交 `package-lock.json`，以便下一位开发者安装一致的依赖版本。
+
+## 常见问题
+
+### 3001 启动时报 `EADDRINUSE`
+
+表示 3001 已被其他 Node 进程占用。先找到并关闭旧进程，再重新启动，不要同时运行多个 3001 实例。
+
+### PDF 附件接口返回 503
+
+先确认 MongoDB Server 已启动并监听 27017，再访问：
+
+```text
+http://127.0.0.1:3001/api/attachment/test
+```
+
+### 页面可以打开，但图谱或问答请求失败
+
+确认外部 Python 5001 后端已启动，并检查 `vite.config.js` 中通用 `/api` 代理是否仍指向 5001。
+
+### 开发环境请求过多被限流
+
+确认 `backend_impl/.env` 中使用：
+
+```dotenv
+NODE_ENV=development
+```
+
+修改环境变量后需要重启 3001。

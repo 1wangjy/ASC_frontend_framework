@@ -15,10 +15,10 @@ test('normalizes configured API bases and keeps development URLs relative', asyn
   )
 })
 
-test('keeps the frontend on 3000 and proxies API requests to 5002', () => {
-  assert.equal(viteConfig.server.port, 3000)
+test('runs the comparison frontend on 3005 and proxies Python API requests to 5001', () => {
+  assert.equal(viteConfig.server.port, 3005)
   assert.equal(viteConfig.server.strictPort, true)
-  assert.equal(viteConfig.server.proxy['/api'].target, 'http://127.0.0.1:5002')
+  assert.equal(viteConfig.server.proxy['/api'].target, 'http://127.0.0.1:5001')
 })
 
 test('builds PDF resource URLs through the same-origin development proxy', async () => {

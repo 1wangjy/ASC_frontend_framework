@@ -34,12 +34,29 @@
         <div class="summary-card__top">
           <span>总体结论</span>
           <small v-if="evaluation.result.isDemo">演示数据</small>
+          <small
+            v-else
+            class="source-badge"
+            :class="`source-badge--${evaluation.result.sourceKind}`"
+          >
+            {{ evaluation.result.sourceLabel }}
+          </small>
         </div>
         <strong>{{ evaluation.result.confidenceLabel }}</strong>
         <p>{{ evaluation.result.summary }}</p>
+        <p
+          v-if="evaluation.result.sourceDescription"
+          class="source-description"
+          :class="{ 'source-description--warning': evaluation.result.sourceKind === 'heuristic' }"
+        >
+          {{ evaluation.result.sourceDescription }}
+          <span v-if="evaluation.result.sourceKind === 'heuristic'" class="visually-hidden">
+            规则兜底评估
+          </span>
+        </p>
       </section>
 
-      <section class="result-card">
+      <section v-if="evaluation.result.dimensions.length" class="result-card">
         <h4>评估维度</h4>
         <div class="dimension-list">
           <div v-for="dimension in evaluation.result.dimensions" :key="dimension.label">
@@ -49,14 +66,14 @@
         </div>
       </section>
 
-      <section class="result-card">
+      <section v-if="evaluation.result.risks.length" class="result-card">
         <h4>风险提示</h4>
         <ul class="risk-list">
           <li v-for="risk in evaluation.result.risks" :key="risk">{{ risk }}</li>
         </ul>
       </section>
 
-      <section class="result-card">
+      <section v-if="evaluation.result.suggestions.length" class="result-card">
         <h4>修改建议</h4>
         <ol class="suggestion-list">
           <li v-for="suggestion in evaluation.result.suggestions" :key="suggestion">{{ suggestion }}</li>
@@ -68,6 +85,10 @@
         <time :datetime="evaluation.result.evaluatedAt">{{ formatTime(evaluation.result.evaluatedAt) }}</time>
       </div>
 
+      <p v-if="evaluation.result.autoRecorded" class="record-note" role="status">
+        本次模型评估已由后端自动记录；下方操作会将结果另存为反馈记录。
+      </p>
+
       <button
         type="button"
         class="save-button"
@@ -75,13 +96,15 @@
         @click="$emit('save')"
       >
         {{ evaluation.saveStatus === 'saving'
-          ? '正在保存…'
+            ? '正在保存…'
           : evaluation.saveStatus === 'error'
             ? '重新保存'
-            : '保存 LLM 评估结果' }}
+            : evaluation.result.autoRecorded
+              ? '另存为反馈记录'
+              : '保存 LLM 评估结果' }}
       </button>
       <p v-if="evaluation.saveStatus === 'success'" class="status status--success" role="status">
-        LLM 评估结果已保存
+        {{ evaluation.result.autoRecorded ? '已另存为反馈记录' : 'LLM 评估结果已保存' }}
       </p>
       <p v-if="evaluation.saveStatus === 'error'" class="status status--error" role="alert">
         {{ evaluation.saveErrorMessage }}
@@ -295,6 +318,30 @@ function formatTime(value) {
   line-height: 1.65;
 }
 
+.summary-card .source-description {
+  margin-top: 9px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: #edf7f2;
+  color: #28775e;
+  font-size: 9px;
+}
+
+.summary-card .source-description--warning {
+  background: #fff5e9;
+  color: #9a5a18;
+}
+
+.source-badge--llm {
+  background: #e8f7ef !important;
+  color: #237458 !important;
+}
+
+.source-badge--heuristic {
+  background: #fff0dc !important;
+  color: #9a5a18 !important;
+}
+
 .result-card h4 {
   margin: 0 0 10px;
 }
@@ -335,6 +382,10 @@ function formatTime(value) {
 .risk-list li::marker { color: #da7445; }
 .suggestion-list li::marker { color: var(--asc-primary); font-weight: 800; }
 
+.suggestion-list li {
+  white-space: pre-line;
+}
+
 .result-meta {
   align-items: center;
   color: var(--asc-muted);
@@ -343,6 +394,27 @@ function formatTime(value) {
 
 .save-button {
   width: 100%;
+}
+
+.record-note {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid #cfe0eb;
+  border-radius: 7px;
+  background: #f5f9fc;
+  color: var(--asc-muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
 }
 
 button:disabled {

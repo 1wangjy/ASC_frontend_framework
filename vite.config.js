@@ -1,17 +1,20 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { resolve } from 'path'
+import { dirname, resolve } from 'path'
+import { fileURLToPath } from 'url'
+
+const currentDirectory = dirname(fileURLToPath(import.meta.url))
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': resolve(currentDirectory, 'src'),
     },
   },
   server: {
-    port: 3000,
+    port: 3005,
     strictPort: true,
     open: true,
     watch: {
@@ -44,6 +47,26 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/api/user': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/embedding': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/llm': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/ext-field': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api/model1': {
         target: 'http://127.0.0.1:3001',
         changeOrigin: true,
@@ -66,16 +89,16 @@ export default defineConfig({
       },
       // 通用 API → Python 知识图谱后端
       '/api': {
-        target: 'http://127.0.0.1:5002',
+        target: 'http://127.0.0.1:5001',
         changeOrigin: true,
         secure: false
       },
       '/config': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3001',
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3001',
         changeOrigin: true,
       },
     }

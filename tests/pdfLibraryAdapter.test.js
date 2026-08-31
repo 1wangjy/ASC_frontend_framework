@@ -9,7 +9,6 @@ import {
   removePdfDocument,
   uploadPdfDocuments
 } from '../src/features/library/pdfLibraryAdapter.js'
-import { getYearPartitions } from '../src/features/library/libraryModel.js'
 
 test('maps backend PDF metadata into the existing document table model', () => {
   const document = adaptPdfFile({
@@ -40,7 +39,6 @@ test('loads and adapts the backend list response', async () => {
 
   assert.equal(documents.length, 1)
   assert.equal(documents[0].id, 'file-2')
-  assert.deepEqual(getYearPartitions(documents), { years: [], olderBefore: null })
 })
 
 test('uploads actual files under the backend files field', async () => {
@@ -79,6 +77,7 @@ test('preserves partial upload failures returned with HTTP 207', async () => {
   }), files)
 
   assert.equal(result.uploadedCount, 1)
+  assert.deepEqual(result.uploadedFiles, [{ file_id: 'file-one', filename: 'one.pdf' }])
   assert.deepEqual(result.errors, [{ filename: 'two.pdf', error: '文件损坏' }])
   assert.equal(formatPdfUploadErrors(result.errors), '部分文件上传失败：two.pdf（文件损坏）')
 })

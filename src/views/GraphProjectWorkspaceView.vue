@@ -5,7 +5,9 @@
       <span class="graph-workspace-view__mark">NEXUS</span>
       <h2>选择一个知识图谱项目</h2>
       <p>从左侧项目表选择项目，即可查看对应的构建步骤、实时进度和图谱结果。</p>
-      <router-link to="/documents">从文献管理开始构建</router-link>
+      <router-link :to="{ name: 'PlatformData', query: { mode: 'graph-select' } }">
+        从文献管理开始构建
+      </router-link>
     </div>
   </main>
 </template>

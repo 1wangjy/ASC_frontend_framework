@@ -208,7 +208,7 @@ test('surfaces a failed graph task error as an inactive terminal failure', () =>
   assert.equal(item.message, '图谱写入失败')
 })
 
-test('keeps active tasks and only the first three terminal tasks visible', () => {
+test('keeps every synchronized graph project visible in the status panel', () => {
   const visible = selectVisibleGraphTasks([
     { id: 'active-1', active: true },
     { id: 'done-1', active: false },
@@ -219,7 +219,7 @@ test('keeps active tasks and only the first three terminal tasks visible', () =>
   ])
 
   assert.deepEqual(visible.map(item => item.id), [
-    'active-1', 'active-2', 'done-1', 'done-2', 'done-3'
+    'active-1', 'active-2', 'done-1', 'done-2', 'done-3', 'done-4'
   ])
 })
 

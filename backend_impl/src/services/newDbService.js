@@ -1,6 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const idGenerator = require('../utils/idGenerator');
-const { PURE_MATERIAL_PROPERTIES, TEST_PROPERTIES } = require('../config/properties-def');
+const { PURE_MATERIAL_PROPERTIES, TEST_PROPERTIES, LEGACY_TEST_PROPERTIES } = require('../config/properties-def');
+const PropertyValueService = require('./propertyValueService');
 
 class NewDbService {
   constructor(dbPath = './data/sqlite/database.db') {
@@ -40,11 +41,75 @@ class NewDbService {
     ];
   }
 
+  normalizeFixedProperties(values) {
+    const normalized = Array.isArray(values) ? values.slice(0, 32) : [];
+    while (normalized.length < 32) normalized.push(-1);
+    return normalized;
+  }
+
+  normalizeTestResults(results) {
+    const parsed = typeof results === 'string' ? this.parseJsonSafely(results, null) : results;
+    return PropertyValueService.normalize(
+      parsed?.schemaVersion === PropertyValueService.SCHEMA_VERSION ? parsed : results,
+      parsed?.schemaVersion === PropertyValueService.SCHEMA_VERSION ? TEST_PROPERTIES : LEGACY_TEST_PROPERTIES
+    );
+  }
+
+  prepareTestResults(results) {
+    const parsed = typeof results === 'string' ? this.parseJsonSafely(results, null) : results;
+    return PropertyValueService.prepareForStorage(
+      PropertyValueService.normalize(
+        parsed,
+        parsed?.schemaVersion === PropertyValueService.SCHEMA_VERSION ? TEST_PROPERTIES : LEGACY_TEST_PROPERTIES
+      ),
+      TEST_PROPERTIES
+    );
+  }
+
+  normalizeMpProperties(fixedProperties, customProperties = []) {
+    const parsedFixed = this.parseJsonSafely(fixedProperties, fixedProperties);
+    if ([2, PropertyValueService.SCHEMA_VERSION].includes(parsedFixed?.schemaVersion)) {
+      return PropertyValueService.normalize(parsedFixed, PURE_MATERIAL_PROPERTIES);
+    }
+    const parsedCustom = this.parseJsonSafely(customProperties, customProperties);
+    return PropertyValueService.normalize({
+      fixed: Array.isArray(parsedFixed) ? parsedFixed : [],
+      custom: Array.isArray(parsedCustom) ? parsedCustom : []
+    }, PURE_MATERIAL_PROPERTIES);
+  }
+
+  validateComponentList(componentList, expectedPrefix, expectedLabel) {
+    if (!Array.isArray(componentList) || componentList.length === 0) {
+      throw new Error('At least one component is required');
+    }
+    const ids = [];
+    let total = 0;
+    for (const component of componentList) {
+      if (!Array.isArray(component) || !String(component[0] || '').trim()) {
+        throw new Error('Component name is required');
+      }
+      const id = String(component[1] || '').trim();
+      if (!id.startsWith(expectedPrefix)) throw new Error(`Each component must reference a valid ${expectedLabel}`);
+      const ratio = Number(component[3]);
+      if (!Number.isFinite(ratio) || ratio <= 0 || ratio > 100) throw new Error('Component ratio must be between 0 and 100');
+      ids.push(id);
+      total += ratio;
+    }
+    if (new Set(ids).size !== ids.length) throw new Error(`Duplicate ${expectedLabel} references are not allowed`);
+    if (Math.abs(total - 100) > 0.01) throw new Error(`Component ratio total must be 100%, current total is ${total}%`);
+    return ids;
+  }
+
   async createMp(fixedProperties = null, customProperties = null) {
     const mpId = idGenerator.generateMpId();
     const now = idGenerator.getCurrentTimestamp();
-    const fixedProps = fixedProperties || await this.initFixedProperties();
-    const customProps = customProperties || await this.initCustomProperties();
+    const fixedProps = PropertyValueService.prepareForStorage(
+      [2, PropertyValueService.SCHEMA_VERSION].includes(fixedProperties?.schemaVersion)
+        ? fixedProperties
+        : { fixed: fixedProperties || [], custom: customProperties || [] },
+      PURE_MATERIAL_PROPERTIES
+    );
+    const customProps = [];
 
     return new Promise((resolve, reject) => {
       const sql = `INSERT INTO mp_properties (mp_id, fixed_properties, custom_properties, mc_ids, create_time, update_time) VALUES (?, ?, ?, ?, ?, ?)`;
@@ -76,15 +141,15 @@ class NewDbService {
 
   async getMp(mpId) {
     return new Promise((resolve, reject) => {
-      const sql = 'SELECT * FROM mp_properties WHERE mp_id = ?';
+      const sql = 'SELECT * FROM mp_properties WHERE mp_id = ? AND COALESCE(is_delete, 0) = 0';
       this.db.get(sql, [mpId], (err, row) => {
         if (err) {
           reject(err);
         } else if (row) {
           resolve({
             ...row,
-            fixed_properties: JSON.parse(row.fixed_properties),
-            custom_properties: JSON.parse(row.custom_properties),
+            fixed_properties: this.normalizeMpProperties(row.fixed_properties, row.custom_properties),
+            custom_properties: [],
             mc_ids: JSON.parse(row.mc_ids)
           });
         } else {
@@ -97,6 +162,15 @@ class NewDbService {
   async updateMp(mpId, data) {
     const now = idGenerator.getCurrentTimestamp();
     const updates = { update_time: now, ...data };
+    if (updates.fixed_properties !== undefined) {
+      updates.fixed_properties = PropertyValueService.prepareForStorage(
+        [2, PropertyValueService.SCHEMA_VERSION].includes(updates.fixed_properties?.schemaVersion)
+          ? updates.fixed_properties
+          : { fixed: updates.fixed_properties, custom: updates.custom_properties || [] },
+        PURE_MATERIAL_PROPERTIES
+      );
+      updates.custom_properties = [];
+    }
     
     const setClauses = [];
     const params = [];
@@ -151,15 +225,15 @@ class NewDbService {
 
   async getAllMps() {
     return new Promise((resolve, reject) => {
-      const sql = 'SELECT * FROM mp_properties';
+      const sql = 'SELECT * FROM mp_properties WHERE COALESCE(is_delete, 0) = 0';
       this.db.all(sql, [], (err, rows) => {
         if (err) {
           reject(err);
         } else {
           resolve(rows.map(row => ({
             ...row,
-            fixed_properties: JSON.parse(row.fixed_properties),
-            custom_properties: JSON.parse(row.custom_properties),
+            fixed_properties: this.normalizeMpProperties(row.fixed_properties, row.custom_properties),
+            custom_properties: [],
             mc_ids: JSON.parse(row.mc_ids)
           })));
         }
@@ -169,7 +243,7 @@ class NewDbService {
 
   async getAllTps() {
     return new Promise((resolve, reject) => {
-      const sql = 'SELECT * FROM tp_test_properties';
+      const sql = 'SELECT * FROM tp_test_properties WHERE COALESCE(is_delete, 0) = 0';
       this.db.all(sql, [], (err, rows) => {
         if (err) {
           reject(err);
@@ -177,7 +251,7 @@ class NewDbService {
           resolve(rows.map(row => ({
             ...row,
             test_params: this.parseJsonSafely(row.test_params, {}),
-            test_results: this.parseJsonSafely(row.test_results, {}),
+            test_results: this.normalizeTestResults(this.parseJsonSafely(row.test_results, {})),
             mr_ids: this.parseJsonSafely(row.mr_ids, [])
           })));
         }
@@ -263,41 +337,56 @@ class NewDbService {
     });
   }
 
-  async createTp(mpId, testParams = {}, testResults = null, testCondition = '无') {
+  async createTp(mpId, testParams = {}, testResults = null, testCondition = '无', mrIds = []) {
     const tpId = idGenerator.generateTpId();
     const now = idGenerator.getCurrentTimestamp();
-    const defaultResults = {
-      fixed: await this.initFixedProperties(),
-      custom: await this.initCustomProperties()
-    };
+    const defaultResults = PropertyValueService.emptyDocument();
+
+    const normalizedMrIds = [...new Set((Array.isArray(mrIds) ? mrIds : []).map(id => String(id).trim()).filter(Boolean))];
+    const normalizedResults = this.prepareTestResults(testResults || defaultResults);
+    const normalizedParams = testParams && typeof testParams === 'object' ? testParams : {};
+
+    for (const mrId of normalizedMrIds) {
+      const mr = await this.getMr(mrId);
+      if (!mr) throw new Error(`MR not found: ${mrId}`);
+    }
 
     return new Promise((resolve, reject) => {
       const sql = `INSERT INTO tp_test_properties (tp_id, mp_id, test_params, test_results, mr_ids, test_condition, create_time, update_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
       const params = [
         tpId,
         mpId,
-        JSON.stringify(testParams),
-        JSON.stringify(testResults || defaultResults),
-        JSON.stringify([]),
+        JSON.stringify(normalizedParams),
+        JSON.stringify(normalizedResults),
+        JSON.stringify(normalizedMrIds),
         testCondition,
         now,
         now
       ];
 
-      this.db.run(sql, params, function(err) {
+      this.db.run(sql, params, async (err) => {
         if (err) {
           reject(err);
         } else {
-          resolve({
-            tp_id: tpId,
-            mp_id: mpId,
-            test_params: testParams,
-            test_results: testResults || defaultResults,
-            mr_ids: [],
-            test_condition: testCondition,
-            create_time: now,
-            update_time: now
-          });
+          try {
+            for (const mrId of normalizedMrIds) {
+              const mr = await this.getMr(mrId);
+              const tpIds = [...new Set([...(mr.tp_ids || []), tpId])];
+              await this.updateMr(mrId, { tp_ids: tpIds });
+            }
+            resolve({
+              tp_id: tpId,
+              mp_id: mpId || null,
+              test_params: normalizedParams,
+              test_results: normalizedResults,
+              mr_ids: normalizedMrIds,
+              test_condition: testCondition,
+              create_time: now,
+              update_time: now
+            });
+          } catch (updateErr) {
+            this.db.run('DELETE FROM tp_test_properties WHERE tp_id = ?', [tpId], () => reject(updateErr));
+          }
         }
       });
     });
@@ -305,16 +394,16 @@ class NewDbService {
 
   async getTp(tpId) {
     return new Promise((resolve, reject) => {
-      const sql = 'SELECT * FROM tp_test_properties WHERE tp_id = ?';
+      const sql = 'SELECT * FROM tp_test_properties WHERE tp_id = ? AND COALESCE(is_delete, 0) = 0';
       this.db.get(sql, [tpId], (err, row) => {
         if (err) {
           reject(err);
         } else if (row) {
           resolve({
             ...row,
-            test_params: JSON.parse(row.test_params),
-            test_results: JSON.parse(row.test_results),
-            mr_ids: JSON.parse(row.mr_ids)
+            test_params: this.parseJsonSafely(row.test_params, {}),
+            test_results: this.normalizeTestResults(this.parseJsonSafely(row.test_results, {})),
+            mr_ids: this.parseJsonSafely(row.mr_ids, [])
           });
         } else {
           resolve(null);
@@ -326,6 +415,21 @@ class NewDbService {
   async updateTp(tpId, data) {
     const now = idGenerator.getCurrentTimestamp();
     const updates = { update_time: now, ...data };
+    if (updates.test_results !== undefined) {
+      updates.test_results = this.prepareTestResults(updates.test_results);
+    }
+    let previousMrIds = null;
+    let nextMrIds = null;
+    if (updates.mr_ids !== undefined) {
+      const current = await this.getTp(tpId);
+      if (!current) throw new Error('TP not found');
+      previousMrIds = current.mr_ids || [];
+      nextMrIds = [...new Set((Array.isArray(updates.mr_ids) ? updates.mr_ids : []).map(id => String(id).trim()).filter(Boolean))];
+      for (const mrId of nextMrIds) {
+        if (!await this.getMr(mrId)) throw new Error(`MR not found: ${mrId}`);
+      }
+      updates.mr_ids = nextMrIds;
+    }
     
     const setClauses = [];
     const params = [];
@@ -343,7 +447,7 @@ class NewDbService {
     
     params.push(tpId);
 
-    return new Promise((resolve, reject) => {
+    const result = await new Promise((resolve, reject) => {
       const sql = `UPDATE tp_test_properties SET ${setClauses.join(', ')} WHERE tp_id = ?`;
       this.db.run(sql, params, function(err) {
         if (err) {
@@ -353,6 +457,20 @@ class NewDbService {
         }
       });
     });
+
+    if (previousMrIds && nextMrIds) {
+      const removedIds = previousMrIds.filter(id => !nextMrIds.includes(id));
+      const addedIds = nextMrIds.filter(id => !previousMrIds.includes(id));
+      for (const mrId of removedIds) {
+        const mr = await this.getMr(mrId);
+        if (mr) await this.updateMr(mrId, { tp_ids: (mr.tp_ids || []).filter(id => id !== tpId) });
+      }
+      for (const mrId of addedIds) {
+        const mr = await this.getMr(mrId);
+        if (mr) await this.updateMr(mrId, { tp_ids: [...new Set([...(mr.tp_ids || []), tpId])] });
+      }
+    }
+    return result;
   }
 
   async addMrToTp(tpId, mrId) {
@@ -379,13 +497,15 @@ class NewDbService {
   }
 
   async createMc(batchNo, type, componentList = []) {
+    const mpIds = this.validateComponentList(componentList, 'MP_', 'MP_ID');
+    for (const mpId of mpIds) {
+      if (!await this.getMp(mpId)) throw new Error(`MP not found: ${mpId}`);
+    }
     const mcId = idGenerator.generateMcId();
     const now = idGenerator.getCurrentTimestamp();
     const isMixed = componentList.length > 1;
 
-    const components = componentList.length === 0 
-      ? [[batchNo, null, JSON.stringify({}), 100]]
-      : componentList;
+    const components = componentList;
 
     return new Promise((resolve, reject) => {
       const sql = `INSERT INTO mc_material (mc_id, batch_no, type, component_list, is_mixed, create_time, update_time) VALUES (?, ?, ?, ?, ?, ?, ?)`;
@@ -449,8 +569,17 @@ class NewDbService {
   async updateMc(mcId, data) {
     const now = idGenerator.getCurrentTimestamp();
     const updates = { update_time: now, ...data };
+    let previousMpIds = null;
+    let nextMpIds = null;
     
     if (updates.component_list) {
+      const current = await this.getMc(mcId);
+      if (!current) throw new Error('MC not found');
+      previousMpIds = (current.component_list || []).map(component => component[1]).filter(Boolean);
+      nextMpIds = this.validateComponentList(updates.component_list, 'MP_', 'MP_ID');
+      for (const mpId of nextMpIds) {
+        if (!await this.getMp(mpId)) throw new Error(`MP not found: ${mpId}`);
+      }
       updates.is_mixed = updates.component_list.length > 1 ? 1 : 0;
     }
     
@@ -470,7 +599,7 @@ class NewDbService {
     
     params.push(mcId);
 
-    return new Promise((resolve, reject) => {
+    const result = await new Promise((resolve, reject) => {
       const sql = `UPDATE mc_material SET ${setClauses.join(', ')} WHERE mc_id = ?`;
       this.db.run(sql, params, function(err) {
         if (err) {
@@ -480,9 +609,23 @@ class NewDbService {
         }
       });
     });
+
+    if (previousMpIds && nextMpIds) {
+      for (const mpId of previousMpIds.filter(id => !nextMpIds.includes(id))) {
+        await this.removeMcFromMp(mpId, mcId);
+      }
+      for (const mpId of nextMpIds.filter(id => !previousMpIds.includes(id))) {
+        await this.addMcToMp(mpId, mcId);
+      }
+    }
+    return result;
   }
 
   async createMr(formulaName, formulaType, componentList = [], tpIds = [], creator = null, batchNo = null) {
+    const mcIds = this.validateComponentList(componentList, 'MC_', 'MC_ID');
+    for (const mcId of mcIds) {
+      if (!await this.getMc(mcId)) throw new Error(`MC not found: ${mcId}`);
+    }
     const mrId = idGenerator.generateMrId();
     const now = idGenerator.getCurrentTimestamp();
 
@@ -549,6 +692,12 @@ class NewDbService {
   async updateMr(mrId, data) {
     const now = idGenerator.getCurrentTimestamp();
     const updates = { update_time: now, ...data };
+    if (updates.component_list !== undefined) {
+      const mcIds = this.validateComponentList(updates.component_list, 'MC_', 'MC_ID');
+      for (const mcId of mcIds) {
+        if (!await this.getMc(mcId)) throw new Error(`MC not found: ${mcId}`);
+      }
+    }
     
     const setClauses = [];
     const params = [];
@@ -954,7 +1103,10 @@ class NewDbService {
   }
 
   async deleteTp(tpId) {
-    return new Promise((resolve, reject) => {
+    const tp = await this.getTp(tpId);
+    if (!tp) return { changes: 0 };
+
+    const result = await new Promise((resolve, reject) => {
       const sql = 'UPDATE tp_test_properties SET is_delete = 1, update_time = ? WHERE tp_id = ?';
       this.db.run(sql, [new Date().toISOString(), tpId], function(err) {
         if (err) {
@@ -964,6 +1116,16 @@ class NewDbService {
         }
       });
     });
+
+    for (const mrId of tp.mr_ids || []) {
+      const mr = await this.getMr(mrId);
+      if (mr) {
+        await this.updateMr(mrId, {
+          tp_ids: (mr.tp_ids || []).filter(id => id !== tpId)
+        });
+      }
+    }
+    return result;
   }
 
   async deleteMc(mcId) {

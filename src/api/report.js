@@ -5,18 +5,22 @@ import {
   buildReportSectionsRequest,
   buildReportStatusRequest
 } from './requestContracts.js'
-import { buildSingleReportGenerationPayload } from '../features/reports/singleReportModel.js'
+import { buildReportGenerationPayload } from '../features/reports/singleReportModel.js'
 
 /**
  * 开始报告生成
- * @param {Object} data - { simulation_id }；前端固定禁止 force_regenerate
+ * @param {Object} data - { simulation_id, force_regenerate?, report_name? }
  */
 export const generateReport = (data) => {
-  const payload = buildSingleReportGenerationPayload(data?.simulation_id)
+  const payload = buildReportGenerationPayload({
+    simulationId: data?.simulation_id,
+    forceRegenerate: data?.force_regenerate,
+    reportName: data?.report_name
+  })
   return service.post('/api/report/generate', payload)
 }
 
-/** 查询当前模拟是否已经拥有唯一的完成报告。 */
+/** 查询当前模拟的已有报告状态；兼容后端仍返回单个关联报告的检查接口。 */
 export const checkReportForSimulation = (simulationId) => {
   const id = String(simulationId ?? '').trim()
   if (!id) return Promise.reject(new Error('simulation_id is required'))

@@ -1,5 +1,10 @@
 <template>
   <aside class="graph-project-panel">
+    <RouterLink class="graph-project-panel__home" to="/">
+      <span aria-hidden="true">←</span>
+      返回首页
+    </RouterLink>
+
     <header class="graph-project-panel__header">
       <div>
         <h1>知识图谱项目</h1>
@@ -20,6 +25,14 @@
         </button>
       </div>
     </header>
+
+    <RouterLink
+      class="graph-project-panel__new"
+      to="/platform/data?mode=graph-select"
+    >
+      <span aria-hidden="true">＋</span>
+      新建图谱项目
+    </RouterLink>
 
     <p v-if="workspaceError" class="graph-project-panel__error" role="alert">{{ workspaceError }}</p>
     <p v-else-if="monitor.state.connection === 'offline'" class="graph-project-panel__error" role="status">
@@ -181,6 +194,30 @@ async function confirmProjectDeletion() {
   background: #f8fbfd;
 }
 
+.graph-project-panel__home {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 0 10px;
+  border: 1px solid var(--asc-border);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--asc-primary);
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+  transition: border-color var(--asc-transition), background var(--asc-transition);
+}
+
+.graph-project-panel__home:hover,
+.graph-project-panel__home:focus-visible {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary-soft);
+  outline: none;
+}
+
 .graph-project-panel__collapse {
   display: grid;
   width: 30px;
@@ -222,6 +259,35 @@ async function confirmProjectDeletion() {
   margin: 5px 0 0;
   color: var(--asc-muted);
   font-size: 12px;
+}
+
+.graph-project-panel__new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--asc-primary);
+  border-radius: 8px;
+  background: var(--asc-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: filter .18s ease, transform .18s ease;
+}
+
+.graph-project-panel__new:hover {
+  filter: brightness(.94);
+  transform: translateY(-1px);
+}
+
+.graph-project-panel__new:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--asc-primary) 24%, transparent);
+  outline-offset: 2px;
 }
 
 .graph-project-panel__header button {

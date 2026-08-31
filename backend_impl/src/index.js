@@ -48,7 +48,9 @@ const apiLimiter = rateLimit({
   max: 100, // 每个IP最多100个请求
   message: { code: 429, message: '请求过于频繁，请稍后再试' }
 });
-app.use('/api/', apiLimiter);
+if (process.env.NODE_ENV === 'production') {
+  app.use('/api/', apiLimiter);
+}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -99,9 +101,14 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// 提供 properties-config.json 文件
+// 提供带输入字段定义的可变长物性配置
 app.get('/config/properties-config.json', (req, res) => {
-  res.sendFile(path.join(__dirname, 'config', 'properties-config.json'));
+  const { PURE_MATERIAL_PROPERTIES, TEST_PROPERTIES } = require('./config/properties-def');
+  res.json({
+    schemaVersion: 3,
+    pureMaterialProperties: PURE_MATERIAL_PROPERTIES,
+    testProperties: TEST_PROPERTIES
+  });
 });
 
 // 404处理

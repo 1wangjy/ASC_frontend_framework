@@ -1,6 +1,6 @@
 import { buildReportProjectRecords } from './reportProjectLifecycleModel.js'
 import { saveReportDownload } from './reportDownload.js'
-import { createSingleReportFlow } from './singleReportModel.js'
+import { buildReportGenerationPayload, createSingleReportFlow } from './singleReportModel.js'
 import { unwrapReports } from './reportCenterModel.js'
 
 function message(error, fallback) {
@@ -95,7 +95,7 @@ export function createReportCenterController({
     return state
   }
 
-  function generate(record = {}) {
+  function generate(record = {}, options = {}) {
     const projectId = text(record.projectId || record.project_id)
     const simulationId = text(record.simulationId || record.simulation_id)
     const key = projectId || simulationId
@@ -104,6 +104,8 @@ export function createReportCenterController({
     if (stopped) return Promise.reject(new Error('report center is stopped'))
 
     const version = lifecycleVersion
+    const forceRegenerate = options?.forceRegenerate === true
+    const reportName = text(options?.reportName)
     let requested = false
     state.actionError = ''
     state.mutatingProjectId = projectId
@@ -119,7 +121,23 @@ export function createReportCenterController({
     })
     const pending = (async () => {
       try {
-        const result = await flow.proceed(simulationId)
+        let result
+        if (forceRegenerate) {
+          requested = true
+          const response = await generateReport(buildReportGenerationPayload({
+            simulationId,
+            forceRegenerate: true,
+            reportName
+          }))
+          const reportId = text(response?.data?.report_id)
+          if (response?.success !== true || !reportId) {
+            throw new Error(response?.error || '启动报告生成失败')
+          }
+          result = { reportId, taskId: text(response?.data?.task_id), reused: false }
+          if (active(version)) await openReport(result)
+        } else {
+          result = await flow.proceed(simulationId)
+        }
         return result
       } catch (error) {
         if (active(version)) {

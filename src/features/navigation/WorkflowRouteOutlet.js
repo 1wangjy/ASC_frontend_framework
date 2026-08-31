@@ -3,7 +3,6 @@ import { RouterView } from 'vue-router'
 
 export const WORKFLOW_VIEW_NAMES = Object.freeze([
   'AscQaView',
-  'DocumentLibraryView',
   'GraphProjectWorkspaceView',
   'SimulationView',
   'SimulationRunView',
@@ -12,7 +11,7 @@ export const WORKFLOW_VIEW_NAMES = Object.freeze([
   'InteractionView'
 ])
 
-const SINGLETON_WORKFLOW_ROUTE_NAMES = new Set(['AscQa', 'Documents', 'Process', 'Reports'])
+const SINGLETON_WORKFLOW_ROUTE_NAMES = new Set(['AscQa', 'Process', 'Reports'])
 const SCOPED_WORKFLOW_ROUTE_PARAMS = Object.freeze({
   Simulation: 'simulationId',
   SimulationRun: 'simulationId',

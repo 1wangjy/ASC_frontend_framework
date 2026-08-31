@@ -89,6 +89,7 @@ export async function uploadPdfDocuments(uploadPdfFiles, files = [], metadata = 
   return {
     response,
     uploadedCount: Array.isArray(result?.data) ? result.data.length : 0,
+    uploadedFiles: Array.isArray(result?.data) ? result.data : [],
     errors: Array.isArray(result?.errors) ? result.errors : [],
     message: String(result?.message ?? '').trim()
   }

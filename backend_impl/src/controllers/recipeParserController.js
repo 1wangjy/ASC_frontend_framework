@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const database = require('../config/database');
+const { PURE_MATERIAL_PROPERTIES, TEST_PROPERTIES, toFixedAndCustomProperties } = require('../config/properties-def');
 
 class RecipeParserController {
   constructor() {
@@ -177,28 +178,15 @@ print(json.dumps(result, ensure_ascii=False))
             // 生成新的MP ID
             mpId = idGenerator.generateMpId();
             
-            // 处理自定义物性
-            let customProperties = [{ name: '', value: -1 }, { name: '', value: -1 }, { name: '', value: -1 }, { name: '', value: -1 }];
-            if (comp.properties && Object.keys(comp.properties).length > 0) {
-              customProperties = Object.entries(comp.properties).map(([key, value]) => ({
-                name: key,
-                value: value
-              }));
-              // 确保只有4个自定义物性
-              customProperties = customProperties.slice(0, 4);
-              // 如果不足4个，补充空值
-              while (customProperties.length < 4) {
-                customProperties.push({ name: '', value: -1 });
-              }
-            }
+            const mappedProperties = toFixedAndCustomProperties(comp.properties || {}, PURE_MATERIAL_PROPERTIES);
             
             // 创建物性记录
             await database.execute(
               'INSERT INTO mp_properties (mp_id, fixed_properties, custom_properties, mc_ids, create_time, update_time) VALUES (?, ?, ?, ?, ?, ?)',
               [
                 mpId,
-                JSON.stringify(Array(32).fill(-1)),
-                JSON.stringify(customProperties),
+                JSON.stringify(mappedProperties.fixed),
+                JSON.stringify(mappedProperties.custom),
                 JSON.stringify([]),
                 new Date().toISOString(),
                 new Date().toISOString()
@@ -269,23 +257,7 @@ print(json.dumps(result, ensure_ascii=False))
           
           // 构建测试数据 - 适配tp_test_properties表结构
           const testParams = JSON.stringify({}); // 暂时为空，后续可以从前端获取
-          const testResults = JSON.stringify({
-            fixed: [], // 暂时为空，后续可以从前端获取
-            custom: Object.entries(testData).map(([key, value]) => {
-              // 检查value是否是对象，如果是，提取value和unit
-              let testValue = value;
-              let testUnit = '';
-              if (typeof value === 'object' && value !== null) {
-                testValue = value.value;
-                testUnit = value.unit || '';
-              }
-              return {
-                name: key,
-                value: testValue,
-                unit: testUnit
-              };
-            })
-          });
+          const testResults = JSON.stringify(toFixedAndCustomProperties(testData, TEST_PROPERTIES));
           
           // 存储测试数据
           await database.execute(
