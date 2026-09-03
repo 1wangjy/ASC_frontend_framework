@@ -29,50 +29,47 @@
     <nav class="primary-nav" aria-label="主要导航">
       <template v-for="item in primaryNavigation" :key="item.path || item.divider">
         <div v-if="item.divider" class="nav-divider" />
-        <div
-          v-else
-          class="nav-cell"
-          :class="{ 'nav-cell--has-children': item.children?.length }"
-          @mouseenter="openFlyout($event, item)"
-          @mouseleave="scheduleClose()"
-        >
-          <router-link
-            :to="navigationState.target(item)"
-            class="nav-item"
-            :class="{ 'router-link-exact-active': route.meta.navigationPath === item.path }"
+        <!-- group with children: parent toggles an in-rail sublist -->
+        <div v-else-if="item.children?.length" class="nav-group" :class="{ 'is-open': isGroupOpen(item) }">
+          <button
+            type="button"
+            class="nav-item nav-item--parent"
             :title="collapsed ? item.label : undefined"
-            @click="$emit('close')"
+            @click="toggleGroup(item)"
           >
             <AscIcon :name="item.icon" />
             <span>{{ item.label }}</span>
-            <AscIcon v-if="item.children?.length" name="chevron" class="nav-cell__caret" />
-          </router-link>
+            <AscIcon v-if="!collapsed" name="chevron" class="nav-group__caret" />
+          </button>
+          <transition name="navsub">
+            <ul v-if="!collapsed && isGroupOpen(item)" class="nav-sublist">
+              <li v-for="child in item.children" :key="child.path">
+                <router-link
+                  :to="child.path"
+                  class="nav-subitem"
+                  @click="navChild"
+                >
+                  <span class="nav-subitem__dot" aria-hidden="true" />
+                  <span>{{ child.label }}</span>
+                </router-link>
+              </li>
+            </ul>
+          </transition>
         </div>
+        <!-- plain item -->
+        <router-link
+          v-else
+          :to="navigationState.target(item)"
+          class="nav-item"
+          :class="{ 'router-link-exact-active': route.meta.navigationPath === item.path }"
+          :title="collapsed ? item.label : undefined"
+          @click="$emit('close')"
+        >
+          <AscIcon :name="item.icon" />
+          <span>{{ item.label }}</span>
+        </router-link>
       </template>
     </nav>
-
-    <Teleport to="body">
-      <transition name="flyout">
-        <div
-          v-if="flyoutOpen && flyoutItems?.length"
-          class="sidebar-flyout"
-          :style="flyoutStyle"
-          @mouseenter="cancelClose"
-          @mouseleave="scheduleClose"
-        >
-          <div class="sidebar-flyout__title">{{ flyoutTitle }}</div>
-          <router-link
-            v-for="child in flyoutItems"
-            :key="child.path"
-            :to="child.path"
-            class="sidebar-flyout__item"
-            @click="onFlyoutNav"
-          >
-            <span>{{ child.label }}</span>
-          </router-link>
-        </div>
-      </transition>
-    </Teleport>
 
     <!-- 用户信息栏 -->
     <div class="sidebar-footer">
@@ -99,7 +96,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AscIcon from '../ui/AscIcon.vue'
 import {
   createPrimaryNavigationState,
@@ -108,6 +105,7 @@ import {
 import { useAuthStore } from '../../store/auth.js'
 
 const route = useRoute()
+const router = useRouter()
 const navigationState = createPrimaryNavigationState()
 const authStore = useAuthStore()
 
@@ -128,45 +126,41 @@ const props = defineProps({
   }
 })
 
-const flyoutOpen = ref(false)
-const flyoutItems = ref(null)
-const flyoutTitle = ref('')
-const flyoutStyle = ref({})
-let flyoutTimer = null
+const expanded = ref('')
+const emit = defineEmits(['close', 'toggle-collapse'])
 
-function openFlyout(event, item) {
-  if (flyoutTimer) clearTimeout(flyoutTimer)
-  if (!item || !item.children || !item.children.length) {
-    flyoutOpen.value = false
+function isGroupOpen(item) {
+  return expanded.value === item.path
+}
+
+function toggleGroup(item) {
+  if (props.collapsed) {
+    // on the collapsed rail there is no room for the inline list: go to hub
+    emit('close')
+    router.push(item.path)
     return
   }
-  const rect = event.currentTarget.getBoundingClientRect()
-  flyoutTitle.value = item.label
-  flyoutItems.value = item.children
-  flyoutStyle.value = {
-    top: `${Math.round(rect.top)}px`,
-    left: `${Math.round(rect.right) + 8}px`
-  }
-  flyoutOpen.value = true
+  expanded.value = expanded.value === item.path ? '' : item.path
 }
 
-function scheduleClose() {
-  if (flyoutTimer) clearTimeout(flyoutTimer)
-  flyoutTimer = setTimeout(() => { flyoutOpen.value = false }, 150)
-}
-
-function cancelClose() {
-  if (flyoutTimer) clearTimeout(flyoutTimer)
-}
-
-function onFlyoutNav() {
-  flyoutOpen.value = false
-  if (flyoutTimer) clearTimeout(flyoutTimer)
-  // close mobile drawer via emit
+function navChild() {
   emit('close')
 }
 
-const emit = defineEmits(['close', 'toggle-collapse'])
+// keep the parent group open when navigating into one of its children
+watch(
+  () => route.fullPath,
+  () => {
+    const activePath = route.path
+    for (const item of primaryNavigation) {
+      if (item.children?.some((c) => c.path === activePath)) {
+        expanded.value = item.path
+        return
+      }
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>
@@ -439,9 +433,6 @@ const emit = defineEmits(['close', 'toggle-collapse'])
     display: none;
   }
 
-  .sidebar--collapsed .nav-cell__caret {
-    display: none;
-  }
 
   .sidebar--collapsed .sidebar__toggle {
     left: calc(var(--asc-sidebar-collapsed-width) - 12px);
@@ -485,75 +476,83 @@ const emit = defineEmits(['close', 'toggle-collapse'])
   }
 }
 
-/* ── Nav cell wrapping an item that may own a flyout children menu ── */
-.nav-cell { display: grid; }
-
-.nav-cell .nav-item { width: 100%; }
-
-.nav-cell__caret {
+/* ── Group with inline children (Pro-Sidebar style accordion) ── */
+.nav-group {
+  position: relative;
+}
+.nav-item--parent {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.nav-group__caret {
   width: 12px;
   height: 12px;
   margin-left: auto;
-  opacity: 0.7;
-  transform: rotate(90deg);
+  opacity: 0.75;
+  transform: rotate(0deg);
   transition: transform var(--asc-transition), opacity var(--asc-transition);
 }
-.nav-cell:hover .nav-cell__caret,
-.nav-cell--has-children .nav-item.router-link-exact-active .nav-cell__caret {
+.nav-group.is-open .nav-group__caret {
+  transform: rotate(90deg);
+}
+.nav-item--parent:hover .nav-group__caret,
+.nav-group.is-open .nav-item--parent .nav-group__caret {
   opacity: 1;
 }
-.nav-cell:hover .nav-item.router-link-exact-active .nav-cell__caret {
-  transform: rotate(-90deg);
-}
 
-/* ── Flyout children menu (Teleported to <body>, so global) ── */
-:global(.sidebar-flyout) {
-  position: fixed;
-  z-index: 1000;
-  min-width: 190px;
-  padding: 8px;
-  border: 1px solid rgba(120, 165, 205, 0.4);
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 20px 46px rgba(4, 28, 49, 0.2);
-  overflow: hidden;
+.nav-sublist {
+  margin: 2px 0 6px;
+  padding: 0;
+  list-style: none;
 }
-:global(.sidebar-flyout__title) {
-  padding: 7px 12px 9px;
-  color: #6b7f93;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  border-bottom: 1px solid #eaf0f6;
-  margin-bottom: 6px;
-}
-:global(.sidebar-flyout__item) {
-  display: block;
-  padding: 9px 12px;
-  border-radius: 8px;
-  color: #1d2a38;
-  font-size: 13.5px;
-  font-weight: 600;
+.nav-subitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  margin: 1px 0 1px 8px;
+  padding: 0 12px 0 16px;
+  border-radius: 7px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  color: #bcd3e6;
+  font-size: 13px;
+  font-weight: 550;
   text-decoration: none;
   transition: background var(--asc-transition), color var(--asc-transition);
 }
-:global(.sidebar-flyout__item:hover) {
-  background: var(--asc-primary-soft);
-  color: var(--asc-primary);
+.nav-subitem__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+  flex: 0 0 auto;
 }
-:global(.sidebar-flyout__item.router-link-exact-active) {
-  background: linear-gradient(90deg, #0869ad, #0e94c0);
+.nav-subitem:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #f2f8fd;
+}
+.nav-subitem.router-link-exact-active {
   color: #fff;
+  font-weight: 650;
 }
-:global(.flyout-enter-active),
-:global(.flyout-leave-active) {
-  transition: opacity 0.16s ease, transform 0.16s ease;
+.nav-subitem.router-link-exact-active .nav-subitem__dot {
+  opacity: 1;
+  box-shadow: 0 0 0 3px rgba(79, 183, 236, 0.18);
 }
-:global(.flyout-enter-from),
-:global(.flyout-leave-to) {
+
+.navsub-enter-active,
+.navsub-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.navsub-enter-from,
+.navsub-leave-to {
   opacity: 0;
-  transform: translateY(-6px);
+  transform: translateY(-4px);
 }
 
 </style>
+
