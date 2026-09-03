@@ -134,13 +134,11 @@ function isGroupOpen(item) {
 }
 
 function toggleGroup(item) {
-  if (props.collapsed) {
-    // on the collapsed rail there is no room for the inline list: go to hub
-    emit('close')
-    router.push(item.path)
-    return
-  }
-  expanded.value = expanded.value === item.path ? '' : item.path
+  // clicking 模型入口 both navigates to the 3D cover-flow overview and
+  // reveals its children accordion (no hover needed)
+  emit('close')
+  router.push(item.path)
+  if (!props.collapsed) expanded.value = item.path
 }
 
 function navChild() {
