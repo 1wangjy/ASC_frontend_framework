@@ -12,6 +12,24 @@
           <strong v-if="qaState.phase === 'empty'">问题研究</strong>
           <strong v-else>研究答疑 / 热震稳定性</strong>
         </div>
+        <div class="qa-topbar__actions">
+          <button type="button" class="qa-topbar__action" @click="router.push('/process')">图谱项目</button>
+          <GlobalGraphTaskIndicator
+            :items="graphTaskMonitor.state.items"
+            :connection="graphTaskMonitor.state.connection"
+            :last-synced-at="graphTaskMonitor.state.lastSyncedAt"
+            @refresh="graphTaskMonitor.refresh"
+            @view-project="onTaskbarViewProject"
+          />
+          <button
+            type="button"
+            class="qa-topbar__action qa-topbar__action--primary"
+            :disabled="qaState.mode === 'multi' && multiNavigationLocked"
+            @click="onModePrimaryAction"
+          >
+            {{ qaState.mode === 'multi' ? '新建组会' : '报告中心' }}
+          </button>
+        </div>
         <div class="qa-project-context">
           <span>当前图谱</span>
           <strong>{{ activeProject ? projectLabel(activeProject) : '未选择' }}</strong>
@@ -272,6 +290,7 @@ import {
   createQuestionGuideState,
   refreshQuestionGuide
 } from '../features/qa/questionGuideModel.js'
+import GlobalGraphTaskIndicator from '../features/tasks/GlobalGraphTaskIndicator.vue'
 import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
 
 const route = useRoute()
@@ -680,6 +699,28 @@ async function returnToQaHome() {
   await router.replace({ path: '/research', query })
 }
 
+function newMultiDiscussion() {
+  if (qaState.value.mode !== 'multi') return
+  if (multiNavigationLocked.value) return
+  if (multiDiscussionPanel.value) multiDiscussionPanel.value.startNewDiscussion()
+  else clearSavedMultiDiscussion(browserStorage, activeProject.value?.graphId)
+  draft.value = ''
+  questionGuides.value = createQuestionGuideState()
+}
+
+function onModePrimaryAction() {
+  if (qaState.value.mode === 'multi') {
+    newMultiDiscussion()
+    return
+  }
+  void router.push('/reports')
+}
+
+function onTaskbarViewProject(projectId) {
+  if (projectId) router.push({ name: 'Process', params: { projectId } })
+  else router.push('/process')
+}
+
 function loadConversation(conversation) {
   if (qaState.value.mode === 'multi') {
     multiDiscussionPanel.value?.startNewDiscussion()
@@ -814,10 +855,14 @@ watch(
   () => { void consumeActiveQaRouteQuery() }
 )
 
-onMounted(() => { void consumeActiveQaRouteQuery() })
+onMounted(() => {
+  void consumeActiveQaRouteQuery()
+  graphTaskMonitor.start()
+})
 onUnmounted(() => {
   requestVersion += 1
   qaProjectContext.stop()
+  graphTaskMonitor.stop()
 })
 </script>
 
@@ -848,8 +893,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 0 28px;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  padding: 10px 28px;
   border-bottom: 1px solid var(--asc-border);
   background: rgba(255, 255, 255, 0.94);
 }
@@ -901,6 +947,51 @@ onUnmounted(() => {
   font: inherit;
   font-weight: 750;
   cursor: pointer;
+}
+
+.qa-topbar__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.qa-topbar__action {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  border: 1px solid var(--asc-border);
+  border-radius: 18px;
+  background: #fff;
+  color: var(--asc-heading);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color .15s ease, color .15s ease;
+}
+
+.qa-topbar__action:hover {
+  border-color: var(--asc-primary);
+  color: var(--asc-primary);
+}
+
+.qa-topbar__action--primary {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary);
+  color: #fff;
+}
+
+.qa-topbar__action--primary:hover {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary);
+  color: #fff;
+}
+
+.qa-topbar__action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .qa-empty {

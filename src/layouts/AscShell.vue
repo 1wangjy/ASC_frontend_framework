@@ -53,62 +53,21 @@
         <span>@copyright 2026 金隅集团 · 北京金隅通达耐火技术有限公司 &amp; 中关村人工智能研究院</span>
       </footer>
     </div>
-
-    <GlobalGraphTaskIndicator
-      v-if="!isLanding"
-      :items="logicalGraphProjects"
-      :connection="monitor.state.connection"
-      :last-synced-at="monitor.state.lastSyncedAt"
-      @refresh="monitor.refresh"
-      @view-project="viewProject"
-    />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import AscSidebar from '../components/navigation/AscSidebar.vue'
 import AscIcon from '../components/ui/AscIcon.vue'
 import GraphProjectWorkspacePanel from '../features/projects/GraphProjectWorkspacePanel.vue'
-import GlobalGraphTaskIndicator from '../features/tasks/GlobalGraphTaskIndicator.vue'
-import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
-import { buildLogicalGraphProjects } from '../features/projects/logicalGraphProjectModel.js'
-import {
-  resolveGraphProjectResumeRoute,
-  useGraphWorkflowSession
-} from '../features/navigation/graphWorkflowSession.js'
 
 const route = useRoute()
-const router = useRouter()
-const monitor = useGraphTaskMonitor()
-const workflowSession = useGraphWorkflowSession()
 const mobileNavOpen = ref(false)
 const sidebarCollapsed = ref(false)
 const graphProjectPanelCollapsed = ref(false)
 const isGraphWorkflowRoute = computed(() => route.meta.navigationPath === '/process')
-const isLanding = computed(() => route.name === 'AscHome')
-
-const logicalGraphProjects = computed(() => buildLogicalGraphProjects(monitor.state.items))
-
-function viewProject(projectId) {
-  if (!projectId) return
-  const logicalProject = logicalGraphProjects.value.find(item => (
-    item.projectId === projectId || item.memberProjectIds?.includes(projectId)
-  ))
-  const resumeRoute = resolveGraphProjectResumeRoute(
-    logicalProject,
-    workflowSession.resolve(logicalProject?.memberProjectIds || [projectId])
-  )
-  if (resumeRoute) {
-    if (route.fullPath !== resumeRoute) router.push(resumeRoute)
-    return
-  }
-  router.push({ name: 'Process', params: { projectId } })
-}
-
-onMounted(monitor.start)
-onUnmounted(monitor.stop)
 </script>
 
 <style scoped>
