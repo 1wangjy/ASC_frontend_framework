@@ -72,16 +72,6 @@
       </ol>
     </section>
 
-    <!-- 入口 / 页脚 -->
-    <footer class="landing__foot">
-      <span class="landing__foot-mark">ASC</span>
-      <div class="landing__foot-links">
-        <router-link :to="{ name: 'AscQa' }">问题研究</router-link>
-        <router-link to="/platform/data">数据平台</router-link>
-        <router-link to="/platform/models">模型入口</router-link>
-      </div>
-      <p class="landing__foot-note">ASC 耐火材料智能研究平台 · 内部演示环境</p>
-    </footer>
   </div>
 </template>
 
@@ -256,65 +246,47 @@
 }
 .landing__card:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(8, 105, 173, 0.12); }
 
-.landing__card-icon { font-size: 30px; margin-bottom: 16px; }
+.landing__card-icon { display: grid; place-items: center; width: 46px; height: 46px; margin-bottom: 16px; border-radius: 12px; background: var(--asc-primary-soft); font-size: 24px; }
 .landing__card h3 { margin: 0 0 10px; font-size: 18px; font-weight: 700; }
 .landing__card p { margin: 0; color: var(--asc-muted); font-size: 13.5px; line-height: 1.7; }
 
 /* ── Flow ── */
+/* Flow uses the same column count as the capability cards so the two
+   grids align exactly; identical radius/padding/height for visual unity. */
 .landing__flow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 20px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .landing__flow li {
-  position: relative;
-  padding: 20px 20px 20px 54px;
-  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  border-radius: 14px;
   background: #fff;
   border: 1px solid #e2ecf5;
+  box-shadow: 0 8px 24px rgba(15, 55, 88, 0.06);
 }
 .landing__flow-no {
-  position: absolute;
-  top: 50%;
-  left: 16px;
-  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--asc-primary-soft);
   color: var(--asc-primary);
   font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 20px;
+  font-size: 14px;
   font-weight: 800;
 }
-.landing__flow strong { display: block; font-size: 15px; }
-.landing__flow em { color: var(--asc-muted); font-size: 12px; font-style: normal; }
+.landing__flow strong { display: block; font-size: 16px; font-weight: 700; }
+.landing__flow em { color: var(--asc-muted); font-size: 13px; font-style: normal; line-height: 1.6; }
 
-/* ── Footer ── */
-.landing__foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 32px 40px 56px;
-}
-.landing__foot-mark {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  background: var(--asc-primary);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 900;
-}
-.landing__foot-links { display: flex; gap: 22px; }
-.landing__foot-links a { color: var(--asc-text); font-size: 14px; text-decoration: none; }
-.landing__foot-links a:hover { color: var(--asc-primary); }
-.landing__foot-note { color: var(--asc-muted); font-size: 12px; }
 
 @media (max-width: 860px) {
   .landing__hero { grid-template-columns: 1fr; padding-top: 56px; }

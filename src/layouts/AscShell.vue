@@ -49,9 +49,13 @@
           <slot />
         </div>
       </div>
+      <footer class="app-shell__footer">
+        <span>@copyright 2026 金隅集团 · 北京金隅通达耐火技术有限公司 &amp; 中关村人工智能研究院</span>
+      </footer>
     </div>
 
     <GlobalGraphTaskIndicator
+      v-if="!isLanding"
       :items="logicalGraphProjects"
       :connection="monitor.state.connection"
       :last-synced-at="monitor.state.lastSyncedAt"
@@ -83,6 +87,8 @@ const mobileNavOpen = ref(false)
 const sidebarCollapsed = ref(false)
 const graphProjectPanelCollapsed = ref(false)
 const isGraphWorkflowRoute = computed(() => route.meta.navigationPath === '/process')
+const isLanding = computed(() => route.name === 'AscHome')
+
 const logicalGraphProjects = computed(() => buildLogicalGraphProjects(monitor.state.items))
 
 function viewProject(projectId) {
@@ -114,6 +120,15 @@ onUnmounted(monitor.stop)
   min-height: 100vh;
   margin-left: var(--asc-sidebar-width);
   transition: margin-left var(--asc-transition);
+}
+
+.app-shell__footer {
+  flex: 0 0 auto;
+  padding: 14px 24px 18px;
+  text-align: center;
+  color: var(--asc-muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
 }
 
 .app-shell--sidebar-collapsed .app-shell__body {

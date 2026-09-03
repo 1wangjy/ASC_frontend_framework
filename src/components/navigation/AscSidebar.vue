@@ -169,14 +169,15 @@ defineEmits(['close', 'toggle-collapse'])
   position: fixed;
   z-index: 45;
   top: 24px;
-  left: calc(var(--asc-sidebar-width) - 15px);
-  width: 30px;
-  height: 30px;
+  left: calc(var(--asc-sidebar-width) - 12px);
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 50%;
+  font-size: 13px;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 4px 14px rgba(4, 28, 49, 0.22);
   color: var(--asc-primary);
@@ -370,7 +371,7 @@ defineEmits(['close', 'toggle-collapse'])
   }
 
   .sidebar--collapsed .sidebar__toggle {
-    left: calc(var(--asc-sidebar-collapsed-width) - 15px);
+    left: calc(var(--asc-sidebar-collapsed-width) - 12px);
   }
 
   .sidebar--collapsed .primary-nav {
