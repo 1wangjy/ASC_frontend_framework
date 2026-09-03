@@ -1,5 +1,6 @@
 export const primaryNavigation = [
   { label: '首页', path: '/', icon: 'home' },
+  { label: '问题研究', path: '/research', icon: 'search' },
   { divider: true },
   { label: '数据平台', path: '/platform/data', icon: 'database' },
   { label: '模型入口', path: '/platform/models', icon: 'model' }

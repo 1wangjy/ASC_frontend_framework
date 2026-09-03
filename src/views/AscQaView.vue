@@ -409,7 +409,7 @@ function selectQualifiedProject(projectId) {
   delete query.conversation
   consumedQaQueryTokens.projectId = JSON.stringify([selected.projectId])
   consumedQaQueryTokens.reportId = 'absent'
-  void router.replace({ path: '/', query })
+  void router.replace({ path: '/research', query })
 }
 
 async function waitForCurrentProjectsLoad() {
@@ -664,7 +664,7 @@ async function exitMultiDiscussion() {
   const query = { ...route.query }
   delete query.conversation
   delete query.new
-  await router.replace({ path: '/', query })
+  await router.replace({ path: '/research', query })
 }
 
 async function returnToQaHome() {
@@ -677,7 +677,7 @@ async function returnToQaHome() {
   const query = { ...route.query }
   delete query.conversation
   delete query.new
-  await router.replace({ path: '/', query })
+  await router.replace({ path: '/research', query })
 }
 
 function loadConversation(conversation) {
@@ -703,7 +703,7 @@ function openConversation(conversation) {
   }
 
   router.push({
-    path: '/',
+    path: '/research',
     query: {
       projectId: activeProject.value?.projectId,
       conversation: conversation.id
