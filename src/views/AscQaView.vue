@@ -9,8 +9,8 @@
     <main class="qa-main">
       <header class="qa-topbar">
         <div>
-          <span>ASC 耐火材料智能研究平台</span>
-          <strong v-if="qaState.phase !== 'empty'">研究答疑 / 热震稳定性</strong>
+          <strong v-if="qaState.phase === 'empty'">问题研究</strong>
+          <strong v-else>研究答疑 / 热震稳定性</strong>
         </div>
         <div class="qa-project-context">
           <span>当前图谱</span>
