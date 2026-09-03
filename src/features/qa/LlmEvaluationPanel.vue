@@ -157,7 +157,7 @@ function formatTime(value) {
 
 .review-heading > div > span {
   color: var(--asc-primary);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.08em;
 }
@@ -174,7 +174,7 @@ function formatTime(value) {
   border-radius: 999px;
   background: #eff6fb;
   color: #5d7890;
-  font-size: 9px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -216,7 +216,7 @@ function formatTime(value) {
 .error-state p {
   margin: 7px 0 15px;
   color: var(--asc-muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -229,7 +229,7 @@ function formatTime(value) {
   border-radius: 7px;
   background: var(--asc-primary);
   color: #fff;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -298,7 +298,7 @@ function formatTime(value) {
 .summary-card__top > span,
 .result-card h4 {
   color: var(--asc-primary);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.04em;
 }
@@ -314,7 +314,7 @@ function formatTime(value) {
 .summary-card > p {
   margin: 7px 0 0;
   color: var(--asc-text);
-  font-size: 10px;
+  font-size: 13px;
   line-height: 1.65;
 }
 
@@ -324,7 +324,7 @@ function formatTime(value) {
   border-radius: 6px;
   background: #edf7f2;
   color: #28775e;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .summary-card .source-description--warning {
@@ -360,12 +360,12 @@ function formatTime(value) {
   border-radius: 6px;
   background: #f5f8fa;
   color: var(--asc-text);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .dimension-list strong {
   color: #28775e;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .risk-list,
@@ -375,7 +375,7 @@ function formatTime(value) {
   margin: 0;
   padding-left: 18px;
   color: var(--asc-text);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -389,7 +389,7 @@ function formatTime(value) {
 .result-meta {
   align-items: center;
   color: var(--asc-muted);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .save-button {
@@ -403,7 +403,7 @@ function formatTime(value) {
   border-radius: 7px;
   background: #f5f9fc;
   color: var(--asc-muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -429,7 +429,7 @@ button:focus-visible {
 
 .status {
   margin: -2px 0 0;
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 

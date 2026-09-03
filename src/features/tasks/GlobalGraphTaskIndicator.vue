@@ -84,12 +84,12 @@ function handleEscape(event) {
 </script>
 
 <style scoped>
-.graph-task-indicator { position: fixed; right: 22px; bottom: 22px; z-index: 40; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.graph-task-indicator { position: relative; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
 .graph-task-indicator__trigger { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--asc-border); border-radius: 18px; background: #fff; color: var(--asc-heading); box-shadow: 0 8px 24px rgba(4, 28, 49, .16); font-weight: 700; cursor: pointer; }
 .graph-task-indicator__dot { width: 8px; height: 8px; border-radius: 50%; background: #8b9bad; }
 .graph-task-indicator__dot--active { background: var(--asc-primary); box-shadow: 0 0 0 4px var(--asc-primary-soft); }
 .graph-task-indicator__count { display: inline-grid; min-width: 20px; height: 20px; padding: 0 5px; place-items: center; border-radius: 10px; background: var(--asc-primary); color: #fff; font-size: 12px; line-height: 1; }
-.graph-task-indicator__popover { position: absolute; right: 0; bottom: 46px; display: flex; flex-direction: column; width: min(360px, calc(100vw - 32px)); max-height: min(70vh, 520px); overflow: hidden; border: 1px solid var(--asc-border); border-radius: 12px; background: #fff; box-shadow: 0 16px 40px rgba(4, 28, 49, .2); }
+.graph-task-indicator__popover { position: absolute; top: calc(100% + 8px); left: 0; right: auto; bottom: auto; z-index: 60; display: flex; flex-direction: column; width: min(360px, calc(100vw - 32px)); max-height: min(70vh, 520px); overflow: hidden; border: 1px solid var(--asc-border); border-radius: 12px; background: #fff; box-shadow: 0 16px 40px rgba(4, 28, 49, .2); }
 .graph-task-indicator__header, .graph-task-indicator__item-main, .graph-task-indicator__actions, .graph-task-indicator__offline { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .graph-task-indicator__header { flex: 0 0 auto; padding: 12px 14px; border-bottom: 1px solid var(--asc-border); }
 .graph-task-indicator__close { border: 0; background: transparent; color: var(--asc-muted); font-size: 22px; cursor: pointer; }
@@ -103,7 +103,6 @@ function handleEscape(event) {
 .graph-task-indicator__empty { margin: 0; padding: 16px 14px; }
 
 @media (max-width: 760px) {
-  .graph-task-indicator { right: 12px; bottom: 14px; }
-  .graph-task-indicator__popover { position: fixed; top: 68px; bottom: auto; right: 12px; max-height: calc(100vh - 138px); }
+  .graph-task-indicator__popover { top: calc(100% + 8px); left: 0; right: auto; max-height: calc(100vh - 138px); }
 }
 </style>

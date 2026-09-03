@@ -1,9 +1,17 @@
 export const ascRouteDefinitions = [
+  // ── 首页：项目整体宣传页 ──
   {
     path: '/',
+    name: 'AscHome',
+    component: () => import('../views/LandingHomeView.vue'),
+    meta: { title: '首页' }
+  },
+  // ── 问题研究：智能问答 ──
+  {
+    path: '/research',
     name: 'AscQa',
     component: () => import('../views/AscQaView.vue'),
-    meta: { title: '首页' }
+    meta: { title: '问题研究' }
   },
   {
     path: '/documents',

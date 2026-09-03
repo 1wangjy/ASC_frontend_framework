@@ -9,8 +9,26 @@
     <main class="qa-main">
       <header class="qa-topbar">
         <div>
-          <span>ASC 耐火材料智能研究平台</span>
-          <strong v-if="qaState.phase !== 'empty'">研究答疑 / 热震稳定性</strong>
+          <strong v-if="qaState.phase === 'empty'">问题研究</strong>
+          <strong v-else>研究答疑 / 热震稳定性</strong>
+        </div>
+        <div class="qa-topbar__actions">
+          <button type="button" class="qa-topbar__action" @click="router.push('/process')">图谱项目</button>
+          <GlobalGraphTaskIndicator
+            :items="graphTaskMonitor.state.items"
+            :connection="graphTaskMonitor.state.connection"
+            :last-synced-at="graphTaskMonitor.state.lastSyncedAt"
+            @refresh="graphTaskMonitor.refresh"
+            @view-project="onTaskbarViewProject"
+          />
+          <button
+            type="button"
+            class="qa-topbar__action qa-topbar__action--primary"
+            :disabled="qaState.mode === 'multi' && multiNavigationLocked"
+            @click="onModePrimaryAction"
+          >
+            {{ qaState.mode === 'multi' ? '新建组会' : '报告中心' }}
+          </button>
         </div>
         <div class="qa-project-context">
           <span>当前图谱</span>
@@ -272,6 +290,7 @@ import {
   createQuestionGuideState,
   refreshQuestionGuide
 } from '../features/qa/questionGuideModel.js'
+import GlobalGraphTaskIndicator from '../features/tasks/GlobalGraphTaskIndicator.vue'
 import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
 
 const route = useRoute()
@@ -409,7 +428,7 @@ function selectQualifiedProject(projectId) {
   delete query.conversation
   consumedQaQueryTokens.projectId = JSON.stringify([selected.projectId])
   consumedQaQueryTokens.reportId = 'absent'
-  void router.replace({ path: '/', query })
+  void router.replace({ path: '/research', query })
 }
 
 async function waitForCurrentProjectsLoad() {
@@ -664,7 +683,7 @@ async function exitMultiDiscussion() {
   const query = { ...route.query }
   delete query.conversation
   delete query.new
-  await router.replace({ path: '/', query })
+  await router.replace({ path: '/research', query })
 }
 
 async function returnToQaHome() {
@@ -677,7 +696,29 @@ async function returnToQaHome() {
   const query = { ...route.query }
   delete query.conversation
   delete query.new
-  await router.replace({ path: '/', query })
+  await router.replace({ path: '/research', query })
+}
+
+function newMultiDiscussion() {
+  if (qaState.value.mode !== 'multi') return
+  if (multiNavigationLocked.value) return
+  if (multiDiscussionPanel.value) multiDiscussionPanel.value.startNewDiscussion()
+  else clearSavedMultiDiscussion(browserStorage, activeProject.value?.graphId)
+  draft.value = ''
+  questionGuides.value = createQuestionGuideState()
+}
+
+function onModePrimaryAction() {
+  if (qaState.value.mode === 'multi') {
+    newMultiDiscussion()
+    return
+  }
+  void router.push('/reports')
+}
+
+function onTaskbarViewProject(projectId) {
+  if (projectId) router.push({ name: 'Process', params: { projectId } })
+  else router.push('/process')
 }
 
 function loadConversation(conversation) {
@@ -703,7 +744,7 @@ function openConversation(conversation) {
   }
 
   router.push({
-    path: '/',
+    path: '/research',
     query: {
       projectId: activeProject.value?.projectId,
       conversation: conversation.id
@@ -814,10 +855,14 @@ watch(
   () => { void consumeActiveQaRouteQuery() }
 )
 
-onMounted(() => { void consumeActiveQaRouteQuery() })
+onMounted(() => {
+  void consumeActiveQaRouteQuery()
+  graphTaskMonitor.start()
+})
 onUnmounted(() => {
   requestVersion += 1
   qaProjectContext.stop()
+  graphTaskMonitor.stop()
 })
 </script>
 
@@ -848,8 +893,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 0 28px;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  padding: 10px 28px;
   border-bottom: 1px solid var(--asc-border);
   background: rgba(255, 255, 255, 0.94);
 }
@@ -878,7 +924,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   color: var(--asc-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -901,6 +947,51 @@ onUnmounted(() => {
   font: inherit;
   font-weight: 750;
   cursor: pointer;
+}
+
+.qa-topbar__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.qa-topbar__action {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  border: 1px solid var(--asc-border);
+  border-radius: 18px;
+  background: #fff;
+  color: var(--asc-heading);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color .15s ease, color .15s ease;
+}
+
+.qa-topbar__action:hover {
+  border-color: var(--asc-primary);
+  color: var(--asc-primary);
+}
+
+.qa-topbar__action--primary {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary);
+  color: #fff;
+}
+
+.qa-topbar__action--primary:hover {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary);
+  color: #fff;
+}
+
+.qa-topbar__action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .qa-empty {
@@ -991,7 +1082,11 @@ onUnmounted(() => {
 }
 
 .qa-multi-page__intro p {
-  margin-bottom: 12px;
+  margin: 10px auto 12px;
+  max-width: 640px;
+  color: #445e75;
+  font-size: 15px;
+  line-height: 1.7;
 }
 
 .qa-multi-page__workspace {
@@ -1070,11 +1165,13 @@ onUnmounted(() => {
 
 .qa-empty__intro p {
   width: 100%;
-  margin: 11px 0 0;
-  color: #5f7890;
-  font-size: 13px;
+  margin: 14px auto 0;
+  max-width: 680px;
+  color: #445e75;
+  font-size: 16px;
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.005em;
+  line-height: 1.7;
   text-align: center;
 }
 
@@ -1089,7 +1186,7 @@ onUnmounted(() => {
   border-radius: 7px;
   background: #f7fbfd;
   color: var(--asc-muted);
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .qa-project-message.error {
@@ -1102,10 +1199,10 @@ onUnmounted(() => {
   min-height: 28px;
   padding: 0 9px;
   border: 1px solid currentColor;
-  border-radius: 5px;
+  border-radius: 6px;
   background: #fff;
   color: inherit;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -1180,7 +1277,7 @@ onUnmounted(() => {
   border-radius: 7px;
   background: #f0f5fb;
   color: #536b82;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 750;
 }
 

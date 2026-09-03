@@ -129,7 +129,7 @@ const domainTerms = computed(() => buildAscDomainTerms({
   background: transparent;
   color: var(--asc-text);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;

@@ -186,7 +186,7 @@ watch(
 .qa-project-selector p,
 .qa-project-selector small {
   color: var(--asc-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .qa-project-selector header button {
@@ -205,7 +205,7 @@ watch(
   gap: 12px;
   padding: 24px 18px;
   color: var(--asc-muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .qa-project-selector__state--error {
@@ -267,7 +267,7 @@ watch(
 
 .qa-project-selector__list b {
   color: var(--asc-primary);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 @media (max-width: 560px) {

@@ -70,10 +70,10 @@ defineProps({
 .reasoning-trace { display: grid; gap: 20px; white-space: normal; }
 .reasoning-trace__header { display: grid; grid-template-columns: auto auto minmax(220px, 1fr); align-items: center; gap: 20px; padding: 15px 18px; border: 1px solid #cfe2ef; border-radius: 10px; background: #f6fbfe; }
 .reasoning-trace__mode, .reasoning-trace__route { display: grid; gap: 3px; padding-right: 20px; border-right: 1px solid #d8e7ef; }
-.reasoning-trace__header span, .reasoning-trace__family-heading span { color: var(--asc-muted); font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+.reasoning-trace__header span, .reasoning-trace__family-heading span { color: var(--asc-muted); font-size: 12px; font-weight: 800; letter-spacing: .06em; }
 .reasoning-trace__mode strong { color: var(--asc-primary); font-size: 18px; }
 .reasoning-trace__route strong { color: var(--asc-heading); font-size: 13px; }
-.reasoning-trace__header p { margin: 0; color: var(--asc-text); font-size: 12px; line-height: 1.7; }
+.reasoning-trace__header p { margin: 0; color: var(--asc-text); font-size: 13px; line-height: 1.7; }
 .reasoning-trace__tot { display: grid; justify-items: center; }
 .reasoning-trace__root { display: grid; min-width: 210px; justify-items: center; gap: 3px; padding: 11px 20px; border: 2px solid #3485b8; border-radius: 10px; background: #eef8fd; color: var(--asc-heading); }
 .reasoning-trace__root span { color: var(--asc-primary); font-size: 9px; font-weight: 800; letter-spacing: .1em; }
@@ -102,13 +102,13 @@ defineProps({
 .reasoning-trace__branch ul { display: grid; gap: 5px; margin: 8px 0 0; padding-left: 18px; color: var(--asc-text); line-height: 1.6; }
 .reasoning-trace__cot { display: grid; justify-items: center; gap: 14px; }
 .reasoning-trace__cot-heading { display: flex; align-items: center; gap: 9px; padding: 9px 16px; border-radius: 999px; background: #eaf6fc; color: var(--asc-heading); }
-.reasoning-trace__cot-heading span { color: var(--asc-primary); font-size: 10px; font-weight: 800; }
+.reasoning-trace__cot-heading span { color: var(--asc-primary); font-size: 12px; font-weight: 800; }
 .reasoning-trace__cot-chain { width: min(100%, 720px); display: grid; justify-items: center; }
 .reasoning-trace__cot-step { width: min(100%, 540px); display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 10px; padding: 11px 14px; border: 1px solid #c9dfec; border-radius: 9px; background: #f6fbfe; }
 .reasoning-trace__cot-step span { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: var(--asc-primary); color: #fff; font-size: 10px; font-weight: 800; }
-.reasoning-trace__cot-step strong { color: var(--asc-heading); font-size: 12px; }
+.reasoning-trace__cot-step strong { color: var(--asc-heading); font-size: 13px; }
 .reasoning-trace__cot-edge { display: grid; justify-items: center; min-height: 40px; color: var(--asc-muted); }
-.reasoning-trace__cot-edge small { font-size: 9px; }
+.reasoning-trace__cot-edge small { font-size: 12px; }
 .reasoning-trace__cot-edge i { color: var(--asc-primary); font-size: 17px; font-style: normal; }
 .reasoning-trace__empty { margin: 0; padding: 18px; border-radius: 9px; background: #f7f9fb; color: var(--asc-muted); text-align: center; }
 @media (max-width: 900px) {

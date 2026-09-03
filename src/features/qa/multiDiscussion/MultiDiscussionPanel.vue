@@ -1305,7 +1305,7 @@ onBeforeUnmount(() => {
 
 .multi-discussion-kicker {
   color: #5b5bd6;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   letter-spacing: .13em;
   text-transform: uppercase;
@@ -1321,7 +1321,7 @@ onBeforeUnmount(() => {
   max-width: 720px;
   margin: 0;
   color: #657087;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.55;
 }
 
@@ -1336,7 +1336,7 @@ onBeforeUnmount(() => {
 .multi-discussion-controls label {
   grid-column: 1 / -1;
   color: #536078;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -1362,7 +1362,7 @@ onBeforeUnmount(() => {
   align-items: center;
   min-width: 0;
   color: #7b879a;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .multi-discussion-control-meta span {
@@ -1394,7 +1394,7 @@ onBeforeUnmount(() => {
   background: #fff;
   color: #4e4fc4;
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -1408,7 +1408,7 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid #e4e9f1;
   background: #fff;
   color: #7c8798;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .model-mode-status {
@@ -1474,7 +1474,7 @@ onBeforeUnmount(() => {
   background: #fff;
   color: #4f687d;
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.55;
   text-align: left;
@@ -1572,17 +1572,17 @@ onBeforeUnmount(() => {
   align-items: center;
   margin-bottom: 6px;
   color: #9aa3b2;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .message-meta strong {
   color: #35425d;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .message-content {
   color: inherit;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.75;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1720,7 +1720,7 @@ onBeforeUnmount(() => {
   width: 100%;
   border-collapse: collapse;
   background: #fff;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .message-content.is-markdown :deep(th),
@@ -1754,7 +1754,7 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   background: #202638;
   color: #eef1f7;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .message-content.is-markdown :deep(.md-link) {
@@ -1801,7 +1801,7 @@ onBeforeUnmount(() => {
   padding: 5px 7px;
   background: rgba(255, 255, 255, .95);
   color: #59657a;
-  font-size: 9px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1843,12 +1843,12 @@ onBeforeUnmount(() => {
 
 .answer-visual-evidence > header strong {
   color: #176f58;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .answer-visual-evidence > header span {
   color: #758197;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .answer-visual-evidence > header b {
@@ -1857,7 +1857,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: #dcf2eb;
   color: #16785d;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .answer-visual-evidence-grid {
@@ -1891,14 +1891,14 @@ onBeforeUnmount(() => {
 
 .answer-visual-evidence-grid figcaption > strong {
   color: #26344c;
-  font-size: 10px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
 .answer-visual-evidence-grid figcaption p {
   margin: 0;
   color: #536279;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -1907,7 +1907,7 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   background: #f2f6fa;
   color: #4e6279;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .answer-visual-evidence-grid .visual-experiment-binding {
@@ -1916,7 +1916,7 @@ onBeforeUnmount(() => {
   border-radius: 0 5px 5px 0;
   background: #fffaf1;
   color: #735a32;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .answer-visual-evidence.is-inline .answer-visual-evidence-grid {
@@ -1935,7 +1935,7 @@ onBeforeUnmount(() => {
 
 .answer-visual-evidence-grid figcaption small {
   color: #7d889a;
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
@@ -1950,7 +1950,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: #eef3f8;
   color: #53637a;
-  font-size: 7px;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -1961,7 +1961,7 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   background: #f8fafc;
   color: #6c788c;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -1986,14 +1986,14 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: #f5f6ff;
   color: #4e51ad;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
 }
 
 .message-visual-panel summary {
   padding: 9px 0 2px;
   color: #087956;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -2001,7 +2001,7 @@ onBeforeUnmount(() => {
 .visual-analysis-summary {
   margin: 7px 0;
   color: #4d5c72;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -2012,7 +2012,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: #e9f8f2;
   color: #137456;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 850;
 }
 
@@ -2032,7 +2032,7 @@ onBeforeUnmount(() => {
   border-left: 2px solid #24aa7e;
   background: #f3fbf8;
   color: #4d5b70;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .visual-analysis-list strong { color: #19684f; }
@@ -2061,7 +2061,7 @@ onBeforeUnmount(() => {
 .visual-evidence-layer b {
   display: block;
   margin-bottom: 2px;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: .03em;
 }
 
@@ -2106,7 +2106,7 @@ onBeforeUnmount(() => {
 .message-evidence-panel summary {
   padding: 9px 0 2px;
   color: #5153bd;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -2128,7 +2128,7 @@ onBeforeUnmount(() => {
 .reference-list blockquote {
   margin: 3px 0 0;
   color: #536078;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -2137,7 +2137,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   align-items: baseline;
   color: #4e5a71;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .reference-heading strong {
@@ -2171,21 +2171,21 @@ onBeforeUnmount(() => {
 .analysis-progress-heading strong {
   display: block;
   color: #263450;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.35;
 }
 
 .analysis-progress-heading p {
   margin: 3px 0 0;
   color: #6b778d;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
 .analysis-progress-heading > b {
   padding-top: 1px;
   color: #5052bf;
-  font-size: 11px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2241,14 +2241,14 @@ onBeforeUnmount(() => {
 
 .workbench-title strong {
   color: #283650;
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: .02em;
 }
 
 .workbench-title span {
   margin-top: 2px;
   color: #79859a;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -2258,7 +2258,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: #e5f8f0;
   color: #087956;
-  font-size: 8px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 900;
   letter-spacing: .1em;
@@ -2321,7 +2321,7 @@ onBeforeUnmount(() => {
 .reasoning-summary-grid header strong {
   overflow: hidden;
   color: #33405a;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2329,7 +2329,7 @@ onBeforeUnmount(() => {
 
 .reasoning-summary-grid header span {
   color: #9aa4b3;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -2339,7 +2339,7 @@ onBeforeUnmount(() => {
 .reasoning-summary-grid article > p {
   margin: 7px 0 0;
   color: #68758a;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -2361,7 +2361,7 @@ onBeforeUnmount(() => {
   position: relative;
   padding-left: 10px;
   color: #435068;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.48;
   overflow-wrap: anywhere;
 }
@@ -2381,7 +2381,7 @@ onBeforeUnmount(() => {
   display: block;
   margin-top: 7px;
   color: #7e8a9e;
-  font-size: 8px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2405,20 +2405,20 @@ onBeforeUnmount(() => {
 
 .public-logic-chain-panel > header strong {
   color: #2f3d57;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .public-logic-chain-panel > header span {
   margin-top: 2px;
   color: #8490a3;
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
 .public-logic-chain-panel > header b {
   flex: 0 0 auto;
   color: #5658c8;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .public-logic-chain-list {
@@ -2440,7 +2440,7 @@ onBeforeUnmount(() => {
   padding: 6px 9px;
   border-bottom: 1px solid #edf0f5;
   color: #7b879a;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .logic-chain-meta strong {
@@ -2491,14 +2491,14 @@ onBeforeUnmount(() => {
   display: block;
   margin-bottom: 4px;
   color: #46526a;
-  font-size: 8px;
+  font-size: 11px;
   letter-spacing: .04em;
 }
 
 .public-logic-chain-list li p {
   margin: 0;
   color: #344158;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -2508,7 +2508,7 @@ onBeforeUnmount(() => {
   border-top: 1px dashed #e1e6ee;
   background: #fffcf5;
   color: #806c49;
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -2518,7 +2518,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 2px 12px 12px;
   color: #8490a3;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .logic-chain-building i {
@@ -2579,7 +2579,7 @@ onBeforeUnmount(() => {
   gap: 5px;
   align-items: center;
   color: #9aa4b4;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
   line-height: 1.3;
 }
@@ -2612,7 +2612,7 @@ onBeforeUnmount(() => {
   padding-top: 7px;
   border-top: 1px solid #e7ebf2;
   color: #8a94a6;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -2637,7 +2637,7 @@ onBeforeUnmount(() => {
   padding: 7px 10px;
   border-radius: 7px;
   background: #fff0ee;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .composer-answer-options {
@@ -2658,7 +2658,7 @@ onBeforeUnmount(() => {
   border-radius: 9px;
   background: #fff;
   color: #536078;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -2668,7 +2668,7 @@ onBeforeUnmount(() => {
   background: transparent;
   color: #283650;
   font: inherit;
-  font-size: 9px;
+  font-size: 12px;
   outline: none;
 }
 
@@ -2680,7 +2680,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: #f3f3ff;
   color: #4e50bd;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -2700,13 +2700,13 @@ onBeforeUnmount(() => {
 }
 
 .multimodal-answer-toggle strong {
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .multimodal-answer-toggle small {
   padding-left: 6px;
   border-left: 1px solid currentColor;
-  font-size: 8px;
+  font-size: 12px;
   opacity: .72;
 }
 
@@ -2738,7 +2738,7 @@ onBeforeUnmount(() => {
   background: transparent;
   color: #6a7689;
   font: inherit;
-  font-size: 8px;
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -2775,7 +2775,7 @@ onBeforeUnmount(() => {
   background: #f7f9fc;
   color: #4e5c74;
   font: inherit;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -2813,7 +2813,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   padding: 4px 7px;
   color: #667287;
-  font-size: 8px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2843,7 +2843,7 @@ onBeforeUnmount(() => {
   outline: none;
   color: #26324a;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -2858,7 +2858,7 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, #5d5ed4, #4143af);
   color: #fff;
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 850;
   cursor: pointer;
 }
@@ -2884,7 +2884,7 @@ onBeforeUnmount(() => {
 .multi-discussion-composer > p {
   margin: 5px 2px 0;
   color: #9aa3b1;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 @media (max-width: 860px) {

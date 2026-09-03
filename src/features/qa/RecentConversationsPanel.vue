@@ -122,7 +122,7 @@ function closeCompactPanel() {
   background: #eef7fd;
   box-shadow: 0 5px 14px rgba(20, 105, 160, 0.1);
   color: var(--asc-primary);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   text-decoration: none;
   transition: color var(--asc-transition), background var(--asc-transition), border-color var(--asc-transition), box-shadow var(--asc-transition);
@@ -140,7 +140,7 @@ function closeCompactPanel() {
 .recent-conversations__heading {
   margin: 0 8px 10px;
   color: var(--recent-heading);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.08em;
 }
@@ -154,7 +154,7 @@ function closeCompactPanel() {
 
 .recent-conversations__heading small {
   color: var(--recent-muted);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -171,7 +171,7 @@ function closeCompactPanel() {
   border-radius: 6px;
   background: transparent;
   color: var(--recent-muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   transition: color var(--asc-transition), background var(--asc-transition), border-color var(--asc-transition);
 }
@@ -214,7 +214,7 @@ function closeCompactPanel() {
   border-radius: 6px;
   background: transparent;
   color: var(--recent-text);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.4;
   text-align: left;
   transition: color var(--asc-transition), background var(--asc-transition);
@@ -242,7 +242,7 @@ function closeCompactPanel() {
   border: 0;
   background: transparent;
   color: var(--recent-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -295,7 +295,7 @@ function closeCompactPanel() {
     background: rgba(255, 255, 255, 0.9);
     box-shadow: 0 5px 16px rgba(13, 65, 98, 0.08);
     color: var(--recent-text);
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 650;
     backdrop-filter: blur(10px);
   }

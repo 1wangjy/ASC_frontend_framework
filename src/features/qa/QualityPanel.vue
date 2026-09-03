@@ -318,7 +318,7 @@ function toggleIssue(issueId) {
 
 .quality-panel__header span {
   color: var(--asc-primary);
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.14em;
 }
@@ -363,19 +363,19 @@ function toggleIssue(issueId) {
 
 .quality-section__heading > div > span {
   color: var(--asc-primary);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 900;
 }
 
 .quality-section__heading h3 {
   margin: 0;
   color: var(--asc-heading);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .quality-section__heading small {
   color: var(--asc-muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .academic-profile {
@@ -397,7 +397,7 @@ function toggleIssue(issueId) {
 
 .academic-profile__header > span {
   color: #475569;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -408,7 +408,7 @@ function toggleIssue(issueId) {
   border-radius: 8px;
   background: #f0f7fc;
   color: #075985;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 900;
   text-align: right;
 }
@@ -445,7 +445,7 @@ function toggleIssue(issueId) {
   justify-content: space-between;
   gap: 10px;
   color: #334155;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -506,13 +506,13 @@ function toggleIssue(issueId) {
 
 .answer-metric-chip span {
   min-width: 0;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 850;
 }
 
 .answer-metric-chip strong {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
@@ -579,7 +579,7 @@ function toggleIssue(issueId) {
 
 .quality-radar text {
   fill: var(--asc-text);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 750;
 }
 
@@ -615,7 +615,7 @@ function toggleIssue(issueId) {
 .routing-evaluation h4 {
   margin: 0 0 9px;
   color: var(--asc-heading);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .routing-evaluation__grid {
@@ -637,24 +637,24 @@ function toggleIssue(issueId) {
 
 .routing-metric span {
   color: var(--asc-text);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .routing-metric strong {
   color: #237d5f;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .metric-card span,
 .reasoning-depth span {
   color: var(--asc-text);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .metric-card strong,
 .reasoning-depth strong {
   color: var(--asc-heading);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .metric-track {
@@ -689,7 +689,7 @@ function toggleIssue(issueId) {
   border-radius: 9px;
   background: #f5f7f9;
   color: var(--asc-muted);
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -710,7 +710,7 @@ function toggleIssue(issueId) {
   border-radius: 7px;
   background: transparent;
   color: var(--asc-muted);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
 }
 

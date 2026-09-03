@@ -29,6 +29,34 @@
     <nav class="primary-nav" aria-label="主要导航">
       <template v-for="item in primaryNavigation" :key="item.path || item.divider">
         <div v-if="item.divider" class="nav-divider" />
+        <!-- group with children: parent toggles an in-rail sublist -->
+        <div v-else-if="item.children?.length" class="nav-group" :class="{ 'is-open': isGroupOpen(item) }">
+          <button
+            type="button"
+            class="nav-item nav-item--parent"
+            :title="collapsed ? item.label : undefined"
+            @click="toggleGroup(item)"
+          >
+            <AscIcon :name="item.icon" />
+            <span>{{ item.label }}</span>
+            <AscIcon v-if="!collapsed" name="chevron" class="nav-group__caret" />
+          </button>
+          <transition name="navsub">
+            <ul v-if="!collapsed && isGroupOpen(item)" class="nav-sublist">
+              <li v-for="child in item.children" :key="child.path">
+                <router-link
+                  :to="child.path"
+                  class="nav-subitem"
+                  @click="navChild"
+                >
+                  <span class="nav-subitem__dot" aria-hidden="true" />
+                  <span>{{ child.label }}</span>
+                </router-link>
+              </li>
+            </ul>
+          </transition>
+        </div>
+        <!-- plain item -->
         <router-link
           v-else
           :to="navigationState.target(item)"
@@ -67,8 +95,8 @@
 </template>
 
 <script setup>
-import { watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AscIcon from '../ui/AscIcon.vue'
 import {
   createPrimaryNavigationState,
@@ -77,6 +105,7 @@ import {
 import { useAuthStore } from '../../store/auth.js'
 
 const route = useRoute()
+const router = useRouter()
 const navigationState = createPrimaryNavigationState()
 const authStore = useAuthStore()
 
@@ -86,7 +115,7 @@ watch(
   { immediate: true }
 )
 
-defineProps({
+const props = defineProps({
   mobileOpen: {
     type: Boolean,
     default: false
@@ -97,7 +126,41 @@ defineProps({
   }
 })
 
-defineEmits(['close', 'toggle-collapse'])
+const expanded = ref('')
+const emit = defineEmits(['close', 'toggle-collapse'])
+
+function isGroupOpen(item) {
+  return expanded.value === item.path
+}
+
+function toggleGroup(item) {
+  if (props.collapsed) {
+    // on the collapsed rail there is no room for the inline list: go to hub
+    emit('close')
+    router.push(item.path)
+    return
+  }
+  expanded.value = expanded.value === item.path ? '' : item.path
+}
+
+function navChild() {
+  emit('close')
+}
+
+// keep the parent group open when navigating into one of its children
+watch(
+  () => route.fullPath,
+  () => {
+    const activePath = route.path
+    for (const item of primaryNavigation) {
+      if (item.children?.some((c) => c.path === activePath)) {
+        expanded.value = item.path
+        return
+      }
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>
@@ -108,27 +171,30 @@ defineEmits(['close', 'toggle-collapse'])
   width: var(--asc-sidebar-width);
   display: flex;
   flex-direction: column;
-  padding: 22px 14px 18px;
+  padding: 20px 12px 16px;
   overflow-y: auto;
   background: var(--asc-sidebar);
   color: #fff;
   transition: width var(--asc-transition), padding var(--asc-transition), transform var(--asc-transition);
 }
 
+/* ── 品牌区 ── */
 .sidebar__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 800;
   letter-spacing: 0.01em;
+  color: #fff;
+  text-decoration: none;
 }
 
 .brand__mark {
@@ -139,8 +205,15 @@ defineEmits(['close', 'toggle-collapse'])
   border-radius: 10px;
   background: #fff;
   color: var(--asc-primary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.brand__name {
+  font-weight: 800;
+  letter-spacing: 0.03em;
 }
 
 .sidebar__close {
@@ -154,75 +227,112 @@ defineEmits(['close', 'toggle-collapse'])
   font-size: 20px;
 }
 
+/* ── 折叠开关：贴合右缘的半圆角小钮，与栏同色系不抢眼 ── */
 .sidebar__toggle {
   position: fixed;
   z-index: 45;
-  top: 26px;
-  left: calc(var(--asc-sidebar-width) - 15px);
-  width: 30px;
-  height: 30px;
+  top: 24px;
+  left: calc(var(--asc-sidebar-width) - 12px);
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid var(--asc-border-strong);
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 5px 16px rgba(4, 45, 80, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 50%;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 14px rgba(4, 28, 49, 0.22);
   color: var(--asc-primary);
-  font-size: 16px;
-  transition: left var(--asc-transition), background var(--asc-transition), color var(--asc-transition);
+  font-size: 15px;
+  cursor: pointer;
+  transition: left var(--asc-transition), background var(--asc-transition), color var(--asc-transition), transform var(--asc-transition);
 }
 
 .sidebar__toggle:hover {
-  background: var(--asc-primary-soft);
+  background: #fff;
   color: var(--asc-primary-hover);
+  transform: translateY(-1px);
 }
 
 .sidebar__toggle-icon--collapse {
   transform: rotate(180deg);
 }
 
+/* ── 主导航：扁平、细纹、激活用左侧指示条 ── */
 .primary-nav {
   display: grid;
-  gap: 5px;
+  gap: 4px;
   margin-top: 4px;
 }
 
 .nav-divider {
   height: 1px;
-  margin: 8px 10px;
-  background: rgba(255, 255, 255, 0.15);
+  margin: 10px 8px;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .nav-item {
+  position: relative;
   min-height: 42px;
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 0 13px;
+  gap: 12px;
+  padding: 0 12px;
   border-radius: 7px;
-  color: #d9ebf7;
+  color: #bcd3e6;
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 550;
+  text-decoration: none;
   transition: background var(--asc-transition), color var(--asc-transition);
 }
 
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+.nav-item .asc-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  opacity: 0.82;
+  transition: opacity var(--asc-transition);
 }
 
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #f2f8fd;
+}
+
+.nav-item:hover .asc-icon {
+  opacity: 1;
+}
+
+/* Pro-style active: thin indicator bar + soft wash instead of a solid block */
 .nav-item.router-link-exact-active {
-  background: #0e69a8;
+  background: rgba(255, 255, 255, 0.12);
   color: #fff;
-  box-shadow: inset 3px 0 0 #63c4eb;
+  font-weight: 650;
+}
+
+.nav-item.router-link-exact-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 20px;
+  transform: translateY(-50%);
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, #4fb7ec, #7fd4f2);
+  box-shadow: 0 0 8px rgba(79, 183, 236, 0.6);
+}
+
+.nav-item.router-link-exact-active .asc-icon {
+  opacity: 1;
 }
 
 /* ── 用户信息栏 ── */
 .sidebar-footer {
   margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255,255,255,0.12);
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .user-info {
@@ -231,8 +341,8 @@ defineEmits(['close', 'toggle-collapse'])
   gap: 10px;
   margin-bottom: 10px;
   padding: 8px 10px;
-  border-radius: 7px;
-  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .user-avatar {
@@ -265,32 +375,38 @@ defineEmits(['close', 'toggle-collapse'])
 
 .user-status {
   font-size: 11px;
-  color: #aac7df;
+  color: #9dbcd6;
   margin-top: 1px;
 }
 
 .sidebar-btn {
   width: 100%;
-  padding: 9px;
-  border: 0;
-  border-radius: 6px;
+  padding: 8px;
+  border-radius: 7px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
+/* 幽灵/描边登录钮：克制，悬停再填充 */
 .login-btn {
-  background: #0e69a8;
-  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: transparent;
+  color: #eaf3fb;
 }
-.login-btn:hover { background: #0a5a91; }
+.login-btn:hover {
+  background: #fff;
+  color: var(--asc-primary);
+  border-color: #fff;
+}
 
 .logout-btn {
-  background: rgba(255,255,255,0.1);
-  color: #d9ebf7;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cfe0ee;
+  border: 1px solid transparent;
 }
-.logout-btn:hover { background: rgba(255,255,255,0.16); }
+.logout-btn:hover { background: rgba(255, 255, 255, 0.16); }
 
 .sidebar--collapsed .sidebar-footer { text-align: center; }
 .sidebar--collapsed .user-info { justify-content: center; padding: 8px; }
@@ -300,7 +416,7 @@ defineEmits(['close', 'toggle-collapse'])
 @media (min-width: 761px) {
   .sidebar--collapsed {
     width: var(--asc-sidebar-collapsed-width);
-    padding-inline: 14px;
+    padding-inline: 12px;
     overflow-x: hidden;
   }
 
@@ -317,8 +433,9 @@ defineEmits(['close', 'toggle-collapse'])
     display: none;
   }
 
+
   .sidebar--collapsed .sidebar__toggle {
-    left: calc(var(--asc-sidebar-collapsed-width) - 15px);
+    left: calc(var(--asc-sidebar-collapsed-width) - 12px);
   }
 
   .sidebar--collapsed .primary-nav {
@@ -331,6 +448,10 @@ defineEmits(['close', 'toggle-collapse'])
     justify-content: center;
     padding: 0;
     font-size: 18px;
+  }
+
+  .sidebar--collapsed .nav-item.router-link-exact-active::before {
+    left: -8px;
   }
 }
 
@@ -354,4 +475,84 @@ defineEmits(['close', 'toggle-collapse'])
     display: none;
   }
 }
+
+/* ── Group with inline children (Pro-Sidebar style accordion) ── */
+.nav-group {
+  position: relative;
+}
+.nav-item--parent {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.nav-group__caret {
+  width: 12px;
+  height: 12px;
+  margin-left: auto;
+  opacity: 0.75;
+  transform: rotate(0deg);
+  transition: transform var(--asc-transition), opacity var(--asc-transition);
+}
+.nav-group.is-open .nav-group__caret {
+  transform: rotate(90deg);
+}
+.nav-item--parent:hover .nav-group__caret,
+.nav-group.is-open .nav-item--parent .nav-group__caret {
+  opacity: 1;
+}
+
+.nav-sublist {
+  margin: 2px 0 6px;
+  padding: 0;
+  list-style: none;
+}
+.nav-subitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  margin: 1px 0 1px 8px;
+  padding: 0 12px 0 16px;
+  border-radius: 7px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  color: #bcd3e6;
+  font-size: 13px;
+  font-weight: 550;
+  text-decoration: none;
+  transition: background var(--asc-transition), color var(--asc-transition);
+}
+.nav-subitem__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+  flex: 0 0 auto;
+}
+.nav-subitem:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #f2f8fd;
+}
+.nav-subitem.router-link-exact-active {
+  color: #fff;
+  font-weight: 650;
+}
+.nav-subitem.router-link-exact-active .nav-subitem__dot {
+  opacity: 1;
+  box-shadow: 0 0 0 3px rgba(79, 183, 236, 0.18);
+}
+
+.navsub-enter-active,
+.navsub-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.navsub-enter-from,
+.navsub-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
 </style>
+

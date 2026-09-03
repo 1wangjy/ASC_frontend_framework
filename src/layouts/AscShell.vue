@@ -49,60 +49,25 @@
           <slot />
         </div>
       </div>
+      <footer class="app-shell__footer">
+        <span>@copyright 2026 金隅集团 · 北京金隅通达耐火技术有限公司 &amp; 中关村人工智能研究院</span>
+      </footer>
     </div>
-
-    <GlobalGraphTaskIndicator
-      :items="logicalGraphProjects"
-      :connection="monitor.state.connection"
-      :last-synced-at="monitor.state.lastSyncedAt"
-      @refresh="monitor.refresh"
-      @view-project="viewProject"
-    />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import AscSidebar from '../components/navigation/AscSidebar.vue'
 import AscIcon from '../components/ui/AscIcon.vue'
 import GraphProjectWorkspacePanel from '../features/projects/GraphProjectWorkspacePanel.vue'
-import GlobalGraphTaskIndicator from '../features/tasks/GlobalGraphTaskIndicator.vue'
-import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
-import { buildLogicalGraphProjects } from '../features/projects/logicalGraphProjectModel.js'
-import {
-  resolveGraphProjectResumeRoute,
-  useGraphWorkflowSession
-} from '../features/navigation/graphWorkflowSession.js'
 
 const route = useRoute()
-const router = useRouter()
-const monitor = useGraphTaskMonitor()
-const workflowSession = useGraphWorkflowSession()
 const mobileNavOpen = ref(false)
 const sidebarCollapsed = ref(false)
 const graphProjectPanelCollapsed = ref(false)
 const isGraphWorkflowRoute = computed(() => route.meta.navigationPath === '/process')
-const logicalGraphProjects = computed(() => buildLogicalGraphProjects(monitor.state.items))
-
-function viewProject(projectId) {
-  if (!projectId) return
-  const logicalProject = logicalGraphProjects.value.find(item => (
-    item.projectId === projectId || item.memberProjectIds?.includes(projectId)
-  ))
-  const resumeRoute = resolveGraphProjectResumeRoute(
-    logicalProject,
-    workflowSession.resolve(logicalProject?.memberProjectIds || [projectId])
-  )
-  if (resumeRoute) {
-    if (route.fullPath !== resumeRoute) router.push(resumeRoute)
-    return
-  }
-  router.push({ name: 'Process', params: { projectId } })
-}
-
-onMounted(monitor.start)
-onUnmounted(monitor.stop)
 </script>
 
 <style scoped>
@@ -114,6 +79,15 @@ onUnmounted(monitor.stop)
   min-height: 100vh;
   margin-left: var(--asc-sidebar-width);
   transition: margin-left var(--asc-transition);
+}
+
+.app-shell__footer {
+  flex: 0 0 auto;
+  padding: 14px 24px 18px;
+  text-align: center;
+  color: var(--asc-muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
 }
 
 .app-shell--sidebar-collapsed .app-shell__body {

@@ -339,7 +339,7 @@ onBeforeUnmount(releaseSelectedImage)
 .multi-image-preview > span {
   overflow: hidden;
   color: var(--asc-text);
-  font-size: 12px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -398,7 +398,7 @@ onBeforeUnmount(releaseSelectedImage)
   border-radius: var(--asc-control-radius);
   background: #fff;
   color: var(--asc-text);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 650;
 }
 
@@ -409,7 +409,7 @@ onBeforeUnmount(releaseSelectedImage)
   outline: 0;
   background: transparent;
   color: var(--asc-heading);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -428,18 +428,19 @@ onBeforeUnmount(releaseSelectedImage)
   background: #f8fafc;
   color: #556278;
   font: inherit;
+  font-size: 13px;
   cursor: pointer;
   transition: border-color .18s ease, background .18s ease, color .18s ease;
 }
 
 .multimodal-answer-toggle strong {
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .multimodal-answer-toggle small {
   padding-left: 6px;
   border-left: 1px solid currentColor;
-  font-size: 8px;
+  font-size: 12px;
   opacity: .72;
 }
 
@@ -471,7 +472,7 @@ onBeforeUnmount(releaseSelectedImage)
   background: transparent;
   color: #6a7689;
   font: inherit;
-  font-size: 8px;
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -499,7 +500,7 @@ onBeforeUnmount(releaseSelectedImage)
   border-radius: 7px;
   background: var(--asc-primary);
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   transition: background var(--asc-transition), transform var(--asc-transition);
 }
