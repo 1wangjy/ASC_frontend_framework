@@ -29,19 +29,50 @@
     <nav class="primary-nav" aria-label="主要导航">
       <template v-for="item in primaryNavigation" :key="item.path || item.divider">
         <div v-if="item.divider" class="nav-divider" />
-        <router-link
+        <div
           v-else
-          :to="navigationState.target(item)"
-          class="nav-item"
-          :class="{ 'router-link-exact-active': route.meta.navigationPath === item.path }"
-          :title="collapsed ? item.label : undefined"
-          @click="$emit('close')"
+          class="nav-cell"
+          :class="{ 'nav-cell--has-children': item.children?.length }"
+          @mouseenter="openFlyout($event, item)"
+          @mouseleave="scheduleClose()"
         >
-          <AscIcon :name="item.icon" />
-          <span>{{ item.label }}</span>
-        </router-link>
+          <router-link
+            :to="navigationState.target(item)"
+            class="nav-item"
+            :class="{ 'router-link-exact-active': route.meta.navigationPath === item.path }"
+            :title="collapsed ? item.label : undefined"
+            @click="$emit('close')"
+          >
+            <AscIcon :name="item.icon" />
+            <span>{{ item.label }}</span>
+            <AscIcon v-if="item.children?.length" name="chevron" class="nav-cell__caret" />
+          </router-link>
+        </div>
       </template>
     </nav>
+
+    <Teleport to="body">
+      <transition name="flyout">
+        <div
+          v-if="flyoutOpen && flyoutItems?.length"
+          class="sidebar-flyout"
+          :style="flyoutStyle"
+          @mouseenter="cancelClose"
+          @mouseleave="scheduleClose"
+        >
+          <div class="sidebar-flyout__title">{{ flyoutTitle }}</div>
+          <router-link
+            v-for="child in flyoutItems"
+            :key="child.path"
+            :to="child.path"
+            class="sidebar-flyout__item"
+            @click="onFlyoutNav"
+          >
+            <span>{{ child.label }}</span>
+          </router-link>
+        </div>
+      </transition>
+    </Teleport>
 
     <!-- 用户信息栏 -->
     <div class="sidebar-footer">
@@ -67,7 +98,7 @@
 </template>
 
 <script setup>
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AscIcon from '../ui/AscIcon.vue'
 import {
@@ -86,7 +117,7 @@ watch(
   { immediate: true }
 )
 
-defineProps({
+const props = defineProps({
   mobileOpen: {
     type: Boolean,
     default: false
@@ -97,7 +128,45 @@ defineProps({
   }
 })
 
-defineEmits(['close', 'toggle-collapse'])
+const flyoutOpen = ref(false)
+const flyoutItems = ref(null)
+const flyoutTitle = ref('')
+const flyoutStyle = ref({})
+let flyoutTimer = null
+
+function openFlyout(event, item) {
+  if (flyoutTimer) clearTimeout(flyoutTimer)
+  if (!item || !item.children || !item.children.length) {
+    flyoutOpen.value = false
+    return
+  }
+  const rect = event.currentTarget.getBoundingClientRect()
+  flyoutTitle.value = item.label
+  flyoutItems.value = item.children
+  flyoutStyle.value = {
+    top: `${Math.round(rect.top)}px`,
+    left: `${Math.round(rect.right) + 8}px`
+  }
+  flyoutOpen.value = true
+}
+
+function scheduleClose() {
+  if (flyoutTimer) clearTimeout(flyoutTimer)
+  flyoutTimer = setTimeout(() => { flyoutOpen.value = false }, 150)
+}
+
+function cancelClose() {
+  if (flyoutTimer) clearTimeout(flyoutTimer)
+}
+
+function onFlyoutNav() {
+  flyoutOpen.value = false
+  if (flyoutTimer) clearTimeout(flyoutTimer)
+  // close mobile drawer via emit
+  emit('close')
+}
+
+const emit = defineEmits(['close', 'toggle-collapse'])
 </script>
 
 <style scoped>
@@ -370,6 +439,10 @@ defineEmits(['close', 'toggle-collapse'])
     display: none;
   }
 
+  .sidebar--collapsed .nav-cell__caret {
+    display: none;
+  }
+
   .sidebar--collapsed .sidebar__toggle {
     left: calc(var(--asc-sidebar-collapsed-width) - 12px);
   }
@@ -411,4 +484,76 @@ defineEmits(['close', 'toggle-collapse'])
     display: none;
   }
 }
+
+/* ── Nav cell wrapping an item that may own a flyout children menu ── */
+.nav-cell { display: grid; }
+
+.nav-cell .nav-item { width: 100%; }
+
+.nav-cell__caret {
+  width: 12px;
+  height: 12px;
+  margin-left: auto;
+  opacity: 0.7;
+  transform: rotate(90deg);
+  transition: transform var(--asc-transition), opacity var(--asc-transition);
+}
+.nav-cell:hover .nav-cell__caret,
+.nav-cell--has-children .nav-item.router-link-exact-active .nav-cell__caret {
+  opacity: 1;
+}
+.nav-cell:hover .nav-item.router-link-exact-active .nav-cell__caret {
+  transform: rotate(-90deg);
+}
+
+/* ── Flyout children menu (Teleported to <body>, so global) ── */
+:global(.sidebar-flyout) {
+  position: fixed;
+  z-index: 1000;
+  min-width: 190px;
+  padding: 8px;
+  border: 1px solid rgba(120, 165, 205, 0.4);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 20px 46px rgba(4, 28, 49, 0.2);
+  overflow: hidden;
+}
+:global(.sidebar-flyout__title) {
+  padding: 7px 12px 9px;
+  color: #6b7f93;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #eaf0f6;
+  margin-bottom: 6px;
+}
+:global(.sidebar-flyout__item) {
+  display: block;
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: #1d2a38;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--asc-transition), color var(--asc-transition);
+}
+:global(.sidebar-flyout__item:hover) {
+  background: var(--asc-primary-soft);
+  color: var(--asc-primary);
+}
+:global(.sidebar-flyout__item.router-link-exact-active) {
+  background: linear-gradient(90deg, #0869ad, #0e94c0);
+  color: #fff;
+}
+:global(.flyout-enter-active),
+:global(.flyout-leave-active) {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+:global(.flyout-enter-from),
+:global(.flyout-leave-to) {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
 </style>
