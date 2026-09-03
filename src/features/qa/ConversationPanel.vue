@@ -187,7 +187,7 @@ function captureAnswerSelection() {
   border-radius: 6px;
   background: #fff9e9;
   color: #7a5a16;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -218,14 +218,14 @@ function captureAnswerSelection() {
 
 .answer-card header span {
   color: var(--asc-primary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.05em;
 }
 
 .answer-card header strong {
   color: var(--asc-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .answer-actions {
@@ -239,7 +239,7 @@ function captureAnswerSelection() {
   border-radius: 7px;
   background: #fff;
   color: var(--asc-primary);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 750;
   cursor: pointer;
 }
@@ -360,7 +360,7 @@ function captureAnswerSelection() {
 .answer-card--error p {
   margin: 7px 0 13px;
   color: #735a57;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -371,7 +371,7 @@ function captureAnswerSelection() {
   border-radius: 6px;
   background: var(--asc-primary);
   color: #fff;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 800;
 }
 

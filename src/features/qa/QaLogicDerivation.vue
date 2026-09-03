@@ -50,7 +50,7 @@ defineProps({
 .logic-derivation__content p { margin: 0; line-height: 1.8; }
 .logic-derivation__content ol { display: grid; gap: 8px; margin: 0; padding-left: 20px; }
 .logic-derivation__terms { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
-.logic-derivation__terms span { padding: 4px 9px; border: 1px solid #add8ca; border-radius: 999px; background: #effaf6; color: #08745f; font-size: 11px; font-weight: 700; }
+.logic-derivation__terms span { padding: 4px 9px; border: 1px solid #add8ca; border-radius: 999px; background: #effaf6; color: #08745f; font-size: 13px; font-weight: 700; }
 @media (max-width: 760px) {
   .logic-derivation__section { grid-template-columns: 1fr; }
   .logic-derivation__label { border-right: 0; border-bottom: 1px solid #d7e5ee; }

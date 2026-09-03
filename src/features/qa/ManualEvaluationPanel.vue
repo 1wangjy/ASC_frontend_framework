@@ -158,7 +158,7 @@ defineEmits(['patch', 'set-verdict', 'toggle-issue', 'clear-excerpt', 'save'])
 
 .review-heading > div > span {
   color: var(--asc-primary);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.08em;
 }
@@ -175,7 +175,7 @@ defineEmits(['patch', 'set-verdict', 'toggle-issue', 'clear-excerpt', 'save'])
   border-radius: 999px;
   background: #eff6fb;
   color: #5d7890;
-  font-size: 9px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -197,7 +197,7 @@ defineEmits(['patch', 'set-verdict', 'toggle-issue', 'clear-excerpt', 'save'])
 
 .answer-summary-card span {
   color: var(--asc-primary);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -206,7 +206,7 @@ defineEmits(['patch', 'set-verdict', 'toggle-issue', 'clear-excerpt', 'save'])
   margin: 6px 0 0;
   overflow: hidden;
   color: var(--asc-text);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.65;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
@@ -284,7 +284,7 @@ defineEmits(['patch', 'set-verdict', 'toggle-issue', 'clear-excerpt', 'save'])
 .accurate-note p,
 .empty-excerpt {
   margin: 2px 0 0;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -305,7 +305,7 @@ defineEmits(['patch', 'set-verdict', 'toggle-issue', 'clear-excerpt', 'save'])
 .block-title strong,
 .comment-field > span {
   color: var(--asc-heading);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -313,7 +313,7 @@ defineEmits(['patch', 'set-verdict', 'toggle-issue', 'clear-excerpt', 'save'])
 .comment-field small {
   margin-left: 4px;
   color: var(--asc-muted);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 500;
 }
 
@@ -321,7 +321,7 @@ defineEmits(['patch', 'set-verdict', 'toggle-issue', 'clear-excerpt', 'save'])
   border: 0;
   background: transparent;
   color: var(--asc-primary);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 blockquote {
@@ -331,7 +331,7 @@ blockquote {
   border-radius: 0 6px 6px 0;
   background: #fff;
   color: #345069;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -357,7 +357,7 @@ blockquote {
   border-radius: 999px;
   background: #fff;
   color: #536b80;
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .issue-list button.active {
@@ -382,7 +382,7 @@ blockquote {
   background: #fff;
   color: var(--asc-text);
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.55;
 }
 
@@ -397,7 +397,7 @@ blockquote {
   border-radius: 7px;
   background: var(--asc-primary);
   color: #fff;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -408,7 +408,7 @@ blockquote {
 
 .status {
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 

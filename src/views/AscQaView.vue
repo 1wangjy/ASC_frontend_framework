@@ -924,7 +924,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   color: var(--asc-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -1082,7 +1082,11 @@ onUnmounted(() => {
 }
 
 .qa-multi-page__intro p {
-  margin-bottom: 12px;
+  margin: 10px auto 12px;
+  max-width: 640px;
+  color: #445e75;
+  font-size: 15px;
+  line-height: 1.7;
 }
 
 .qa-multi-page__workspace {
@@ -1161,11 +1165,13 @@ onUnmounted(() => {
 
 .qa-empty__intro p {
   width: 100%;
-  margin: 11px 0 0;
-  color: #5f7890;
-  font-size: 13px;
+  margin: 14px auto 0;
+  max-width: 680px;
+  color: #445e75;
+  font-size: 16px;
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.005em;
+  line-height: 1.7;
   text-align: center;
 }
 
@@ -1180,7 +1186,7 @@ onUnmounted(() => {
   border-radius: 7px;
   background: #f7fbfd;
   color: var(--asc-muted);
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .qa-project-message.error {
@@ -1193,10 +1199,10 @@ onUnmounted(() => {
   min-height: 28px;
   padding: 0 9px;
   border: 1px solid currentColor;
-  border-radius: 5px;
+  border-radius: 6px;
   background: #fff;
   color: inherit;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -1271,7 +1277,7 @@ onUnmounted(() => {
   border-radius: 7px;
   background: #f0f5fb;
   color: #536b82;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 750;
 }
 

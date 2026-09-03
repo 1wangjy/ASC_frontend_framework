@@ -447,25 +447,25 @@ const layout = computed(() => {
 .reasoning-topology { display: grid; gap: 12px; }
 .reasoning-topology__hero { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 16px; border: 1px solid #d6e5ee; border-radius: 10px; background: #fbfdff; }
 .reasoning-topology__hero > div { display: grid; gap: 3px; }
-.reasoning-topology__hero span { color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.reasoning-topology__hero span { color: #64748b; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .reasoning-topology__hero strong { color: #163653; font-size: 13px; }
 .reasoning-topology__summary { text-align: right; }
 .reasoning-topology__viewport { overflow: auto; border: 1px solid #d7e5ee; border-radius: 12px; background: #fbfdff; }
 .reasoning-topology__canvas { display: block; min-width: 1120px; }
 .reasoning-topology__background { fill: #fbfdff; }
 .reasoning-topology__stages rect { fill: #fff; stroke: #6c8da4; stroke-width: 1; }
-.reasoning-topology__stages text { fill: #31506a; font-size: 11px; font-weight: 850; }
-.reasoning-topology__legend > text { fill: #64748b; font-size: 10px; font-weight: 850; }
+.reasoning-topology__stages text { fill: #31506a; font-size: 12px; font-weight: 850; }
+.reasoning-topology__legend > text { fill: #64748b; font-size: 11px; font-weight: 850; }
 .reasoning-topology__legend rect { fill: #fff; stroke: #d7e5ee; }
-.reasoning-topology__legend text { font-size: 10px; font-weight: 850; }
+.reasoning-topology__legend text { font-size: 11px; font-weight: 850; }
 .reasoning-topology__family > rect:first-child { opacity: .28; }
-.reasoning-topology__family-label { font-size: 10px; font-weight: 850; }
-.reasoning-topology__edge-label { font-size: 9px; font-weight: 850; paint-order: stroke; stroke: #fbfdff; stroke-width: 4px; }
+.reasoning-topology__family-label { font-size: 11px; font-weight: 850; }
+.reasoning-topology__edge-label { font-size: 11px; font-weight: 850; paint-order: stroke; stroke: #fbfdff; stroke-width: 4px; }
 .reasoning-topology__foreign { overflow: visible; }
 .reasoning-topology__structural-node, .reasoning-topology__kg-node { box-sizing: border-box; width: 100%; height: 100%; display: grid; align-content: center; gap: 4px; padding: 10px 12px; border-radius: 10px; background: #fff; box-shadow: 0 6px 16px rgba(15, 23, 42, .08); font-family: inherit; overflow: hidden; }
-.reasoning-topology__structural-node small, .reasoning-topology__kg-node small { color: #64748b; font-size: 8px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.reasoning-topology__structural-node small, .reasoning-topology__kg-node small { color: #64748b; font-size: 10px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
 .reasoning-topology__structural-node strong, .reasoning-topology__kg-node strong { color: #173650; font-size: 11px; line-height: 1.35; }
-.reasoning-topology__structural-node span, .reasoning-topology__kg-node span { overflow: hidden; color: #6b8295; font-size: 8px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.reasoning-topology__structural-node span, .reasoning-topology__kg-node span { overflow: hidden; color: #6b8295; font-size: 10px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
 .reasoning-topology__structural-node.is-problem { border: 1.5px solid #7c3aed; background: #faf7ff; }
 .reasoning-topology__structural-node.is-evaluate { border: 1.5px solid var(--route-color); background: var(--route-fill); }
 .reasoning-topology__structural-node.is-select { border: 1.5px solid #0f766e; background: #ecfdf5; }
@@ -473,11 +473,11 @@ const layout = computed(() => {
 .reasoning-topology__kg-node.is-shared { box-shadow: 0 0 0 3px rgba(14, 116, 110, .1), 0 6px 16px rgba(15, 23, 42, .08); }
 .reasoning-topology__kg-node :deep(.qa-domain-term) { color: #0f766e; }
 .reasoning-topology__details { border: 1px solid #d7e5ee; border-radius: 9px; background: #fff; }
-.reasoning-topology__details summary { padding: 10px 14px; color: #31506a; font-size: 11px; font-weight: 800; cursor: pointer; }
+.reasoning-topology__details summary { padding: 10px 14px; color: #31506a; font-size: 13px; font-weight: 800; cursor: pointer; }
 .reasoning-topology__detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0 12px 12px; }
 .reasoning-topology__detail-grid article { padding: 10px 12px; border: 1px solid #e2ebf1; border-radius: 8px; }
-.reasoning-topology__detail-grid header { display: flex; justify-content: space-between; gap: 12px; color: #31506a; font-size: 10px; }
-.reasoning-topology__detail-grid p { margin: 7px 0 0; color: #526b7d; font-size: 10px; line-height: 1.6; }
+.reasoning-topology__detail-grid header { display: flex; justify-content: space-between; gap: 12px; color: #31506a; font-size: 12px; }
+.reasoning-topology__detail-grid p { margin: 7px 0 0; color: #526b7d; font-size: 13px; line-height: 1.6; }
 @media (max-width: 760px) {
   .reasoning-topology__hero { align-items: flex-start; flex-direction: column; }
   .reasoning-topology__summary { text-align: left; }
