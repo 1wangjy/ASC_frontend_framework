@@ -1,5 +1,20 @@
 /* ── Platform Module Styles ─────────────────────────── */
-/* These styles are scoped to the platform module views  */
+/* These styles are scoped to the platform module views. */
+
+/* Private design tokens consumed by platform components (inline + scoped
+   `var(--text-primary)` etc). They were referenced but never defined, so
+   those rules silently failed. Values mirror the module's own palette so
+   nothing visually changes — the variables now just resolve. */
+:root {
+  --text-primary: #212529;
+  --text-secondary: #6c757d;
+  --border-color: #dee2e6;
+  --bg-primary: #f8fafc;
+  --card-background: #ffffff;
+  --card-shadow: 0 4px 18px rgba(0, 0, 0, .07);
+  --radius-md: 6px;
+  --radius-xl: 16px;
+}
 
 .platform-page {
   padding: 24px 32px;
