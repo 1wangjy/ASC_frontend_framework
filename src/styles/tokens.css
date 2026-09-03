@@ -1,6 +1,7 @@
 :root {
   color-scheme: light;
   --asc-bg: #f3f7fb;
+  --asc-canvas: #eef3f8;
   --asc-surface: #ffffff;
   --asc-surface-soft: #f7fafd;
   --asc-sidebar: #073b66;
