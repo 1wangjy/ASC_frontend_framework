@@ -1,7 +1,15 @@
 export const primaryNavigation = [
   { label: '首页', path: '/', icon: 'home' },
   { divider: true },
-  { label: '问题研究', path: '/research', icon: 'search' },
+  {
+    label: '问题研究',
+    path: '/research',
+    icon: 'search',
+    children: [
+      { label: '智能会话', path: '/research?mode=multi' },
+      { label: '深度研究', path: '/research?mode=single' }
+    ]
+  },
   {
     label: '数据平台',
     path: '/platform',

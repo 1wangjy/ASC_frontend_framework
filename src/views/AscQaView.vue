@@ -13,6 +13,13 @@
           <strong v-else>研究答疑 / 热震稳定性</strong>
         </div>
         <div class="qa-topbar__actions">
+          <button type="button" class="qa-topbar__action" @click="router.push('/process')">图谱项目</button>
+          <button
+            v-if="qaState.mode === 'single'"
+            type="button"
+            class="qa-topbar__action qa-topbar__action--primary"
+            @click="router.push('/reports')"
+          >报告中心</button>
           <GlobalGraphTaskIndicator
             :items="graphTaskMonitor.state.items"
             :connection="graphTaskMonitor.state.connection"
@@ -335,7 +342,7 @@ const activeProject = computed(
 )
 const evaluationEnabled = computed(() => canEvaluateAnswer(qaState.value))
 const evaluationAnswerSummary = computed(() => String(qaState.value.answer?.summary || '').trim())
-const qaModeLabel = computed(() => qaState.value.mode === 'multi' ? '多轮连续' : '单轮深度')
+const qaModeLabel = computed(() => qaState.value.mode === 'multi' ? '智能会话' : '深度研究')
 const singleModelOptions = domesticModelOptions.map(value => ({ value, label: value }))
 const composerModelOptions = computed(() => (
   qaState.value.mode === 'multi' ? multiModelOptions.value : singleModelOptions
@@ -784,6 +791,12 @@ function isCurrentActiveQaSnapshot(snapshot) {
 async function consumeActiveQaRouteQuery() {
   const currentConsumption = ++qaRouteConsumptionVersion
   if (route.name !== 'AscQa') return
+
+  // ?mode=multi|single preselects the QA mode (智能会话 / 深度研究)
+  const queryMode = route.query.mode
+  if (queryMode === 'multi' || queryMode === 'single') {
+    if (qaState.value.mode !== queryMode) void updateMode(queryMode)
+  }
 
   const snapshot = activeQaQuerySnapshot()
   const projectChanged = (

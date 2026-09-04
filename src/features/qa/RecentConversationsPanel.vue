@@ -25,14 +25,6 @@
       id="recent-conversation-list"
       class="recent-conversations__content"
     >
-      <RouterLink class="recent-conversations__workflow-link" to="/process">
-        <AscIcon name="graph" />
-        <span>图谱项目</span>
-      </RouterLink>
-      <RouterLink class="recent-conversations__workflow-link" to="/reports">
-        <AscIcon name="report" />
-        <span>报告中心</span>
-      </RouterLink>
     </div>
 
     <div v-else id="recent-conversation-list" class="recent-conversations__content">
