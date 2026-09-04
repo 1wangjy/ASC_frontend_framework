@@ -450,3 +450,59 @@
 
 /* ── Properties Display ──────────────────────────── */
 .platform-page .properties-display { background: #f8fafc; padding: 8px 12px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; max-height: 150px; overflow-y: auto; }
+
+/* ══ Data-platform unified tech language (deep tech restyle) ══ */
+/* Soft tech page canvas behind working pages so they read like the home
+   overview instead of a flat grey admin. */
+.platform-page {
+  background:
+    radial-gradient(1000px 420px at 50% -40px, rgba(8,105,173,.14), rgba(18,161,199,.05) 55%, transparent 72%),
+    transparent;
+}
+
+/* Primary/secondary tabs: pill, subtle, with a glowing gradient active pill. */
+.platform-page .tab-btn {
+  border-radius: 8px;
+  font-weight: 650;
+}
+.platform-page .tab-btn.active {
+  background: linear-gradient(135deg, #0a6fb8, #0869ad 55%, #0e5c94);
+  box-shadow: 0 6px 16px rgba(8,105,173,.28);
+  font-weight: 700;
+}
+.platform-page .tab-btn:hover:not(.active) {
+  background: rgba(8,105,173,.08);
+}
+
+/* Data tables: clean header band + row hover lift. */
+.platform-page thead th {
+  background: #f0f6fb;
+  color: #23466a;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.platform-page tbody tr:hover { background: #f4f9fd; }
+
+/* Buttons get the same primary gradient + soft shadow already; ensure the
+   small secondary keeps a quiet look. */
+.platform-page .btn { border-radius: 7px; }
+
+/* Filter/inputs: rounded control radius, focus ring in brand blue. */
+.platform-page .filter-input { border-radius: 7px; }
+.platform-page .rp-textarea,
+.platform-page .form-group input,
+.platform-page .form-group select,
+.platform-page .form-group textarea { border-radius: 7px; }
+
+/* Table container frames as a panel. */
+.platform-page .table-container,
+.platform-page .rp-table-container { border-radius: 8px; }
+
+/* Section/card headings get a touch of the brand accent. */
+.platform-page .card h2,
+.platform-page .section h2,
+.platform-page .rp-section h2 {
+  color: #16324f;
+}
+
