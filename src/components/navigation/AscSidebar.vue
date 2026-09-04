@@ -134,11 +134,23 @@ function isGroupOpen(item) {
 }
 
 function toggleGroup(item) {
-  // clicking 模型入口 both navigates to the 3D cover-flow overview and
-  // reveals its children accordion (no hover needed)
+  if (props.collapsed) {
+    // collapsed rail: no room for the list, just go to the overview
+    emit('close')
+    router.push(item.path)
+    return
+  }
+  if (expanded.value === item.path) {
+    // already open -> collapse the rail dropdown, keep the card page as-is
+    expanded.value = ''
+    emit('close')
+    return
+  }
+  // open this group (mutually exclusive: only one expanded at a time) and
+  // navigate to its overview card page
+  expanded.value = item.path
   emit('close')
   router.push(item.path)
-  if (!props.collapsed) expanded.value = item.path
 }
 
 function navChild() {
@@ -151,7 +163,7 @@ watch(
   () => {
     const activePath = route.path
     for (const item of primaryNavigation) {
-      if (item.children?.some((c) => c.path === activePath)) {
+      if (item.children?.some((c) => c.path.split('?')[0] === activePath)) {
         expanded.value = item.path
         return
       }

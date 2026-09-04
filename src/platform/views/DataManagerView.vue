@@ -680,7 +680,10 @@ async function submitCreateMp() { if (!createMpValid.value) { alert('请先修�
 
 onMounted(() => {
   propertiesStore.loadConfig()
-  if (isGraphSelectMode.value) {
+  const tabParam = route.query.tab
+  if (tabParam && ['parse', 'manage', 'literature', 'mongodb'].includes(String(tabParam))) {
+    switchMainTab(String(tabParam))
+  } else if (isGraphSelectMode.value) {
     currentMainTab.value = 'literature'
     loadLitData()
   }

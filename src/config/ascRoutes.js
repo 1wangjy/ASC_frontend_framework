@@ -61,6 +61,13 @@ export const ascRouteDefinitions = [
     meta: { title: '问答与证据评估' }
   },
   // ── Platform module routes (数据平台 & AI模型) ──
+  // 数据平台总览（平行光感卡片展示页）
+  {
+    path: '/platform',
+    name: 'PlatformDataHome',
+    component: () => import('../platform/views/DataPlatformHome.vue'),
+    meta: { title: '数据平台' }
+  },
   {
     path: '/platform/data',
     name: 'PlatformData',

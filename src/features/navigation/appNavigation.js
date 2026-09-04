@@ -2,7 +2,16 @@ export const primaryNavigation = [
   { label: '首页', path: '/', icon: 'home' },
   { divider: true },
   { label: '问题研究', path: '/research', icon: 'search' },
-  { label: '数据平台', path: '/platform/data', icon: 'database' },
+  {
+    label: '数据平台',
+    path: '/platform',
+    icon: 'database',
+    children: [
+      { label: '智能解析', path: '/platform/data?tab=parse' },
+      { label: '数据管理', path: '/platform/data?tab=manage' },
+      { label: '文献管理', path: '/platform/data?tab=literature' }
+    ]
+  },
   {
     label: '模型入口',
     path: '/platform/models',
