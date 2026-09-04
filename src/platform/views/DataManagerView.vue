@@ -964,7 +964,7 @@ onUnmounted(() => { isComponentMounted.value = false; if (manageDebounceTimer) c
   grid-template-columns: 208px minmax(0, 1fr) 336px;
   grid-template-areas: "rail list detail";
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .lit-pane {
@@ -1001,9 +1001,9 @@ onUnmounted(() => { isComponentMounted.value = false; if (manageDebounceTimer) c
   background: linear-gradient(90deg, var(--asc-primary), color-mix(in srgb, var(--asc-primary) 12%, transparent) 60%, transparent);
 }
 
-.lit-rail { grid-area: rail; }
+.lit-rail { grid-area: rail; min-height: 340px; }
 .lit-list-pane { grid-area: list; min-height: 340px; }
-.lit-detail { grid-area: detail; }
+.lit-detail { grid-area: detail; min-height: 340px; }
 
 .lit-rail__body { padding: 8px; }
 
@@ -1348,4 +1348,55 @@ onUnmounted(() => { isComponentMounted.value = false; if (manageDebounceTimer) c
       "detail";
   }
 }
+
+/* ══ Literature part alignment unification ══ */
+/* Pane headers: one consistent height + baseline across rail/list/detail */
+.lit-pane-head {
+  min-height: 46px;
+  padding: 0 16px;
+}
+.lit-pane-head .lit-pane-head__icon,
+.lit-pane-head > * { line-height: 1; }
+
+/* Left rail: items baseline-align icon + label, consistent row height */
+.lit-rail__item {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  gap: 9px;
+  border-radius: 7px;
+}
+.lit-rail__glyph { display: inline-flex; align-items: center; justify-content: center; width: 16px; flex: 0 0 16px; }
+.lit-rail__label { line-height: 1.2; }
+.lit-rail__count { margin-left: auto; }
+
+/* Middle toolbar: compact + aligned with pane padding */
+.lit-list-toolbar {
+  min-height: 46px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--asc-border);
+}
+.lit-select-all { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; }
+.lit-selected-count { font-size: 13px; }
+.lit-row { min-height: 56px; }
+
+/* Right detail empty-state fills the pane with a centered hint */
+.lit-detail--empty {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+.lit-detail__empty-glyph { margin: 0 auto 10px; }
+
+/* Detail metadata dl rows: baseline spacing consistent with rest */
+.lit-detail { padding: 16px; }
+.lit-detail__meta { margin: 0; }
+
 </style>
