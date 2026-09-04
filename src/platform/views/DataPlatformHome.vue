@@ -63,10 +63,27 @@ const cards = [
     desc: '文献库管理、附件上传与知识图谱构图选文',
     points: ['文献上传与检索', '附件管理', '图谱构图选文'],
     tab: 'literature'
+  },
+  {
+    index: '04',
+    icon: '🗺️',
+    title: '图谱项目',
+    desc: '知识图谱构建与图谱项目流程管理',
+    points: ['文献建图', '图谱演化', '项目工作区'],
+    route: '/process'
+  },
+  {
+    index: '05',
+    icon: '📊',
+    title: '报告中心',
+    desc: '研究报告生成、查看与归档',
+    points: ['报告生成', '报告归档', '查看跟踪'],
+    route: '/reports'
   }
 ]
 
 function openCard(card) {
+  if (card.route) { router.push(card.route); return }
   router.push({ path: '/platform/data', query: { tab: card.tab } })
 }
 </script>
@@ -166,8 +183,8 @@ function openCard(card) {
 /* ── Cards: flat light-panel grid ── */
 .data-cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 22px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 18px;
   margin-top: 34px;
 }
 
@@ -175,8 +192,8 @@ function openCard(card) {
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 28px 26px 26px;
-  border-radius: 12px;
+  padding: 20px 16px 16px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid #dce8f1;
   box-shadow: 0 14px 34px rgba(15, 55, 88, 0.08);
@@ -210,46 +227,46 @@ function openCard(card) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 .data-card__icon {
-  width: 50px;
-  height: 50px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 11px;
+  border-radius: 10px;
   background: var(--asc-primary-soft);
-  font-size: 26px;
+  font-size: 23px;
   box-shadow: inset 0 0 0 1px rgba(8, 105, 173, 0.08);
 }
 .data-card__index {
   color: #a7bdd0;
   font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.06em;
 }
 .data-card h2 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: #16324f;
-  font-size: 21px;
+  font-size: 19px;
   font-weight: 750;
   letter-spacing: 0.2px;
 }
 .data-card > p {
-  margin: 0 0 18px;
+  margin: 0 0 12px;
   color: #5b7388;
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.6;
 }
 .data-card__points {
   flex: 1;
-  margin: 0 0 20px;
+  margin: 0 0 14px;
   padding: 0;
   list-style: none;
   color: #647b90;
-  font-size: 13px;
-  line-height: 1.9;
+  font-size: 12.5px;
+  line-height: 1.85;
 }
 .data-card__points li {
   position: relative;
@@ -271,13 +288,13 @@ function openCard(card) {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 12px 16px;
+  padding: 11px 14px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: linear-gradient(135deg, #0a6fb8 0%, #0869ad 55%, #0e5c94 100%);
   color: #fff;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 650;
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -294,7 +311,7 @@ function openCard(card) {
   transition: transform 0.18s ease;
 }
 
-@media (max-width: 1000px) {
-  .data-cards { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+@media (max-width: 1300px) {
+  .data-cards { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 }
 </style>
