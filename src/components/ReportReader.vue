@@ -272,7 +272,7 @@ watch(
   overflow: hidden;
   padding: clamp(34px, 4vw, 58px) clamp(34px, 5vw, 72px);
   border: 1px solid var(--asc-border);
-  border-radius: 18px;
+  border-radius: 12px;
   background: #fff;
   box-shadow: 0 16px 42px rgba(31, 70, 101, .08);
 }
@@ -413,7 +413,7 @@ watch(
   padding: 14px;
   overflow-y: auto;
   border: 1px solid var(--asc-border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: #fff;
   box-shadow: 0 12px 30px rgba(31, 70, 101, .075);
 }
@@ -479,7 +479,7 @@ watch(
   min-width: 0;
   padding: 16px;
   border: 1px solid var(--asc-border);
-  border-radius: 20px;
+  border-radius: 14px;
   background: #fff;
   box-shadow: 0 16px 42px rgba(31, 70, 101, .075);
 }

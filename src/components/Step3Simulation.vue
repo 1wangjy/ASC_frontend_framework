@@ -1435,7 +1435,7 @@ onUnmounted(() => {
   color: #666;
   background: #F5F5F5;
   padding: 4px 12px;
-  border-radius: 20px;
+  border-radius: 14px;
 }
 
 .total-count {
