@@ -173,7 +173,7 @@
 .landing__visual {
   position: relative;
   min-height: 340px;
-  border-radius: 18px;
+  border-radius: 14px;
   overflow: hidden;
   background: linear-gradient(160deg, #0a3d6b, #0869ad 70%, #12a1c7);
   box-shadow: 0 30px 60px rgba(8, 60, 105, 0.24);

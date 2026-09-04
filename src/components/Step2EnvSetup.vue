@@ -2221,7 +2221,7 @@ onUnmounted(() => {
 
 .profile-modal {
   background: #FFF;
-  border-radius: 16px;
+  border-radius: 12px;
   width: 90%;
   max-width: 600px;
   max-height: 85vh;
@@ -2724,7 +2724,7 @@ onUnmounted(() => {
   gap: 8px;
   cursor: pointer;
   padding: 4px 8px 4px 4px;
-  border-radius: 20px;
+  border-radius: 14px;
   transition: background 0.2s;
 }
 

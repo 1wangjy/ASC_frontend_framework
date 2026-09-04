@@ -962,7 +962,7 @@ onUnmounted(() => {
   align-items: center;
   padding: 0 14px;
   border: 1px solid var(--asc-border);
-  border-radius: 18px;
+  border-radius: 14px;
   background: #fff;
   color: var(--asc-heading);
   font: inherit;

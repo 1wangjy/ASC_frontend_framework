@@ -1594,7 +1594,7 @@ input:checked + .slider:before {
   padding: 4px 12px;
   background: #F5F5F5;
   border: 1px solid #E0E0E0;
-  border-radius: 16px;
+  border-radius: 8px;
   font-size: 11px;
   color: #555;
 }
@@ -1640,7 +1640,7 @@ input:checked + .slider:before {
   backdrop-filter: blur(8px);
   color: #fff;
   padding: 10px 20px;
-  border-radius: 30px;
+  border-radius: 14px;
   font-size: 13px;
   display: flex;
   align-items: center;

@@ -325,7 +325,7 @@ onBeforeUnmount(() => {
   margin: 80px auto 0;
   padding: 48px 36px;
   border: 1px solid var(--asc-border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: #fff;
   box-shadow: var(--asc-shadow);
   color: var(--asc-muted);

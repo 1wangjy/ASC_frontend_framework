@@ -7881,7 +7881,7 @@ watch(() => props.simulationId, (newId) => {
   color: #6B7280;
   background: #F3F4F6;
   border: 1px solid transparent;
-  border-radius: 20px;
+  border-radius: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
