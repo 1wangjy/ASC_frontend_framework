@@ -84,7 +84,7 @@
             </p>
           </div>
         </section>
-        <div class="toolbar" style="margin-bottom:24px">
+        <div class="toolbar lit-top-toolbar">
           <input
             v-model="litSearchFilter"
             type="search"
@@ -113,108 +113,233 @@
           <button class="btn" @click="loadLitData()">刷新数据</button>
         </div>
         <LiteratureListStatus
-          v-if="litListStatus"
+          v-if="litListStatus === 'loading' || litListStatus === 'error'"
           :status="litListStatus"
           @retry="loadLitData"
         />
-        <div v-else class="lit-card-list">
-          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
-            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
-              <input
-                type="checkbox"
-                :checked="allCurrentPageLitSelected"
-                :disabled="selectableCurrentPageLitIds.length === 0"
-                aria-label="全选当前页文献"
-                @change="toggleCurrentPageLitSelection"
-              />
-              <span>{{ isGraphSelectMode ? '全选当前页可构图文献' : '全选当前页' }}</span>
-            </label>
-            <strong style="color:var(--text-primary);font-size:14px">
-              已选择 {{ selectedLitIds.size }} 篇文献
-            </strong>
-            <button
-              v-if="selectedLitIds.size > 0"
-              type="button"
-              class="btn btn-secondary btn-small"
-              @click="clearLitSelection"
-            >
-              清空选择
-            </button>
-          </div>
-          <div v-for="lit in paginatedLitData" :key="lit.lit_id" class="card" style="margin-bottom:16px;padding:24px">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-              <label
-                style="display:flex;align-items:center;padding-top:2px"
-                :style="{ cursor: isGraphSelectMode && !hasGraphAttachment(lit) ? 'not-allowed' : 'pointer' }"
-                :title="isGraphSelectMode && !hasGraphAttachment(lit) ? '请先上传附件后再选择' : ''"
-              >
-                <input
-                  type="checkbox"
-                  :checked="selectedLitIds.has(lit.lit_id)"
-                  :disabled="isGraphSelectMode && !hasGraphAttachment(lit)"
-                  :aria-label="selectedLitIds.has(lit.lit_id) ? `取消选择 ${lit.title}` : `选择 ${lit.title}`"
-                  @change="toggleLitSelection(lit)"
-                />
-              </label>
-              <div style="flex:1;min-width:0">
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-                  <span class="id-badge">{{ lit.lit_id }}</span>
-                  <LiteratureTypeControl
-                    :entry-type="lit.entry_type || ''"
-                    :options="litTypeOptions"
-                    :busy="confirmingLitTypeId === lit.lit_id"
-                    @confirm="entryType => handleConfirmLitType(lit, entryType)"
-                  />
-                </div>
-                <h3 style="margin-bottom:8px;color:var(--text-primary);font-size:16px">{{ lit.title }}</h3>
-                <p style="color:var(--text-secondary);font-size:14px;margin-bottom:4px"><strong>作者:</strong> {{ lit.authors }}</p>
-                <p v-if="lit.journal" style="color:var(--text-secondary);font-size:14px;margin-bottom:4px"><strong>期刊/会议:</strong> {{ lit.journal }}</p>
-                <p v-if="lit.year" style="color:var(--text-secondary);font-size:14px;margin-bottom:4px"><strong>年份:</strong> {{ lit.year }}</p>
+        <div v-else class="lit-workspace">
+          <!-- 左栏：文库 / 分类 -->
+          <aside class="lit-pane lit-rail" aria-label="文献分类">
+            <div class="lit-pane-head">
+              <span>我的文库</span>
+            </div>
+            <div class="lit-rail__body">
+              <div class="lit-rail__group">
+                <button
+                  v-for="item in litLibraryCollections"
+                  :key="item.key"
+                  type="button"
+                  class="lit-rail__item"
+                  :class="{ active: litActiveCollectionKey === item.key }"
+                  @click="selectLitCollection(item.key)"
+                >
+                  <span class="lit-rail__glyph" aria-hidden="true"></span>
+                  <span class="lit-rail__label">{{ item.label }}</span>
+                  <span class="lit-rail__count">{{ item.count }}</span>
+                </button>
               </div>
-              <div style="display:flex;gap:8px;flex-shrink:0">
-                <button class="btn btn-secondary btn-small" @click="openLitDetails(lit)">查看</button>
-                <button class="btn btn-secondary btn-small" @click="openEditLitModal(lit)">编辑</button>
-                <button class="btn btn-danger btn-small" @click="handleDeleteLit(lit)">删除</button>
+              <div v-if="litTypeCollections.length" class="lit-rail__divider">按类型</div>
+              <div class="lit-rail__group">
+                <button
+                  v-for="item in litTypeCollections"
+                  :key="item.key"
+                  type="button"
+                  class="lit-rail__item lit-rail__item--type"
+                  :class="{ active: litActiveCollectionKey === item.key }"
+                  @click="selectLitCollection(item.key)"
+                >
+                  <span class="lit-rail__glyph" aria-hidden="true"></span>
+                  <span class="lit-rail__label">{{ item.label }}</span>
+                  <span class="lit-rail__count">{{ item.count }}</span>
+                </button>
               </div>
             </div>
-            <LiteratureAttachmentActions :literature="lit" @upload="handleUploadAttachment" />
-          </div>
-          <nav
-            v-if="litPagination.totalPages > 1"
-            aria-label="文献列表分页"
-            style="display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:8px;margin-top:20px"
-          >
-            <button
-              type="button"
-              class="btn btn-secondary btn-small"
-              :disabled="litPagination.currentPage === 1"
-              @click="setLitPage(litPagination.currentPage - 1)"
+          </aside>
+
+          <!-- 中栏：文献列表 -->
+          <section class="lit-pane lit-list-pane" aria-label="文献列表">
+            <div class="lit-list-toolbar">
+              <label class="lit-select-all">
+                <input
+                  type="checkbox"
+                  :checked="allCurrentPageLitSelected"
+                  :disabled="selectableCurrentPageLitIds.length === 0"
+                  aria-label="全选当前页文献"
+                  @change="toggleCurrentPageLitSelection"
+                />
+                <span>{{ isGraphSelectMode ? '全选当前页可构图文献' : '全选当前页' }}</span>
+              </label>
+              <span class="lit-selected-count">已选择 {{ selectedLitIds.size }} 篇文献</span>
+              <button
+                v-if="selectedLitIds.size > 0"
+                type="button"
+                class="btn btn-secondary btn-small lit-clear-selection"
+                @click="clearLitSelection"
+              >
+                清空选择
+              </button>
+            </div>
+            <p v-if="litListStatus === 'empty'" class="lit-no-results" role="status">
+              暂无文献，可通过「导入 PDF」或「手动新增」添加第一篇文献
+            </p>
+            <p v-else-if="litListStatus === 'no-results'" class="lit-no-results" role="status">
+              未找到符合当前条件的文献，请调整搜索关键词或筛选条件
+            </p>
+            <ul v-else class="lit-row-list">
+              <li
+                v-for="lit in paginatedLitData"
+                :key="lit.lit_id"
+                class="lit-row"
+                :class="{ 'is-detail': litDetail?.lit_id === lit.lit_id }"
+                @click="openLitDetail(lit)"
+              >
+                <label
+                  class="lit-row__check"
+                  :style="{ cursor: isGraphSelectMode && !hasGraphAttachment(lit) ? 'not-allowed' : 'pointer' }"
+                  :title="isGraphSelectMode && !hasGraphAttachment(lit) ? '请先上传附件后再选择' : ''"
+                  @click.stop
+                >
+                  <input
+                    type="checkbox"
+                    :checked="selectedLitIds.has(lit.lit_id)"
+                    :disabled="isGraphSelectMode && !hasGraphAttachment(lit)"
+                    :aria-label="selectedLitIds.has(lit.lit_id) ? `取消选择 ${lit.title}` : `选择 ${lit.title}`"
+                    @change="toggleLitSelection(lit)"
+                  />
+                </label>
+                <div class="lit-row__main">
+                  <div class="lit-row__line">
+                    <span v-if="lit.entry_type" class="lit-type-chip">{{ litTypeLabel(lit.entry_type) }}</span>
+                    <span v-else class="lit-type-chip lit-type-chip--pending">待分类</span>
+                    <span class="lit-row__title">{{ lit.title }}</span>
+                  </div>
+                  <div class="lit-row__meta">
+                    <span class="lit-row__meta-el">{{ lit.authors || '未知作者' }}</span>
+                    <span v-if="lit.journal" class="lit-row__sep" aria-hidden="true">·</span>
+                    <span v-if="lit.journal" class="lit-row__meta-el">{{ lit.journal }}</span>
+                    <span v-if="lit.year" class="lit-row__sep" aria-hidden="true">·</span>
+                    <span v-if="lit.year" class="lit-row__meta-el">{{ lit.year }}</span>
+                  </div>
+                </div>
+                <span
+                  v-if="hasGraphAttachment(lit)"
+                  class="lit-pdf-pill"
+                  title="已上传 PDF 附件"
+                >PDF</span>
+              </li>
+            </ul>
+            <nav
+              v-if="litPagination.totalPages > 1"
+              aria-label="文献列表分页"
+              class="lit-pagination"
             >
-              上一页
-            </button>
-            <button
-              v-for="page in litPageNumbers"
-              :key="page"
-              type="button"
-              class="btn btn-secondary btn-small"
-              :aria-current="page === litPagination.currentPage ? 'page' : undefined"
-              :style="page === litPagination.currentPage ? { background: 'var(--asc-primary)', color: '#fff' } : undefined"
-              @click="setLitPage(page)"
-            >
-              {{ page }}
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary btn-small"
-              :disabled="litPagination.currentPage === litPagination.totalPages"
-              @click="setLitPage(litPagination.currentPage + 1)"
-            >
-              下一页
-            </button>
-            <span style="color:var(--text-secondary);font-size:13px">
-              共 {{ litPagination.totalItems }} 条
-            </span>
-          </nav>
+              <button
+                type="button"
+                class="btn btn-secondary btn-small"
+                :disabled="litPagination.currentPage === 1"
+                @click="setLitPage(litPagination.currentPage - 1)"
+              >
+                上一页
+              </button>
+              <button
+                v-for="page in litPageNumbers"
+                :key="page"
+                type="button"
+                class="btn btn-secondary btn-small"
+                :aria-current="page === litPagination.currentPage ? 'page' : undefined"
+                :style="page === litPagination.currentPage ? { background: 'var(--asc-primary)', color: '#fff' } : undefined"
+                @click="setLitPage(page)"
+              >
+                {{ page }}
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-small"
+                :disabled="litPagination.currentPage === litPagination.totalPages"
+                @click="setLitPage(litPagination.currentPage + 1)"
+              >
+                下一页
+              </button>
+              <span class="lit-pagination__total">共 {{ litPagination.totalItems }} 条</span>
+            </nav>
+          </section>
+
+          <!-- 右栏：详情 -->
+          <aside v-if="litDetail" class="lit-pane lit-detail" aria-label="文献详情">
+            <header class="lit-detail__head">
+              <div class="lit-detail__type">
+                <LiteratureTypeControl
+                  :entry-type="litDetail.entry_type || ''"
+                  :options="litTypeOptions"
+                  :busy="confirmingLitTypeId === litDetail.lit_id"
+                  @confirm="entryType => handleConfirmLitType(litDetail, entryType)"
+                />
+              </div>
+              <button
+                type="button"
+                class="lit-detail__close"
+                aria-label="关闭详情"
+                title="关闭详情"
+                @click="litDetail = null"
+              >×</button>
+            </header>
+
+            <h3 class="lit-detail__title">{{ litDetail.title }}</h3>
+
+            <dl class="lit-detail__meta">
+              <div class="lit-detail__meta-row">
+                <dt>作者</dt>
+                <dd>{{ litDetail.authors || '—' }}</dd>
+              </div>
+              <div v-if="litDetail.journal" class="lit-detail__meta-row">
+                <dt>期刊 / 会议</dt>
+                <dd>{{ litDetail.journal }}</dd>
+              </div>
+              <div v-if="litDetail.year" class="lit-detail__meta-row">
+                <dt>年份</dt>
+                <dd>{{ litDetail.year }}</dd>
+              </div>
+              <div class="lit-detail__meta-row">
+                <dt>ID</dt>
+                <dd><span class="id-badge">{{ litDetail.lit_id }}</span></dd>
+              </div>
+              <div
+                v-if="litDetail.volume || litDetail.number || litDetail.pages"
+                class="lit-detail__meta-row"
+              >
+                <dt>卷 / 期 / 页</dt>
+                <dd>{{ [litDetail.volume, litDetail.number, litDetail.pages].filter(Boolean).join(', ') }}</dd>
+              </div>
+              <div v-if="litDetail.doi" class="lit-detail__meta-row">
+                <dt>DOI</dt>
+                <dd>{{ litDetail.doi }}</dd>
+              </div>
+              <div v-if="litDetail.abstract" class="lit-detail__meta-row lit-detail__meta-row--block">
+                <dt>摘要</dt>
+                <dd>{{ litDetail.abstract }}</dd>
+              </div>
+              <div v-if="litDetail.note" class="lit-detail__meta-row lit-detail__meta-row--block">
+                <dt>备注</dt>
+                <dd>{{ litDetail.note }}</dd>
+              </div>
+            </dl>
+
+            <div class="lit-detail__section">
+              <h4>附件</h4>
+              <LiteratureAttachmentActions :literature="litDetail" @upload="handleUploadAttachment" />
+            </div>
+
+            <footer class="lit-detail__actions">
+              <button type="button" class="btn btn-secondary btn-small" @click="openLitDetails(litDetail)">查看</button>
+              <button type="button" class="btn btn-secondary btn-small" @click="openEditLitModal(litDetail)">编辑</button>
+              <button type="button" class="btn btn-danger btn-small" @click="handleDeleteLit(litDetail)">删除</button>
+            </footer>
+          </aside>
+
+          <aside v-else class="lit-pane lit-detail lit-detail--empty" aria-label="文献详情">
+            <span class="lit-detail__empty-glyph" aria-hidden="true">📄</span>
+            <p>从列表选择一篇文献<br />在此查看完整详情</p>
+          </aside>
         </div>
       </div>
     </div>
@@ -444,6 +569,8 @@ const litCurrentPage = ref(1)
 const litPageSize = 10
 const selectedLitIds = ref(new Set())
 const selectedLitDetails = ref(null)
+const litDetail = ref(null)
+const litActiveCollection = ref('all')
 const researchQuestionDialogOpen = ref(false)
 const isPreparingGraph = ref(false)
 const graphPreparationStatus = ref('')
@@ -499,8 +626,54 @@ const litTypeOptions = computed(() => getLiteratureEntryTypes(
   LIT_TYPE_OPTIONS.map((option) => option.value),
 ).map((value) => ({ value, label: LIT_TYPE_LABELS[value] || value })))
 const litYearOptions = computed(() => getLiteratureYears(litData.value))
+const litCollectionData = computed(() => {
+  const rows = litData.value
+  if (litTypeFilter.value) return rows
+  const view = litActiveCollection.value
+  if (view === 'recent') {
+    return [...rows].sort((left, right) => {
+      const leftTime = String(left?.create_time || '').trim()
+      const rightTime = String(right?.create_time || '').trim()
+      if (!leftTime && !rightTime) return 0
+      if (!leftTime) return 1
+      if (!rightTime) return -1
+      return leftTime < rightTime ? 1 : leftTime > rightTime ? -1 : 0
+    })
+  }
+  if (view === 'unclassified') {
+    return rows.filter((lit) => !String(lit?.entry_type || '').trim())
+  }
+  return rows
+})
+const litActiveCollectionKey = computed(() => (
+  litTypeFilter.value ? `type:${litTypeFilter.value}` : litActiveCollection.value
+))
+const litLibraryCollections = computed(() => {
+  const total = litData.value.length
+  const unclassified = litData.value.reduce(
+    (sum, lit) => sum + (String(lit?.entry_type || '').trim() ? 0 : 1),
+    0,
+  )
+  return [
+    { key: 'all', label: '全部文献', count: total },
+    { key: 'recent', label: '最近添加', count: total },
+    { key: 'unclassified', label: '未分类', count: unclassified },
+  ]
+})
+const litTypeCollections = computed(() => {
+  const counts = new Map()
+  for (const lit of litData.value) {
+    const type = String(lit?.entry_type || '').trim()
+    if (type) counts.set(type, (counts.get(type) || 0) + 1)
+  }
+  return litTypeOptions.value.map((option) => ({
+    key: `type:${option.value}`,
+    label: option.label,
+    count: counts.get(option.value) || 0,
+  }))
+})
 const filteredLitData = computed(() => filterLiteratureByQuery(
-  litData.value,
+  litCollectionData.value,
   litSearchFilter.value,
   litTypeFilter.value,
   litYearFilter.value,
@@ -531,6 +704,10 @@ const litPageNumbers = computed(() => Array.from(
 ))
 
 watch([litSearchFilter, litTypeFilter, litYearFilter], () => { litCurrentPage.value = 1 })
+watch(litData, (rows) => {
+  if (!litDetail.value) return
+  litDetail.value = rows.find((lit) => lit.lit_id === litDetail.value.lit_id) || null
+})
 watch(() => litPagination.value.currentPage, (page) => {
   if (litCurrentPage.value !== page) litCurrentPage.value = page
 })
@@ -561,6 +738,22 @@ async function loadLitData() {
 }
 function setLitPage(page) { litCurrentPage.value = Math.min(litPagination.value.totalPages, Math.max(1, Number(page) || 1)) }
 function openLitDetails(lit) { selectedLitDetails.value = lit }
+function openLitDetail(lit) { litDetail.value = lit }
+function selectLitCollection(key) {
+  if (key.startsWith('type:')) {
+    litActiveCollection.value = 'all'
+    litTypeFilter.value = key.slice('type:'.length)
+  } else {
+    litTypeFilter.value = ''
+    litActiveCollection.value = key
+  }
+  litCurrentPage.value = 1
+}
+function litTypeLabel(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  return litTypeOptions.value.find((option) => option.value === raw)?.label || raw
+}
 function hasGraphAttachment(lit) { return Boolean(String(lit?.attachment || '').trim()) }
 function toggleLitSelection(lit) {
   if (isGraphSelectMode.value && !hasGraphAttachment(lit)) return
@@ -762,4 +955,448 @@ onUnmounted(() => { isComponentMounted.value = false; if (manageDebounceTimer) c
     text-align: left;
   }
 }
+
+/* ============ 文献管理：Zotero 式三栏工作区 ============ */
+.platform-page .lit-top-toolbar { margin-bottom: 14px; }
+
+.lit-workspace {
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr) 336px;
+  grid-template-areas: "rail list detail";
+  gap: 14px;
+  align-items: stretch;
+}
+
+.lit-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--asc-surface, #ffffff);
+  border: 1px solid var(--asc-border);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(16, 42, 67, 0.05);
+  overflow: hidden;
+}
+
+.lit-pane-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--asc-border);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--asc-primary) 6%, #ffffff), #ffffff);
+  color: var(--asc-heading);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.lit-pane-head::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--asc-primary), color-mix(in srgb, var(--asc-primary) 12%, transparent) 60%, transparent);
+}
+
+.lit-rail { grid-area: rail; min-height: 340px; }
+.lit-list-pane { grid-area: list; min-height: 340px; }
+.lit-detail { grid-area: detail; min-height: 340px; }
+
+.lit-rail__body { padding: 8px; }
+
+.lit-rail__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lit-rail__divider {
+  margin: 10px 10px 4px;
+  color: var(--asc-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.lit-rail__item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--asc-text);
+  font-size: 13.5px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--asc-transition, 180ms ease), color var(--asc-transition, 180ms ease);
+}
+
+.lit-rail__item:hover { background: var(--asc-primary-soft); color: var(--asc-heading); }
+
+.lit-rail__item.active {
+  background: color-mix(in srgb, var(--asc-primary) 11%, #ffffff);
+  color: var(--asc-primary);
+  font-weight: 600;
+}
+
+.lit-rail__glyph {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--asc-border-strong);
+  transition: background-color var(--asc-transition, 180ms ease);
+}
+
+.lit-rail__item--type .lit-rail__glyph {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--asc-primary) 38%, transparent);
+}
+
+.lit-rail__item.active .lit-rail__glyph { background: var(--asc-primary); }
+
+.lit-rail__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lit-rail__count {
+  margin-left: auto;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: var(--asc-canvas, #eef3f8);
+  color: var(--asc-muted);
+  font-size: 11.5px;
+  line-height: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.lit-rail__item.active .lit-rail__count {
+  background: color-mix(in srgb, var(--asc-primary) 12%, #ffffff);
+  color: var(--asc-primary);
+}
+
+/* 中栏列表 */
+.lit-list-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--asc-border);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--asc-primary) 5%, #ffffff), #ffffff);
+}
+
+.lit-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--asc-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.lit-selected-count { color: var(--asc-muted); font-size: 12.5px; }
+
+.lit-list-toolbar .lit-clear-selection { margin-left: auto; }
+
+.lit-row-list { margin: 0; padding: 0; list-style: none; }
+
+.lit-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 12px 9px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--asc-border) 55%, transparent);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.lit-row:last-child { border-bottom: none; }
+.lit-row:hover { background: var(--asc-surface-soft, #f7fafd); }
+
+.lit-row.is-detail { background: color-mix(in srgb, var(--asc-primary) 7%, #ffffff); }
+
+.lit-row.is-detail::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--asc-primary);
+}
+
+.lit-row__check {
+  display: flex;
+  align-items: flex-start;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.lit-row__check input { margin: 0; }
+
+.lit-row__main { flex: 1; min-width: 0; }
+
+.lit-row__line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+.lit-row__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--asc-heading);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.lit-type-chip {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border: 1px solid color-mix(in srgb, var(--asc-primary) 16%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--asc-primary) 9%, #ffffff);
+  color: var(--asc-primary);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lit-type-chip--pending {
+  border-color: #fde68a;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.lit-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 3px;
+  color: var(--asc-muted);
+  font-size: 12px;
+}
+
+.lit-row__meta-el {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lit-row__sep { flex-shrink: 0; opacity: 0.5; }
+
+.lit-pdf-pill {
+  align-self: center;
+  flex-shrink: 0;
+  margin-left: 2px;
+  padding: 1px 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.lit-no-results {
+  margin: 0;
+  padding: 48px 20px;
+  color: var(--asc-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.lit-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--asc-border);
+  background: var(--asc-surface-soft, #f7fafd);
+}
+
+.lit-pagination__total { margin-left: 4px; color: var(--asc-muted); font-size: 12.5px; }
+
+/* 右栏详情 */
+.lit-detail { gap: 12px; padding: 14px 16px 16px; }
+
+.lit-detail--empty {
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  padding: 24px 20px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--asc-primary) 4%, #ffffff), #ffffff);
+  color: var(--asc-muted);
+  font-size: 13.5px;
+  line-height: 1.8;
+  text-align: center;
+}
+
+.lit-detail--empty p { margin: 4px 0 0; }
+
+.lit-detail__empty-glyph { font-size: 34px; line-height: 1; opacity: 0.55; }
+
+.lit-detail__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+
+.lit-detail__type { min-width: 0; }
+
+.lit-detail__close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--asc-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lit-detail__close:hover { background: var(--asc-primary-soft); color: var(--asc-heading); }
+
+.lit-detail__title {
+  margin: 0;
+  color: var(--asc-heading);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.lit-detail__meta { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.lit-detail__meta-row {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 13px;
+}
+
+.lit-detail__meta-row dt { color: var(--asc-muted); }
+
+.lit-detail__meta-row dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--asc-text);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.lit-detail__meta-row--block {
+  display: block;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--asc-border);
+}
+
+.lit-detail__meta-row--block dt { margin-bottom: 2px; font-size: 12px; }
+
+.lit-detail__section {
+  padding-top: 10px;
+  border-top: 1px solid var(--asc-border);
+}
+
+.lit-detail__section h4 {
+  margin: 0 0 2px;
+  color: var(--asc-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.lit-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--asc-border);
+}
+
+@media (max-width: 1100px) {
+  .lit-workspace {
+    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-areas:
+      "rail list"
+      "detail detail";
+  }
+}
+
+@media (max-width: 760px) {
+  .lit-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "rail"
+      "list"
+      "detail";
+  }
+}
+
+/* ══ Literature part alignment unification ══ */
+/* Pane headers: one consistent height + baseline across rail/list/detail */
+.lit-pane-head {
+  min-height: 46px;
+  padding: 0 16px;
+}
+.lit-pane-head .lit-pane-head__icon,
+.lit-pane-head > * { line-height: 1; }
+
+/* Left rail: items baseline-align icon + label, consistent row height */
+.lit-rail__item {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  gap: 9px;
+  border-radius: 7px;
+}
+.lit-rail__glyph { display: inline-flex; align-items: center; justify-content: center; width: 16px; flex: 0 0 16px; }
+.lit-rail__label { line-height: 1.2; }
+.lit-rail__count { margin-left: auto; }
+
+/* Middle toolbar: compact + aligned with pane padding */
+.lit-list-toolbar {
+  min-height: 46px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--asc-border);
+}
+.lit-select-all { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; }
+.lit-selected-count { font-size: 13px; }
+.lit-row { min-height: 56px; }
+
+/* Right detail empty-state fills the pane with a centered hint */
+.lit-detail--empty {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+.lit-detail__empty-glyph { margin: 0 auto 10px; }
+
+/* Detail metadata dl rows: baseline spacing consistent with rest */
+.lit-detail { padding: 16px; }
+.lit-detail__meta { margin: 0; }
+
 </style>

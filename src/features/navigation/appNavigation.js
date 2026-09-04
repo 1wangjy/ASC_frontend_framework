@@ -9,7 +9,9 @@ export const primaryNavigation = [
     children: [
       { label: '智能解析', path: '/platform/data?tab=parse' },
       { label: '数据管理', path: '/platform/data?tab=manage' },
-      { label: '文献管理', path: '/platform/data?tab=literature' }
+      { label: '文献管理', path: '/platform/data?tab=literature' },
+      { label: '图谱项目', path: '/process' },
+      { label: '报告中心', path: '/reports' }
     ]
   },
   {

@@ -13,7 +13,6 @@
           <strong v-else>研究答疑 / 热震稳定性</strong>
         </div>
         <div class="qa-topbar__actions">
-          <button type="button" class="qa-topbar__action" @click="router.push('/process')">图谱项目</button>
           <GlobalGraphTaskIndicator
             :items="graphTaskMonitor.state.items"
             :connection="graphTaskMonitor.state.connection"
@@ -22,12 +21,13 @@
             @view-project="onTaskbarViewProject"
           />
           <button
+            v-if="qaState.mode === 'multi'"
             type="button"
             class="qa-topbar__action qa-topbar__action--primary"
-            :disabled="qaState.mode === 'multi' && multiNavigationLocked"
+            :disabled="multiNavigationLocked"
             @click="onModePrimaryAction"
           >
-            {{ qaState.mode === 'multi' ? '新建组会' : '报告中心' }}
+            新建组会
           </button>
         </div>
         <div class="qa-project-context">
