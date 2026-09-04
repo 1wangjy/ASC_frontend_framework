@@ -24,8 +24,8 @@ const defaultSettings = Object.freeze({
 })
 
 export const qaModeOptions = Object.freeze([
-  { id: 'single', label: '单轮深度' },
-  { id: 'multi', label: '多轮连续' }
+  { id: 'multi', label: '智能会话' },
+  { id: 'single', label: '深度研究' }
 ])
 
 const references = Object.freeze([
@@ -88,7 +88,7 @@ const answer = Object.freeze({
 
 export function createQaState() {
   return {
-    mode: 'single',
+    mode: 'multi',
     phase: 'empty',
     question: '',
     qaRunId: '',
