@@ -15,6 +15,11 @@
       </button>
     </div>
 
+    <!-- ML Dataset Section -->
+    <div v-show="currentMainTab === 'ml'" class="tab-content" :class="{ active: currentMainTab === 'ml' }">
+      <div class="section"><MlDatasetView /></div>
+    </div>
+
     <!-- Parse Section -->
     <div v-show="currentMainTab === 'parse'" class="tab-content" :class="{ active: currentMainTab === 'parse' }">
       <div class="section">
@@ -542,6 +547,7 @@ import { startResearchBuildFromLibrary } from '../../features/research/researchQ
 import { useGraphTaskMonitor } from '../../features/tasks/graphTaskMonitor.js'
 import { create, update, remove, getAllLiterature, toLiteraturePayload } from '../api/newData'
 import { loadMlDataset } from '../api/models'
+import MlDatasetView from '../components/MlDatasetView.vue'
 import { removeAttachment, uploadAttachment, testMongoDB } from '../api/attachment'
 import { prepareDocumentsForGraph } from '../services/graphDocumentBridge.js'
 import { importLiteraturePdf } from '../services/literaturePdfImport.js'
@@ -557,7 +563,7 @@ import {
 } from '../utils/literatureSelection.js'
 import { assignComponentId, MC_TYPE_OPTIONS, MR_TYPE_OPTIONS, LIT_TYPE_OPTIONS, ID_FIELD_MAP, validateComponentRows } from '../types/entities'
 
-const MAIN_TABS = [{ key: 'parse', label: '数据解析' }, { key: 'manage', label: '数据管理' }, { key: 'literature', label: '文献库管理' }, { key: 'mongodb', label: 'MongoDB测试' }]
+const MAIN_TABS = [{ key: 'parse', label: '数据解析' }, { key: 'manage', label: '数据管理' }, { key: 'ml', label: 'ML 数据集' }, { key: 'literature', label: '文献库管理' }, { key: 'mongodb', label: 'MongoDB测试' }]
 const PARSE_TABS = [{ key: 'recipe', label: '配方/测试解析' }, { key: 'working', label: '工况解析' }, { key: 'service', label: '服役解析' }, { key: 'reconstruct', label: '重建解析' }]
 const MANAGE_TABS = [{ key: 'mc', label: '原料表' }, { key: 'mr', label: '配方表' }, { key: 'mp', label: '物性表' }, { key: 'tp', label: '测试表' }, { key: 'fe', label: '工况记录' }, { key: 'ru', label: '服役记录' }]
 const ADD_RECORD_LABELS = { mp: '新建物性记录', tp: '新建测试记录' }
