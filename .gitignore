@@ -32,3 +32,11 @@ check/
 *.njsproj
 *.sln
 *.sw?
+
+# === privacy / local-only ===
+private
+backend_impl/.env
+backend_impl/data
+.codegraph
+.pi
+AI4Sci-NEXUS-ASC-Development-Domain
