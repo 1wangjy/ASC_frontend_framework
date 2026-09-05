@@ -47,6 +47,7 @@
                 <router-link
                   :to="child.path"
                   class="nav-subitem"
+                  :class="{ 'is-active': childIsActive(child) }"
                   @click="navChild"
                 >
                   <span class="nav-subitem__dot" aria-hidden="true" />
@@ -155,6 +156,22 @@ function toggleGroup(item) {
 
 function navChild() {
   emit('close')
+}
+
+// exact-active for a child must compare path AND query, because several
+// children can share one path and differ only by ?tab=?mode= (数据平台 parse/
+// manage/literature, 问题研究 multi/single). router-link exact-active keys on
+// path only, so those siblings would all highlight together.
+function childIsActive(child) {
+  const qi = child.path.indexOf('?')
+  const path = qi >= 0 ? child.path.slice(0, qi) : child.path
+  if (route.path !== path) return false
+  if (qi < 0) return true
+  const params = new URLSearchParams(child.path.slice(qi + 1))
+  for (const [k, v] of params.entries()) {
+    if (String(route.query[k] ?? '') !== v) return false
+  }
+  return true
 }
 
 // keep the parent group open when navigating into one of its children
@@ -545,11 +562,12 @@ watch(
   background: rgba(255, 255, 255, 0.07);
   color: #f2f8fd;
 }
-.nav-subitem.router-link-exact-active {
+.nav-subitem.router-link-exact-active,
+.nav-subitem.is-active {
   color: #fff;
   font-weight: 650;
 }
-.nav-subitem.router-link-exact-active .nav-subitem__dot {
+.nav-subitem.router-link-exact-active, .nav-subitem.is-active .nav-subitem__dot {
   opacity: 1;
   box-shadow: 0 0 0 3px rgba(79, 183, 236, 0.18);
 }
