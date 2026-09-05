@@ -24,6 +24,12 @@ export function optimizeModel2(data) {
   return request.post('/api/model2/optimize', data).then(unwrapApiResult)
 }
 
+// 一键把 ./private/*.npy 载入当前 sqlite（后端 spawn load_ml_dataset.py，幂等）
+export function loadMlDataset() {
+  return request.post('/api/ml-dataset/load', {}).then(unwrapApiResult)
+}
+
+
 /**
  * 流式反向优化 (POST /api/model2/optimize/stream, SSE-over-POST)。
  *

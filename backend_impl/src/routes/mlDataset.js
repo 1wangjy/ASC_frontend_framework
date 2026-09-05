@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const database = require('../config/database');
+const { execFile } = require('child_process');
+const path = require('path');
+let _loading = false;  // 防重入：避免并发写 sqlite
 
 // 只读暴露统一 ML 预测数据集（表 ml_formula / ml_formula_component）。
 // 汇总：各来源样本数 + 组分总数 + PC 特征数等。
@@ -91,5 +94,28 @@ router.get('/stats', async (req, res) => {
   } catch (e) { res.status(500).json({ code: 500, message: e.message }); }
 });
 
+
+// 一键把 ./private/*.npy 载入当前 sqlite（spawn load_ml_dataset.py；幂等）。
+// 注：仅本机开发用；数据隐私不外发。
+router.post('/load', (req, res) => {
+
+  if (_loading) return res.status(409).json({ code: 409, message: '已有一次载入正在执行，请稍候' });
+  _loading = true;
+  const finish = () => { _loading = false; };
+  req.on('close', finish);
+  const script = path.join(__dirname, '../../python/../scripts/load_ml_dataset.py');
+  const py = process.env.PYTHON_CMD || 'python3';
+  execFile(py, [script], { timeout: 150000, maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
+    if (err) {
+      _loading = false;
+      console.error('ml-dataset load failed:', (stderr || '').slice(-800));
+      return res.status(500).json({ code: 500, message: '载入失败: ' + ((stderr || err.message || '').slice(-400)) });
+    }
+    _loading = false;
+    res.json({ code: 200, data: { message: stdout || 'ok', stderr: (stderr || '').slice(-400) } });
+  });
+});
+
 module.exports = router;
+
 

@@ -52,8 +52,12 @@
           <div class="manage-actions">
             <button class="btn" @click="openAddModal()">{{ addRecordLabel }}</button>
             <button class="btn btn-ghost btn-small" title="重新从服务端加载当前表数据" @click="loadManageData()">刷新数据</button>
+            <button class="btn btn-ghost btn-small" title="把 ./private/*.npy 载入当前 sqlite（幂等）"
+              :disabled="mlLoading" @click="callMlLoad">
+              <span v-if="mlLoading" class="loading" />{{ mlLoading ? '载入中…' : '载入 ML 数据集' }}</button>
           </div>
         </div>
+        <div v-if="mlLoadMsg" :style="{ marginTop: '8px', padding: '6px 10px', borderRadius: '6px', fontSize: '12.5px', whiteSpace: 'pre-wrap', background: mlLoadErr ? '#fee2e2' : '#dcfce7', color: mlLoadErr ? '#991b1b' : '#166534' }">{{ mlLoadMsg }}</div>
         <DataTable ref="tableRef" :data="manageData" :table="currentManageTable" :editing-row-id="editingRowId"
           :mc-options="dataStore.allMcData" :mp-options="dataStore.allMpData" :mr-options="dataStore.allMrData"
           :pure-properties="propertiesStore.pureMaterialProperties" :test-properties="propertiesStore.testProperties"
@@ -537,6 +541,7 @@ import { suggestNextProjectName } from '../../features/projects/graphProjectWork
 import { startResearchBuildFromLibrary } from '../../features/research/researchQuestionWorkflow.js'
 import { useGraphTaskMonitor } from '../../features/tasks/graphTaskMonitor.js'
 import { create, update, remove, getAllLiterature, toLiteraturePayload } from '../api/newData'
+import { loadMlDataset } from '../api/models'
 import { removeAttachment, uploadAttachment, testMongoDB } from '../api/attachment'
 import { prepareDocumentsForGraph } from '../services/graphDocumentBridge.js'
 import { importLiteraturePdf } from '../services/literaturePdfImport.js'
@@ -559,6 +564,20 @@ const ADD_RECORD_LABELS = { mp: '新建物性记录', tp: '新建测试记录' }
 const LIT_TYPE_LABELS = { journal: '期刊论文', conference: '会议论文', patent: '专利', book: '书籍' }
 
 const dataStore = usePlatformDataStore()
+const mlLoading = ref(false)
+const mlLoadMsg = ref('')
+const mlLoadErr = ref(false)
+async function callMlLoad() {
+  mlLoading.value = true; mlLoadErr.value = false; mlLoadMsg.value = ''
+  try {
+    const r = await loadMlDataset()
+    const msg = (r && (r.message || (r.data && r.data.message))) || ''
+    mlLoadMsg.value = 'ML 数据集载入完成：' + String(msg || '').trim()
+  } catch (e) {
+    mlLoadErr.value = true
+    mlLoadMsg.value = '载入失败：' + (e?.message || e || '未知错误')
+  } finally { mlLoading.value = false }
+}
 const propertiesStore = usePlatformPropertiesStore()
 const graphTaskMonitor = useGraphTaskMonitor()
 const route = useRoute()
