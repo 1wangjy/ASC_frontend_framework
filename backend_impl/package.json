@@ -13,7 +13,8 @@
     "gen-data": "node scripts/init-db.js && node scripts/add-example-data.js && node scripts/import-bibtex.js",
     "import-recipes": "node scripts/import-batch-recipes.js",
     "migrate": "node scripts/migrate.js",
-    "ml:load": "python3 scripts/load_ml_dataset.py"
+    "ml:load": "python3 scripts/load_ml_dataset.py",
+    "ml:materialize": "python3 scripts/materialize_ml_dataset.py"
   },
   "keywords": [
     "node.js",

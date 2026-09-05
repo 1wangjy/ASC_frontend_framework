@@ -4,6 +4,7 @@ const database = require('../config/database');
 const { execFile } = require('child_process');
 const path = require('path');
 let _loading = false;  // 防重入：避免并发写 sqlite
+let _materializing = false;  // 防重入：避免并发写 sqlite
 
 // 只读暴露统一 ML 预测数据集（表 ml_formula / ml_formula_component）。
 // 汇总：各来源样本数 + 组分总数 + PC 特征数等。
@@ -116,6 +117,28 @@ router.post('/load', (req, res) => {
   });
 });
 
+// 把统一 ML 数据集物化进数据管理业务表（mc/mr/mp/tp；spawn materialize_ml_dataset.py；幂等）。
+// 只插入；重复调用先删除本脚本先前创建的 ML 行再重建，业务表其它行不受影响。
+router.post('/materialize', (req, res) => {
+
+  if (_materializing) return res.status(409).json({ code: 409, message: '已有一次物化正在执行，请稍候' });
+  _materializing = true;
+  const finish = () => { _materializing = false; };
+  req.on('close', finish);
+  const script = path.join(__dirname, '../../scripts/materialize_ml_dataset.py');
+  const py = process.env.PYTHON_CMD || 'python3';
+  execFile(py, [script], { timeout: 300000, maxBuffer: 8 * 1024 * 1024 }, (err, stdout, stderr) => {
+    _materializing = false;
+    if (err) {
+      console.error('ml-dataset materialize failed:', (stderr || '').slice(-800));
+      return res.status(500).json({ code: 500, message: '物化失败: ' + ((stderr || err.message || '').slice(-400)) });
+    }
+    res.json({ code: 200, data: { message: stdout || 'ok', stderr: (stderr || '').slice(-400) } });
+  });
+});
+
 module.exports = router;
+
+
 
 
