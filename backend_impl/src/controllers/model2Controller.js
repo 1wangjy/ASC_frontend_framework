@@ -1,6 +1,7 @@
 const database = require('../config/database');
 const vectorService = require('../services/vectorService');
 const localModelService = require('../services/localModelService');
+const model2OptimizationService = require('../services/model2OptimizationService');
 
 class Model2Controller {
   // 提交测试指标
@@ -48,6 +49,41 @@ class Model2Controller {
       res.status(500).json({
         code: 500,
         message: 'Internal server error'
+      });
+    }
+  }
+
+  // 配方优化 (POST /api/model2/optimize)
+  async optimizeRecipe(req, res) {
+    try {
+      const { targets, algorithm, budget } = req.body || {};
+
+      const payload = {
+        algorithm: (typeof algorithm === 'string' && algorithm) || 'nsga2',
+        budget: (typeof budget === 'number' && Number.isFinite(budget) && budget > 0)
+          ? Math.round(budget)
+          : 60
+      };
+      if (Array.isArray(targets)) {
+        payload.targets = targets;
+      }
+
+      const data = await model2OptimizationService.optimizeRecipe(payload);
+
+      if (!data || data.ok !== true) {
+        res.status(500).json({
+          code: 500,
+          message: (data && (data.message || data.error)) || '配方优化失败'
+        });
+        return;
+      }
+
+      res.json({ code: 200, data });
+    } catch (error) {
+      console.error('Error optimizing recipe:', error);
+      res.status(500).json({
+        code: 500,
+        message: error.message || '配方优化失败'
       });
     }
   }

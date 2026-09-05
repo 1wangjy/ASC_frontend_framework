@@ -9,6 +9,11 @@ export function submitModel2(data) {
   return request.post('/api/model2/submit', data).then(unwrapApiResult)
 }
 
+// 反向优化：给定目标性能与算法，搜索最优配方 + 返回探索轨迹
+export function optimizeModel2(data) {
+  return request.post('/api/model2/optimize', data).then(unwrapApiResult)
+}
+
 export function submitModel3(data) {
   return request.post('/api/model3/submit', data).then(unwrapApiResult)
 }
