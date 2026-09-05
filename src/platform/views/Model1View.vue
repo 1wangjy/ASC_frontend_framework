@@ -263,164 +263,183 @@
           <span v-else class="m1-rhead__status m1-chip">尚未预测</span>
         </div>
 
-        <!-- ── radar card ── -->
-        <div class="card m1-panel m1-chartcard">
-          <div class="m1-panel-head">
-            <div>
-              <h2 class="m1-panel-title">预测属性 · 雷达图</h2>
-              <p class="m1-panel-sub">每环 = 一个热处理温度 · 实/虚线交替避免重叠混淆 · 径向越外 = 该轴越优</p>
-            </div>
-            <div class="m1-chart-actions">
-              <button type="button" class="m1-ghost-btn m1-ghost-btn--sm" :disabled="!radar" @click="saveSnapshot"
-                title="把本次预测的 4 个温度环加入历史对比">＋ 保存当前曲线</button>
-              <button type="button" class="m1-ghost-btn m1-ghost-btn--sm" :disabled="!history.length" @click="history = []"
-                title="清空全部历史快照">清空历史</button>
-            </div>
+        <!-- ── RIGHT 结果工作台：雷达图 / 数值表 两个子页签 (默认 预测属性 · 雷达图) ── -->
+        <div class="card m1-panel m1-workbench">
+          <div class="m1-subtabs" role="tablist" aria-label="预测结果子页签">
+            <button v-for="rt in RIGHT_TABS" :key="rt.id" type="button" role="tab"
+              class="m1-subtab" :class="{ 'is-on': rightTab === rt.id }"
+              :aria-selected="rightTab === rt.id"
+              :aria-controls="`m1-subpanel-${rt.id}`"
+              :id="`m1-subtab-${rt.id}`"
+              @click="rightTab = rt.id">{{ rt.label }}</button>
           </div>
 
-          <div v-if="!radar" class="m1-empty">
-            <div class="m1-empty__glyph" aria-hidden="true">
-              <svg viewBox="0 0 120 120" width="120" height="120" fill="none">
-                <circle cx="60" cy="60" r="46" stroke="#dbe7f2" stroke-width="1" stroke-dasharray="4 4" />
-                <circle cx="60" cy="60" r="30" stroke="#dbe7f2" stroke-width="1" stroke-dasharray="4 4" />
-                <polygon points="60,16 99,42 85,92 35,92 21,42" stroke="#c9d9e8" stroke-width="1.4" fill="none" />
-              </svg>
+          <!-- SUB-TAB · 预测属性 · 雷达图 (default; 预测前空态停留于此) -->
+          <section v-show="rightTab === 'radar'" id="m1-subpanel-radar" role="tabpanel"
+            aria-labelledby="m1-subtab-radar" class="m1-subpanel">
+            <div class="m1-panel-head">
+              <div>
+                <h2 class="m1-panel-title">预测属性 · 雷达图</h2>
+                <p class="m1-panel-sub">每环 = 一个热处理温度 · 实/虚线交替避免重叠混淆 · 径向越外 = 该轴越优</p>
+              </div>
+              <div class="m1-chart-actions">
+                <button type="button" class="m1-ghost-btn m1-ghost-btn--sm" :disabled="!radar" @click="saveSnapshot"
+                  title="把本次预测的 4 个温度环加入历史对比">＋ 保存当前曲线</button>
+                <button type="button" class="m1-ghost-btn m1-ghost-btn--sm" :disabled="!history.length" @click="history = []"
+                  title="清空全部历史快照">清空历史</button>
+              </div>
             </div>
-            <h3 class="m1-empty__title">预测属性将在此以雷达图呈现</h3>
-            <p class="m1-empty__desc">
-              在左侧「配方输入」中添加原料 (recipe_opt 96 空间) 并点击
-              <strong>预测属性</strong>。模型将真实预测 19 项性能 (体密 / 耐压 / 抗折 / 高温抗折 /
-              线变化率 / 气孔率 / 吸水率)，按温度呈现为 4 条可对比的雷达环。
-            </p>
-          </div>
 
-          <template v-else>
-            <div class="m1-chartgrid">
-              <div class="m1-svgwrap">
-                <svg :viewBox="`0 0 ${SVG.W} ${SVG.H}`" class="m1-radar" role="img"
-                  aria-label="性能预测雷达图：7 个属性轴，4 条温度环">
-                  <!-- grid rings -->
-                  <circle v-for="g in gridFracs" :key="g" :cx="SVG.CX" :cy="SVG.CY"
-                    :r="gridRadius(g)" fill="none" stroke="#e4ebf2" stroke-width="1" />
-                  <!-- spokes -->
-                  <line v-for="(f, i) in radar.axes" :key="`spoke-${i}`"
-                    :x1="pt(i, 0)[0]" :y1="pt(i, 0)[1]" :x2="pt(i, 1)[0]" :y2="pt(i, 1)[1]"
-                    stroke="#e4ebf2" stroke-width="1" />
-                  <!-- axis labels -->
-                  <g v-for="(f, i) in radar.axes" :key="`lbl-${i}`" :transform="`translate(${pt(i, 1.2)[0]} ${pt(i, 1.2)[1]})`">
-                    <text class="m1-axis-label" text-anchor="middle" dy="-1">{{ f.base }}<tspan class="m1-axis-dir">{{ f.dir === 'high' ? '↑' : '↓' }}</tspan></text>
-                    <text class="m1-axis-unit" text-anchor="middle" dy="12">{{ f.unit }} · {{ f.dir === 'high' ? '越大越优' : '越小越优' }}</text>
-                  </g>
-                  <text :x="SVG.CX" :y="26" class="m1-radar-caption" text-anchor="middle">径向 = 归一化后「更优」方向 · 每轴按本次 4 温度 min~max 缩放</text>
-
-                  <!-- history snapshots (under current) -->
-                  <g v-for="h in visibleHistory" :key="h.id" class="m1-history-layer">
-                    <polygon v-for="(ring) in h.rings" :key="`${h.id}-${ring.tempKey}`"
-                      :points="polyOf(ring.vals)" fill="none" :stroke="h.hue" stroke-width="1.7"
-                      stroke-linejoin="round" :stroke-dasharray="dashOfTemp(ring.tempKey)" opacity="0.8" />
-                  </g>
-
-                  <!-- current run: 4 temperature rings -->
-                  <g v-for="ring in orderedRings" :key="`cur-${ring.temp.key}`">
-                    <polygon :points="polyOf(ring.vals)" :fill="ring.temp.color" fill-opacity="0.06"
-                      :stroke="ring.temp.color" stroke-width="2.4" stroke-linejoin="round"
-                      :stroke-dasharray="ring.temp.dash || 'none'" />
-                    <circle v-for="(v, i) in ring.vals" :key="`${ring.temp.key}-${i}`"
-                      :cx="pt(i, v)[0]" :cy="pt(i, v)[1]" r="2.3" :fill="ring.temp.color" />
-                  </g>
+            <div v-if="!radar" class="m1-empty">
+              <div class="m1-empty__glyph" aria-hidden="true">
+                <svg viewBox="0 0 120 120" width="120" height="120" fill="none">
+                  <circle cx="60" cy="60" r="46" stroke="#dbe7f2" stroke-width="1" stroke-dasharray="4 4" />
+                  <circle cx="60" cy="60" r="30" stroke="#dbe7f2" stroke-width="1" stroke-dasharray="4 4" />
+                  <polygon points="60,16 99,42 85,92 35,92 21,42" stroke="#c9d9e8" stroke-width="1.4" fill="none" />
                 </svg>
-                <p class="m1-svg-note">
-                  温度环颜色 + 实/虚线双重编码 · 常温(110℃) 环 = 实线深蓝；
-                  缺失温度轴的数值默认沿用常温(110℃) 实测（无常温项则沿用该族唯一/最近实测），各环在该轴重合。
-                </p>
               </div>
+              <h3 class="m1-empty__title">预测属性将在此以雷达图呈现</h3>
+              <p class="m1-empty__desc">
+                在左侧「配方输入」中添加原料 (recipe_opt 96 空间) 并点击
+                <strong>预测属性</strong>。模型将真实预测 19 项性能 (体密 / 耐压 / 抗折 / 高温抗折 /
+                线变化率 / 气孔率 / 吸水率)，按温度呈现为 4 条可对比的雷达环。
+              </p>
+            </div>
 
-              <div class="m1-side">
-                <h4 class="m1-side-title">温度环图例</h4>
-                <ul class="m1-legend">
-                  <li v-for="t in TEMPS" :key="t.key" class="m1-legend__item">
-                    <span class="m1-sw" :style="{ borderColor: t.color, borderTopStyle: t.dash ? 'dashed' : 'solid' }" />
-                    <span class="m1-legend__label">{{ t.label }}</span>
-                    <span class="m1-legend__style">{{ t.dash ? '虚线' : '实线' }}</span>
-                  </li>
-                </ul>
+            <template v-else>
+              <div class="m1-chartgrid">
+                <div class="m1-svgwrap">
+                  <svg :viewBox="`0 0 ${SVG.W} ${SVG.H}`" class="m1-radar" role="img"
+                    aria-label="性能预测雷达图：7 个属性轴，4 条温度环">
+                    <!-- grid rings: 25/50/75/100% 刻度 -->
+                    <circle v-for="g in gridFracs" :key="g" :cx="SVG.CX" :cy="SVG.CY"
+                      :r="gridRadius(g)" fill="none" stroke="#e4ebf2" stroke-width="1" />
+                    <!-- spokes -->
+                    <line v-for="(f, i) in radar.axes" :key="`spoke-${i}`"
+                      :x1="pt(i, 0)[0]" :y1="pt(i, 0)[1]" :x2="pt(i, 1)[0]" :y2="pt(i, 1)[1]"
+                      stroke="#e4ebf2" stroke-width="1" />
+                    <!-- axis labels -->
+                    <g v-for="(f, i) in radar.axes" :key="`lbl-${i}`" :transform="`translate(${pt(i, 1.2)[0]} ${pt(i, 1.2)[1]})`">
+                      <text class="m1-axis-label" text-anchor="middle" dy="-1">{{ f.base }}<tspan class="m1-axis-dir">{{ f.dir === 'high' ? '↑' : '↓' }}</tspan></text>
+                      <text class="m1-axis-unit" text-anchor="middle" dy="12">{{ f.unit }} · {{ f.dir === 'high' ? '越大越优' : '越小越优' }}</text>
+                    </g>
+                    <!-- per-axis outer scale: 每轴满半径真实值 + 单位 (量值 = 归一化同一组 min/max) -->
+                    <g v-for="(f, i) in radar.axes" :key="`scl-${i}`"
+                      :transform="`translate(${pt(i, 1.05)[0]} ${pt(i, 1.05)[1]})`">
+                      <text class="m1-axis-scale" text-anchor="middle" dy="-3">{{ scaleText(f) }}</text>
+                    </g>
+                    <text :x="SVG.CX" :y="26" class="m1-radar-caption" text-anchor="middle">径向 = 归一化后「更优」方向 · 每轴按本次 4 温度 min~max 缩放 · 外缘刻度 = 满半径真实值 + 单位</text>
 
-                <div class="m1-side-divider" />
+                    <!-- history snapshots (under current) -->
+                    <g v-for="h in visibleHistory" :key="h.id" class="m1-history-layer">
+                      <polygon v-for="(ring) in h.rings" :key="`${h.id}-${ring.tempKey}`"
+                        :points="polyOf(ring.vals)" fill="none" :stroke="h.hue" stroke-width="1.7"
+                        stroke-linejoin="round" :stroke-dasharray="dashOfTemp(ring.tempKey)" opacity="0.8" />
+                    </g>
 
-                <div class="m1-side-row">
-                  <h4 class="m1-side-title">历史对比 <span class="m1-side-count">{{ history.length }}</span></h4>
-                  <div class="m1-side-row__hint">保存当前曲线后可叠加对比 (不同色相 + 半透明)</div>
+                    <!-- current run: 4 temperature rings -->
+                    <g v-for="ring in orderedRings" :key="`cur-${ring.temp.key}`">
+                      <polygon :points="polyOf(ring.vals)" :fill="ring.temp.color" fill-opacity="0.06"
+                        :stroke="ring.temp.color" stroke-width="2.4" stroke-linejoin="round"
+                        :stroke-dasharray="ring.temp.dash || 'none'" />
+                      <circle v-for="(v, i) in ring.vals" :key="`${ring.temp.key}-${i}`"
+                        :cx="pt(i, v)[0]" :cy="pt(i, v)[1]" r="2.3" :fill="ring.temp.color" />
+                    </g>
+                  </svg>
+                  <p class="m1-svg-note">
+                    温度环颜色 + 实/虚线双重编码 · 常温(110℃) 环 = 实线深蓝；
+                    缺失温度轴的数值默认沿用常温(110℃) 实测（无常温项则沿用该族唯一/最近实测），各环在该轴重合。
+                  </p>
                 </div>
-                <ul v-if="history.length" class="m1-hlist">
-                  <li v-for="h in history" :key="h.id" class="m1-hitem" :class="{ 'is-off': !h.visible }">
-                    <label class="m1-hitem__toggle" :title="h.visible ? '隐藏此快照' : '显示此快照'">
-                      <input type="checkbox" :checked="h.visible" @change="h.visible = !h.visible" class="m1-sr" />
-                      <span class="m1-sw" :style="{ borderColor: h.hue, borderTopStyle: 'solid' }" />
-                      <span class="m1-hitem__name">{{ h.name }}</span>
-                    </label>
-                    <span class="m1-hitem__at">{{ fmtTime(h.at) }}</span>
-                    <button type="button" class="m1-remove" :aria-label="`删除 ${h.name}`" title="删除快照"
-                      @click="removeSnapshot(h.id)">✕</button>
-                  </li>
-                </ul>
-                <p v-else class="m1-inline-hint">尚无快照 —— 点击「＋ 保存当前曲线」把本次温度环加入对比。</p>
+
+                <div class="m1-side">
+                  <h4 class="m1-side-title">温度环图例</h4>
+                  <ul class="m1-legend">
+                    <li v-for="t in TEMPS" :key="t.key" class="m1-legend__item">
+                      <span class="m1-sw" :style="{ borderColor: t.color, borderTopStyle: t.dash ? 'dashed' : 'solid' }" />
+                      <span class="m1-legend__label">{{ t.label }}</span>
+                      <span class="m1-legend__style">{{ t.dash ? '虚线' : '实线' }}</span>
+                    </li>
+                  </ul>
+
+                  <div class="m1-side-divider" />
+
+                  <div class="m1-side-row">
+                    <h4 class="m1-side-title">历史对比 <span class="m1-side-count">{{ history.length }}</span></h4>
+                    <div class="m1-side-row__hint">保存当前曲线后可叠加对比 (不同色相 + 半透明)</div>
+                  </div>
+                  <ul v-if="history.length" class="m1-hlist">
+                    <li v-for="h in history" :key="h.id" class="m1-hitem" :class="{ 'is-off': !h.visible }">
+                      <label class="m1-hitem__toggle" :title="h.visible ? '隐藏此快照' : '显示此快照'">
+                        <input type="checkbox" :checked="h.visible" @change="h.visible = !h.visible" class="m1-sr" />
+                        <span class="m1-sw" :style="{ borderColor: h.hue, borderTopStyle: 'solid' }" />
+                        <span class="m1-hitem__name">{{ h.name }}</span>
+                      </label>
+                      <span class="m1-hitem__at">{{ fmtTime(h.at) }}</span>
+                      <button type="button" class="m1-remove" :aria-label="`删除 ${h.name}`" title="删除快照"
+                        @click="removeSnapshot(h.id)">✕</button>
+                    </li>
+                  </ul>
+                  <p v-else class="m1-inline-hint">尚无快照 —— 点击「＋ 保存当前曲线」把本次温度环加入对比。</p>
+                </div>
+              </div>
+
+              <!-- axis semantics / fallback annotation -->
+              <div class="m1-axisnote">
+                <div v-for="(f, i) in radar.axes" :key="f.base" class="m1-axisnote__item">
+                  <span class="m1-axisnote__name">{{ f.base }}</span>
+                  <span class="m1-axisnote__tag" :class="f.dir === 'high' ? 'is-high' : 'is-low'">
+                    {{ f.dir === 'high' ? '↑ 越大越优' : '↓ 越小越优' }}
+                  </span>
+                  <span class="m1-axisnote__temps">{{ tempsInfoOf(f.base) }}</span>
+                  <span class="m1-axisnote__val">{{ axisSummary(i) }}</span>
+                </div>
+              </div>
+            </template>
+          </section>
+
+          <!-- SUB-TAB · 预测数值表 -->
+          <section v-show="rightTab === 'table'" id="m1-subpanel-table" role="tabpanel"
+            aria-labelledby="m1-subtab-table" class="m1-subpanel">
+            <div class="m1-panel-head">
+              <div>
+                <h2 class="m1-panel-title">预测数值表 <span v-if="result" class="m1-panel-sub-inline">recipe_opt 单次确定性预测 · 原始值 (精度列)</span></h2>
+                <p class="m1-panel-sub">表格展示 19 项真实预测数值；雷达图为归一化形状展示，精度以此表为准</p>
               </div>
             </div>
-
-            <!-- axis semantics / fallback annotation -->
-            <div class="m1-axisnote">
-              <div v-for="(f, i) in radar.axes" :key="f.base" class="m1-axisnote__item">
-                <span class="m1-axisnote__name">{{ f.base }}</span>
-                <span class="m1-axisnote__tag" :class="f.dir === 'high' ? 'is-high' : 'is-low'">
-                  {{ f.dir === 'high' ? '↑ 越大越优' : '↓ 越小越优' }}
-                </span>
-                <span class="m1-axisnote__temps">{{ tempsInfoOf(f.base) }}</span>
-                <span class="m1-axisnote__val">{{ axisSummary(i) }}</span>
-              </div>
+            <div v-if="!radar" class="m1-empty m1-empty--mini">
+              <p class="m1-empty__desc">运行一次预测后，19 项性能数值将在此按属性族分组列出。</p>
             </div>
-          </template>
-        </div>
-
-        <!-- ── numbers table card ── -->
-        <div class="card m1-panel m1-tablecard">
-          <div class="m1-panel-head">
-            <div>
-              <h2 class="m1-panel-title">预测数值表 <span v-if="result" class="m1-panel-sub-inline">recipe_opt 单次确定性预测 · 原始值 (精度列)</span></h2>
-              <p class="m1-panel-sub">表格展示 19 项真实预测数值；雷达图为归一化形状展示，精度以此表为准</p>
-            </div>
-          </div>
-          <div v-if="!radar" class="m1-empty m1-empty--mini">
-            <p class="m1-empty__desc">运行一次预测后，19 项性能数值将在此按属性族分组列出。</p>
-          </div>
-          <template v-else>
-            <table class="m1-table">
-              <caption class="m1-sr">19 项预测性能数值（按属性族 × 温度）</caption>
-              <thead>
-                <tr><th class="m1-th--prop">属性族</th><th>温度</th><th class="m1-th--val">预测值</th><th>单位 · 方向</th></tr>
-              </thead>
-              <tbody>
-                <template v-for="(f, i) in radar.axes" :key="f.base">
-                  <tr class="m1-tfam">
-                    <td colspan="4">
-                      <span class="m1-tfam__name">{{ f.base }}</span>
-                      <span class="m1-tfam__dir" :class="f.dir === 'high' ? 'is-high' : 'is-low'">{{ f.dir === 'high' ? '↑ 越大越优' : '↓ 越小越优' }}</span>
-                      <span class="m1-tfam__temps">{{ tempsInfoOf(f.base) }}</span>
-                    </td>
-                  </tr>
-                  <tr v-for="(row, j) in familyRows(f.base)" :key="`${f.base}-${row.tempKey}`" class="m1-trow">
-                    <td class="m1-trow__spacer" />
-                    <td><span class="m1-tdot" :style="{ background: tempOf(row.tempKey).color }" />{{ tempOf(row.tempKey).label }}</td>
-                    <td class="m1-tval">{{ fmtVal(row.value) }}</td>
-                    <td class="m1-tunit">{{ f.unit }}<span v-if="row.fallback" class="m1-tfallback" :title="row.fallbackNote"> (沿用)</span></td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-            <p class="m1-table-note">
-              雷达「沿用」填充：某温度无实测的属性项在雷达上沿用常温(110℃) 值（该族无常温项时沿用其唯一/最近温度实测），
-              使缺失温度的各环在该轴重合而非断口；表格仅列出模型真实输出的 19 项。
-            </p>
-          </template>
+            <template v-else>
+              <table class="m1-table">
+                <caption class="m1-sr">19 项预测性能数值（按属性族 × 温度）</caption>
+                <thead>
+                  <tr><th class="m1-th--prop">属性族</th><th>温度</th><th class="m1-th--val">预测值</th><th>单位 · 方向</th></tr>
+                </thead>
+                <tbody>
+                  <template v-for="(f, i) in radar.axes" :key="f.base">
+                    <tr class="m1-tfam">
+                      <td colspan="4">
+                        <span class="m1-tfam__name">{{ f.base }}</span>
+                        <span class="m1-tfam__dir" :class="f.dir === 'high' ? 'is-high' : 'is-low'">{{ f.dir === 'high' ? '↑ 越大越优' : '↓ 越小越优' }}</span>
+                        <span class="m1-tfam__temps">{{ tempsInfoOf(f.base) }}</span>
+                      </td>
+                    </tr>
+                    <tr v-for="(row, j) in familyRows(f.base)" :key="`${f.base}-${row.tempKey}`" class="m1-trow">
+                      <td class="m1-trow__spacer" />
+                      <td><span class="m1-tdot" :style="{ background: tempOf(row.tempKey).color }" />{{ tempOf(row.tempKey).label }}</td>
+                      <td class="m1-tval">{{ fmtVal(row.value) }}</td>
+                      <td class="m1-tunit">{{ f.unit }}<span v-if="row.fallback" class="m1-tfallback" :title="row.fallbackNote"> (沿用)</span></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <p class="m1-table-note">
+                雷达「沿用」填充：某温度无实测的属性项在雷达上沿用常温(110℃) 值（该族无常温项时沿用其唯一/最近温度实测），
+                使缺失温度的各环在该轴重合而非断口；表格仅列出模型真实输出的 19 项。
+              </p>
+            </template>
+          </section>
         </div>
       </section>
     </div>
@@ -471,6 +490,14 @@ const TABS = [
   { id: 'sim',    label: '相似度分析' },
 ]
 const activeTab = ref('recipe')
+
+// 右侧结果工作台的子页签 (雷达图 / 数值表)。仅显示当前激活子页签内容；
+// 二者共享同一 result / radar / history 状态，切换即时、无重算。
+const RIGHT_TABS = [
+  { id: 'radar', label: '预测属性 · 雷达图' },
+  { id: 'table', label: '预测数值表' },
+]
+const rightTab = ref('radar')
 
 /* ───────────────────────── 96 原料空间 ───────────────────────── */
 const materials = ref([])
@@ -833,6 +860,17 @@ function axisSummary(axisIdx) {
   if (!raw.length) return ''
   return `预测区间 ${a.lo.toFixed(2)} ~ ${a.hi.toFixed(2)} ${a.unit}`
 }
+// 每轴刻度外端真实值：该轴满半径(100%)处对应的真实量值 + 单位。
+// 径向统一为「越外越优」，故 high 族满半径 = 该轴 max(hi)；low 族满半径 = 该轴 min(lo)。
+// 量值即 buildRadar 归一化所用的同一组 per-axis lo/hi 边界。
+function axisOuterValue(a) {
+  return a.dir === 'high' ? a.hi : a.lo
+}
+function scaleText(a) {
+  const tip = axisOuterValue(a)
+  const num = Math.abs(tip) >= 100 ? tip.toFixed(0) : tip.toFixed(1)
+  return `≈${num} ${a.unit}`
+}
 const fmtVal = (v) => Number(v).toFixed(4)
 function humanSize(bytes) {
   if (!bytes && bytes !== 0) return ''
@@ -1134,6 +1172,26 @@ function onPick(ev) {
 .m1-panel-sub-inline { font-size: 11px; font-weight: 600; color: #0e7a4c; background: #e7f7ef; border: 1px solid #bfe9d3; border-radius: 999px; padding: 1px 8px; }
 .m1-chart-actions { display: flex; gap: 6px; align-items: center; flex: none; }
 
+/* right workbench sub-tabs (segmented pills, distinct from LEFT tool tabs) */
+.m1-workbench { display: flex; flex-direction: column; gap: 10px; }
+.m1-subtabs {
+  display: inline-flex; align-self: flex-start; flex-wrap: wrap; gap: 2px;
+  background: #eef4fb; border: 1px solid #d9e6f2; border-radius: 999px; padding: 3px;
+}
+.m1-subtab {
+  font: inherit; font-size: 11.5px; font-weight: 700; color: #5b6b7c;
+  background: transparent; border: none; border-radius: 999px;
+  padding: 5px 14px; cursor: pointer; transition: all .16s ease; line-height: 1.25;
+  white-space: nowrap;
+}
+.m1-subtab:hover:not(.is-on) { color: #0869ad; background: rgba(255,255,255,.6); }
+.m1-subtab.is-on {
+  color: #fff; background: linear-gradient(135deg, #005bac, #0aa3d8);
+  box-shadow: 0 2px 8px rgba(8,105,173,.30);
+}
+.m1-subtab:focus-visible { outline: 2px solid #0aa3d8; outline-offset: 1px; }
+.m1-subpanel { min-width: 0; }
+
 /* empty state */
 .m1-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 30px 20px 22px; }
 .m1-empty__glyph { opacity: .8; margin-bottom: 4px; }
@@ -1149,6 +1207,10 @@ function onPick(ev) {
 .m1-axis-label { font-size: 12.5px; font-weight: 750; fill: #1d3a57; }
 .m1-axis-dir { fill: #005bac; font-size: 12px; }
 .m1-axis-unit { font-size: 9.5px; fill: #8a9aa9; }
+.m1-axis-scale {
+  font-size: 10px; font-weight: 700; fill: #005bac;
+  paint-order: stroke; stroke: #ffffff; stroke-width: 3px; stroke-linejoin: round;
+}
 .m1-radar-caption { font-size: 10px; fill: #9aa8b7; }
 .m1-svg-note { margin: 6px 0 0; font-size: 10.5px; color: #8a9aa9; line-height: 1.65; }
 .m1-history-layer polygon { pointer-events: none; }
