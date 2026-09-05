@@ -239,6 +239,41 @@ class SQLiteInitializer {
           is_delete INTEGER DEFAULT 0
         );
 
+        -- ===== 统一 ML 预测数据集 (录自 ./private/*.npy, 隐私本地) =====
+        -- 每样本 = 一个配方(formula): 变长 n 个组分的 51 维特征(含 PC1..PC20 等),
+        -- X_global 3 维, y_labels 为各目标性质(按温度)的均值/方差等。
+        CREATE TABLE IF NOT EXISTS ml_formula (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          dataset_source TEXT NOT NULL,
+          recipe_id TEXT NOT NULL,
+          n_components INTEGER NOT NULL DEFAULT 0,
+          x_global TEXT NOT NULL DEFAULT '[]',
+          x_global_names TEXT NOT NULL DEFAULT '[]',
+          y_labels TEXT NOT NULL DEFAULT '{}',
+          remark TEXT DEFAULT '',
+          create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          is_delete INTEGER DEFAULT 0,
+          UNIQUE(dataset_source, recipe_id)
+        );
+
+        -- 组分层: 每个 (source, recipe_id) 的每个组分一行, 51 特征以 JSON 存 (宽松容纳更多 PC/特征)
+        CREATE TABLE IF NOT EXISTS ml_formula_component (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          dataset_source TEXT NOT NULL,
+          recipe_id TEXT NOT NULL,
+          comp_index INTEGER NOT NULL,
+          material_id TEXT,
+          ratio_pct REAL,
+          component_features TEXT NOT NULL DEFAULT '{}',
+          create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(dataset_source, recipe_id, comp_index)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_ml_formula_source ON ml_formula(dataset_source);
+        CREATE INDEX IF NOT EXISTS idx_ml_formula_source_recipe ON ml_formula(dataset_source, recipe_id);
+        CREATE INDEX IF NOT EXISTS idx_ml_comp_source_recipe ON ml_formula_component(dataset_source, recipe_id);
+
         -- 创建索引
         CREATE INDEX IF NOT EXISTS idx_mp_mc_ids ON mp_properties(mc_ids);
         CREATE INDEX IF NOT EXISTS idx_tp_mr_ids ON tp_test_properties(mr_ids);
