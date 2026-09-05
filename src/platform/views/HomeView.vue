@@ -4,7 +4,7 @@
       <div class="platform-hero__glow" aria-hidden="true"></div>
       <p class="platform-hero__eyebrow">MATERIALS · AI · DESIGN</p>
       <h1 class="platform-hero-title">ASC Design Platform</h1>
-      <p class="platform-hero-subtitle">数智材料设计平台 — 性能预测 · 配方优化 · 服役评估 · 三维重建</p>
+      <p class="platform-hero-subtitle">数智材料设计平台 — 性能预测 · 配方优化 · 服役评估 · 仿真重建</p>
       <div class="platform-hero__rule" aria-hidden="true"><span></span></div>
     </header>
 
@@ -68,7 +68,7 @@ const models = [
   { index: '01', icon: '📈', title: '性能预测', desc: '提交配方信息，生成原料向量，预测材料性能', route: '/platform/model1' },
   { index: '02', icon: '⚗️', title: '配方优化', desc: '提交测试指标，优化配方参数，提高材料性能', route: '/platform/model2' },
   { index: '03', icon: '🌡️', title: '服役预测', desc: '提交工况指标，生成环境嵌入，评估服役性能', route: '/platform/model3' },
-  { index: '04', icon: '🎨', title: '3D温度场重建', desc: '加载结构拓扑文件和温度点文件，重构3D可视化图形', route: '/platform/model4' },
+  { index: '04', icon: '🎨', title: '仿真重建', desc: '加载结构拓扑文件和温度点文件，重构3D可视化图形', route: '/platform/model4' },
 ]
 
 const N = models.length

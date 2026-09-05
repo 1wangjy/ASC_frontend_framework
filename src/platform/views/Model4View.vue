@@ -1,6 +1,6 @@
 <template>
   <div class="platform-page">
-    <div class="page-header"><h1>3D温度场重建</h1><a class="back-btn" @click="router.push('/platform/models')">← 返回模型入口</a></div>
+    <div class="page-header"><h1>仿真重建</h1><a class="back-btn" @click="router.push('/platform/models')">← 返回模型入口</a></div>
     <div class="main-content">
       <div class="left-panel">
         <h2>数据加载</h2>

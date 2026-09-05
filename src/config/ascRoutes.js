@@ -102,7 +102,7 @@ export const ascRouteDefinitions = [
     path: '/platform/model4',
     name: 'PlatformModel4',
     component: () => import('../platform/views/Model4View.vue'),
-    meta: { title: '三维重建' }
+    meta: { title: '仿真重建' }
   }
 ]
 
