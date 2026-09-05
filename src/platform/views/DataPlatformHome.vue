@@ -314,4 +314,64 @@ function openCard(card) {
 @media (max-width: 1300px) {
   .data-cards { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 }
+
+/* ══ Slim 3D tech cards ══ */
+.data-cards { gap: 24px; }
+
+.data-card {
+  min-height: 380px;
+  padding: 26px 20px 22px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 165, 205, 0.35);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,253,255,0.92));
+  box-shadow:
+    0 24px 46px rgba(10, 40, 70, 0.16),
+    0 3px 8px rgba(10, 40, 70, 0.08);
+  transform-style: preserve-3d;
+  transition: transform 0.26s ease, box-shadow 0.26s ease, border-color 0.26s ease;
+}
+
+/* stacked bottom thickness (isometric edge) */
+.data-card::after {
+  content: '';
+  position: absolute;
+  inset: 6px -2px -7px 4px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, rgba(8,105,173,0.10), rgba(8,105,173,0.20) 55%, rgba(18,161,199,0.22));
+  border: 1px solid rgba(8,105,173,0.14);
+  z-index: -1;
+  filter: blur(0.3px);
+  transform: translateZ(-14px) rotate(0.2deg);
+  transition: transform 0.26s ease, opacity 0.26s ease;
+}
+
+/* keep top sweep but thinner + tech edge */
+.data-card::before { height: 3px; opacity: 1; box-shadow: 0 1px 10px rgba(18,161,199,0.35); }
+
+.data-card:hover {
+  transform: perspective(900px) translateY(-8px) rotateX(3deg);
+  border-color: rgba(18, 161, 199, 0.55);
+  box-shadow:
+    0 34px 64px rgba(8, 60, 105, 0.24),
+    0 0 22px rgba(18, 161, 199, 0.18),
+    0 6px 12px rgba(10,40,70,0.1);
+}
+.data-card:hover::after { opacity: .9; }
+.data-card:hover .data-card__icon { transform: translateZ(18px); }
+.data-card:hover h2 { transform: translateZ(12px); }
+
+.data-card__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: linear-gradient(150deg, #eef7fe, #dff0fc);
+  box-shadow: inset 0 0 0 1px rgba(8,105,173,0.12), 0 6px 14px rgba(8,105,173,0.12);
+  font-size: 26px;
+  transition: transform 0.26s ease;
+}
+.data-card h2 { font-size: 20px; transition: transform 0.26s ease; }
+.data-card > p { font-size: 13.5px; }
+.data-card__points { font-size: 13px; line-height: 2.05; margin-bottom: 18px; }
+
 </style>
