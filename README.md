@@ -161,6 +161,7 @@ Vite 使用 `strictPort`，如果 3005 已被占用，启动会直接失败。�
 - `/api/model2`
 - `/api/model3`
 - `/api/model4`
+- `/api/ml-dataset`
 - `/config`
 - `/health`
 
@@ -347,3 +348,24 @@ NODE_ENV=development
 ```
 
 修改环境变量后需要重启 3001。
+
+## 共享 `_code` 兄弟仓库（Model1/Model2 Python 能力前置）
+
+本仓库部分后端 Python 能力**依赖仓库外的共享 `_code` 兄弟仓库**，克隆本仓库到别处后必须满足以下前置才可跑通：
+
+- 仓库内存在软链接 `backend_impl/python/recipe_opt`，其目标为
+  `../../../_code/recipe-opt-model/src/recipe_opt`（仓库上一级 `Report-ASC/_code`）。
+- `../_code` 是一个独立的 git 仓库，需包含（至少）：
+  - `recipe-opt-model/src/recipe_opt/`（配方优化/预测核心包，被软链指向）
+  - `component-mlp-model/`（预测代理模型的数据读取）
+  - `output/`（已训练预测器 `predictor_model.pkl` 与数据集 `dataset_merged.npy`）
+
+缺失该共享仓库时，软链会悬空，以下**真实**模型能力不可用（但普通 SQLite CRUD 不受影响）：
+`POST /api/model2/optimize`（配方优化）、`GET /api/model1/materials` + `POST /api/model1/predict`（性能预测）、ML 数据集的预测相关能力。
+
+### ML 数据集与本地数据（隐私）
+
+- 最新拟用于机器学习预测的数据集位于 `./private/*.npy`（隐私，已加入 `.gitignore`，**永不提交/推送**）。结构为 780 个配方样本：每样本 `X_comp`(n×51 特征，含 PC1..PC20 等) + `X_global`(3) + `y_labels`(4 目标性质，按温度均值/方差)。
+- 载入 SQLite：`cd backend_impl && npm run ml:load`（或 `POST /api/ml-dataset/load`），幂等。
+- 拆分到业务四表：`cd backend_impl && npm run ml:materialize`（或 `POST /api/ml-dataset/materialize`），幂等。
+- 业务 SQLite 数据位于 `backend_impl/data/sqlite/database.db`（本地运行数据，不入库）。
