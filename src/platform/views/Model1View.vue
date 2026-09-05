@@ -255,7 +255,7 @@
       <section class="m1-right" aria-label="预测结果工作台">
         <div class="m1-rhead">
           <span class="m1-chip m1-chip--brand">属性预测引擎 · recipe_opt</span>
-          <span class="m1-chip">温度环: 常温(110) / 1100 / 1450 / 1500℃</span>
+          <span class="m1-chip">温度环: 常温(110) / 1100 / 1450℃</span>
           <span v-if="result" class="m1-rhead__status m1-chip m1-chip--ok">
             最近 · {{ usedCount(result) }} 原料 · {{ resultAt }}
             <template v-if="result.normalization?.applied"> · 已归一化 Σ{{ result.normalization.raw_sum }}%</template>
@@ -302,7 +302,7 @@
               <p class="m1-empty__desc">
                 在左侧「配方输入」中添加原料 (recipe_opt 96 空间) 并点击
                 <strong>预测属性</strong>。模型将真实预测 19 项性能 (体密 / 耐压 / 抗折 / 高温抗折 /
-                线变化率 / 气孔率 / 吸水率)，按温度呈现为 4 条可对比的雷达环。
+                线变化率 / 气孔率 / 吸水率)，按温度呈现为 3 条可对比的雷达环。
               </p>
             </div>
 
@@ -355,7 +355,7 @@
                 <div class="m1-side">
                   <h4 class="m1-side-title">温度环图例</h4>
                   <ul class="m1-legend">
-                    <li v-for="t in TEMPS" :key="t.key" class="m1-legend__item">
+                    <li v-for="t in DRAW_TEMPS" :key="t.key" class="m1-legend__item">
                       <span class="m1-sw" :style="{ borderColor: t.color, borderTopStyle: t.dash ? 'dashed' : 'solid' }" />
                       <span class="m1-legend__label">{{ t.label }}</span>
                       <span class="m1-legend__style">{{ t.dash ? '虚线' : '实线' }}</span>
@@ -473,6 +473,9 @@ const TEMPS = [
   { key: '1450', label: '1450℃',      color: '#009e73', dash: null },
   { key: '1500', label: '1500℃',      color: '#d55e00', dash: '6 4' },
 ]
+
+// 雷达仅绘制常温/1100/1450 三条温度环；1500℃ 保留在预测数值表 (TEMPS 全量)。
+const DRAW_TEMPS = TEMPS.filter((t) => t.key !== '1500')
 
 // 历史快照色相 (避开 4 个温度环色) —— 叠加层用色相 + 环内线型区分。
 const HISTORY_HUES = ['#cc79a7', '#56b4e9', '#7f7f7f', '#6a3d9a', '#8b4513', '#008b8b', '#c2185b', '#808000']
@@ -783,10 +786,10 @@ function buildRadar(pred) {
     return { ...f, lo, hi, vals, oriented }
   }).filter(Boolean)
 
-  const rings = TEMPS.map((t, ti) => ({
-    temp: t,
-    vals: axes.map((a) => a.oriented[ti]),
-  }))
+  const rings = DRAW_TEMPS.map((t) => {
+    const ti = TEMPS.findIndex((x) => x.key === t.key)
+    return { temp: t, vals: axes.map((a) => a.oriented[ti]) }
+  })
   return { axes, rings }
 }
 
