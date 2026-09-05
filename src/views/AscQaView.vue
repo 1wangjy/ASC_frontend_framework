@@ -951,15 +951,22 @@ onUnmounted(() => {
 }
 
 .qa-project-context button {
-  min-height: 30px;
-  padding: 0 9px;
+  min-height: 32px;
+  padding: 0 12px;
   border: 1px solid var(--asc-border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: #fff;
   color: var(--asc-primary);
   font: inherit;
-  font-weight: 750;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
+  transition: border-color .15s ease, color .15s ease, background .15s ease;
+}
+.qa-project-context button:hover {
+  border-color: var(--asc-primary);
+  color: var(--asc-primary);
+  background: var(--asc-primary-soft);
 }
 
 .qa-topbar__actions {
@@ -970,12 +977,12 @@ onUnmounted(() => {
 }
 
 .qa-topbar__action {
-  min-height: 36px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
-  padding: 0 14px;
+  padding: 0 13px;
   border: 1px solid var(--asc-border);
-  border-radius: 14px;
+  border-radius: 8px;
   background: #fff;
   color: var(--asc-heading);
   font: inherit;
@@ -988,6 +995,7 @@ onUnmounted(() => {
 .qa-topbar__action:hover {
   border-color: var(--asc-primary);
   color: var(--asc-primary);
+  background: var(--asc-primary-soft);
 }
 
 .qa-topbar__action--primary {
@@ -1209,12 +1217,12 @@ onUnmounted(() => {
 }
 
 .qa-project-message button {
-  min-height: 28px;
+  min-height: 32px;
   padding: 0 9px;
-  border: 1px solid currentColor;
-  border-radius: 6px;
-  background: #fff;
-  color: inherit;
+  border: 1px solid var(--asc-primary);
+  border-radius: 8px;
+  background: var(--asc-primary-soft);
+  color: var(--asc-primary);
   font-size: 13px;
   font-weight: 800;
 }

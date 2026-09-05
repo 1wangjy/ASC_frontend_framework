@@ -9,12 +9,16 @@
       <div class="data-hero__rule" aria-hidden="true"><span></span></div>
     </header>
 
-    <section class="data-cards">
+    <section class="data-cards" aria-label="数据平台模块浏览">
       <article
-        v-for="card in cards"
+        v-for="(card, i) in cards"
         :key="card.tab"
         class="data-card"
-        @click="openCard(card)"
+        :class="{ 'data-card--center': i === active, 'data-card--side': i !== active }"
+        :style="cardStyle(offsets[i])"
+        :tabindex="i === active ? 0 : -1"
+        @click="clickCard(i)"
+        @keydown.enter.prevent="clickCard(i)"
       >
         <div class="data-card__top">
           <div class="data-card__icon" aria-hidden="true">{{ card.icon }}</div>
@@ -30,11 +34,42 @@
           <span class="data-card__cta-arrow" aria-hidden="true">→</span>
         </button>
       </article>
+
+      <button
+        type="button"
+        class="data-cards__nav data-cards__nav--prev"
+        aria-label="上一张"
+        @click="step(-1)"
+      >
+        <span aria-hidden="true">‹</span>
+      </button>
+      <button
+        type="button"
+        class="data-cards__nav data-cards__nav--next"
+        aria-label="下一张"
+        @click="step(1)"
+      >
+        <span aria-hidden="true">›</span>
+      </button>
+
+      <div class="data-cards__dots">
+        <button
+          v-for="(card, i) in cards"
+          :key="`dot-${card.tab}`"
+          type="button"
+          class="data-cards__dot"
+          :class="{ 'is-active': i === active }"
+          :aria-label="`跳转到${card.title}`"
+          :aria-current="i === active ? 'true' : undefined"
+          @click="goTo(i)"
+        ></button>
+      </div>
     </section>
   </div>
 </template>
 
 <script setup>
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -82,10 +117,101 @@ const cards = [
   }
 ]
 
+const count = cards.length
+
+/* Sweep state: which card is centered (0..count-1) */
+const active = ref(0)
+/* Responsive shrink factor for the whole fan (keeps it on screen when narrow) */
+const fit = ref(1)
+
+/* Per-offset geometry — px spread / depth / rotateY / base scale (outer edge recedes) */
+const LAYOUT = {
+  x1: 238, x2: 420,
+  z1: -110, z2: -240,
+  rot1: 14, rot2: 24,
+  k1: 0.9, k2: 0.74
+}
+
+/* Wrap-around offset of every card relative to the active one, mapped to -2..2 */
+const offsets = computed(() =>
+  cards.map((_, i) => {
+    let o = i - active.value
+    while (o > 2) o -= count
+    while (o < -2) o += count
+    return o
+  })
+)
+
+/* Inline style per offset: centered full rect at 0, trapezoid side faces otherwise */
+function cardStyle(o) {
+  const f = fit.value
+  if (o === 0) {
+    return {
+      transform: `translate(-50%, -50%) scale(${f})`,
+      zIndex: 30,
+      opacity: 1
+    }
+  }
+  const abs = Math.abs(o)
+  const dir = o < 0 ? -1 : 1
+  const x = dir * (abs === 1 ? LAYOUT.x1 : LAYOUT.x2) * f
+  const z = abs === 1 ? LAYOUT.z1 : LAYOUT.z2
+  const ry = dir * (abs === 1 ? LAYOUT.rot1 : LAYOUT.rot2)
+  const k = (abs === 1 ? LAYOUT.k1 : LAYOUT.k2) * f
+  return {
+    transform: `translate(-50%, -50%) translate3d(${x}px, 0px, ${z}px) rotateY(${ry}deg) scale(${k})`,
+    zIndex: abs === 1 ? 20 : 10,
+    opacity: abs === 1 ? 0.92 : 0.6
+  }
+}
+
 function openCard(card) {
   if (card.route) { router.push(card.route); return }
   router.push({ path: '/platform/data', query: { tab: card.tab } })
 }
+
+function step(dir) {
+  active.value = (active.value + dir + count) % count
+  restartTimer()
+}
+
+function goTo(i) {
+  if (i === active.value) return
+  active.value = i
+  restartTimer()
+}
+
+/* Center card opens; a side card sweeps to the center first */
+function clickCard(i) {
+  if (i === active.value) { openCard(cards[i]); return }
+  goTo(i)
+}
+
+let timer = null
+function restartTimer() {
+  if (timer) { clearInterval(timer); timer = null }
+  if (count < 2) return
+  timer = setInterval(() => {
+    active.value = (active.value + 1) % count
+  }, 4000)
+}
+
+function updateFit() {
+  if (typeof window === 'undefined') return
+  const avail = Math.min(1240, window.innerWidth) - 56
+  fit.value = Math.min(1, Math.max(0.7, avail / 1180))
+}
+
+onMounted(() => {
+  updateFit()
+  window.addEventListener('resize', updateFit)
+  restartTimer()
+})
+
+onBeforeUnmount(() => {
+  if (timer) { clearInterval(timer); timer = null }
+  window.removeEventListener('resize', updateFit)
+})
 </script>
 
 <style scoped>
@@ -180,46 +306,57 @@ function openCard(card) {
   background: linear-gradient(135deg, #0869ad, #12a1c7);
 }
 
-/* ── Cards: flat light-panel grid ── */
+/* ── Cards: perspective coverflow sweep ── */
 .data-cards {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 18px;
-  margin-top: 34px;
+  position: relative;
+  height: 472px;
+  margin-top: 26px;
+  perspective: 1500px;
 }
 
 .data-card {
-  position: relative;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 300px;
+  height: 404px;
   display: flex;
   flex-direction: column;
-  padding: 20px 16px 16px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid #dce8f1;
-  box-shadow: 0 14px 34px rgba(15, 55, 88, 0.08);
+  padding: 22px 22px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #d9e5f0;
+  box-shadow: 0 18px 40px rgba(15, 55, 88, 0.1), 0 2px 6px rgba(15, 55, 88, 0.06);
   cursor: pointer;
   overflow: hidden;
-  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  transform: translate(-50%, -50%);
+  transition: transform 0.62s cubic-bezier(0.24, 0.86, 0.32, 1), opacity 0.62s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  will-change: transform, opacity;
 }
-/* light-sweep top edge on hover */
+/* light-sweep top edge accent (subtle ::before only — no stacked ::after slab) */
 .data-card::before {
   content: '';
   position: absolute;
   inset: 0 0 auto;
   height: 3px;
+  border-radius: 14px 14px 0 0;
   background: linear-gradient(90deg, #0869ad, #12a1c7, #0869ad);
   background-size: 220% 100%;
-  opacity: 0.7;
+  opacity: 0.8;
   transition: opacity 0.2s ease;
 }
-.data-card:hover {
-  transform: translateY(-5px);
-  border-color: #bcdcf2;
-  box-shadow: 0 22px 46px rgba(8, 105, 173, 0.16), 0 0 0 1px rgba(18, 161, 199, 0.12);
+.data-card--center {
+  box-shadow: 0 30px 60px rgba(8, 70, 120, 0.18), 0 2px 8px rgba(15, 55, 88, 0.08);
 }
-.data-card:hover::before {
-  animation: dataSweep 2.6s linear infinite;
+.data-card--center:hover {
+  border-color: #aecfe9;
+}
+.data-card--center:hover::before {
+  animation: dataSweep 2.4s linear infinite;
   opacity: 1;
+}
+.data-card--side:hover {
+  border-color: #cfe2f3;
 }
 @keyframes dataSweep { to { background-position: 220% 0; } }
 
@@ -311,7 +448,61 @@ function openCard(card) {
   transition: transform 0.18s ease;
 }
 
-@media (max-width: 1300px) {
-  .data-cards { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+/* ── Coverflow controls ── */
+.data-cards__nav {
+  position: absolute;
+  top: 43%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0 0 3px;
+  border-radius: 50%;
+  border: 1px solid #cddeec;
+  background: rgba(255, 255, 255, 0.92);
+  color: #0869ad;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  z-index: 40;
+  box-shadow: 0 10px 22px rgba(15, 55, 88, 0.14);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
+.data-cards__nav:hover {
+  background: #fff;
+  border-color: #9ec4e2;
+  box-shadow: 0 14px 28px rgba(8, 105, 173, 0.22);
+}
+.data-cards__nav:active { transform: translateY(-50%) scale(0.94); }
+.data-cards__nav--prev { left: 10px; }
+.data-cards__nav--next { right: 10px; }
+
+.data-cards__dots {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 40;
+}
+.data-cards__dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #c6d9e9;
+  cursor: pointer;
+  transition: width 0.25s ease, border-radius 0.25s ease, background 0.2s ease;
+}
+.data-cards__dot:hover { background: #7fb0d6; }
+.data-cards__dot.is-active {
+  width: 26px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #0869ad, #12a1c7);
+}
+
 </style>
