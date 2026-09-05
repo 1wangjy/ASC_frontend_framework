@@ -1,8 +1,31 @@
 const database = require('../config/database');
 const vectorService = require('../services/vectorService');
 const localModelService = require('../services/localModelService');
+const model1PredictionService = require('../services/model1PredictionService');
 
 class Model1Controller {
+  // 列出性能预测器的 96 原料空间
+  async listMaterials(req, res) {
+    try {
+      const data = await model1PredictionService.listMaterials();
+      res.json({ code: 200, data });
+    } catch (error) {
+      console.error('Error listing model1 materials:', error);
+      res.status(500).json({ code: 500, message: error.message || 'Internal server error' });
+    }
+  }
+
+  // 配方 -> 19 项性能预测 (真实 recipe_opt RecipePredictor)
+  async predictProperties(req, res) {
+    try {
+      const { recipe } = req.body || {};
+      const data = await model1PredictionService.predictRecipe(recipe);
+      res.json({ code: 200, data });
+    } catch (error) {
+      console.error('Error predicting properties:', error);
+      res.status(500).json({ code: 500, message: error.message || 'Internal server error' });
+    }
+  }
   // 提交配方信息
   async submitRecipe(req, res) {
     try {
