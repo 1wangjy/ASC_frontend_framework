@@ -136,4 +136,136 @@ async function optimizeRecipe(request) {
   return runOptimizer({ payload: request, command, timeoutMs });
 }
 
-module.exports = { optimizeRecipe };
+/**
+ * 流式配方优化 (POST /api/model2/optimize/stream)
+ *
+ * Spawns the same bridge with `stream: true`. Each stdout line is parsed as
+ * JSON and dispatched live:
+ *   {"type":"progress",...} -> onProgress(msg)
+ *   {"type":"result","data":{...}} -> onDone(data)
+ * Any process failure / timeout / script error without a result line ->
+ * onError(err). Returns a small handle with abort() so the caller can kill
+ * the child when the HTTP client disconnects mid-stream.
+ *
+ * @param {object} options
+ * @param {object} options.request - { algorithm, budget, targets? }
+ * @param {(msg: object) => void} options.onProgress
+ * @param {(data: object) => void} options.onDone
+ * @param {(err: Error) => void} options.onError
+ * @returns {{ abort: () => void }}
+ */
+function streamingOptimize({ request, onProgress, onDone, onError }) {
+  if (!request || typeof request !== 'object') {
+    throw optimizationError('缺少优化请求参数');
+  }
+  const command = process.env.PYTHON_CMD || 'python3';
+  const timeoutMs = parsePositiveNumber(
+    process.env.MODEL2_OPTIMIZE_TIMEOUT_MS,
+    DEFAULT_TIMEOUT_MS,
+  );
+  const payload = Object.assign({}, request, { stream: true });
+
+  if (!fs.existsSync(BRIDGE_SCRIPT)) {
+    // Defer to the caller's error callback so behaviour matches async failures.
+    process.nextTick(() => onError(optimizationError(`未找到配方优化脚本: ${BRIDGE_SCRIPT}`)));
+    return { abort() {} };
+  }
+
+  const child = spawn(command, [BRIDGE_SCRIPT], {
+    env: process.env,
+    windowsHide: true,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  let stdoutBuf = '';
+  let stderr = '';
+  let settled = false;
+  let timer;
+
+  const settle = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+  };
+  const fail = (err) => {
+    if (settled) return;
+    settle();
+    try { child.kill(); } catch { /* already gone */ }
+    onError(err);
+  };
+
+  const handleLine = (line) => {
+    const text = line.trim();
+    if (!text || settled) return;
+    let msg;
+    try {
+      msg = JSON.parse(text);
+    } catch {
+      return; // ignore stray/non-JSON stdout noise
+    }
+    if (!msg || typeof msg !== 'object') return;
+    if (msg.type === 'progress') {
+      onProgress(msg);
+    } else if (msg.type === 'result') {
+      settle();
+      try { child.kill(); } catch { /* already exited */ }
+      onDone(msg.data);
+    }
+  };
+
+  child.stdout.on('data', (chunk) => {
+    if (settled) return;
+    stdoutBuf += chunk.toString('utf8');
+    if (Buffer.byteLength(stdoutBuf, 'utf8') > MAX_PROCESS_OUTPUT_BYTES) {
+      fail(optimizationError('配方优化脚本输出过大'));
+      return;
+    }
+    let idx;
+    while (!settled && (idx = stdoutBuf.indexOf('\n')) !== -1) {
+      const line = stdoutBuf.slice(0, idx);
+      stdoutBuf = stdoutBuf.slice(idx + 1);
+      handleLine(line);
+    }
+  });
+
+  child.stderr.on('data', (chunk) => {
+    if (settled) return;
+    stderr = (stderr + chunk.toString('utf8')).slice(-MAX_PROCESS_OUTPUT_BYTES);
+  });
+
+  child.once('error', (error) => {
+    fail(optimizationError(
+      `无法启动配方优化脚本 (${command}): ${error.message}`,
+      'MODEL2_OPTIMIZE_START_FAILED',
+    ));
+  });
+
+  child.once('close', (exitCode) => {
+    if (settled) return;
+    settle();
+    onError(optimizationError(
+      stderr.trim() || `配方优化脚本异常退出 (exit ${exitCode})，未返回结果`,
+    ));
+  });
+
+  child.stdin.on('error', (error) => {
+    fail(optimizationError(`无法写入配方优化脚本: ${error.message}`));
+  });
+
+  child.stdin.write(JSON.stringify(payload));
+  child.stdin.end();
+
+  timer = setTimeout(() => {
+    fail(optimizationError('配方优化超时', 'MODEL2_OPTIMIZE_TIMEOUT'));
+  }, timeoutMs);
+
+  return {
+    abort() {
+      if (settled) return;
+      settle();
+      try { child.kill(); } catch { /* already gone */ }
+    },
+  };
+}
+
+module.exports = { optimizeRecipe, streamingOptimize };

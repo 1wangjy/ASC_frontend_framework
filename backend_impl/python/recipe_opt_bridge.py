@@ -11,9 +11,10 @@ Reads ONE JSON object from stdin:
   "budget":    int   # number of iterations (default 60)
 }
 
-Runs the optimization through the real `recipe_opt` package (symlinked at
-backend_impl/python/recipe_opt -> _code/recipe-opt-model/src/recipe_opt), then
-writes ONE JSON object to stdout — the /api/model2/optimize `data` contract:
+By default the bridge runs the optimization through the real `recipe_opt`
+package (symlinked at backend_impl/python/recipe_opt ->
+_code/recipe-opt-model/src/recipe_opt), then writes ONE JSON object to stdout —
+the /api/model2/optimize `data` contract:
 
 {
   "ok": true,
@@ -28,7 +29,13 @@ writes ONE JSON object to stdout — the /api/model2/optimize `data` contract:
   "target_met":      {"<internal property name>": bool}
 }
 
-Nothing but that object is written to stdout (logs go to stderr).
+With "stream": true the SAME search runs, but stdout becomes NDJSON: one
+{"type":"progress","iteration":<int 1-based>,"best_objective":<running
+best-so-far>,"algorithm":"<id>"} line is flushed immediately after EVERY
+evaluated candidate (real time, as evaluations happen), and after the run one
+final line {"type":"result","data":{<the payload above>}} is flushed.
+
+Nothing but those JSON lines is written to stdout (logs go to stderr).
 Exit code 0 on success; non-zero on failure.
 
 Notes
@@ -457,7 +464,16 @@ def _cost_vector_fn(predictor, targets):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-def run(request):
+def run(request, emit=None):
+    """Run one optimization.
+
+    request : dict with algorithm/budget/targets (+ optional stream flag,
+              handled by main() which supplies ``emit``).
+    emit    : optional callable(msg_dict) invoked after *every* recorded
+              candidate evaluation with a {"type":"progress", ...} payload so
+              stream mode can flush progress in real time.  None (non-stream)
+              keeps the original single-JSON-at-end behaviour byte-identical.
+    """
     algorithm = str(request.get("algorithm") or "nsga2").strip().lower()
     if algorithm not in ALGORITHMS:
         raise ValueError("未知算法: %r (可用: %s)" % (algorithm, ", ".join(sorted(ALGORITHMS))))
@@ -528,12 +544,28 @@ def run(request):
     _log("search space: %d materials" % search_space.n_materials)
 
     # ---- record every predictor.predict call (1 per evaluated candidate) -
+    # In stream mode (emit is not None) each recorded evaluation additionally
+    # flushes a {"type":"progress", ...} line to stdout *as it happens*, with
+    # the running best-so-far scalar cost — the same quantity the final trace
+    # is derived from, so the live stream and the terminal trace agree.
     evaluations = []
+    running_best = float("inf")
     orig_predict = predictor.predict
 
     def tee_predict(X, X_mask):
+        nonlocal running_best
         props = orig_predict(X, X_mask)
         evaluations.append({"X": np.array(X, copy=True), "props": props})
+        if emit is not None:
+            cost = float(np.sum(cost_vec(props)))
+            if cost < running_best:
+                running_best = cost
+            emit({
+                "type": "progress",
+                "iteration": len(evaluations),
+                "best_objective": float(running_best),
+                "algorithm": algorithm,
+            })
         return props
 
     predictor.predict = tee_predict
@@ -650,9 +682,22 @@ def main():
     if not isinstance(request, dict):
         raise ValueError("请求必须是 JSON 对象")
 
-    data = run(request)
-    sys.stdout.write(json.dumps(data, ensure_ascii=False))
-    sys.stdout.flush()
+    stream = bool(request.get("stream"))
+
+    def emit(msg):
+        sys.stdout.write(json.dumps(msg, ensure_ascii=False) + "\n")
+        sys.stdout.flush()
+
+    if stream:
+        # Real-time mode: one NDJSON line per evaluated candidate
+        # ({"type":"progress",...}), then one final result line
+        # ({"type":"result","data":{...same payload as non-stream...}}).
+        data = run(request, emit=emit)
+        emit({"type": "result", "data": data})
+    else:
+        data = run(request)
+        sys.stdout.write(json.dumps(data, ensure_ascii=False))
+        sys.stdout.flush()
     return 0
 
 

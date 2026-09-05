@@ -87,6 +87,87 @@ class Model2Controller {
       });
     }
   }
+
+  // 流式配方优化 (POST /api/model2/optimize/stream)
+  //
+  // SSE-over-POST: the bridge's NDJSON progress lines are re-framed as SSE
+  // `data:` events while the search runs; the final result is sent as an
+  // `event: done` frame followed by res.end(). Heartbeat comments keep
+  // proxies/clients from timing out during predictor cold-load gaps.
+  async streamOptimizeRecipe(req, res) {
+    const { targets, algorithm, budget } = req.body || {};
+
+    const payload = {
+      algorithm: (typeof algorithm === 'string' && algorithm) || 'nsga2',
+      budget: (typeof budget === 'number' && Number.isFinite(budget) && budget > 0)
+        ? Math.round(budget)
+        : 60
+    };
+    if (Array.isArray(targets)) {
+      payload.targets = targets;
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.setHeader('Connection', 'keep-alive');
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
+
+    let heartbeat = null;
+    const stopHeartbeat = () => {
+      if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }
+    };
+    const send = (text) => {
+      if (!res.writableEnded) {
+        try { res.write(text); } catch { /* socket gone */ }
+      }
+    };
+    heartbeat = setInterval(() => {
+      try { send(': heartbeat\n\n'); } catch { stopHeartbeat(); }
+    }, 5000);
+
+    const cleanupAndEnd = (frame) => {
+      stopHeartbeat();
+      send(frame);
+      try { res.end(); } catch { /* already ended */ }
+    };
+
+    let handle = null;
+    try {
+      handle = model2OptimizationService.streamingOptimize({
+        request: payload,
+        onProgress: (msg) => {
+          if (!res.writableEnded) send(`data: ${JSON.stringify(msg)}\n\n`);
+        },
+        onDone: (data) => {
+          cleanupAndEnd(`event: done\ndata: ${JSON.stringify(data)}\n\n`);
+        },
+        onError: (error) => {
+          console.error('Error streaming recipe optimization:', error && error.message);
+          cleanupAndEnd(
+            `event: error\ndata: ${JSON.stringify({ message: (error && error.message) || '配方优化失败' })}\n\n`
+          );
+        }
+      });
+    } catch (error) {
+      cleanupAndEnd(
+        `event: error\ndata: ${JSON.stringify({ message: error.message || '配方优化失败' })}\n\n`
+      );
+      return;
+    }
+
+    // Client disconnected mid-stream: stop heartbeats and kill the python child.
+    // Note: listen on the *response* — req 'close' on a POST fires as soon as
+    // the request body has been consumed, which would kill the stream instantly.
+    res.on('close', () => {
+      stopHeartbeat();
+      if (handle && typeof handle.abort === 'function') {
+        handle.abort();
+      }
+    });
+  }
 }
 
 module.exports = new Model2Controller();
