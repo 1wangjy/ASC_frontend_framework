@@ -10,7 +10,7 @@
       </thead>
       <tbody>
         <tr v-if="data.length === 0">
-          <td :colspan="columnDefs.length + 2" style="padding:40px;text-align:center;color:#888;">暂无数据</td>
+          <td :colspan="columnDefs.length + 2" style="padding:48px 16px;text-align:center;color:var(--asc-muted,#6b7f93);"><span style="font-size:13px">暂无数据</span></td>
         </tr>
         <tr v-for="(row, idx) in data" :key="getRowId(row) || idx"
             :class="{ 'editing-row': getRowId(row) === editingRowId }"
@@ -64,7 +64,7 @@
               <td><input v-model="editPayload.fe_ids" type="text" placeholder="FE_001,FE_002" style="padding:6px;border:1px solid #e5e7eb;border-radius:4px;width:100%" /></td>
               <td><input v-model="editPayload.mr_ids" type="text" placeholder="MR_001,MR_002" style="padding:6px;border:1px solid #e5e7eb;border-radius:4px;width:100%" /></td>
             </template>
-            <td style="white-space:nowrap;font-size:12px;color:#6b7280;">
+            <td style="white-space:nowrap;font-size:12px;color:var(--asc-muted,#6b7f93);">
               <div>创建: {{ formatTime(row.create_time) }}</div><div>更新: {{ formatTime(row.update_time) }}</div>
             </td>
             <td><div class="action-buttons"><button class="btn btn-small" :disabled="!propertyEditorValid" @click="handleSave">保存</button><button class="btn btn-secondary btn-small" @click="emit('cancelEdit')">取消</button></div></td>
@@ -72,54 +72,54 @@
           <!-- ================= 只读模式 ================= -->
           <template v-else>
             <template v-if="table === 'mc'">
-              <td><span class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'mc', row.mc_id)">{{ row.mc_id }}</span></td>
+              <td><span class="id-badge link" @click="emit('jumpToTab', 'mc', row.mc_id)">{{ row.mc_id }}</span></td>
               <td>{{ row.type || '' }}</td><td>{{ row.batch_no || '' }}</td>
               <td><ul class="component-list" style="margin:0;padding:0;list-style:none">
                 <li v-for="(comp, ci) in (Array.isArray(row.component_list) ? row.component_list : [])" :key="ci" class="component-item" :style="{ background: !comp[1] ? '#fef3c7' : '#f8fafc', padding:'4px 8px', marginBottom:'4px', borderRadius:'4px', fontSize:'13px' }">
                   <span style="font-weight:600">{{ comp[0] || '未知' }}</span><span style="color:var(--text-secondary);margin-left:8px">({{ comp[3] !== undefined ? comp[3] : 100 }}%)</span>
-                  <span v-if="comp[1]" class="id-badge" style="margin-left:6px;cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', linkTypeOf(comp[1]), comp[1])">{{ comp[1] }}</span>
+                  <span v-if="comp[1]" class="id-badge link" style="margin-left:6px" @click="emit('jumpToTab', linkTypeOf(comp[1]), comp[1])">{{ comp[1] }}</span>
                 </li>
               </ul></td>
             </template>
             <template v-else-if="table === 'mr'">
-              <td><span class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'mr', row.mr_id)">{{ row.mr_id }}</span></td>
+              <td><span class="id-badge link" @click="emit('jumpToTab', 'mr', row.mr_id)">{{ row.mr_id }}</span></td>
               <td>{{ row.formula_name || '' }}</td><td>{{ row.formula_type || '' }}</td><td>{{ row.batch_no || '' }}</td>
               <td><ul class="component-list" style="margin:0;padding:0;list-style:none">
                 <li v-for="(comp, ci) in (Array.isArray(row.component_list) ? row.component_list : [])" :key="ci" :style="{ background: !comp[1] ? '#fef3c7' : '#f8fafc', padding:'4px 8px', marginBottom:'4px', borderRadius:'4px', fontSize:'13px' }">
                   <span style="font-weight:600">{{ comp[0] || '未知' }}</span><span style="color:var(--text-secondary);margin-left:8px">({{ comp[3] !== undefined ? comp[3] : 100 }}%)</span>
-                  <span v-if="comp[1]" class="id-badge" style="margin-left:6px;cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', linkTypeOf(comp[1]), comp[1])">{{ comp[1] }}</span>
+                  <span v-if="comp[1]" class="id-badge link" style="margin-left:6px" @click="emit('jumpToTab', linkTypeOf(comp[1]), comp[1])">{{ comp[1] }}</span>
                 </li>
               </ul></td>
-              <td><template v-if="Array.isArray(row.tp_ids) && row.tp_ids.length"><span v-for="tp in row.tp_ids" :key="tp" class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'tp', tp)">{{ tp }}</span></template><span v-else>-</span></td>
+              <td><template v-if="Array.isArray(row.tp_ids) && row.tp_ids.length"><span v-for="tp in row.tp_ids" :key="tp" class="id-badge link" @click="emit('jumpToTab', 'tp', tp)">{{ tp }}</span></template><span v-else>-</span></td>
             </template>
             <template v-else-if="table === 'mp'">
-              <td><span class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'mp', row.mp_id)">{{ row.mp_id }}</span></td>
+              <td><span class="id-badge link" @click="emit('jumpToTab', 'mp', row.mp_id)">{{ row.mp_id }}</span></td>
               <td><pre class="properties-display" style="margin:0">{{ renderPropsDisplay(row.fixed_properties, row.custom_properties, false) }}</pre></td>
-              <td><template v-if="Array.isArray(row.mc_ids) && row.mc_ids.length"><span v-for="mc in row.mc_ids" :key="mc" class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'mc', mc)">{{ mc }}</span></template><span v-else>-</span></td>
+              <td><template v-if="Array.isArray(row.mc_ids) && row.mc_ids.length"><span v-for="mc in row.mc_ids" :key="mc" class="id-badge link" @click="emit('jumpToTab', 'mc', mc)">{{ mc }}</span></template><span v-else>-</span></td>
             </template>
             <template v-else-if="table === 'tp'">
-              <td><span class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'tp', row.tp_id)">{{ row.tp_id }}</span></td>
-              <td><template v-if="primaryMrId(row)"><strong>{{ formulaName(primaryMrId(row)) }}</strong><span class="id-badge formula-id" @click="emit('jumpToTab', 'mr', primaryMrId(row))">{{ primaryMrId(row) }}</span></template><span v-else>-</span></td>
+              <td><span class="id-badge link" @click="emit('jumpToTab', 'tp', row.tp_id)">{{ row.tp_id }}</span></td>
+              <td><template v-if="primaryMrId(row)"><strong>{{ formulaName(primaryMrId(row)) }}</strong><span class="id-badge link formula-id" @click="emit('jumpToTab', 'mr', primaryMrId(row))">{{ primaryMrId(row) }}</span></template><span v-else>-</span></td>
               <td><pre class="properties-display" style="margin:0">{{ row.test_results ? renderPropsDisplay(row.test_results, [], true) : '暂无测试结果' }}</pre></td>
             </template>
             <template v-else-if="table === 'fe'">
-              <td><span class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'fe', row.fe_id)">{{ row.fe_id }}</span></td>
+              <td><span class="id-badge link" @click="emit('jumpToTab', 'fe', row.fe_id)">{{ row.fe_id }}</span></td>
               <td>{{ row.condition_name || '' }}</td><td>{{ row.condition_type || '' }}</td>
               <td><pre class="properties-display" style="margin:0">{{ formatJson(row.condition_params) }}</pre></td>
-              <td><template v-if="Array.isArray(row.mr_ids) && row.mr_ids.length"><span v-for="mr in row.mr_ids" :key="mr" class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'mr', mr)">{{ mr }}</span></template><span v-else>-</span></td>
+              <td><template v-if="Array.isArray(row.mr_ids) && row.mr_ids.length"><span v-for="mr in row.mr_ids" :key="mr" class="id-badge link" @click="emit('jumpToTab', 'mr', mr)">{{ mr }}</span></template><span v-else>-</span></td>
             </template>
             <template v-else-if="table === 'ru'">
-              <td><span class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'ru', row.ru_id)">{{ row.ru_id }}</span></td>
+              <td><span class="id-badge link" @click="emit('jumpToTab', 'ru', row.ru_id)">{{ row.ru_id }}</span></td>
               <td>{{ row.service_name || '' }}</td><td>{{ row.service_type || '' }}</td>
               <td><pre class="properties-display" style="margin:0">{{ formatJson(row.service_params) }}</pre></td>
-              <td><template v-if="Array.isArray(row.fe_ids) && row.fe_ids.length"><span v-for="fe in row.fe_ids" :key="fe" class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'fe', fe)">{{ fe }}</span></template><span v-else>-</span></td>
-              <td><template v-if="Array.isArray(row.mr_ids) && row.mr_ids.length"><span v-for="mr in row.mr_ids" :key="mr" class="id-badge" style="cursor:pointer;text-decoration:underline;" @click="emit('jumpToTab', 'mr', mr)">{{ mr }}</span></template><span v-else>-</span></td>
+              <td><template v-if="Array.isArray(row.fe_ids) && row.fe_ids.length"><span v-for="fe in row.fe_ids" :key="fe" class="id-badge link" @click="emit('jumpToTab', 'fe', fe)">{{ fe }}</span></template><span v-else>-</span></td>
+              <td><template v-if="Array.isArray(row.mr_ids) && row.mr_ids.length"><span v-for="mr in row.mr_ids" :key="mr" class="id-badge link" @click="emit('jumpToTab', 'mr', mr)">{{ mr }}</span></template><span v-else>-</span></td>
             </template>
             <template v-else-if="table === 'lit'">
               <td><span class="id-badge">{{ row.lit_id }}</span></td><td>{{ row.title || '' }}</td><td>{{ row.authors || '' }}</td><td>{{ row.journal || '-' }}</td><td>{{ row.year || '-' }}</td><td>{{ row.doi || '-' }}</td><td>{{ row.entry_type || '-' }}</td>
               <td><span v-if="row.attachment"><a :href="'/api/attachment/' + row.attachment" target="_blank" class="btn btn-secondary btn-small">预览</a></span><span v-else>-</span></td>
             </template>
-            <td style="white-space:nowrap;font-size:12px;color:#6b7280;"><div>创建: {{ formatTime(row.create_time) }}</div><div>更新: {{ formatTime(row.update_time) }}</div></td>
+            <td style="white-space:nowrap;font-size:12px;color:var(--asc-muted,#6b7f93);"><div>创建: {{ formatTime(row.create_time) }}</div><div>更新: {{ formatTime(row.update_time) }}</div></td>
             <td><div class="action-buttons"><button class="btn btn-secondary btn-small" @click="emit('startEdit', row)">编辑</button><button class="btn btn-danger btn-small" @click="emit('delete', row)">删除</button></div></td>
           </template>
         </tr>
@@ -338,5 +338,8 @@ defineExpose({
 .action-buttons { display: flex; gap: 8px; }
 .properties-display { background: #f8fafc; padding: 8px 12px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; max-height: 150px; overflow-y: auto; }
 .component-item { padding: 4px 8px; margin-bottom: 4px; border-radius: 4px; font-size: 13px; }
-.formula-id { margin-left: 8px; cursor: pointer; text-decoration: underline; }
+.formula-id { margin-left: 8px; }
+.table-container td { vertical-align: middle; }
+.table-container td .properties-display { vertical-align: middle; }
+.editing-row td { background: #fff7e6 !important; }
 </style>

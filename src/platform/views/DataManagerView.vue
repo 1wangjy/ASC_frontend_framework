@@ -42,10 +42,17 @@
         <div class="tab-container">
           <button v-for="mt in MANAGE_TABS" :key="mt.key" :class="['tab-btn', { active: currentManageTable === mt.key }]" @click="switchManageTable(mt.key)">{{ mt.label }}</button>
         </div>
-        <div class="toolbar">
-          <input v-model="manageSearchFilter" type="text" placeholder="输入关键词搜索..." class="filter-input" />
-          <button class="btn" @click="openAddModal()">{{ addRecordLabel }}</button>
-          <button class="btn" @click="loadManageData()">刷新数据</button>
+        <div class="manage-toolbar">
+          <input v-model="manageSearchFilter" type="text" placeholder="输入关键词搜索当前表记录..." class="filter-input" aria-label="搜索当前数据表记录" />
+          <div class="manage-summary" aria-label="当前数据概览">
+            <span class="manage-chip manage-chip--label">{{ currentManageTableLabel }}</span>
+            <span class="manage-chip manage-chip--accent" title="当前数据表内记录总数">共 {{ manageTotalCount }} 条</span>
+            <span v-if="manageIsFiltered" class="manage-chip" title="当前关键词筛选匹配的记录数">匹配 {{ manageData.length }} 条</span>
+          </div>
+          <div class="manage-actions">
+            <button class="btn" @click="openAddModal()">{{ addRecordLabel }}</button>
+            <button class="btn btn-ghost btn-small" title="重新从服务端加载当前表数据" @click="loadManageData()">刷新数据</button>
+          </div>
         </div>
         <DataTable ref="tableRef" :data="manageData" :table="currentManageTable" :editing-row-id="editingRowId"
           :mc-options="dataStore.allMcData" :mp-options="dataStore.allMpData" :mr-options="dataStore.allMrData"
@@ -608,6 +615,9 @@ const manageData = computed(() => {
   const f = debouncedManageFilter.value.toLowerCase()
   return all.filter(item => Object.values(item).some(v => String(v).toLowerCase().includes(f)))
 })
+const currentManageTableLabel = computed(() => MANAGE_TABS.find(t => t.key === currentManageTable.value)?.label || '数据管理')
+const manageTotalCount = computed(() => dataStore.getDataByTable(currentManageTable.value)?.length || 0)
+const manageIsFiltered = computed(() => !!debouncedManageFilter.value)
 const litData = ref([])
 const isLitLoading = ref(false)
 const litLoadError = ref('')
@@ -885,6 +895,72 @@ onUnmounted(() => { isComponentMounted.value = false; if (manageDebounceTimer) c
 </script>
 
 <style scoped>
+/* ============ 数据管理（manage MAIN_TAB）工具条 ============ */
+.manage-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--asc-primary) 5%, #ffffff), #ffffff 70%);
+  border: 1px solid color-mix(in srgb, var(--asc-border) 85%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(16, 42, 67, 0.05);
+}
+
+.manage-toolbar .filter-input {
+  flex: 1 1 260px;
+  min-width: 220px;
+  margin: 0;
+  border-radius: 8px;
+}
+
+.manage-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.manage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--asc-surface-soft, #f7fafd);
+  border: 1px solid var(--asc-border);
+  color: var(--asc-muted, #6b7f93);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.manage-chip--label {
+  background: linear-gradient(135deg, #0a75bd, #0869ad 55%, #05588f);
+  border-color: var(--asc-primary, #0869ad);
+  color: #ffffff;
+}
+
+.manage-chip--accent {
+  background: var(--asc-primary-soft, #eaf5fc);
+  border-color: color-mix(in srgb, var(--asc-primary) 26%, #ffffff);
+  color: var(--asc-primary, #0869ad);
+}
+
+.manage-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+@media (max-width: 760px) {
+  .manage-actions { margin-left: 0; width: 100%; }
+  .manage-actions .btn { flex: 1; }
+}
+
 .graph-select-panel {
   display: flex;
   align-items: center;

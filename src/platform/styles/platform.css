@@ -24,7 +24,7 @@
 
 /* ── Buttons ──────────────────────────────────────── */
 .platform-page .btn {
-  background: linear-gradient(135deg, #005bac 0%, #004a8c 100%);
+  background: linear-gradient(135deg, #0a75bd 0%, #0869ad 55%, #05588f 100%);
   color: white;
   padding: 12px 24px;
   border: none;
@@ -37,7 +37,10 @@
   align-items: center;
   gap: 6px;
 }
-.platform-page .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(99,102,241,.4); }
+.platform-page .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(8,105,173,.3); }
+.platform-page .btn-ghost { background: #fff; color: var(--asc-primary, #0869ad); border: 1px solid color-mix(in srgb, var(--asc-primary, #0869ad) 34%, #ffffff); box-shadow: none; }
+.platform-page .btn-ghost:hover { background: var(--asc-primary-soft, #eaf5fc); color: var(--asc-primary-hover, #05588f); border-color: var(--asc-primary-hover, #05588f); transform: none; box-shadow: none; }
+.platform-page .btn:focus-visible, .platform-page .btn-ghost:focus-visible { outline: 2px solid var(--asc-primary, #0869ad); outline-offset: 2px; }
 .platform-page .btn:disabled { background: #dee2e6; color: #6c757d; cursor: not-allowed; transform: none; box-shadow: none; }
 .platform-page .btn-secondary { background: #f3f4f6; color: #212529; }
 .platform-page .btn-secondary:hover { background: #e5e7eb; transform: none; box-shadow: none; }
@@ -54,7 +57,7 @@
 }
 .platform-page .form-group textarea { min-height: 150px; resize: vertical; }
 .platform-page .form-group input:focus, .platform-page .form-group select:focus, .platform-page .form-group textarea:focus {
-  outline: none; border-color: #005bac; box-shadow: 0 0 0 4px rgba(99,102,241,.1);
+  outline: none; border-color: var(--asc-primary, #0869ad); box-shadow: 0 0 0 3px rgba(8,105,173,.14);
 }
 .platform-page .checkbox-group { display: flex; align-items: center; gap: 10px; }
 .platform-page .checkbox-group input[type="checkbox"] { width: auto; }
@@ -124,8 +127,8 @@
 /* ── Back Button ──────────────────────────────────── */
 .platform-page .back-btn {
   display: flex; align-items: center; gap: 8px;
-  padding: 12px 24px; background: linear-gradient(135deg, #005bac 0%, #004a8c 100%);
-  color: white; border: none; border-radius: 6px;
+  padding: 12px 24px; background: linear-gradient(135deg, #0a75bd 0%, #0869ad 55%, #05588f 100%);
+  color: white; border: none; border-radius: 7px;
   font-weight: 600; font-size: 14px; cursor: pointer;
   transition: all 0.2s ease; text-decoration: none;
 }
@@ -138,7 +141,7 @@
   transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,.05);
 }
 .platform-page .tab-btn:hover { background: rgba(0,91,172,.08); color: #005bac; }
-.platform-page .tab-btn.active { background: linear-gradient(135deg, #005bac 0%, #004a8c 100%); color: white; box-shadow: 0 4px 12px rgba(99,102,241,.3); }
+.platform-page .tab-btn.active { background: linear-gradient(135deg, #005bac 0%, #004a8c 100%); color: white; box-shadow: 0 4px 12px rgba(8,105,173,.3); }
 .platform-page .tab-content { display: none; }
 .platform-page .tab-content.active { display: block; }
 
@@ -163,9 +166,27 @@
 
 /* ── ID Badge ─────────────────────────────────────── */
 .platform-page .id-badge {
-  display: inline-block; background: #e0e7ff; color: #4338ca;
-  padding: 4px 8px; border-radius: 4px; font-family: 'Courier New', monospace;
-  font-size: 12px; font-weight: 600;
+  display: inline-block;
+  padding: 3px 9px;
+  background: var(--asc-primary-soft, #eaf5fc);
+  color: var(--asc-primary, #0869ad);
+  border: 1px solid color-mix(in srgb, var(--asc-primary, #0869ad) 16%, #ffffff);
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.6;
+}
+.platform-page .id-badge.link {
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color .16s ease, color .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.platform-page .id-badge.link:hover {
+  background: #ffffff;
+  border-color: var(--asc-primary, #0869ad);
+  color: var(--asc-primary-hover, #05588f);
+  box-shadow: 0 0 0 3px rgba(8,105,173,.1);
 }
 
 /* ── Modal ────────────────────────────────────────── */
@@ -404,10 +425,10 @@
 .platform-page .rp-section { background: #fff; border-radius: 10px; padding: 32px; box-shadow: 0 4px 18px rgba(0,0,0,.07); margin-bottom: 24px; }
 .platform-page .rp-label { display: block; margin-bottom: 8px; font-weight: 600; color: #212529; font-size: 14px; }
 .platform-page .rp-textarea { width: 100%; padding: 14px 16px; border: 2px solid #dee2e6; border-radius: 6px; font-family: inherit; font-size: 15px; transition: all .2s ease; background: white; resize: vertical; min-height: 300px; }
-.platform-page .rp-textarea:focus { outline: none; border-color: #005bac; box-shadow: 0 0 0 4px rgba(99,102,241,.1); }
+.platform-page .rp-textarea:focus { outline: none; border-color: var(--asc-primary, #0869ad); box-shadow: 0 0 0 3px rgba(8,105,173,.14); }
 .platform-page .rp-btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
-.platform-page .rp-btn { background: #005bac; color: white; padding: 12px 24px; border: none; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all .2s ease; }
-.platform-page .rp-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(99,102,241,.4); }
+.platform-page .rp-btn { background: linear-gradient(135deg, #0a75bd 0%, #0869ad 55%, #05588f 100%); color: white; padding: 12px 24px; border: none; border-radius: 7px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all .2s ease; }
+.platform-page .rp-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(8,105,173,.3); }
 .platform-page .rp-btn:disabled { background: #dee2e6; color: #6c757d; cursor: not-allowed; transform: none; }
 .platform-page .rp-btn-secondary { background: #f3f4f6; color: #212529; }
 .platform-page .rp-btn-secondary:hover { background: #e5e7eb; transform: none; box-shadow: none; }
@@ -504,5 +525,23 @@
 .platform-page .section h2,
 .platform-page .rp-section h2 {
   color: #16324f;
+}
+
+/* Manage surface: data-toolbar search + inline row editors get a soft brand
+   border and a focus ring consistent with the modal inputs. */
+.platform-page .filter-input { border-color: #cfd9e3; background: #fff; }
+.platform-page .filter-input:focus {
+  border-color: var(--asc-primary, #0869ad);
+  box-shadow: 0 0 0 3px rgba(8,105,173,.14);
+  outline: none;
+}
+.platform-page .component-edit-input:focus,
+.platform-page td select:focus,
+.platform-page td input[type="text"]:focus,
+.platform-page td input[type="number"]:focus,
+.platform-page td textarea:focus {
+  outline: none;
+  border-color: var(--asc-primary, #0869ad) !important;
+  box-shadow: 0 0 0 3px rgba(8,105,173,.14);
 }
 

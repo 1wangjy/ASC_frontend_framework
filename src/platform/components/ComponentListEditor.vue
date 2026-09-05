@@ -9,16 +9,16 @@
           @input="handleIdInput(index, $event.target.value)"
           @blur="setTimeout(() => activeDropdown = null, 150)" />
         <div v-if="activeDropdown && activeDropdown.itemIndex === index" class="search-dropdown" style="position:absolute;top:100%;left:0;z-index:30;width:300px">
-          <div v-if="tableType === 'mc'" class="search-dropdown-item create-option" style="padding:8px 12px;cursor:pointer;color:#6366f1;font-size:13px"
+          <div v-if="tableType === 'mc'" class="search-dropdown-item create-option" style="padding:8px 12px;cursor:pointer;color:var(--asc-primary, #0869ad);font-size:13px"
             @mousedown.prevent="emit('openCreateMp', index)">+ 添加/修改物性数据 (MP)</div>
-          <div v-if="tableType === 'mr'" class="search-dropdown-item create-option" style="padding:8px 12px;cursor:pointer;color:#6366f1;font-size:13px"
+          <div v-if="tableType === 'mr'" class="search-dropdown-item create-option" style="padding:8px 12px;cursor:pointer;color:var(--asc-primary, #0869ad);font-size:13px"
             @mousedown.prevent="emit('openCreateMc')">+ 新建原料数据 (MC)</div>
           <template v-if="dropdownOptions.length > 0">
             <div style="padding:4px 8px;font-size:11px;color:#6b7280;background:#f9fafb">可选关联</div>
             <div v-for="opt in dropdownOptions" :key="opt.id" class="search-dropdown-item" style="padding:8px 12px;cursor:pointer;font-size:13px"
               @mousedown.prevent="selectOption(index, opt)">
               <span>{{ opt.label }}</span>
-              <span v-if="opt.mpId" :title="getMpInfoText(opt.mpId)" style="margin-left:6px;color:#6366f1;cursor:help;text-decoration:underline dotted">物性 {{ opt.mpId }}</span>
+              <span v-if="opt.mpId" :title="getMpInfoText(opt.mpId)" style="margin-left:6px;color:var(--asc-primary, #0869ad);cursor:help;text-decoration:underline dotted">物性 {{ opt.mpId }}</span>
             </div>
           </template>
         </div>
