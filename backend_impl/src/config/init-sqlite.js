@@ -274,6 +274,32 @@ class SQLiteInitializer {
         CREATE INDEX IF NOT EXISTS idx_ml_formula_source_recipe ON ml_formula(dataset_source, recipe_id);
         CREATE INDEX IF NOT EXISTS idx_ml_comp_source_recipe ON ml_formula_component(dataset_source, recipe_id);
 
+        -- ML 数据集元数据 / 特征归一化统计 (供后续训练口径统一, 特征名与统计存库)
+        CREATE TABLE IF NOT EXISTS ml_dataset_meta (
+          dataset_source TEXT PRIMARY KEY,
+          sample_count INTEGER NOT NULL DEFAULT 0,
+          total_component_count INTEGER NOT NULL DEFAULT 0,
+          comp_feature_names TEXT NOT NULL DEFAULT '[]',
+          global_feature_names TEXT NOT NULL DEFAULT '[]',
+          y_feature_keys TEXT NOT NULL DEFAULT '[]',
+          dataset_version TEXT DEFAULT '1',
+          ingested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          remark TEXT DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS ml_feature_stats (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          dataset_source TEXT NOT NULL,
+          feature_name TEXT NOT NULL,
+          feature_kind TEXT NOT NULL CHECK(feature_kind IN ('comp','global')),
+          count INTEGER NOT NULL DEFAULT 0,
+          mean REAL,
+          std REAL,
+          min REAL,
+          max REAL,
+          create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(dataset_source, feature_name, feature_kind)
+        );
+
         -- 创建索引
         CREATE INDEX IF NOT EXISTS idx_mp_mc_ids ON mp_properties(mc_ids);
         CREATE INDEX IF NOT EXISTS idx_tp_mr_ids ON tp_test_properties(mr_ids);

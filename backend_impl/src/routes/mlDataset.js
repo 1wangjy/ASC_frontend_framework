@@ -65,4 +65,31 @@ router.get('/components', async (req, res) => {
   }
 });
 
+
+// 数据集元数据（每源 feature 名/sample 数/version）。
+router.get('/meta', async (req, res) => {
+  try {
+    const rows = await database.query(
+      'SELECT dataset_source, sample_count, total_component_count, comp_feature_names, global_feature_names, y_feature_keys, dataset_version, ingested_at FROM ml_dataset_meta ORDER BY dataset_source'
+    );
+    res.json({ code: 200, data: rows });
+  } catch (e) { res.status(500).json({ code: 500, message: e.message }); }
+});
+
+// 特征归一化统计（source + feature 粒度），支持 feature 过滤。供后续训练归一化口径。
+router.get('/stats', async (req, res) => {
+  try {
+    const { feature, source } = req.query;
+    let sql = 'SELECT dataset_source, feature_name, feature_kind, count, mean, std, min, max FROM ml_feature_stats';
+    const cond = []; const params = [];
+    if (source) { cond.push('dataset_source = ?'); params.push(source); }
+    if (feature) { cond.push('feature_name = ?'); params.push(feature); }
+    if (cond.length) sql += ' WHERE ' + cond.join(' AND ');
+    sql += ' ORDER BY dataset_source, feature_kind, feature_name';
+    const rows = await database.query(sql, params);
+    res.json({ code: 200, data: rows });
+  } catch (e) { res.status(500).json({ code: 500, message: e.message }); }
+});
+
 module.exports = router;
+
