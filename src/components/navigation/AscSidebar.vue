@@ -562,12 +562,11 @@ watch(
   background: rgba(255, 255, 255, 0.07);
   color: #f2f8fd;
 }
-.nav-subitem.router-link-exact-active,
 .nav-subitem.is-active {
   color: #fff;
   font-weight: 650;
 }
-.nav-subitem.router-link-exact-active, .nav-subitem.is-active .nav-subitem__dot {
+.nav-subitem.is-active .nav-subitem__dot {
   opacity: 1;
   box-shadow: 0 0 0 3px rgba(79, 183, 236, 0.18);
 }
