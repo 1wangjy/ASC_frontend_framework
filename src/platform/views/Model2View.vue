@@ -792,18 +792,18 @@ function predVal(key) {
 </script>
 
 <style scoped>
-/* ── page / deck shells (override platform .card for density) ── */
-.model2-page { color: #16324f; padding: 12px 20px; }
-.model2-page .page-header { margin-bottom: 10px; }
-.model2-page .page-header h1 { font-size: 22px; }
-.model2-page .back-btn { padding: 7px 14px; font-size: 12.5px; }
+/* ── page / deck shells (shared chrome tokens from platform.css) ── */
+.model2-page { color: #16324f; padding: var(--pl-gutter-y, 12px) var(--pl-gutter-x, 20px); }
+.model2-page .page-header { margin-bottom: var(--pl-header-mb, 10px); }
+.model2-page .page-header h1 { font-size: var(--pl-header-h1, 22px); }
+.model2-page .back-btn { padding: var(--pl-back-pad, 7px 14px); font-size: var(--pl-back-fs, 12.5px); }
 .m2-page .card {
-  padding: 12px 16px 14px;
-  margin-bottom: 12px;
-  border-radius: 12px;
+  padding: var(--pl-card-pad, 12px 16px 14px);
+  margin-bottom: var(--pl-card-mb, 12px);
+  border-radius: var(--pl-card-radius, 12px);
 }
 .m2-page .card h2 { margin-bottom: 0; }
-.m2-page .card::before { height: 3px; border-radius: 12px 12px 0 0; }
+.m2-page .card::before { height: 3px; border-radius: var(--pl-card-radius, 12px) var(--pl-card-radius, 12px) 0 0; }
 
 /* header */
 .m2-header { align-items: flex-start; }

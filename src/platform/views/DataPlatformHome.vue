@@ -217,8 +217,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .data-home {
   min-height: 100vh;
-  padding: 0 28px 56px;
-  max-width: 1240px;
+  /* shared page gutter + centered column tokens (platform.css) */
+  padding: 0 var(--pl-gutter-x, 20px) 56px;
+  max-width: var(--pl-maxw, 1400px);
   margin: 0 auto;
   color: var(--asc-heading);
   background:

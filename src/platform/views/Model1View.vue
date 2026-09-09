@@ -902,17 +902,17 @@ function onPick(ev) {
 </script>
 
 <style scoped>
-/* ── page / card shells (density overrides, mirrors Model2) ── */
-.model1-page { color: #16324f; padding: 12px 20px; }
-.model1-page .page-header { margin-bottom: 10px; }
-.model1-page .page-header h1 { font-size: 22px; }
-.model1-page .back-btn { padding: 7px 14px; font-size: 12.5px; }
+/* ── page / card shells (shared chrome tokens from platform.css) ── */
+.model1-page { color: #16324f; padding: var(--pl-gutter-y, 12px) var(--pl-gutter-x, 20px); }
+.model1-page .page-header { margin-bottom: var(--pl-header-mb, 10px); }
+.model1-page .page-header h1 { font-size: var(--pl-header-h1, 22px); }
+.model1-page .back-btn { padding: var(--pl-back-pad, 7px 14px); font-size: var(--pl-back-fs, 12.5px); }
 .m1-page .card {
-  padding: 12px 16px 14px;
-  margin-bottom: 12px;
-  border-radius: 12px;
+  padding: var(--pl-card-pad, 12px 16px 14px);
+  margin-bottom: var(--pl-card-mb, 12px);
+  border-radius: var(--pl-card-radius, 12px);
 }
-.m1-page .card::before { height: 3px; border-radius: 12px 12px 0 0; }
+.m1-page .card::before { height: 3px; border-radius: var(--pl-card-radius, 12px) var(--pl-card-radius, 12px) 0 0; }
 .m1-page .card h2 { margin-bottom: 0; }
 
 /* header */

@@ -145,8 +145,9 @@ onBeforeUnmount(() => clearInterval(timer))
 
 <style scoped>
 .platform-home {
-  padding: 0 24px 56px;
-  max-width: 1280px;
+  /* shared page gutter + centered column tokens (platform.css) */
+  padding: 0 var(--pl-gutter-x, 20px) 56px;
+  max-width: var(--pl-maxw, 1400px);
   margin: 0 auto;
   overflow: hidden;
 }
