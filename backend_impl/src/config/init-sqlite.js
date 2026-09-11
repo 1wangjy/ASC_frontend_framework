@@ -300,6 +300,24 @@ class SQLiteInitializer {
           UNIQUE(dataset_source, feature_name, feature_kind)
         );
 
+        -- 文献内容文件索引 (local provider 引用/存储条目)
+        CREATE TABLE IF NOT EXISTS lit_file (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          lit_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          path TEXT NOT NULL,
+          storage TEXT NOT NULL,
+          size INTEGER,
+          sha256 TEXT,
+          mime TEXT,
+          source TEXT,
+          create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(lit_id, kind, filename)
+        );
+        CREATE INDEX IF NOT EXISTS idx_lit_file_lit ON lit_file(lit_id);
+        CREATE INDEX IF NOT EXISTS idx_lit_file_sha ON lit_file(sha256);
+
         -- 创建索引
         CREATE INDEX IF NOT EXISTS idx_mp_mc_ids ON mp_properties(mc_ids);
         CREATE INDEX IF NOT EXISTS idx_tp_mr_ids ON tp_test_properties(mr_ids);
