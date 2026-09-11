@@ -17,9 +17,9 @@
     </div>
 
     <!-- ════ One card · two columns: LEFT config / RIGHT live results ════ -->
-    <div class="card m2-shell m2-layout">
+    <div class="card m2-shell m2-layout pl-eqcols">
       <!-- ── LEFT: 目标定义 + 搜索配置 (compact, stacked) ── -->
-      <aside class="m2-left" aria-label="优化配置">
+      <aside class="m2-left pl-eqcol" aria-label="优化配置">
         <!-- 目标定义 -->
         <section class="m2-sec" aria-label="目标定义">
           <header class="m2-sec__head">
@@ -174,8 +174,8 @@
       </aside>
 
       <!-- ── RIGHT: header chips + sub-tabs panel ── -->
-      <section class="m2-right" aria-label="优化结果面板">
-        <div class="m2-right__chips">
+      <section class="m2-right pl-eqcol" aria-label="优化结果面板">
+        <div class="m2-right__chips pl-workbench-head">
           <span v-if="status === 'running'" class="m2-chip m2-chip--running"><i class="m2-spin" />实时搜索中 · 已评估 {{ evaluatedCount }}/{{ budget }}</span>
           <span v-else-if="hasRun && optResult" class="m2-chip m2-chip--ok">
             <i class="m2-dot m2-dot--ok" />最近完成 · {{ algoName(optResult.algorithm) }} · {{ optResult.iterations }} 轮 · 最优 {{ fmt(optResult.best_objective) }}
@@ -183,7 +183,7 @@
           <span v-else class="m2-chip">优化结果将在此实时呈现</span>
         </div>
 
-        <div class="m2-panel">
+        <div class="m2-panel pl-eqfill">
           <div v-if="errorMsg" class="m2-panel__err" role="alert">{{ errorMsg }}</div>
           <div class="m2-tabs" role="tablist" aria-label="优化结果子页">
             <button
@@ -200,7 +200,7 @@
             >最优配方与预测性能</button>
           </div>
 
-          <div class="m2-tab-body">
+          <div class="m2-tab-body pl-eqfill pl-scroll">
             <!-- ── Tab 1: 优化轨迹 · 收敛状态 ── -->
             <div v-show="activeTab === 'traj'" id="m2-tabpanel-traj" role="tabpanel" aria-labelledby="m2-tab-traj">
               <!-- running: live trajectory -->
@@ -824,10 +824,14 @@ function predVal(key) {
 .m2-dot--ok { background: #16a34a; }
 .m2-spin { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #9fc9e8; border-top-color: #0869ad; animation: m2-rot .8s linear infinite; display: inline-block; }
 
-/* ── two-column layout ── */
-.m2-layout { display: grid; grid-template-columns: minmax(310px, 370px) minmax(0, 1fr); gap: 12px; align-items: start; }
-.m2-left { display: flex; flex-direction: column; gap: 10px; min-width: 0; font-size: 12.5px; color: #2c4a63; }
-.m2-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+/* ── two-column layout — both columns stretch to ONE row height (.pl-eqcols);
+   the column ceiling keeps a tall result body scrolling inside the column ── */
+.m2-layout { display: grid; grid-template-columns: minmax(310px, 370px) minmax(0, 1fr); gap: var(--pl-workbench-gap, 12px); }
+.m2-left {
+  gap: var(--pl-workbench-col-gap, 10px); font-size: 12.5px; color: #2c4a63;
+  max-height: var(--pl-workbench-col-max, 760px); overflow: auto;
+}
+.m2-right { gap: var(--pl-workbench-col-gap, 10px); max-height: var(--pl-workbench-col-max, 760px); }
 
 /* left sections (compact) */
 .m2-sec {
@@ -939,8 +943,9 @@ function predVal(key) {
 .m2-opt-hint { margin: 2px 0 0; font-size: 11px; color: #72879c; line-height: 1.65; }
 .m2-opt-hint strong { color: #0869ad; }
 
-/* action bar */
-.m2-left__actions { display: flex; flex-direction: column; gap: 7px; }
+/* action bar — pinned to the column foot so leftover height reads as
+   intentional spacing rather than a trailing gap */
+.m2-left__actions { display: flex; flex-direction: column; gap: 7px; margin-top: auto; }
 .m2-left__btns { display: flex; gap: 8px; align-items: center; }
 .m2-run-btn {
   font: inherit; font-size: 13.5px; font-weight: 750; color: #fff;
@@ -964,13 +969,13 @@ function predVal(key) {
 .m2-reset-btn:hover:not(:disabled) { border-color: #b7c6d4; color: #17324d; }
 .m2-reset-btn:disabled { opacity: .5; cursor: not-allowed; }
 
-/* right header chips */
-.m2-right__chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-height: 26px; }
+/* right header chips — geometry shared via .pl-workbench-head */
 
 /* panel + sub-tabs */
 .m2-panel {
-  background: #fff; border: 1px solid #e6edf3; border-radius: 11px;
-  padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 11px; min-width: 0;
+  background: #fff; border: 1px solid #e6edf3; border-radius: var(--pl-workbench-radius, 11px);
+  padding: var(--pl-workbench-pad, 12px 14px 14px);
+  display: flex; flex-direction: column; gap: 11px; min-width: 0; min-height: 0;
 }
 .m2-panel__err {
   font-size: 12.5px; font-weight: 650; color: #b23a2e; background: #fdeeec;
@@ -986,7 +991,14 @@ function predVal(key) {
   cursor: pointer; transition: all .15s ease; white-space: nowrap;
 }
 .m2-tab.is-on { background: #fff; color: #005bac; box-shadow: 0 1px 5px rgba(23,50,77,.16); }
-.m2-tab-body { min-width: 0; }
+.m2-tab-body {
+  display: flex; flex-direction: column;
+  min-width: 0; min-height: var(--pl-workbench-body-min, 380px);
+}
+/* the active sub-tab panel fills the stretched body region; its blocks keep
+   their natural height so the body scrolls instead of squashing content */
+.m2-tab-body > div { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.m2-tab-body > div > *:not(.m2-tab-empty) { flex: none; }
 
 /* live state */
 .m2-live { display: flex; flex-direction: column; gap: 8px; margin-bottom: 2px; }
@@ -1097,7 +1109,7 @@ function predVal(key) {
 .m2-pred-cell--no .m2-pred-cell__flag { background: #dc2626; color: #fff; }
 
 /* tab empty states */
-.m2-tab-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 24px 26px 28px; text-align: center; }
+.m2-tab-empty { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 24px 26px 28px; text-align: center; }
 .m2-tab-empty__art { margin-bottom: 0; opacity: .9; }
 .m2-tab-empty__art svg { width: 46px; height: 46px; }
 .m2-tab-empty__title { margin: 0; font-size: 16px; font-weight: 750; color: #17324d; }
@@ -1119,6 +1131,8 @@ function predVal(key) {
 }
 @media (max-width: 960px) {
   .m2-layout { grid-template-columns: 1fr; }
+  /* stacked: heights go back to content-driven, no column ceiling */
+  .m2-left, .m2-right { max-height: none; overflow: visible; }
   .m2-result__grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {

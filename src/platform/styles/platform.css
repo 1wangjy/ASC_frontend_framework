@@ -57,6 +57,26 @@
   --pl-ctl-radius: 8px;
   --pl-tab-pad: 7px 16px;
   --pl-input-pad: 6px 12px;
+
+  /* ── Equal-height two-column workbench (Model1 性能预测 / Model2 配方优化) ──
+     Both pages render ONE card holding a left tool column and a right
+     workbench column. The grid row stretches (`.pl-eqcols`), so the two
+     columns always render at ONE height — tops flush, bottoms flush. A column
+     whose content is shorter simply grows, its leftover acting as a flexible
+     spacer; a column whose content is taller keeps the card at the row height
+     and scrolls its body region internally instead of leaving a ragged bottom. */
+  --pl-workbench-gap: 12px;             /* gap between the two columns */
+  --pl-workbench-col-gap: 10px;         /* gap inside a column stack */
+  --pl-workbench-head-min: 26px;        /* right workbench header (chip) row */
+  --pl-workbench-head-gap: 8px;
+  --pl-workbench-radius: 11px;          /* right workbench panel radius */
+  --pl-workbench-pad: 12px 14px 14px;   /* right workbench panel padding */
+  --pl-workbench-body-min: 380px;       /* min body height: empty states and
+                                           charts sit in a sized panel */
+  /* Column ceiling — past it the body scrolls inside the column rather than
+     pushing the page taller. Applied identically to BOTH columns on a page so
+     they stay flush in every state. */
+  --pl-workbench-col-max: clamp(560px, 76vh, 760px);
 }
 
 .platform-page {
@@ -590,5 +610,23 @@
   outline: none;
   border-color: var(--asc-primary, #0869ad) !important;
   box-shadow: 0 0 0 3px rgba(8,105,173,.14);
+}
+
+/* ══ Equal-height two-column workbench (Model1 / Model2) ═════════════════
+   Layout contract shared by both pages, driven by the --pl-workbench-* tokens
+   above. `.pl-eqcols` on the two-column grid stretches the row so both columns
+   always share one height; `.pl-eqcol` makes each column a flex stack;
+   `.pl-eqfill` marks the region that claims the leftover height (so a sized
+   empty state or chart fills the panel); `.pl-scroll` lets a body whose content
+   exceeds --pl-workbench-col-max scroll INSIDE its column — the card stays the
+   row height instead of growing the page unevenly. */
+.platform-page .pl-eqcols { align-items: stretch; }
+.platform-page .pl-eqcol { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.platform-page .pl-eqfill { flex: 1 1 auto; }
+.platform-page .pl-scroll { overflow: auto; overscroll-behavior: contain; }
+.platform-page .pl-workbench-head {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--pl-workbench-head-gap, 8px);
+  min-height: var(--pl-workbench-head-min, 26px);
 }
 

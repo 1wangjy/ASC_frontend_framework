@@ -20,9 +20,9 @@
     </div>
 
     <!-- ════ Two-panel shell: LEFT tools / RIGHT results ════ -->
-    <div class="card m1-shell m1-layout">
+    <div class="card m1-shell m1-layout pl-eqcols">
       <!-- ── LEFT: multi-tab tool card (default 配方输入) ── -->
-      <aside class="m1-left" aria-label="性能预测 · 配方输入与工具">
+      <aside class="m1-left pl-eqcol" aria-label="性能预测 · 配方输入与工具">
         <div class="m1-tabbar" role="tablist" aria-label="左侧工具页签">
           <button
             v-for="t in TABS" :key="t.id" type="button" role="tab"
@@ -36,7 +36,7 @@
 
         <!-- ════ TAB · 配方输入 (default) ════ -->
         <section v-show="activeTab === 'recipe'" id="m1-panel-recipe" role="tabpanel"
-          aria-labelledby="m1-tab-recipe" class="m1-body m1-recipe">
+          aria-labelledby="m1-tab-recipe" class="m1-body m1-recipe pl-eqfill pl-scroll">
           <div class="m1-sec-head">
             <div>
               <h3 class="m1-sec-title">组成编辑 <span class="m1-sec-badge">96 原料</span></h3>
@@ -133,7 +133,7 @@
 
         <!-- ════ TAB · 匹配状态 ════ -->
         <section v-show="activeTab === 'status'" id="m1-panel-status" role="tabpanel"
-          aria-labelledby="m1-tab-status" class="m1-body m1-status">
+          aria-labelledby="m1-tab-status" class="m1-body m1-status pl-eqfill pl-scroll">
           <div class="m1-sec-head">
             <div>
               <h3 class="m1-sec-title">解析匹配状态</h3>
@@ -179,7 +179,7 @@
 
         <!-- ════ TAB · 多模态上传 (预留) ════ -->
         <section v-show="activeTab === 'upload'" id="m1-panel-upload" role="tabpanel"
-          aria-labelledby="m1-tab-upload" class="m1-body">
+          aria-labelledby="m1-tab-upload" class="m1-body pl-eqfill pl-scroll">
           <div class="m1-sec-head">
             <div>
               <h3 class="m1-sec-title">多模态配方上传</h3>
@@ -212,7 +212,7 @@
 
         <!-- ════ TAB · Embedding 分析 (预留) ════ -->
         <section v-show="activeTab === 'embed'" id="m1-panel-embed" role="tabpanel"
-          aria-labelledby="m1-tab-embed" class="m1-body">
+          aria-labelledby="m1-tab-embed" class="m1-body pl-eqfill pl-scroll">
           <div class="m1-sec-head">
             <div>
               <h3 class="m1-sec-title">配方 Embedding 分析</h3>
@@ -232,7 +232,7 @@
 
         <!-- ════ TAB · 相似度分析 (预留) ════ -->
         <section v-show="activeTab === 'sim'" id="m1-panel-sim" role="tabpanel"
-          aria-labelledby="m1-tab-sim" class="m1-body">
+          aria-labelledby="m1-tab-sim" class="m1-body pl-eqfill pl-scroll">
           <div class="m1-sec-head">
             <div>
               <h3 class="m1-sec-title">相似配方检索</h3>
@@ -252,8 +252,8 @@
       </aside>
 
       <!-- ── RIGHT: radar workbench ── -->
-      <section class="m1-right" aria-label="预测结果工作台">
-        <div class="m1-rhead">
+      <section class="m1-right pl-eqcol" aria-label="预测结果工作台">
+        <div class="m1-rhead pl-workbench-head">
           <span class="m1-chip m1-chip--brand">属性预测引擎 · recipe_opt</span>
           <span class="m1-chip">温度环: 常温(110) / 1100 / 1450℃</span>
           <span v-if="result" class="m1-rhead__status m1-chip m1-chip--ok">
@@ -264,7 +264,7 @@
         </div>
 
         <!-- ── RIGHT 结果工作台：雷达图 / 数值表 两个子页签 (默认 预测属性 · 雷达图) ── -->
-        <div class="card m1-panel m1-workbench">
+        <div class="card m1-panel m1-workbench pl-eqfill">
           <div class="m1-subtabs" role="tablist" aria-label="预测结果子页签">
             <button v-for="rt in RIGHT_TABS" :key="rt.id" type="button" role="tab"
               class="m1-subtab" :class="{ 'is-on': rightTab === rt.id }"
@@ -276,7 +276,7 @@
 
           <!-- SUB-TAB · 预测属性 · 雷达图 (default; 预测前空态停留于此) -->
           <section v-show="rightTab === 'radar'" id="m1-subpanel-radar" role="tabpanel"
-            aria-labelledby="m1-subtab-radar" class="m1-subpanel">
+            aria-labelledby="m1-subtab-radar" class="m1-subpanel pl-eqfill pl-scroll">
             <div class="m1-panel-head">
               <div>
                 <h2 class="m1-panel-title">预测属性 · 雷达图</h2>
@@ -400,7 +400,7 @@
 
           <!-- SUB-TAB · 预测数值表 -->
           <section v-show="rightTab === 'table'" id="m1-subpanel-table" role="tabpanel"
-            aria-labelledby="m1-subtab-table" class="m1-subpanel">
+            aria-labelledby="m1-subtab-table" class="m1-subpanel pl-eqfill pl-scroll">
             <div class="m1-panel-head">
               <div>
                 <h2 class="m1-panel-title">预测数值表 <span v-if="result" class="m1-panel-sub-inline">recipe_opt 单次确定性预测 · 原始值 (精度列)</span></h2>
@@ -949,14 +949,15 @@ function onPick(ev) {
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
 
-/* layout */
-.m1-layout { display: grid; grid-template-columns: minmax(340px, 384px) minmax(0, 1fr); gap: 12px; align-items: start; }
+/* layout — the two columns stretch to ONE row height (see .pl-eqcols); the
+   column ceiling keeps a tall result body scrolling inside the column. */
+.m1-layout { display: grid; grid-template-columns: minmax(340px, 384px) minmax(0, 1fr); gap: var(--pl-workbench-gap, 12px); }
 .m1-left {
-  display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  gap: 8px; max-height: var(--pl-workbench-col-max, 760px);
   font-size: 12.5px; color: #2c4a63;
   background: #f3f7fb; border: 1px solid #e3ebf3; border-radius: 10px; padding: 10px;
 }
-.m1-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.m1-right { gap: var(--pl-workbench-col-gap, 10px); max-height: var(--pl-workbench-col-max, 760px); }
 
 /* left tabbar */
 .m1-tabbar {
@@ -972,7 +973,10 @@ function onPick(ev) {
 .m1-tab:hover:not(.is-on) { color: #0869ad; background: #e9f2fa; }
 .m1-tab.is-on { background: #fff; color: #005bac; box-shadow: 0 1px 5px rgba(23,50,77,.16); }
 .m1-tab:focus-visible { outline: 2px solid #0aa3d8; outline-offset: 1px; }
-.m1-body { display: flex; flex-direction: column; gap: 9px; min-height: 380px; }
+.m1-body { display: flex; flex-direction: column; gap: 9px; min-height: var(--pl-workbench-body-min, 380px); }
+/* the tool body itself is the scroll region: children keep their natural
+   height so nothing gets squashed when the column is capped */
+.m1-body > * { flex: none; }
 
 .m1-sec-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .m1-sec-title { margin: 0; font-size: 13px; font-weight: 750; color: #17324d; letter-spacing: -.1px; }
@@ -1163,12 +1167,12 @@ function onPick(ev) {
 }
 .m1-placeholder-tile__sub { font-size: 11px; font-weight: 500; color: #8a9aa9; line-height: 1.6; }
 
-/* right header row */
-.m1-rhead { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; min-height: 24px; padding: 0 2px; }
+/* right header row (chip band — geometry shared via .pl-workbench-head) */
+.m1-rhead { padding: 0 2px; }
 .m1-rhead__status { margin-left: auto; }
 
 /* right panels */
-.m1-panel { min-width: 0; }
+.m1-panel { min-width: 0; min-height: 0; }
 .m1-panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
 .m1-panel-title { font-size: 15px; font-weight: 800; color: #17324d; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .m1-panel-sub { margin: 2px 0 0; font-size: 11px; color: #72879c; line-height: 1.6; }
@@ -1176,7 +1180,14 @@ function onPick(ev) {
 .m1-chart-actions { display: flex; gap: 6px; align-items: center; flex: none; }
 
 /* right workbench sub-tabs (segmented pills, distinct from LEFT tool tabs) */
-.m1-workbench { display: flex; flex-direction: column; gap: 10px; }
+.m1-workbench { display: flex; flex-direction: column; gap: var(--pl-workbench-col-gap, 10px); min-height: 0; }
+/* the workbench panel is the column's last flex child: no card bottom margin,
+   so its bottom edge sits flush with the tool column */
+.m1-page .m1-workbench {
+  margin-bottom: 0;
+  padding: var(--pl-workbench-pad, 12px 14px 14px);
+  border-radius: var(--pl-workbench-radius, 11px);
+}
 .m1-subtabs {
   display: inline-flex; align-self: flex-start; flex-wrap: wrap; gap: 2px;
   background: #eef4fb; border: 1px solid #d9e6f2; border-radius: 999px; padding: 3px;
@@ -1193,10 +1204,15 @@ function onPick(ev) {
   box-shadow: 0 2px 8px rgba(8,105,173,.30);
 }
 .m1-subtab:focus-visible { outline: 2px solid #0aa3d8; outline-offset: 1px; }
-.m1-subpanel { min-width: 0; }
+.m1-subpanel {
+  display: flex; flex-direction: column;
+  min-width: 0; min-height: var(--pl-workbench-body-min, 380px);
+}
+/* sub-tab body scrolls as a whole — only the empty state grows to centre */
+.m1-subpanel > *:not(.m1-empty) { flex: none; }
 
 /* empty state */
-.m1-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 30px 20px 22px; }
+.m1-empty { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 30px 20px 22px; }
 .m1-empty__glyph { opacity: .8; margin-bottom: 4px; }
 .m1-empty__title { margin: 0; font-size: 15px; font-weight: 800; color: #2c4a63; }
 .m1-empty__desc { margin: 0; max-width: 560px; font-size: 12px; color: #72879c; line-height: 1.8; }
@@ -1288,6 +1304,8 @@ function onPick(ev) {
 }
 @media (max-width: 960px) {
   .m1-layout { grid-template-columns: 1fr; }
+  /* stacked: heights go back to content-driven, no column ceiling */
+  .m1-left, .m1-right { max-height: none; }
   .m1-chartgrid { grid-template-columns: 1fr; }
   .m1-side { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items: start; }
 }
