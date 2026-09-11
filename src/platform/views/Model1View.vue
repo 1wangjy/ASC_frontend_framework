@@ -949,15 +949,15 @@ function onPick(ev) {
   clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
 }
 
-/* layout — the two columns stretch to ONE row height (see .pl-eqcols); the
-   column ceiling keeps a tall result body scrolling inside the column. */
+/* layout — the row IS the viewport fill (see .pl-eqcols), so both columns are
+   exactly that height and a taller body scrolls inside its column. */
 .m1-layout { display: grid; grid-template-columns: minmax(340px, 384px) minmax(0, 1fr); gap: var(--pl-workbench-gap, 12px); }
 .m1-left {
-  gap: 8px; max-height: var(--pl-workbench-col-max, 760px);
+  gap: 8px;
   font-size: 12.5px; color: #2c4a63;
   background: #f3f7fb; border: 1px solid #e3ebf3; border-radius: 10px; padding: 10px;
 }
-.m1-right { gap: var(--pl-workbench-col-gap, 10px); max-height: var(--pl-workbench-col-max, 760px); }
+.m1-right { gap: var(--pl-workbench-col-gap, 10px); }
 
 /* left tabbar */
 .m1-tabbar {
@@ -1303,9 +1303,8 @@ function onPick(ev) {
   .m1-layout { grid-template-columns: minmax(320px, 348px) minmax(0, 1fr); }
 }
 @media (max-width: 960px) {
+  /* stacked: heights go back to content-driven (see platform.css) */
   .m1-layout { grid-template-columns: 1fr; }
-  /* stacked: heights go back to content-driven, no column ceiling */
-  .m1-left, .m1-right { max-height: none; }
   .m1-chartgrid { grid-template-columns: 1fr; }
   .m1-side { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items: start; }
 }

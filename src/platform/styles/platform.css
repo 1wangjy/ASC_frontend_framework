@@ -73,10 +73,31 @@
   --pl-workbench-pad: 12px 14px 14px;   /* right workbench panel padding */
   --pl-workbench-body-min: 380px;       /* min body height: empty states and
                                            charts sit in a sized panel */
-  /* Column ceiling — past it the body scrolls inside the column rather than
-     pushing the page taller. Applied identically to BOTH columns on a page so
-     they stay flush in every state. */
-  --pl-workbench-col-max: clamp(560px, 76vh, 760px);
+
+  /* ── Viewport fill ────────────────────────────────────────────────────
+     The workbench spends the WHOLE viewport: its columns run from under the
+     page header down to the bottom page gutter, so on a tall screen the panels
+     stop short of nothing but the page margin. The workbench page is a
+     viewport-tall flex column and the grid claims every pixel the header
+     leaves over (see the `.pl-eqcols` block below) — exact on BOTH pages even
+     though their headers differ in height, and free of per-page constants.
+     --pl-workbench-fill restates the same bound arithmetically (the portable
+     path for engines without `:has()`/flex): viewport minus everything stacked
+     around the columns — both page gutters, the header row with its margin and
+     the card's own bottom margin, sized for the taller of the two headers.
+     --pl-workbench-floor is the short-viewport floor: it keeps a sized body
+     (body-min) plus the head band, panel chrome and gaps around it — so below
+     it the page scrolls instead of crushing or clipping the panels. */
+  --pl-vh: 100vh;                       /* fallback for engines without dvh */
+  --pl-workbench-frame: 160px;          /* 2× gutter-y + header row + its
+                                           margin + card margin-bottom */
+  --pl-workbench-fill: calc(var(--pl-vh) - var(--pl-workbench-frame));
+  --pl-workbench-floor: calc(var(--pl-workbench-body-min) + 140px);
+}
+
+/* dvh tracks the mobile browser chrome once it collapses; preferred over vh. */
+@supports (height: 100dvh) {
+  :root { --pl-vh: 100dvh; }
 }
 
 .platform-page {
@@ -614,13 +635,24 @@
 
 /* ══ Equal-height two-column workbench (Model1 / Model2) ═════════════════
    Layout contract shared by both pages, driven by the --pl-workbench-* tokens
-   above. `.pl-eqcols` on the two-column grid stretches the row so both columns
-   always share one height; `.pl-eqcol` makes each column a flex stack;
-   `.pl-eqfill` marks the region that claims the leftover height (so a sized
-   empty state or chart fills the panel); `.pl-scroll` lets a body whose content
-   exceeds --pl-workbench-col-max scroll INSIDE its column — the card stays the
-   row height instead of growing the page unevenly. */
-.platform-page .pl-eqcols { align-items: stretch; }
+   above. The workbench page is a viewport-tall flex column and the grid
+   `.pl-eqcols` claims the leftover height, so the row — and with it both
+   columns, tops flush and bottoms flush — IS the viewport fill; a column whose
+   content is shorter leaves a flexible spacer, a column whose content is
+   taller keeps the row height and scrolls INSIDE itself. `.pl-eqcol` stacks a
+   column, `.pl-eqfill` marks the region that claims the leftover height (so a
+   sized empty state or chart fills the panel) and `.pl-scroll` makes that
+   region the scroll port. `minmax(0, 1fr)` pins the row to the grid box instead
+   of letting tall content grow it, so the page never scrolls for the workbench;
+   short viewports stop at --pl-workbench-floor and scroll the page. */
+.platform-page:has(> .pl-eqcols) { display: flex; flex-direction: column; min-height: var(--pl-vh); }
+.platform-page .pl-eqcols {
+  align-items: stretch;
+  flex: 1 1 0;                          /* basis 0: the row is the FILL, never
+                                           the content — tall bodies scroll */
+  grid-template-rows: minmax(0, 1fr);
+  min-height: max(var(--pl-workbench-fill), var(--pl-workbench-floor));
+}
 .platform-page .pl-eqcol { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .platform-page .pl-eqfill { flex: 1 1 auto; }
 .platform-page .pl-scroll { overflow: auto; overscroll-behavior: contain; }
@@ -628,5 +660,13 @@
   display: flex; flex-wrap: wrap; align-items: center;
   gap: var(--pl-workbench-head-gap, 8px);
   min-height: var(--pl-workbench-head-min, 26px);
+}
+
+/* Stacked (<960px): the columns sit one above the other, so the viewport fill
+   releases — every panel hugs its own content again (the grid row goes back to
+   auto, the page back to its natural height). */
+@media (max-width: 960px) {
+  .platform-page:has(> .pl-eqcols) { display: block; min-height: 0; }
+  .platform-page .pl-eqcols { flex: none; grid-template-rows: auto; min-height: 0; }
 }
 

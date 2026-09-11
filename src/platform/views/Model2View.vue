@@ -824,14 +824,15 @@ function predVal(key) {
 .m2-dot--ok { background: #16a34a; }
 .m2-spin { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #9fc9e8; border-top-color: #0869ad; animation: m2-rot .8s linear infinite; display: inline-block; }
 
-/* ── two-column layout — both columns stretch to ONE row height (.pl-eqcols);
-   the column ceiling keeps a tall result body scrolling inside the column ── */
+/* ── two-column layout — the row IS the viewport fill (.pl-eqcols), so both
+   columns are exactly that height; the left column scrolls as a whole and a
+   taller result body scrolls inside the right column ── */
 .m2-layout { display: grid; grid-template-columns: minmax(310px, 370px) minmax(0, 1fr); gap: var(--pl-workbench-gap, 12px); }
 .m2-left {
   gap: var(--pl-workbench-col-gap, 10px); font-size: 12.5px; color: #2c4a63;
-  max-height: var(--pl-workbench-col-max, 760px); overflow: auto;
+  overflow: auto;
 }
-.m2-right { gap: var(--pl-workbench-col-gap, 10px); max-height: var(--pl-workbench-col-max, 760px); }
+.m2-right { gap: var(--pl-workbench-col-gap, 10px); }
 
 /* left sections (compact) */
 .m2-sec {
@@ -1130,9 +1131,9 @@ function predVal(key) {
   .m2-live-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 960px) {
+  /* stacked: heights go back to content-driven (see platform.css) */
   .m2-layout { grid-template-columns: 1fr; }
-  /* stacked: heights go back to content-driven, no column ceiling */
-  .m2-left, .m2-right { max-height: none; overflow: visible; }
+  .m2-left { overflow: visible; }
   .m2-result__grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
