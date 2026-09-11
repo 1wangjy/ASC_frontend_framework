@@ -1,5 +1,5 @@
 <template>
-  <div class="platform-page">
+  <div class="platform-page pl-tabfill">
     <div class="page-header"><h1>数据平台</h1><div style="display:flex;gap:8px"><button v-if="navigationHistory.length > 0" class="back-btn" @click="navigateBack"><span>←</span><span>返回</span></button></div></div>
 
     <!-- Main Tabs -->
@@ -17,7 +17,7 @@
 
     <!-- ML Dataset Section -->
     <div v-show="currentMainTab === 'ml'" class="tab-content" :class="{ active: currentMainTab === 'ml' }">
-      <div class="section"><MlDatasetView /></div>
+      <div class="section"><MlDatasetView class="pl-eqfill pl-scroll" /></div>
     </div>
 
     <!-- Parse Section -->
@@ -26,16 +26,16 @@
         <div class="tab-container">
           <button v-for="pt in PARSE_TABS" :key="pt.key" :class="['tab-btn', { active: currentParseTab === pt.key }]" @click="currentParseTab = pt.key">{{ pt.label }}</button>
         </div>
-        <div v-show="currentParseTab === 'recipe'" class="tab-content" :class="{ active: currentParseTab === 'recipe' }">
+        <div v-show="currentParseTab === 'recipe'" class="tab-content pl-scroll" :class="{ active: currentParseTab === 'recipe' }">
           <RecipeParserPanel :show-submit="true" :show-embedding="false" @submit="loadManageData" />
         </div>
-        <div v-show="currentParseTab === 'working'" class="tab-content" :class="{ active: currentParseTab === 'working' }">
+        <div v-show="currentParseTab === 'working'" class="tab-content pl-scroll" :class="{ active: currentParseTab === 'working' }">
           <div style="text-align:center;padding:80px 20px;color:#888"><div style="font-size:72px;margin-bottom:24px">⚙️</div><p style="font-size:18px;font-weight:500">工况解析功能开发中...</p></div>
         </div>
-        <div v-show="currentParseTab === 'service'" class="tab-content" :class="{ active: currentParseTab === 'service' }">
+        <div v-show="currentParseTab === 'service'" class="tab-content pl-scroll" :class="{ active: currentParseTab === 'service' }">
           <div style="text-align:center;padding:80px 20px;color:#888"><div style="font-size:72px;margin-bottom:24px">🔧</div><p style="font-size:18px;font-weight:500">服役解析功能开发中...</p></div>
         </div>
-        <div v-show="currentParseTab === 'reconstruct'" class="tab-content" :class="{ active: currentParseTab === 'reconstruct' }">
+        <div v-show="currentParseTab === 'reconstruct'" class="tab-content pl-scroll" :class="{ active: currentParseTab === 'reconstruct' }">
           <div style="text-align:center;padding:80px 20px;color:#888"><div style="font-size:72px;margin-bottom:24px">🎨</div><p style="font-size:18px;font-weight:500">重建解析功能开发中...</p></div>
         </div>
       </div>
@@ -63,7 +63,7 @@
           </div>
         </div>
         <div v-if="mlLoadMsg" :style="{ marginTop: '8px', padding: '6px 10px', borderRadius: '6px', fontSize: '12.5px', whiteSpace: 'pre-wrap', background: mlLoadErr ? '#fee2e2' : '#dcfce7', color: mlLoadErr ? '#991b1b' : '#166534' }">{{ mlLoadMsg }}</div>
-        <DataTable ref="tableRef" :data="manageData" :table="currentManageTable" :editing-row-id="editingRowId"
+        <DataTable ref="tableRef" class="pl-eqfill pl-scroll" :data="manageData" :table="currentManageTable" :editing-row-id="editingRowId"
           :mc-options="dataStore.allMcData" :mp-options="dataStore.allMpData" :mr-options="dataStore.allMrData"
           :pure-properties="propertiesStore.pureMaterialProperties" :test-properties="propertiesStore.testProperties"
           @start-edit="startEdit" @cancel-edit="cancelEdit" @save-edit="saveEdit" @delete="handleDelete"
@@ -133,13 +133,13 @@
           :status="litListStatus"
           @retry="loadLitData"
         />
-        <div v-else class="lit-workspace">
+        <div v-else class="lit-workspace pl-eqfill">
           <!-- 左栏：文库 / 分类 -->
           <aside class="lit-pane lit-rail" aria-label="文献分类">
             <div class="lit-pane-head">
               <span>我的文库</span>
             </div>
-            <div class="lit-rail__body">
+            <div class="lit-rail__body pl-eqfill pl-scroll">
               <div class="lit-rail__group">
                 <button
                   v-for="item in litLibraryCollections"
@@ -201,7 +201,7 @@
             <p v-else-if="litListStatus === 'no-results'" class="lit-no-results" role="status">
               未找到符合当前条件的文献，请调整搜索关键词或筛选条件
             </p>
-            <ul v-else class="lit-row-list">
+            <ul v-else class="lit-row-list pl-eqfill pl-scroll">
               <li
                 v-for="lit in paginatedLitData"
                 :key="lit.lit_id"
@@ -365,7 +365,7 @@
       <div class="section">
         <h2>MongoDB管理</h2>
         <p style="margin-bottom:24px;color:var(--text-secondary)">使用Mongo Express进行MongoDB数据库管理</p>
-        <div style="width:100%;height:600px;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border-color)">
+        <div class="pl-eqfill" style="width:100%;height:600px;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border-color)">
           <div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:40px"
             :style="{ backgroundColor: mongoStatusOk === true ? 'rgba(16,185,129,.1)' : mongoStatusOk === false ? 'rgba(239,68,68,.1)' : 'transparent' }">
             <div style="font-size:72px;margin-bottom:24px">📦</div>
@@ -1499,5 +1499,21 @@ onUnmounted(() => { isComponentMounted.value = false; if (manageDebounceTimer) c
 /* Detail metadata dl rows: baseline spacing consistent with rest */
 .lit-detail { padding: 16px; }
 .lit-detail__meta { margin: 0; }
+
+/* ══ Viewport fill (>=961px): marked regions claim the panel height ══
+   The shared `.pl-tabfill` contract (platform.css) makes the active main
+   panel fill the viewport; these rules let the literature workspace be that
+   fill and hand each pane its own scroll port, so the page never scrolls for
+   the tabs. <961px the release mirrors the model pages: panes hug content. */
+@media (min-width: 961px) {
+  .lit-workspace.pl-eqfill { min-height: 0; }
+  .lit-workspace.pl-eqfill .lit-pane { min-height: 0; }
+  /* detail pane scrolls on its own, header stays pinned to the top edge */
+  .lit-detail:not(.lit-detail--empty) { overflow-y: auto; }
+  .lit-detail:not(.lit-detail--empty) .lit-detail__head {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--asc-surface, #ffffff);
+  }
+}
 
 </style>

@@ -670,3 +670,42 @@
   .platform-page .pl-eqcols { flex: none; grid-template-rows: auto; min-height: 0; }
 }
 
+/* ══ Viewport-fill working page (DataManager main tabs) ══════════════════
+   The same viewport-fill contract as the model workbench above, applied to a
+   page whose body is a stack of main `.tab-content` panels instead of a
+   two-column grid. `.pl-tabfill` makes the page a viewport-tall flex column;
+   the ACTIVE main tab panel claims whatever the header + main tab bar leave
+   over, and its `.section` — then the region marked `.pl-eqfill`/`.pl-scroll`
+   (DataTable wrapper, MlDataset root, literature workspace) — stretches down
+   to the bottom page gutter. Content taller than the panel scrolls INSIDE the
+   marked region, so the page itself never scrolls for it; below
+   --pl-workbench-floor the section keeps its sized minimum and the page scrolls
+   instead of crushing the panels. Panels with no marked region (MongoDB) simply
+   fill and leave their content at its own height. Same <960px release as the
+   workbench: below it the page is a plain block again and every panel hugs its
+   own content. */
+@media (min-width: 961px) {
+  .platform-page.pl-tabfill { display: flex; flex-direction: column; min-height: var(--pl-vh); }
+  /* chrome the fill must not eat: header row, tab bars, section toolbars/titles */
+  .platform-page.pl-tabfill > .page-header,
+  .platform-page.pl-tabfill > .tab-container,
+  .platform-page.pl-tabfill .section > .tab-container,
+  .platform-page.pl-tabfill .section > .toolbar,
+  .platform-page.pl-tabfill .section > .manage-toolbar,
+  .platform-page.pl-tabfill .section > h2 { flex: 0 0 auto; }
+  .platform-page.pl-tabfill > .tab-content.active {
+    display: flex; flex-direction: column; flex: 1 1 0; min-height: 0;
+  }
+  /* basis 0: the section IS the fill, never its content — a tall body is
+     handled by the marked scroll region inside it, not by growing the panel.
+     The floor keeps a sized body on short viewports and scrolls the page. */
+  .platform-page.pl-tabfill > .tab-content.active > .section {
+    flex: 1 1 0; display: flex; flex-direction: column;
+    min-height: var(--pl-workbench-floor);
+  }
+  /* sub-tab panels (数据解析) claim the section the same way and scroll */
+  .platform-page.pl-tabfill .section > .tab-content.active {
+    display: flex; flex-direction: column; flex: 1 1 0; min-height: 0;
+  }
+}
+
