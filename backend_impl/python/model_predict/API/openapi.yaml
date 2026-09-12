@@ -1,0 +1,366 @@
+openapi: 3.0.3
+info:
+  title: Refractory Property Prediction API
+  version: 1.0.0
+  description: 耐火材料性能预测模型 HTTP 接口，输入格式对齐 yangquan.npy 的 samples[]。
+servers:
+  - url: http://localhost:8000
+security:
+  - ApiKeyAuth: []
+paths:
+  /health:
+    get:
+      summary: 健康检查
+      security: []
+      responses:
+        "200":
+          description: 服务状态
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/v1/model/metadata:
+    get:
+      summary: 获取模型元数据
+      parameters:
+        - name: variant
+          in: query
+          required: false
+          schema:
+            type: string
+            default: minmax
+      responses:
+        "200":
+          description: 模型元数据
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelMetadata"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+  /api/v1/predict:
+    post:
+      summary: 单样本预测
+      description: 接收一条 yangquan.npy samples[] 风格样本，内部完成特征工程和预测。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PredictRequest"
+            examples:
+              npySample:
+                value:
+                  request_id: web-20260911-0001
+                  sample:
+                    recipe_id: frontend-demo-001
+                    dataset_source: frontend
+                    X_comp:
+                      - [61, 10.0, 8.0, 15.0, 重质料, -3.16907, 1.18401]
+                      - [42, 30.0, 0.045, 1.0, 细粉, 5.43185, 7.20677]
+                    X_global: [3.6, 10.0, 0.0]
+                  conditions:
+                    - 110℃
+                    - 1500℃
+                  properties:
+                    - bulk_density
+                    - cold_modulus
+      responses:
+        "200":
+          description: 预测结果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+  /api/v1/predict/simple:
+    post:
+      summary: 前端最简预测
+      description: 前端只传 X_comp、X_global、conditions、properties，后端自动包装为 npy sample 格式。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimplePredictRequest"
+            examples:
+              simple:
+                value:
+                  X_comp:
+                    - [61, 70]
+                    - [42, 30]
+                  X_global: [3.6, 10.0, 0.0]
+                  conditions:
+                    - 110℃
+                    - 1500℃
+                  properties:
+                    - bulk_density
+      responses:
+        "200":
+          description: 预测结果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+  /api/v1/predict/batch:
+    post:
+      summary: 批量预测
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchPredictRequest"
+      responses:
+        "200":
+          description: 批量预测结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  request_id:
+                    type: string
+                    nullable: true
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PredictResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  responses:
+    Error:
+      description: 错误响应
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    PredictRequest:
+      type: object
+      required:
+        - sample
+      properties:
+        request_id:
+          type: string
+          nullable: true
+        sample:
+          $ref: "#/components/schemas/NpySample"
+        conditions:
+          type: array
+          nullable: true
+          description: 不传时按每个属性已训练工况全部预测。
+          items:
+            type: string
+          example: ["110℃", "1500℃"]
+        properties:
+          type: array
+          nullable: true
+          description: 不传时预测全部可用属性。
+          items:
+            type: string
+            enum:
+              - bulk_density
+              - cold_modulus
+              - crushing_strength
+              - linear_change
+    BatchPredictRequest:
+      type: object
+      required:
+        - items
+      properties:
+        request_id:
+          type: string
+          nullable: true
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/PredictRequest"
+    SimplePredictRequest:
+      type: object
+      required:
+        - X_comp
+      properties:
+        X_comp:
+          type: array
+          minItems: 1
+          description: 组分二维数组。每行列顺序必须按 component_feature_names。
+          items:
+            type: array
+            minItems: 2
+            items: {}
+        X_global:
+          oneOf:
+            - type: array
+              items: {}
+            - type: object
+              additionalProperties: true
+        conditions:
+          type: array
+          nullable: true
+          description: 不传时按每个属性已训练工况全部预测。
+          items:
+            type: string
+          example: ["110℃", "1500℃"]
+        properties:
+          type: array
+          nullable: true
+          description: 不传时预测全部可用属性。
+          items:
+            type: string
+            enum:
+              - bulk_density
+              - cold_modulus
+              - crushing_strength
+              - linear_change
+    NpySample:
+      type: object
+      required:
+        - X_comp
+      properties:
+        recipe_id:
+          type: string
+          nullable: true
+        X_comp:
+          type: array
+          minItems: 1
+          description: 组分二维数组。每行列顺序必须按 component_feature_names。
+          items:
+            type: array
+            minItems: 2
+            items: {}
+        X_global:
+          oneOf:
+            - type: array
+              items: {}
+            - type: object
+              additionalProperties: true
+        y_labels:
+          type: object
+          nullable: true
+          description: 预测时忽略。
+        remark:
+          type: string
+          nullable: true
+        dataset_source:
+          type: string
+          default: frontend
+    PredictResponse:
+      type: object
+      properties:
+        request_id:
+          type: string
+          nullable: true
+        recipe_id:
+          type: string
+          nullable: true
+        variant:
+          type: string
+        predictions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Prediction"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Warning"
+    Prediction:
+      type: object
+      properties:
+        property:
+          type: string
+        property_name_zh:
+          type: string
+        condition:
+          type: string
+        value:
+          type: number
+          nullable: true
+        unit:
+          type: string
+          nullable: true
+        model:
+          type: object
+          properties:
+            variant:
+              type: string
+            version:
+              type: string
+              nullable: true
+            name:
+              type: string
+              nullable: true
+        input_feature_count:
+          type: integer
+    Warning:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    ModelMetadata:
+      type: object
+      properties:
+        variant:
+          type: string
+        properties:
+          type: array
+          items:
+            type: object
+        component_feature_names:
+          type: array
+          items:
+            type: string
+        global_feature_names:
+          type: array
+          items:
+            type: string
+        categorical_columns:
+          type: array
+          items:
+            type: string
+        dropped_component_columns:
+          type: array
+          items:
+            type: string
+        target_condition_merge:
+          type: object
+        metrics:
+          type: array
+          items:
+            type: object

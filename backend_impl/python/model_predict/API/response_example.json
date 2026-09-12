@@ -1,0 +1,117 @@
+{
+  "request_id": "web-20260911-0001",
+  "recipe_id": "frontend-demo-001",
+  "variant": "minmax",
+  "predictions": [
+    {
+      "property": "bulk_density",
+      "property_name_zh": "体积密度",
+      "condition": "110℃",
+      "value": 2.971648931503296,
+      "unit": "g/cm3",
+      "model": {
+        "variant": "minmax",
+        "version": "V2_by_property",
+        "name": "xgboost"
+      },
+      "input_feature_count": 281
+    },
+    {
+      "property": "bulk_density",
+      "property_name_zh": "体积密度",
+      "condition": "1500℃",
+      "value": 2.9542386531829834,
+      "unit": "g/cm3",
+      "model": {
+        "variant": "minmax",
+        "version": "V2_by_property",
+        "name": "xgboost"
+      },
+      "input_feature_count": 281
+    },
+    {
+      "property": "cold_modulus",
+      "property_name_zh": "常温抗折强度",
+      "condition": "110℃",
+      "value": 11.343553069065457,
+      "unit": "MPa",
+      "model": {
+        "variant": "minmax",
+        "version": "V2_by_property",
+        "name": "lightgbm"
+      },
+      "input_feature_count": 281
+    },
+    {
+      "property": "cold_modulus",
+      "property_name_zh": "常温抗折强度",
+      "condition": "1500℃",
+      "value": 17.659357763982726,
+      "unit": "MPa",
+      "model": {
+        "variant": "minmax",
+        "version": "V2_by_property",
+        "name": "lightgbm"
+      },
+      "input_feature_count": 281
+    },
+    {
+      "property": "crushing_strength",
+      "property_name_zh": "常温耐压强度",
+      "condition": "110℃",
+      "value": 54.3864631652832,
+      "unit": "MPa",
+      "model": {
+        "variant": "minmax",
+        "version": "V2_by_property",
+        "name": "xgboost"
+      },
+      "input_feature_count": 281
+    },
+    {
+      "property": "crushing_strength",
+      "property_name_zh": "常温耐压强度",
+      "condition": "1500℃",
+      "value": 77.4543228149414,
+      "unit": "MPa",
+      "model": {
+        "variant": "minmax",
+        "version": "V2_by_property",
+        "name": "xgboost"
+      },
+      "input_feature_count": 281
+    },
+    {
+      "property": "linear_change",
+      "property_name_zh": "线变化率",
+      "condition": "110℃",
+      "value": -0.09610866010189056,
+      "unit": "%",
+      "model": {
+        "variant": "minmax",
+        "version": "V2_by_property",
+        "name": "xgboost"
+      },
+      "input_feature_count": 281
+    },
+    {
+      "property": "linear_change",
+      "property_name_zh": "线变化率",
+      "condition": "1500℃",
+      "value": 0.2975042760372162,
+      "unit": "%",
+      "model": {
+        "variant": "minmax",
+        "version": "V2_by_property",
+        "name": "xgboost"
+      },
+      "input_feature_count": 281
+    }
+  ],
+  "warnings": [
+    {
+      "code": "UNTRAINED_CONDITION",
+      "message": "linear_change has no direct training target for condition '110℃'."
+    }
+  ]
+}

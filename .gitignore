@@ -40,3 +40,8 @@ backend_impl/data
 .codegraph
 .pi
 AI4Sci-NEXUS-ASC-Development-Domain
+
+# === model_predict: 模型资产与 venv（D5 不入库） ===
+backend_impl/python/model_predict/.venv
+backend_impl/python/model_predict/MODEL/outputs/
+backend_impl/python/model_predict/FEATURE/outputs/

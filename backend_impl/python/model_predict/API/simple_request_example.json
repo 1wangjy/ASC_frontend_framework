@@ -1,0 +1,9 @@
+{
+  "X_comp": [
+    [61, 70],
+    [42, 30]
+  ],
+  "X_global": [3.6, 10, 0],
+  "conditions": ["110℃", "1500℃"],
+  "properties": ["bulk_density"]
+}

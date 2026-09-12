@@ -1,0 +1,105 @@
+{
+  "api_version": "1.0.0",
+  "default_variant": "minmax",
+  "input_format": "JSON representation of one item from yangquan.npy['samples']",
+  "sample_fields": {
+    "recipe_id": "string, optional",
+    "X_comp": "array[array], required, columns follow component_feature_names",
+    "X_global": "array or object, optional, array order follows global_feature_names",
+    "y_labels": "object, optional, ignored during prediction",
+    "remark": "string, optional, ignored during prediction",
+    "dataset_source": "string, optional"
+  },
+  "component_feature_names": [
+    "material_id",
+    "ratio_pct",
+    "particle_size_min",
+    "particle_size_max",
+    "base",
+    "PC1",
+    "PC2",
+    "PC3",
+    "PC4",
+    "PC5",
+    "PC6",
+    "PC7",
+    "PC8",
+    "PC9",
+    "PC10",
+    "PC11",
+    "PC12",
+    "PC13",
+    "PC14",
+    "PC15",
+    "PC16",
+    "PC17",
+    "PC18",
+    "PC19",
+    "PC20",
+    "SiC",
+    "SiO2",
+    "AL2O3",
+    "Fe2O3",
+    "TiO2",
+    "CaO",
+    "MgO",
+    "K2O",
+    "Na2O",
+    "PH",
+    "loss_on_ignition",
+    "bulk_density",
+    "true_density",
+    "water_absorption",
+    "porosity",
+    "moisture",
+    "d50",
+    "ph",
+    "fired_bulk_density",
+    "fired_cold_modulus",
+    "fired_crushing_strength",
+    "fired_linear_change",
+    "reserved_feature_1",
+    "reserved_feature_2",
+    "reserved_feature_3",
+    "reserved_feature_4"
+  ],
+  "global_feature_names": [
+    "water_amount",
+    "hardening_time",
+    "hardening_time_uncertainty"
+  ],
+  "model_files": {
+    "bulk_density": "MODEL/outputs/models/minmax/bulk_density.joblib",
+    "cold_modulus": "MODEL/outputs/models/minmax/cold_modulus.joblib",
+    "crushing_strength": "MODEL/outputs/models/minmax/crushing_strength.joblib",
+    "linear_change": "MODEL/outputs/models/minmax/linear_change.joblib"
+  },
+  "properties": [
+    {
+      "key": "bulk_density",
+      "name_zh": "体积密度",
+      "unit": "g/cm3",
+      "trained_conditions": ["110℃", "1100℃", "1300℃", "1500℃"]
+    },
+    {
+      "key": "cold_modulus",
+      "name_zh": "常温抗折强度",
+      "unit": "MPa",
+      "trained_conditions": ["110℃", "1100℃", "1300℃", "1500℃"]
+    },
+    {
+      "key": "crushing_strength",
+      "name_zh": "常温耐压强度",
+      "unit": "MPa",
+      "trained_conditions": ["110℃", "1100℃", "1300℃", "1500℃"]
+    },
+    {
+      "key": "linear_change",
+      "name_zh": "线变化率",
+      "unit": "%",
+      "trained_conditions": ["1100℃", "1300℃", "1500℃"]
+    }
+  ],
+  "missing_value_rule": "Use JSON null for missing values. NaN is not valid JSON.",
+  "condition_default_rule": "If conditions is omitted, the API predicts every trained condition for each requested property."
+}

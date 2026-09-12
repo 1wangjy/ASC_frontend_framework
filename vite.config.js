@@ -72,6 +72,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/api/v1': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api/ml-dataset': {
         target: 'http://127.0.0.1:3001',
         changeOrigin: true,
