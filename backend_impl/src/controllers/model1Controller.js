@@ -3,6 +3,10 @@ const vectorService = require('../services/vectorService');
 const localModelService = require('../services/localModelService');
 const model1PredictionService = require('../services/model1PredictionService');
 
+/**
+ * ⚠️ DEPRECATED (废弃)：listMaterials/predictProperties 属旧占位预测（recipe_opt 96 原料）。
+ * 规范预测请走 /api/v1/*（example 模型服务）。submitRecipe 亦为旧占位（外部 :8000）。
+ */
 class Model1Controller {
   // 列出性能预测器的 96 原料空间
   async listMaterials(req, res) {

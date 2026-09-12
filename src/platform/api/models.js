@@ -6,11 +6,13 @@ export function submitModel1(data) {
 }
 
 // 列出性能预测器的 96 原料空间
+// ⚠️ DEPRECATED：旧占位预测(96 原料)。新规范 API 见 src/platform/api/predictV1.js (/api/v1)。
 export function fetchModel1Materials() {
   return request.get('/api/model1/materials').then(unwrapApiResult)
 }
 
 // 配方 -> 19 项性能预测 (真实 recipe_opt RecipePredictor)
+// ⚠️ DEPRECATED：旧占位预测。改用 predictV1(/api/v1/predict/simple)。
 export function predictModel1(recipe) {
   return request.post('/api/model1/predict', { recipe }).then(unwrapApiResult)
 }

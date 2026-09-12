@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+"""⚠️ DEPRECATED (废弃) — 旧占位预测桥(recipe_opt 96 原料空间)。
+规范预测由 backend_impl/python/model_predict (example 模型服务, /api/v1) 提供。
+"""
 # -*- coding: utf-8 -*-
 """
 recipe_predict_bridge.py — Model1 性能预测 (GET /api/model1/materials,

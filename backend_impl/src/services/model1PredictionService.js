@@ -1,3 +1,4 @@
+// ⚠️ DEPRECATED (废弃)：旧占位预测服务(recipe_opt)。规范预测由 model_predict(example) + /api/v1 提供。
 const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');

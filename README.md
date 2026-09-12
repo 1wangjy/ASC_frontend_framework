@@ -369,3 +369,13 @@ NODE_ENV=development
 - 载入 SQLite：`cd backend_impl && npm run ml:load`（或 `POST /api/ml-dataset/load`），幂等。
 - 拆分到业务四表：`cd backend_impl && npm run ml:materialize`（或 `POST /api/ml-dataset/materialize`），幂等。
 - 业务 SQLite 数据位于 `backend_impl/data/sqlite/database.db`（本地运行数据，不入库）。
+
+## 预测模型（已迁移至 /api/v1，旧模型已废弃）
+
+- **规范预测 API**（与 `example` 模型服务契约一致，长期稳定）：
+  - `GET  /api/v1/model/metadata`
+  - `POST /api/v1/predict/simple`（`X_comp` / `X_global` / `conditions` / `properties`）
+  - `POST /api/v1/predict`、`POST /api/v1/predict/batch`
+  - 由 `backend_impl` 反向代理到模型服务（`backend_impl/python/model_predict`，uvicorn，默认 `PREDICT_BASE_URL=http://127.0.0.1:8100`）。
+- **换模型**：只替换 `backend_impl/python/model_predict/MODEL/outputs/models/<variant>/*.joblib` 与 `FEATURE/outputs/metadata_<variant>.json`，重启服务；API/数据格式不变。详见 `backend_impl/python/model_predict/README.md`。
+- **⚠️ 已废弃（DEPRECATED）**：旧占位预测 `/api/model1/materials`、`/api/model1/predict`（recipe_opt 96 原料空间，`backend_impl/python/recipe_predict_bridge.py`）——响应带 `Deprecation` 头，仅为兼容暂时保留，请改用上表 `/api/v1/*`。`/api/model1/submit` 同为旧占位（外部 `:8000`），亦已废弃。
