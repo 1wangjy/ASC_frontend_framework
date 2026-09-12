@@ -15,6 +15,11 @@ export function getPredictMetadata(params) {
   return request.get('/api/v1/model/metadata', { params })
 }
 
+// material_id -> 可显示名称(base) 映射：{materials:[{material_id,name,samples}]}
+export function getPredictMaterials() {
+  return request.get('/api/v1/model/materials')
+}
+
 // 最简预测：{ X_comp, X_global, conditions?, properties? }
 export function predictSimple(data) {
   return request.post('/api/v1/predict/simple', data)

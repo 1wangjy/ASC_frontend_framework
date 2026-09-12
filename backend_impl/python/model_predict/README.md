@@ -32,6 +32,11 @@ backend_impl(Node :3001)  ──反向代理 /api/v1/*──▶  model_predict �
 - `properties`：如 `["bulk_density","cold_modulus","crushing_strength","linear_change"]`；不传=全部。
 - 响应：`{request_id, recipe_id, variant, predictions:[{property, property_name_zh, condition, value, unit, model, input_feature_count}], warnings}`。
 
+## 物料名称映射（material_id → 名称）
+- 端点：`GET /api/v1/model/materials` → `{materials:[{material_id,name,samples}]}`（由数据集 `base` 列生成）。
+- 生成：`python3 backend_impl/python/model_predict/scripts/build_material_map.py <yangquan.npy>` → 写入 `FEATURE/outputs/material_map.json`（**派生资产，未入库**，同模型资产一起放置）。
+- 用途：前端「性能预测」的组分 `material_id` 以「名称 (id)」下拉展示（如 `棕刚玉 (61)`）；映射缺失时回退为数字输入。
+
 ## 模型资产（未入库 — 需放置）
 `.gitignore` 忽略：
 ```

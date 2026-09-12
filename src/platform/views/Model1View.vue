@@ -29,8 +29,7 @@
               <h3 class="m1-sec-title">输入配置</h3>
               <p class="m1-sec-sub">X_comp 组分 + X_global 全局工艺 → /api/v1/predict/simple</p>
             </div>
-            <span v-if="metadataError" class="m1-link-btn" role="button" tabindex="0"
-              @click="loadMetadata" @keydown.enter.prevent="loadMetadata">重试元数据</span>
+            <button v-if="metadataError" type="button" class="m1-link-btn" @click="loadMetadata">重试元数据</button>
           </div>
 
           <!-- ── 组分 X_comp ── -->
@@ -38,7 +37,9 @@
             <div class="m1-sec-head">
               <div>
                 <h4 id="m1-sec-comp" class="m1-sec-title">组分 X_comp</h4>
-                <p class="m1-sec-sub">每行 [material_id, ratio_pct]。</p>
+                <p class="m1-sec-sub">
+                  每行 [material_id, ratio_pct]<template v-if="hasMaterials"> · 原料 {{ materialOptions.length }} 项可选（名称为 base 名）</template>
+                </p>
               </div>
               <span class="m1-sec-badge">组分数 {{ validRows.length }} · Σ {{ sumRatioText }}%</span>
             </div>
@@ -46,13 +47,23 @@
             <div class="m1-rows" role="group" aria-label="组分列表">
               <div class="m1-rows__head" aria-hidden="true">
                 <span>#</span>
-                <span>material_id</span>
+                <span>原料 · material_id</span>
                 <span>ratio_pct %</span>
                 <span />
               </div>
               <div v-for="(r, i) in rows" :key="r.uid" class="m1-row" :class="{ 'is-bad': rowInvalid(r) }">
                 <span class="m1-row__no" aria-hidden="true">{{ i + 1 }}</span>
-                <input class="m1-input m1-input--id" type="number" step="1" inputmode="numeric"
+                <!-- 原料列表可用 → 名称感知下拉；加载失败 → 回退为原始编码输入 -->
+                <select v-if="hasMaterials" class="m1-input m1-select" v-model="r.material_id"
+                  :aria-label="`第 ${i + 1} 行原料`" :aria-invalid="rowInvalid(r) || undefined"
+                  :title="rowInvalid(r) ? '请选择原料，ratio_pct 需为 >0 的数值' : materialLabel(r.material_id)">
+                  <option value="" disabled>选择原料…</option>
+                  <option v-for="m in materialOptions" :key="m.id" :value="m.id">{{ m.label }}</option>
+                  <option v-if="r.material_id && !materialIds.has(String(r.material_id))" :value="r.material_id">
+                    {{ r.material_id }}（自定义编码）
+                  </option>
+                </select>
+                <input v-else class="m1-input m1-input--id" type="number" step="1" inputmode="numeric"
                   v-model="r.material_id" :aria-label="`第 ${i + 1} 行 material_id`" placeholder="61"
                   :aria-invalid="rowInvalid(r) || undefined"
                   :title="rowInvalid(r) ? 'material_id 需为数值，ratio_pct 需为 >0 的数值' : ''" />
@@ -70,8 +81,13 @@
 
             <div class="m1-inline-actions">
               <button type="button" class="m1-ghost-btn m1-ghost-btn--sm" @click="addRow()">＋ 添加组分</button>
-              <span class="m1-inline-hint">material_id 为数值编码（如 61 = 某原料）。</span>
+              <span class="m1-inline-hint">下拉显示「名称 (编码)」，提交的仍是 material_id。</span>
             </div>
+            <p v-if="materialsError" class="m1-hint-txt m1-hint-txt--warn">
+              原料列表不可用（{{ materialsError }}）—— 已回退为手工输入 material_id 编码，不影响预测。
+              <button type="button" class="m1-link-btn" @click="loadMaterials">重试</button>
+            </p>
+            <p v-else-if="materialsLoading" class="m1-hint-txt"><i class="m1-spin" /> 原料列表加载中…</p>
             <p class="m1-hint-txt">
               允许<b>短行</b>：仅传 [material_id, ratio_pct]，服务端按 component_feature_names（51 列）自动展开补齐。
               建议 Σ ratio_pct ≈ 100%。
@@ -372,7 +388,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getPredictMetadata, predictSimple } from '../api/predictV1'
+import { getPredictMetadata, getPredictMaterials, predictSimple } from '../api/predictV1'
 
 const router = useRouter()
 
@@ -426,6 +442,36 @@ async function loadMetadata() {
 }
 onMounted(loadMetadata)
 
+/* ───────────────────────── 原料名单 (/api/v1/model/materials) ─────────────────────────
+ * material_id → 可显示名称（base 名）。仅用于把编码变成「名称 (编码)」的可读下拉；
+ * 加载失败时静默降级为原始 material_id 数字输入，预测不受影响。 */
+const materials = ref([])
+const materialsLoading = ref(false)
+const materialsError = ref('')
+
+const materialOptions = computed(() => materials.value
+  .map((m) => ({ id: String(m.material_id), label: `${m.name} (${m.material_id})` }))
+  .filter((m) => m.id))
+const materialIds = computed(() => new Set(materialOptions.value.map((m) => m.id)))
+const hasMaterials = computed(() => materialOptions.value.length > 0)
+const materialLabel = (id) => materialOptions.value.find((m) => m.id === String(id))?.label || ''
+
+async function loadMaterials() {
+  materialsLoading.value = true
+  materialsError.value = ''
+  try {
+    const data = await getPredictMaterials()
+    materials.value = Array.isArray(data?.materials) ? data.materials : []
+    if (!materials.value.length) materialsError.value = '接口返回了空原料列表'
+  } catch (e) {
+    materialsError.value = e?.response?.data?.detail?.message || e?.message || '原料列表加载失败'
+  } finally {
+    materialsLoading.value = false
+  }
+  normalizeRowIds()
+}
+onMounted(loadMaterials)
+
 const globalLabel = (name, i) => GLOBAL_LABELS[name] || name || `X_global[${i}]`
 
 // 训练工况并集（按温度数值排序）
@@ -444,7 +490,15 @@ const rows = ref([])
 let rowSeq = 0
 
 function addRow(material_id = '', ratio_pct = '') {
-  rows.value.push({ uid: `r${++rowSeq}`, material_id, ratio_pct })
+  rows.value.push({ uid: `r${++rowSeq}`, material_id: String(material_id), ratio_pct })
+}
+// 编码统一为字符串，才能与 <select> 的选项值匹配（原料名单晚于手工输入到达时）
+function normalizeRowIds() {
+  rows.value.forEach((r) => {
+    if (r.material_id !== '' && r.material_id !== null && r.material_id !== undefined) {
+      r.material_id = String(r.material_id)
+    }
+  })
 }
 function removeRow(i) {
   rows.value.splice(i, 1)
@@ -536,8 +590,8 @@ async function runPrediction() {
 function loadExample() {
   rows.value = []
   rowSeq = 0
-  addRow(61, 70)
-  addRow(42, 30)
+  addRow('61', 70)
+  addRow('42', 30)
   globalValues.value = globalNames.value.map((_, i) => GLOBAL_PLACEHOLDERS[i] ?? '')
   selectedConditions.value = ['110℃', '1500℃']
   selectedProperties.value = []
@@ -763,11 +817,11 @@ const fmtRange = (v) => (Math.abs(v) >= 100 ? Number(v).toFixed(0) : Number(v).t
 /* composition rows */
 .m1-rows { display: flex; flex-direction: column; gap: 4px; }
 .m1-rows__head {
-  display: grid; grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr) 22px;
+  display: grid; grid-template-columns: 20px minmax(0, 1.6fr) minmax(0, 1fr) 22px;
   gap: 7px; padding: 0 2px; font-size: 10px; font-weight: 750; color: #7c8b98;
 }
 .m1-row {
-  display: grid; grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr) 22px;
+  display: grid; grid-template-columns: 20px minmax(0, 1.6fr) minmax(0, 1fr) 22px;
   gap: 7px; align-items: center;
   padding: 4px 5px; border: 1px solid #e5ecf2; border-radius: 8px; background: #fff; line-height: 1.2;
 }
@@ -784,6 +838,12 @@ const fmtRange = (v) => (Math.abs(v) >= 100 ? Number(v).toFixed(0) : Number(v).t
 .m1-rows-empty {
   font-size: 12px; color: #72879c; background: #f6f9fc; border: 1px dashed #cbd9e6;
   border-radius: 9px; padding: 12px 10px; margin: 0;
+}
+.m1-select {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer;
+  padding-right: 20px; text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237c8b98' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 6px center; background-size: 9px 6px;
 }
 .m1-row.is-bad { border-color: #f0c2bb; background: #fffafa; }
 .m1-row.is-bad .m1-input { border-color: #f0c2bb; }

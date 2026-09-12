@@ -428,3 +428,17 @@ def predict_batch(request: BatchPredictRequest) -> Dict[str, Any]:
         "request_id": request.request_id,
         "items": [predict_one(item) for item in request.items],
     }
+
+
+@app.get("/api/v1/model/materials", dependencies=[Depends(verify_api_key)])
+def get_model_materials() -> Dict[str, Any]:
+    """material_id -> 可显示名称(base) 映射（由数据集生成，见 scripts/build_material_map.py）。"""
+    path = FEATURE_DIR / "outputs" / "material_map.json"
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "MATERIAL_MAP_NOT_FOUND",
+                    "message": "material_map.json not found; run scripts/build_material_map.py 生成。"},
+        )
+    return json.loads(path.read_text(encoding="utf-8"))
+
