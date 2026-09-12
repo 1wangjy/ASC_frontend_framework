@@ -257,17 +257,19 @@
               >
                 上一页
               </button>
-              <button
-                v-for="page in litPageNumbers"
-                :key="page"
-                type="button"
-                class="btn btn-secondary btn-small"
-                :aria-current="page === litPagination.currentPage ? 'page' : undefined"
-                :style="page === litPagination.currentPage ? { background: 'var(--asc-primary)', color: '#fff' } : undefined"
-                @click="setLitPage(page)"
-              >
-                {{ page }}
-              </button>
+              <template v-for="(page, i) in litPageNumbers" :key="page">
+                <span v-if="typeof page !== 'number'" class="lit-pagination__gap" aria-hidden="true">…</span>
+                <button
+                  v-else
+                  type="button"
+                  class="btn btn-secondary btn-small"
+                  :aria-current="page === litPagination.currentPage ? 'page' : undefined"
+                  :style="page === litPagination.currentPage ? { background: 'var(--asc-primary)', color: '#fff' } : undefined"
+                  @click="setLitPage(page)"
+                >
+                  {{ page }}
+                </button>
+              </template>
               <button
                 type="button"
                 class="btn btn-secondary btn-small"
@@ -733,10 +735,24 @@ const allCurrentPageLitSelected = computed(() => areAllCurrentPageLiteratureSele
   selectedLitIds.value,
   selectableCurrentPageLitIds.value,
 ))
-const litPageNumbers = computed(() => Array.from(
-  { length: litPagination.value.totalPages },
-  (_, index) => index + 1,
-))
+// 窗口化分页：首/末 + 当前±1，其余以省略号折叠（避免上百页堆叠）。
+const litPageNumbers = computed(() => {
+  const total = litPagination.value.totalPages
+  const cur = litPagination.value.currentPage
+  const out = []
+  if (total <= 7) {
+    for (let i = 1; i <= total; i += 1) out.push(i)
+    return out
+  }
+  const left = Math.max(2, cur - 1)
+  const right = Math.min(total - 1, cur + 1)
+  out.push(1)
+  if (left > 2) out.push('gap-l')
+  for (let i = left; i <= right; i += 1) out.push(i)
+  if (right < total - 1) out.push('gap-r')
+  out.push(total)
+  return out
+})
 
 watch([litSearchFilter, litTypeFilter, litYearFilter], () => { litCurrentPage.value = 1 })
 watch(litData, (rows) => {
@@ -1333,6 +1349,7 @@ onUnmounted(() => { isComponentMounted.value = false; if (manageDebounceTimer) c
   background: var(--asc-surface-soft, #f7fafd);
 }
 
+.lit-pagination__gap { padding: 0 6px; color: var(--asc-muted); user-select: none; }
 .lit-pagination__total { margin-left: 4px; color: var(--asc-muted); font-size: 12.5px; }
 
 /* 右栏详情 */
