@@ -56,8 +56,8 @@
           </div>
           <div class="manage-actions">
             <button class="btn" @click="openAddModal()">{{ addRecordLabel }}</button>
-            <button class="btn btn-ghost btn-small" title="重新从服务端加载当前表数据" @click="loadManageData()">刷新数据</button>
-            <button class="btn btn-ghost btn-small" title="把 ./private/*.npy 载入当前 sqlite（幂等）"
+            <button class="btn btn-ghost" title="重新从服务端加载当前表数据" @click="loadManageData()">刷新数据</button>
+            <button class="btn btn-ghost" title="把 ./private/*.npy 载入当前 sqlite（幂等）"
               :disabled="mlLoading" @click="callMlLoad">
               <span v-if="mlLoading" class="loading" />{{ mlLoading ? '载入中…' : '载入 ML 数据集' }}</button>
           </div>
@@ -996,6 +996,23 @@ onUnmounted(() => { isComponentMounted.value = false; if (manageDebounceTimer) c
   gap: 8px;
   margin-left: auto;
 }
+
+/* 统一工具条按钮几何：同高/同字号/同内距，仅颜色变体不同（主色=添加，ghost=刷新/载入） */
+.manage-actions .btn,
+.manage-actions .btn-small {
+  height: var(--pl-ctl-h, 32px);
+  min-height: var(--pl-ctl-h, 32px);
+  padding: 0 14px;
+  font-size: 13px;
+  line-height: 1;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.manage-actions .btn .loading { width: 12px; height: 12px; border-width: 2px; }
 
 @media (max-width: 760px) {
   .manage-actions { margin-left: 0; width: 100%; }
