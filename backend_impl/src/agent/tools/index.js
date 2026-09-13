@@ -16,6 +16,7 @@ const policy = require('../policy');
 
 const MODULES = [
   require('./kgList'),
+  require('./kgGraph'),
   require('./kgSearch'),
   require('./ragSearch'),
   require('./predict'),
@@ -51,7 +52,7 @@ function getToolSchemas(names) {
  *
  * @param {string} name       tool name as requested by the model
  * @param {unknown} rawArgs   raw arguments object
- * @param {{allowed:string[], signal?:AbortSignal, projectId?:string}} ctx
+ * @param {{allowed:string[], signal?:AbortSignal, projectId?:string, graphId?:string}} ctx
  */
 async function runTool(name, rawArgs, ctx = {}) {
   const started = Date.now();
@@ -85,7 +86,7 @@ async function runTool(name, rawArgs, ctx = {}) {
   }
 
   try {
-    const outcome = await tool.execute(args, { signal: ctx.signal, projectId: ctx.projectId });
+    const outcome = await tool.execute(args, { signal: ctx.signal, projectId: ctx.projectId, graphId: ctx.graphId });
     if (!outcome || typeof outcome !== 'object') {
       return finish({ ok: false, summary: `tool "${name}" returned no result`, data: null });
     }

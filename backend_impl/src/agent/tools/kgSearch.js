@@ -240,10 +240,11 @@ function projectResult(result, { topK, includeAnswer }) {
 async function runQuery({ params, ctx, retrievalOnly }) {
   const { query, topK, projectId, graphId, simulationId } = params;
   const contextProjectId = ctx && typeof ctx.projectId === 'string' ? ctx.projectId.trim() : undefined;
+  const contextGraphId = ctx && typeof ctx.graphId === 'string' ? ctx.graphId.trim() : undefined;
 
   const resolved = await resolveScope({
     projectId: projectId || contextProjectId,
-    graphId,
+    graphId: graphId || contextGraphId,
     simulationId,
     signal: ctx && ctx.signal,
   });

@@ -23,7 +23,9 @@ const MAX_TOOL_PAYLOAD_CHARS = 12000;
 const SYSTEM_PROMPT = `你是 ASC（铝硅碳耐火材料）平台的智能助手，运行在「多轮对话」页面中。
 
 你可以调用一组受限工具：
-- kg_list：列出当前可用的知识图谱/项目（只读）。检索前若不确定有哪些图谱，先用它确认可检索范围。
+- kg_list：列出当前可用的知识图谱/项目（只读）。不确定有哪些图谱时先用它确认可检索范围。
+- kg_graph：读取某个图谱的节点与关系内容（只读，需 graph_id）。想看图谱里到底有哪些实体/关系时用它，
+  结果会按 node_limit/edge_limit 截断，可用 node_type/keyword 过滤；不要用它来代替问答检索。
 - kg_search / rag_search：只读检索知识图谱与 RAG 证据（“配方/工艺/机理”事实问题）。
   这两个工具必须指定图谱范围（project_id/graph_id/simulation_id）；未指定时会自动解析，
   若系统里没有任何可用图谱，工具会返回明确提示——此时请如实告知用户需要在「数据平台/图谱项目」构建或选择图谱，不要编造检索结果。
@@ -82,7 +84,7 @@ function toolMessageContent(outcome) {
  *
  * @param {object} params
  * @param {Array}  params.messages  normalised chat history
- * @param {{projectId?:string}} params.context
+ * @param {{projectId?:string, graphId?:string}} params.context
  * @param {{maxSteps?:number, allowTools?:string[]}} params.options
  * @param {(frame:object)=>void} params.emit
  * @param {AbortSignal} [params.signal]
@@ -154,6 +156,7 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
             allowed,
             signal,
             projectId: context && context.projectId,
+            graphId: context && context.graphId,
           });
         }
 
