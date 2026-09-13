@@ -96,7 +96,8 @@ function summarizeRun(data) {
   return bits.join(', ');
 }
 
-async function execute(payload, ctx) {
+async function execute(rawArgs, ctx) {
+  const payload = validate(rawArgs);
   const url = optimizeUrl();
   const timeout = AbortSignal.timeout(TIMEOUT_MS);
   const signal = ctx && ctx.signal ? AbortSignal.any([ctx.signal, timeout]) : timeout;

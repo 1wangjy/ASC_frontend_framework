@@ -1,26 +1,37 @@
 'use strict';
 
 /**
- * kgSearch — read-only knowledge-graph / RAG query against the external
- * GraphRAG service (AGENT_KG_BASE_URL, default http://127.0.0.1:5001).
+ * kgSearch — read-only knowledge-graph query against the external GraphRAG
+ * service (AGENT_KG_BASE_URL, default http://127.0.0.1:5001).
  *
  * Surface mirrors the existing frontend call in `src/api/graph.js`
- * (`codGraphRAGQuery` → POST /api/graphrag/cod-query). This tool is READ-ONLY:
- * graph-mutation proposals, KG growth application, skill evolution and
- * self-evolving-agent bookkeeping are all disabled, and the route itself does
- * not mutate the graph.
+ * (`codGraphRAGQuery` → POST /api/graphrag/cod-query).
  *
- * `ragSearch.js` reuses `codQuery` with a retrieval-only option profile
- * (answer refinement off) — the service exposes no separate RAG endpoint, see
- * that file for the documented aliasing.
+ * SCOPE IS MANDATORY. The service rejects a scope-less query with
+ *   400 {"error":"请选择目标知识图谱后再查询；系统不会自动切换到最新 Graph。"}
+ * and `allow_latest_fallback: true` does NOT bypass that check (verified
+ * against the running 5001 service). Therefore this tool:
+ *   1. uses project_id/graph_id/simulation_id from the args or ctx.projectId;
+ *   2. otherwise resolves a scope via kg_list discovery (catalog → graphs,
+ *      project list → projects that already carry a graph_id/simulation);
+ *   3. if nothing is queryable, returns ok:false WITHOUT calling cod-query, with
+ *      the "no graph available" message and data {count: 0}.
+ *
+ * READ-ONLY: graph-mutation proposals, KG growth application, skill reuse /
+ * evolution, the self-evolving agent AND answer-cognition memory are all
+ * disabled — the route never mutates the graph and the tool never writes
+ * cognition memory.
+ *
+ * `ragSearch.js` reuses `codQuery`/`resolveScope` with a retrieval-only option
+ * profile (answer refinement off); the service has no separate RAG endpoint.
  */
 
-const DEFAULT_BASE_URL = 'http://127.0.0.1:5001';
+const kgList = require('./kgList');
+
 const TIMEOUT_MS = Number(process.env.AGENT_KG_TIMEOUT_MS || 180000);
 
 function codQueryUrl() {
-  const base = String(process.env.AGENT_KG_BASE_URL || DEFAULT_BASE_URL).trim().replace(/\/+$/, '');
-  return `${base}/api/graphrag/cod-query`;
+  return `${kgList.kgBaseUrl()}/api/graphrag/cod-query`;
 }
 
 const parameters = {
@@ -28,6 +39,9 @@ const parameters = {
   properties: {
     query: { type: 'string', description: '检索问题（自然语言，中文或英文）。' },
     topK: { type: 'number', description: '返回的子图/路径数量上限，默认 5，最大 20。', minimum: 1, maximum: 20 },
+    project_id: { type: 'string', description: '本次检索使用的项目 ID（可选；不确定时先调用 kg_list）。' },
+    graph_id: { type: 'string', description: '本次检索使用的图谱 ID（可选，与 project_id 二选一即可）。' },
+    simulation_id: { type: 'string', description: '本次检索使用的仿真 ID（可选，替代 project_id/graph_id）。' },
   },
   required: ['query'],
   additionalProperties: false,
@@ -38,20 +52,70 @@ function validate(rawArgs) {
   const query = typeof args.query === 'string' ? args.query.trim() : '';
   if (!query) throw new Error('kg_search: query must be a non-empty string');
   const topK = Math.min(20, Math.max(1, Math.round(Number(args.topK) || 5)));
-  return { query, topK };
+  const pick = (value) => (typeof value === 'string' && value.trim() ? value.trim() : undefined);
+  return {
+    query,
+    topK,
+    projectId: pick(args.project_id),
+    graphId: pick(args.graph_id),
+    simulationId: pick(args.simulation_id),
+  };
+}
+
+/**
+ * Resolve an explicit cod-query scope.
+ *
+ * @returns {Promise<{ok:true, scope:object, discovery?:object}
+ *                  | {ok:false, summary:string, data:object}>}
+ */
+async function resolveScope({ projectId, graphId, simulationId, signal } = {}) {
+  if (projectId || graphId || simulationId) {
+    return { ok: true, scope: { project_id: projectId, graph_id: graphId, simulation_id: simulationId } };
+  }
+
+  const found = await kgList.discover({ signal });
+  if (!found.ok) return { ok: false, summary: found.summary, data: found.data };
+
+  const graph = found.graphs[0];
+  if (graph && (graph.project_id || graph.graph_id)) {
+    return {
+      ok: true,
+      scope: { project_id: graph.project_id, graph_id: graph.graph_id },
+      discovery: { resolved_from: 'catalog', count: found.graphs.length, selected: graph },
+    };
+  }
+
+  // Projects without a completed graph catalog entry can still be scoped by
+  // project_id when they carry a graph_id or a simulation.
+  const project = found.projects.find((p) => p.graph_id) || found.projects.find((p) => p.status === 'graph_completed');
+  if (project && project.project_id) {
+    return {
+      ok: true,
+      scope: { project_id: project.project_id, graph_id: project.graph_id || undefined },
+      discovery: { resolved_from: 'project_list', count: found.graphs.length, selected: project },
+    };
+  }
+
+  return {
+    ok: false,
+    summary:
+      `当前无可用的知识图谱（0 个项目/图谱），请先在“数据平台/图谱项目”构建或选择图谱后再检索`
+      + (found.projects.length ? `（已有 ${found.projects.length} 个项目但均未完成图谱构建）` : ''),
+    data: { count: 0, graphs: [], projects_count: found.projects.length, sources: found.sources },
+  };
 }
 
 /**
  * Build the cod-query payload. `retrievalOnly` turns off the LLM answer
  * refinement stage (used by rag_search to return evidence, not a written answer).
+ * The scope MUST already be explicit (see resolveScope).
  */
-function buildPayload({ query, topK, retrievalOnly }, ctx) {
+function buildPayload({ query, topK, retrievalOnly }, scope) {
   const payload = {
     question: query,
     top_k_subgraphs: topK,
     top_k_paths: Math.max(topK, 8),
-    // Non-mutating, cheapest-useful profile. Scope from the request context
-    // when available; otherwise fall back to the latest graph explicitly.
+    // Scope (mandatory) + non-mutating read-only profile.
     allow_latest_fallback: true,
     enable_verification: true,
     enable_llm_decomposition_fallback: false,
@@ -63,12 +127,14 @@ function buildPayload({ query, topK, retrievalOnly }, ctx) {
     enable_self_evolving_agent: false,
     enable_skill_reuse: false,
     enable_skill_evolution: false,
+    enable_answer_cognition_memory: false,
     show_audit_appendix: false,
     debug: false,
     audit: false,
   };
-  const projectId = (ctx && ctx.projectId) || undefined;
-  if (projectId) payload.project_id = String(projectId);
+  if (scope && scope.project_id) payload.project_id = String(scope.project_id);
+  if (scope && scope.graph_id) payload.graph_id = String(scope.graph_id);
+  if (scope && scope.simulation_id) payload.simulation_id = String(scope.simulation_id);
   return payload;
 }
 
@@ -105,7 +171,11 @@ async function codQuery({ payload, signal }) {
 
   if (!response.ok || envelope.success !== true) {
     const errorText = envelope.error || envelope.message || `HTTP ${response.status}`;
-    return { ok: false, summary: `knowledge-graph query failed: ${String(errorText).slice(0, 300)}`, data: { url, status: response.status } };
+    return {
+      ok: false,
+      summary: `knowledge-graph query failed: ${String(errorText).slice(0, 300)}`,
+      data: { url, status: response.status },
+    };
   }
   return { ok: true, data: envelope.data || {}, url };
 }
@@ -165,6 +235,36 @@ function projectResult(result, { topK, includeAnswer }) {
   return { data, counts };
 }
 
+/** Shared execution path for kg_search (answer) and rag_search (evidence only).
+ *  `params` is the output of the tool's own `validate()` — never re-validated here. */
+async function runQuery({ params, ctx, retrievalOnly }) {
+  const { query, topK, projectId, graphId, simulationId } = params;
+  const contextProjectId = ctx && typeof ctx.projectId === 'string' ? ctx.projectId.trim() : undefined;
+
+  const resolved = await resolveScope({
+    projectId: projectId || contextProjectId,
+    graphId,
+    simulationId,
+    signal: ctx && ctx.signal,
+  });
+  if (!resolved.ok) return { ok: false, summary: resolved.summary, data: resolved.data };
+
+  const payload = buildPayload({ query, topK, retrievalOnly }, resolved.scope);
+  const outcome = await codQuery({ payload, signal: ctx && ctx.signal });
+  if (!outcome.ok) {
+    return {
+      ok: false,
+      summary: outcome.summary,
+      data: { ...outcome.data, scope: resolved.scope },
+    };
+  }
+
+  const projected = projectResult(outcome.data, { topK, includeAnswer: !retrievalOnly });
+  projected.data.scope = resolved.scope;
+  if (resolved.discovery) projected.data.scope_resolution = resolved.discovery;
+  return { ok: true, projected, counts: projected.counts };
+}
+
 function summarize({ counts, data }, includeAnswer) {
   const parts = [
     `${counts.subgraphs} subgraph(s), ${counts.verified_paths} verified path(s), ${counts.references} reference(s)`,
@@ -178,23 +278,24 @@ function summarize({ counts, data }, includeAnswer) {
 }
 
 async function execute(args, ctx) {
-  const { query, topK } = validate(args);
-  const outcome = await codQuery({ payload: buildPayload({ query, topK, retrievalOnly: false }, ctx), signal: ctx && ctx.signal });
+  const outcome = await runQuery({ params: validate(args), ctx, retrievalOnly: false });
   if (!outcome.ok) return { ok: false, summary: outcome.summary, data: outcome.data };
-  const projected = projectResult(outcome.data, { topK, includeAnswer: true });
-  return { ok: true, summary: summarize(projected, true), data: projected.data };
+  return { ok: true, summary: summarize(outcome.projected, true), data: outcome.projected.data };
 }
 
 module.exports = {
   name: 'kg_search',
   description:
     '在知识图谱（GraphRAG）中做只读检索并返回有路径/引用支撑的答案，用于材料配方、工艺、机理等事实性问题。'
+    + '需要指定图谱范围（project_id/graph_id/simulation_id）；未指定时会自动解析，若无可用图谱则返回提示。'
     + '返回子图、验证路径与文献引用；不会修改图谱。',
   parameters,
   validate,
   execute,
   // shared with rag_search
-  codQuery,
+  resolveScope,
   buildPayload,
   projectResult,
+  codQuery,
+  runQuery,
 };

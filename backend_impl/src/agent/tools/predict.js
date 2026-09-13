@@ -98,7 +98,8 @@ function summarizePredictions(predictions) {
     .join('; ');
 }
 
-async function execute(body, ctx) {
+async function execute(rawArgs, ctx) {
+  const body = validate(rawArgs);
   const url = simplePredictUrl();
   const signal = ctx && ctx.signal
     ? AbortSignal.any([ctx.signal, AbortSignal.timeout(TIMEOUT_MS)])

@@ -15,6 +15,7 @@
 const policy = require('../policy');
 
 const MODULES = [
+  require('./kgList'),
   require('./kgSearch'),
   require('./ragSearch'),
   require('./predict'),
@@ -73,15 +74,18 @@ async function runTool(name, rawArgs, ctx = {}) {
     return finish({ ok: false, summary: `tool "${name}" is disabled for this request`, data: null });
   }
 
-  let body;
+  let args;
   try {
-    body = tool.validate(policy.validateArgs(tool.parameters, rawArgs, name));
+    // Generic schema gate (types/required/enums/bounds, unknown keys stripped).
+    // Each tool then runs its own semantic `validate()` exactly once, inside
+    // execute() — so argument mapping can never be applied twice.
+    args = policy.validateArgs(tool.parameters, rawArgs, name);
   } catch (error) {
     return finish({ ok: false, summary: error.message, data: null });
   }
 
   try {
-    const outcome = await tool.execute(body, { signal: ctx.signal, projectId: ctx.projectId });
+    const outcome = await tool.execute(args, { signal: ctx.signal, projectId: ctx.projectId });
     if (!outcome || typeof outcome !== 'object') {
       return finish({ ok: false, summary: `tool "${name}" returned no result`, data: null });
     }
