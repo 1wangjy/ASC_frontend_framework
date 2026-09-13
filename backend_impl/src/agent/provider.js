@@ -32,7 +32,7 @@ class OpenAICompatibleProvider {
   constructor(options = {}) {
     this.chatUrl = normalizeChatCompletionsUrl(options.apiUrl || process.env.LLM_API_URL);
     this.apiKey = options.apiKey !== undefined ? options.apiKey : process.env.LLM_API_KEY;
-    this.model = options.model || process.env.AGENT_LLM_MODEL || 'deepseek-chat';
+    this.model = options.model || process.env.AGENT_LLM_MODEL || 'deepseek-flash';
     this.timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
     this.fetchImpl = options.fetchImpl || fetch;
   }
