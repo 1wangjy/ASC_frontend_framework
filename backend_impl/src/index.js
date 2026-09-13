@@ -82,6 +82,7 @@ const predictProxyRoutes = require('./routes/predictProxy');
 const newDataRoutes = require('./routes/newData');
 const userRoutes = require('./routes/user');
 const attachmentRoutes = require('./routes/attachment');
+const agentRoutes = require('./agent');
 
 // 使用路由
 app.use('/api/embedding', embeddingRoutes);
@@ -99,6 +100,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/new-data', newDataRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/attachment', attachmentRoutes);
+// 多轮对话 Agent（模块化：删除本行即移除该功能）
+app.use('/api/agent', agentRoutes.router);
 
 // 健康检查
 app.get('/health', (req, res) => {

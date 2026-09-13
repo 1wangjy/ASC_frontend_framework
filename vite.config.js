@@ -97,6 +97,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      // 智能体（SSE 流式）→ Node.js 后端
+      '/api/agent': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        secure: false,
+      },
       // 通用 API → Python 知识图谱后端
       '/api': {
         target: 'http://127.0.0.1:5001',

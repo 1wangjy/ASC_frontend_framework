@@ -62,6 +62,17 @@
             :disabled="multiNavigationLocked"
             @update:mode="updateMode"
           />
+          <button
+            type="button"
+            class="qa-agent-toggle"
+            :class="{ 'qa-agent-toggle--open': agentPanelOpen }"
+            aria-controls="qa-agent-panel"
+            :aria-expanded="agentPanelOpen"
+            @click="agentPanelOpen = !agentPanelOpen"
+          >
+            <span class="qa-agent-toggle__mark" aria-hidden="true">✦</span>
+            智能体 Agent（Beta）
+          </button>
         </div>
 
         <div v-if="projectUnavailableMessage" class="qa-project-message" :class="{ error: projectError }">
@@ -101,6 +112,18 @@
             @submit="sendQuestion"
           />
         </div>
+
+        <section
+          v-if="agentPanelOpen"
+          id="qa-agent-panel"
+          class="qa-multi-page__agent"
+          aria-label="智能体对话"
+        >
+          <AgentPanel
+            :project-id="activeProject?.projectId || ''"
+            @close="agentPanelOpen = false"
+          />
+        </section>
       </section>
 
       <section v-else-if="showQaHome" class="qa-empty">
@@ -251,6 +274,7 @@ import RecentConversationsPanel from '../features/qa/RecentConversationsPanel.vu
 import QaModeSwitcher from '../features/qa/QaModeSwitcher.vue'
 import QaProjectSelector from '../features/qa/QaProjectSelector.vue'
 import MultiDiscussionPanel from '../features/qa/multiDiscussion/MultiDiscussionPanel.vue'
+import AgentPanel from '../platform/agent/AgentPanel.vue'
 import { getMultiDiscussionCapabilities } from '../features/qa/multiDiscussion/api.js'
 import {
   clearSavedMultiDiscussion,
@@ -308,6 +332,7 @@ const qaState = ref(createQaState())
 const draft = ref('')
 const multiDiscussionPanel = ref(null)
 const multiHasHistory = ref(false)
+const agentPanelOpen = ref(false)
 const multiModelOptions = ref([])
 const modelSelectionByMode = ref({
   single: qaState.value.settings.model,
@@ -1142,6 +1167,38 @@ onUnmounted(() => {
 
 .qa-multi-page__workspace--empty .qa-multi-page__discussion {
   order: 2;
+}
+
+.qa-agent-toggle {
+  margin-top: 14px;
+  min-height: 36px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--asc-border-strong);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .82);
+  color: var(--asc-primary-hover);
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: border-color var(--asc-transition), background var(--asc-transition);
+}
+
+.qa-agent-toggle:hover,
+.qa-agent-toggle--open {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary-soft);
+}
+
+.qa-agent-toggle__mark {
+  color: var(--asc-primary);
+  font-size: 11px;
+}
+
+.qa-multi-page__agent {
+  width: 100%;
+  flex: 0 0 auto;
 }
 
 .qa-multi-page__workspace :deep(.multi-discussion.is-embedded) {

@@ -1,0 +1,729 @@
+<template>
+  <section class="agent-panel" aria-label="智能体 Agent">
+    <header class="agent-panel__head">
+      <div class="agent-panel__heading">
+        <span class="agent-panel__badge" aria-hidden="true">AI</span>
+        <div>
+          <h2 class="agent-panel__title">智能体 Agent<span class="agent-panel__beta">Beta</span></h2>
+          <p class="agent-panel__subtitle">
+            多轮对话 · 可调用知识图谱检索、性能预测与配方优化工具
+          </p>
+        </div>
+      </div>
+      <div class="agent-panel__head-actions">
+        <span class="agent-panel__status" role="status" aria-live="polite">
+          <span
+            class="agent-panel__status-dot"
+            :class="{ 'agent-panel__status-dot--live': streaming }"
+            aria-hidden="true"
+          ></span>
+          {{ statusText }}
+        </span>
+        <span class="agent-panel__tools-hint" :title="toolsHintTitle">
+          {{ toolsHint }}
+        </span>
+        <button
+          type="button"
+          class="agent-panel__ghost"
+          :disabled="!messages.length || streaming"
+          @click="reset"
+        >
+          新对话
+        </button>
+        <button
+          type="button"
+          class="agent-panel__ghost"
+          aria-label="关闭智能体面板"
+          @click="emit('close')"
+        >
+          关闭
+        </button>
+      </div>
+    </header>
+
+    <div ref="logElement" class="agent-panel__log" role="log" aria-live="polite" aria-relevant="additions text">
+      <div v-if="!messages.length" class="agent-panel__empty">
+        <p class="agent-panel__empty-title">从一次真实的工具调用开始</p>
+        <p class="agent-panel__empty-text">
+          智能体只会调用已注册的工具，无法读取本地文件或数据库。试试下面的问题：
+        </p>
+        <ul class="agent-panel__examples">
+          <li v-for="example in examples" :key="example">
+            <button type="button" @click="useExample(example)">{{ example }}</button>
+          </li>
+        </ul>
+      </div>
+
+      <article
+        v-for="message in messages"
+        :key="message.id"
+        class="agent-message"
+        :class="`agent-message--${message.role}`"
+      >
+        <div class="agent-message__avatar" aria-hidden="true">
+          {{ message.role === 'user' ? '你' : '智' }}
+        </div>
+        <div class="agent-message__body">
+          <div class="agent-message__meta">
+            <strong>{{ message.role === 'user' ? '用户' : '智能体' }}</strong>
+            <span v-if="message.stopped">已停止</span>
+          </div>
+
+          <div v-if="message.toolCalls?.length" class="agent-tools">
+            <details
+              v-for="tool in message.toolCalls"
+              :key="tool.id"
+              class="agent-tool"
+              :class="`agent-tool--${tool.status}`"
+            >
+              <summary class="agent-tool__summary">
+                <span class="agent-tool__dot" aria-hidden="true"></span>
+                <span class="agent-tool__name">{{ tool.name }}</span>
+                <span class="agent-tool__args">{{ tool.summary || '无参数' }}</span>
+                <span class="agent-tool__state">{{ toolStatusLabel(tool) }}</span>
+              </summary>
+              <div class="agent-tool__detail">
+                <p v-if="tool.resultSummary" class="agent-tool__result">{{ tool.resultSummary }}</p>
+                <pre class="agent-tool__code" tabindex="0">{{ toolPayload(tool) }}</pre>
+              </div>
+            </details>
+          </div>
+
+          <p v-if="message.content" class="agent-message__text">{{ message.content }}</p>
+          <span v-if="message.streaming && !message.content" class="agent-message__pending">
+            思考中<span aria-hidden="true">…</span>
+          </span>
+          <span v-if="message.streaming && message.content" class="agent-message__caret" aria-hidden="true"></span>
+
+          <p v-if="message.error" class="agent-message__error" role="alert">{{ message.error }}</p>
+        </div>
+      </article>
+    </div>
+
+    <p v-if="error && !messages.length" class="agent-panel__banner" role="alert">{{ error }}</p>
+
+    <form class="agent-panel__composer" @submit.prevent="submit">
+      <label class="sr-only" for="agent-panel-input">向智能体提问</label>
+      <textarea
+        id="agent-panel-input"
+        ref="inputElement"
+        v-model="draft"
+        class="agent-panel__input"
+        rows="2"
+        :disabled="streaming"
+        placeholder="例如：用 X_comp=[[61,70],[42,30]]、X_global=[3.6,10,0] 预测 110℃ 的体积密度"
+        @keydown.enter.exact.prevent="submit"
+      ></textarea>
+      <div class="agent-panel__composer-foot">
+        <span class="agent-panel__hint">Enter 发送 · Shift+Enter 换行</span>
+        <button
+          v-if="streaming"
+          type="button"
+          class="agent-btn agent-btn--stop"
+          @click="stop"
+        >
+          停止
+        </button>
+        <button
+          v-else
+          type="submit"
+          class="agent-btn agent-btn--send"
+          :disabled="!draft.trim()"
+        >
+          发送
+        </button>
+      </div>
+    </form>
+  </section>
+</template>
+
+<script setup>
+defineOptions({ name: 'AgentPanel' })
+
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useAgentChat } from './useAgentChat.js'
+
+const props = defineProps({
+  projectId: {
+    type: String,
+    default: ''
+  }
+})
+
+const emit = defineEmits(['close'])
+
+const examples = [
+  '用 X_comp=[[61,70],[42,30]]、X_global=[3.6,10,0] 预测 110℃ 的体积密度',
+  '检索知识图谱中与热震稳定性相关的结论',
+  '优化配方：提高体积密度、降低显气孔率'
+]
+
+const {
+  messages,
+  streaming,
+  error,
+  steps,
+  tools,
+  toolsError,
+  send,
+  stop,
+  reset,
+  loadTools,
+  toolStatusLabel
+} = useAgentChat({
+  getContext: () => (props.projectId ? { projectId: props.projectId } : {})
+})
+
+const draft = ref('')
+const logElement = ref(null)
+const inputElement = ref(null)
+
+const statusText = computed(() => {
+  if (streaming.value) return '正在执行'
+  if (error.value) return '执行失败'
+  if (steps.value) return `上次执行 ${steps.value} 步`
+  return '就绪'
+})
+
+const toolsHint = computed(() => {
+  if (toolsError.value) return toolsError.value
+  if (!tools.value.length) return '工具清单加载中…'
+  return `可用工具 ${tools.value.length} 个`
+})
+
+const toolsHintTitle = computed(() => tools.value.map(tool => tool.name).join('、') || toolsError.value)
+
+function toolPayload(tool) {
+  const payload = { args: tool.args, result: tool.data }
+  try {
+    return JSON.stringify(payload, null, 2)
+  } catch (_error) {
+    return String(tool.resultSummary || '')
+  }
+}
+
+function useExample(example) {
+  draft.value = example
+  inputElement.value?.focus()
+}
+
+function submit() {
+  const value = draft.value
+  if (!value.trim() || streaming.value) return
+  draft.value = ''
+  void send(value)
+}
+
+function scrollToLatest() {
+  const element = logElement.value
+  if (element) element.scrollTop = element.scrollHeight
+}
+
+watch(
+  () => {
+    const last = messages.value[messages.value.length - 1]
+    return `${messages.value.length}:${last?.content?.length ?? 0}:${last?.toolCalls?.length ?? 0}`
+  },
+  () => { void nextTick(scrollToLatest) }
+)
+
+onMounted(() => {
+  void loadTools()
+})
+
+defineExpose({ messages, streaming, steps })
+</script>
+
+<style scoped>
+.agent-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--asc-border);
+  border-radius: var(--pl-card-radius, 12px);
+  background: var(--asc-surface);
+  box-shadow: 0 1px 2px rgba(16, 42, 67, 0.05);
+  overflow: hidden;
+}
+
+.agent-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--pl-space-2, 16px);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--asc-border);
+  background: var(--asc-surface-soft);
+}
+
+.agent-panel__heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.agent-panel__badge {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  background: var(--asc-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.agent-panel__title {
+  margin: 0;
+  color: var(--asc-heading);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.agent-panel__beta {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--asc-primary-soft);
+  color: var(--asc-primary-hover);
+  font-size: 10px;
+  font-weight: 800;
+  vertical-align: 1px;
+}
+
+.agent-panel__subtitle {
+  margin: 2px 0 0;
+  color: var(--asc-muted);
+  font-size: 12px;
+}
+
+.agent-panel__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.agent-panel__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--asc-text);
+  font-size: 11.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.agent-panel__status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--asc-border-strong);
+}
+
+.agent-panel__status-dot--live {
+  background: var(--asc-primary);
+  animation: agent-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes agent-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.agent-panel__tools-hint {
+  color: var(--asc-muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.agent-panel__ghost {
+  min-height: var(--pl-ctl-h, 32px);
+  padding: 0 12px;
+  border: 1px solid var(--asc-border-strong);
+  border-radius: var(--asc-control-radius);
+  background: #fff;
+  color: var(--asc-text);
+  font-size: 12px;
+  font-weight: 650;
+  transition: background var(--asc-transition), color var(--asc-transition);
+}
+
+.agent-panel__ghost:hover:not(:disabled) {
+  background: var(--asc-primary-soft);
+  color: var(--asc-primary-hover);
+}
+
+.agent-panel__ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agent-panel__log {
+  flex: 1;
+  min-height: 220px;
+  max-height: min(46vh, 460px);
+  overflow-y: auto;
+  padding: 14px;
+  background: var(--asc-canvas);
+}
+
+.agent-panel__empty {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 8px 4px;
+}
+
+.agent-panel__empty-title {
+  margin: 0;
+  color: var(--asc-heading);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.agent-panel__empty-text {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--asc-text);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.agent-panel__examples {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-panel__examples button {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px dashed var(--asc-border-strong);
+  border-radius: var(--asc-radius);
+  background: #fff;
+  color: var(--asc-text);
+  font-size: 12.5px;
+  text-align: left;
+  transition: border-color var(--asc-transition), background var(--asc-transition);
+}
+
+.agent-panel__examples button:hover {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary-soft);
+}
+
+.agent-message {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 9px;
+  margin-bottom: 12px;
+}
+
+.agent-message--user {
+  grid-template-columns: minmax(0, 1fr) 28px;
+}
+
+.agent-message__avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--asc-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.agent-message--user .agent-message__avatar {
+  grid-column: 2;
+  grid-row: 1;
+  background: #5b5bd6;
+}
+
+.agent-message__body {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--asc-border);
+  border-radius: 10px;
+  background: var(--asc-surface);
+}
+
+.agent-message--user .agent-message__body {
+  grid-column: 1;
+  grid-row: 1;
+  border-color: #c9cdf7;
+  background: #eef0fe;
+}
+
+.agent-message__meta {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 5px;
+  color: var(--asc-muted);
+  font-size: 11px;
+}
+
+.agent-message__meta strong {
+  color: var(--asc-heading);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.agent-message__text {
+  margin: 0;
+  color: var(--asc-text);
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.agent-message__pending {
+  color: var(--asc-muted);
+  font-size: 12.5px;
+}
+
+.agent-message__caret {
+  display: inline-block;
+  width: 7px;
+  height: 13px;
+  margin-left: 2px;
+  background: var(--asc-primary);
+  vertical-align: -2px;
+  animation: agent-caret 1s steps(2, end) infinite;
+}
+
+@keyframes agent-caret {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.agent-message__error {
+  margin: 6px 0 0;
+  padding: 6px 9px;
+  border-left: 3px solid var(--asc-danger);
+  border-radius: 4px;
+  background: #fdf1f1;
+  color: #8f3232;
+  font-size: 12px;
+}
+
+.agent-tools {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.agent-tool {
+  border: 1px solid var(--asc-border);
+  border-left: 3px solid var(--asc-muted);
+  border-radius: 7px;
+  background: var(--asc-surface-soft);
+}
+
+.agent-tool--running { border-left-color: var(--asc-primary); }
+.agent-tool--ok { border-left-color: var(--asc-success); }
+.agent-tool--error { border-left-color: var(--asc-danger); }
+
+.agent-tool__summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 9px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 11.5px;
+}
+
+.agent-tool__summary::-webkit-details-marker { display: none; }
+
+.agent-tool__dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--asc-muted);
+}
+
+.agent-tool--running .agent-tool__dot { background: var(--asc-primary); }
+.agent-tool--ok .agent-tool__dot { background: var(--asc-success); }
+.agent-tool--error .agent-tool__dot { background: var(--asc-danger); }
+
+.agent-tool__name {
+  flex: 0 0 auto;
+  color: var(--asc-heading);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+}
+
+.agent-tool__args {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--asc-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-tool__state {
+  flex: 0 0 auto;
+  color: var(--asc-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.agent-tool--ok .agent-tool__state { color: var(--asc-success); }
+.agent-tool--error .agent-tool__state { color: var(--asc-danger); }
+
+.agent-tool__detail {
+  padding: 0 9px 8px;
+}
+
+.agent-tool__result {
+  margin: 0 0 6px;
+  color: var(--asc-text);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.agent-tool__code {
+  max-height: 180px;
+  margin: 0;
+  padding: 8px 9px;
+  overflow: auto;
+  border-radius: 6px;
+  background: #f2f5f9;
+  color: #33445c;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.agent-panel__banner {
+  margin: 0;
+  padding: 8px 14px;
+  border-top: 1px solid var(--asc-border);
+  background: #fdf1f1;
+  color: #8f3232;
+  font-size: 12px;
+}
+
+.agent-panel__composer {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--asc-border);
+  background: var(--asc-surface);
+}
+
+.agent-panel__input {
+  width: 100%;
+  min-height: 62px;
+  padding: 9px 11px;
+  border: 1px solid var(--asc-border-strong);
+  border-radius: var(--asc-radius);
+  background: #fff;
+  color: var(--asc-text);
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.agent-panel__input:focus-visible {
+  border-color: var(--asc-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(8, 105, 173, 0.18);
+}
+
+.agent-panel__input:disabled {
+  background: #f4f7fa;
+  cursor: not-allowed;
+}
+
+.agent-panel__composer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.agent-panel__hint {
+  color: var(--asc-muted);
+  font-size: 11.5px;
+}
+
+.agent-btn {
+  min-height: var(--pl-ctl-h, 32px);
+  padding: 0 18px;
+  border: none;
+  border-radius: var(--asc-control-radius);
+  font-size: 12.5px;
+  font-weight: 750;
+  transition: background var(--asc-transition), transform var(--asc-transition);
+}
+
+.agent-btn--send {
+  background: var(--asc-primary);
+  color: #fff;
+}
+
+.agent-btn--send:hover:not(:disabled) {
+  background: var(--asc-primary-hover);
+}
+
+.agent-btn--send:disabled {
+  background: #dee2e6;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.agent-btn--stop {
+  background: #fff;
+  color: var(--asc-danger);
+  border: 1px solid #e3b6b6;
+}
+
+.agent-btn--stop:hover {
+  background: #fdf1f1;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 720px) {
+  .agent-panel__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .agent-panel__head-actions {
+    justify-content: flex-end;
+  }
+
+  .agent-panel__log {
+    max-height: 60vh;
+  }
+}
+</style>
