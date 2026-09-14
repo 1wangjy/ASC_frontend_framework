@@ -154,7 +154,7 @@
           <div class="m1-foot">
             <div class="m1-actions">
               <button type="button" class="m1-ghost-btn" @click="resetAll">重置</button>
-              <button type="button" class="m1-ghost-btn" title="填入示例：X_comp [[61,70],[42,30]]、X_global [3.6,10,0]、工况 110℃/1500℃"
+              <button type="button" class="m1-ghost-btn" title="填入完整虚拟配方：10 种原料（棕刚玉/黑碳化硅/矾土/水泥…）、X_global [3.6,10,0]、工况 110/1100/1300/1500℃、全部属性"
                 @click="loadExample">载入示例</button>
               <button type="button" class="m1-run-btn" :disabled="predicting || !validRows.length" @click="runPrediction">
                 <span v-if="predicting" class="m1-run__spinner" aria-hidden="true" />
@@ -587,14 +587,28 @@ async function runPrediction() {
 }
 
 /* ───────────────────────── 示例 / 重置 ───────────────────────── */
+// 完整"虚拟配方"：由数据集(yangquan.npy)真实样本统计得到（各原料出现频次 + 配比中位数归一化到 ~100%）。
+const EXAMPLE_RECIPE = [
+  ['61', 21.1],  // 棕刚玉
+  ['17', 8.4],   // 97黑碳化硅
+  ['71', 2.8],   // 球状沥青
+  ['84', 0.1],   // 防爆纤维
+  ['53', 23.9],  // 回转窑85矾土
+  ['70', 8.4],   // 煅烧氧化铝
+  ['42', 4.2],   // 一级白刚玉
+  ['46', 20.4],  // 倒焰90矾土
+  ['54', 7.0],   // 回转窑88矾土
+  ['27', 3.5],   // CA71水泥
+]
+const EXAMPLE_CONDITIONS = ['110℃', '1100℃', '1300℃', '1500℃']
 function loadExample() {
   rows.value = []
   rowSeq = 0
-  addRow('61', 70)
-  addRow('42', 30)
+  EXAMPLE_RECIPE.forEach(([id, pct]) => addRow(id, pct))
   globalValues.value = globalNames.value.map((_, i) => GLOBAL_PLACEHOLDERS[i] ?? '')
-  selectedConditions.value = ['110℃', '1500℃']
-  selectedProperties.value = []
+  selectedConditions.value = [...EXAMPLE_CONDITIONS]
+  // 全部属性（4 项）——显式选中以呈现完整示例
+  selectedProperties.value = properties.value.map((p) => p.property)
   predictError.value = ''
 }
 function resetAll() {
