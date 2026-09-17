@@ -18,6 +18,18 @@ function projectNameOf(project = {}) {
   return text(project?.name || project?.projectName || project?.project_name)
 }
 
+function graphIdOfProject(project = {}) {
+  return text(project?.graphId || project?.graph_id)
+}
+
+/** 图谱构建完成（无模拟组会亦可问答）：status / graph_build_stage 判定。 */
+function hasCompletedGraph(project = {}) {
+  const status = text(project?.status).toLowerCase()
+  const stage = text(project?.graphBuildStage || project?.graph_build_stage).toLowerCase()
+  return status === 'graph_completed' || status === 'base_completed'
+    || stage === 'professional' || stage === 'base'
+}
+
 function hasCompletedSimulation(project = {}) {
   const evolutionStatus = text(
     project?.evolutionStatus || project?.evolution_status
@@ -33,8 +45,10 @@ export function buildQualifiedQaProjects(projects = []) {
     .filter(project => (
       projectIdOf(project)
       && graphIdOf(project)
-      && simulationIdOf(project)
-      && hasCompletedSimulation(project)
+      && (
+        (simulationIdOf(project) && hasCompletedSimulation(project))
+        || hasCompletedGraph(project)
+      )
     ))
     .slice()
     .sort((left, right) => projectIdOf(left).localeCompare(projectIdOf(right)))
@@ -48,7 +62,7 @@ export function buildQualifiedQaProjects(projects = []) {
     const projectId = projectIdOf(project)
     const graphId = graphIdOf(project)
     const simulationId = simulationIdOf(project)
-    const scope = `${graphId}\u0000${simulationId}`
+    const scope = `${graphId}\u0000${simulationId || 'no-simulation'}`
     const previousScope = scopesByProject.get(projectId)
     if (previousScope && previousScope !== scope) conflictingProjects.add(projectId)
     else if (!previousScope) scopesByProject.set(projectId, scope)
@@ -57,9 +71,11 @@ export function buildQualifiedQaProjects(projects = []) {
     graphOwners.add(projectId)
     ownersByGraph.set(graphId, graphOwners)
 
-    const simulationOwners = ownersBySimulation.get(simulationId) || new Set()
-    simulationOwners.add(projectId)
-    ownersBySimulation.set(simulationId, simulationOwners)
+    if (simulationId) {
+      const simulationOwners = ownersBySimulation.get(simulationId) || new Set()
+      simulationOwners.add(projectId)
+      ownersBySimulation.set(simulationId, simulationOwners)
+    }
   })
 
   const uniqueProjects = new Map()
@@ -68,7 +84,7 @@ export function buildQualifiedQaProjects(projects = []) {
     if (
       conflictingProjects.has(projectId)
       || ownersByGraph.get(graphIdOf(project))?.size !== 1
-      || ownersBySimulation.get(simulationIdOf(project))?.size !== 1
+      || (simulationIdOf(project) && ownersBySimulation.get(simulationIdOf(project))?.size !== 1)
     ) return
     if (!uniqueProjects.has(projectId)) uniqueProjects.set(projectId, project)
   })

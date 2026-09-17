@@ -389,7 +389,7 @@ const projectUnavailableMessage = computed(() => {
   if (projectsLoading.value) return '正在读取可用于问答的知识图谱项目…'
   if (projectError.value) return projectError.value
   if (scopeSelectionRequired.value && projects.value.length) return '原问答项目资格已失效，请重新选择已完成模拟组会的图谱项目。'
-  if (!activeProject.value) return '问答需要基于模拟组会已完成的图谱项目，请先选择项目。'
+  if (!activeProject.value) return '问答需要基于已完成的图谱项目（模拟组会完成或图谱构建完成），请先选择项目。'
   return ''
 })
 
@@ -420,6 +420,11 @@ const qaProjectContext = createQaProjectContextController({
     projectsLoading.value = snapshot.loading
     projectError.value = snapshot.error
   }
+})
+
+// 打开选择器即刷新一次，避免挂载时序 / 监视器重试延迟导致列表为空
+watch(selectorOpen, (open) => {
+  if (open) refreshQualifiedProjects({ requireManualSelection: false })
 })
 
 async function refreshQualifiedProjects(options = {}) {

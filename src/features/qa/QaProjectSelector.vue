@@ -17,7 +17,7 @@
       <header>
         <div>
           <h2 id="qa-project-selector-title">选择问答项目</h2>
-          <p>仅显示模拟组会已完成的图谱项目</p>
+          <p>仅显示已完成的图谱项目（模拟组会完成或图谱构建完成）</p>
         </div>
         <button type="button" aria-label="关闭项目选择" @click="emit('close')">×</button>
       </header>
@@ -32,7 +32,8 @@
       </div>
 
       <div v-else-if="!projects.length" class="qa-project-selector__state">
-        暂无模拟组会已完成的图谱项目
+        <span>暂无已完成的图谱项目</span>
+        <button type="button" @click="emit('refresh')">刷新</button>
       </div>
 
       <ul v-else class="qa-project-selector__list">
@@ -45,7 +46,7 @@
           >
             <span>
               <strong>{{ project.projectName || project.projectId }}</strong>
-              <small>模拟组会已完成</small>
+              <small>已完成</small>
             </span>
             <b>{{ project.projectId === selectedProjectId ? '当前' : '选择' }}</b>
           </button>
