@@ -25,6 +25,34 @@ function emptyToolCallAccumulator() {
   return { id: '', type: 'function', function: { name: '', arguments: '' } };
 }
 
+/**
+ * Normalise an OpenAI-compatible `usage` block into agent metrics shape
+ * (`{prompt, completion, total, reported}`), or null when the upstream did not
+ * report usage at all — callers then count 0 tokens and say so.
+ */
+function normalizeUsage(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const read = (...keys) => {
+    for (const key of keys) {
+      if (raw[key] !== undefined && raw[key] !== null) return Number(raw[key]);
+    }
+    return undefined;
+  };
+  const prompt = read('prompt_tokens', 'prompt');
+  const completion = read('completion_tokens', 'completion');
+  const total = read('total_tokens', 'total');
+  if (prompt === undefined && completion === undefined && total === undefined) return null;
+  const count = (value) => (Number.isFinite(value) && value >= 0 ? value : 0);
+  const promptTokens = count(prompt);
+  const completionTokens = count(completion);
+  return {
+    prompt: promptTokens,
+    completion: completionTokens,
+    total: total === undefined ? promptTokens + completionTokens : count(total),
+    reported: true,
+  };
+}
+
 class OpenAICompatibleProvider {
   /**
    * @param {{apiUrl?:string, apiKey?:string, model?:string, timeoutMs?:number, fetchImpl?:Function}} options
@@ -52,6 +80,10 @@ class OpenAICompatibleProvider {
       body.tools = tools;
       body.tool_choice = 'auto';
     }
+    // OpenAI-compatible providers (incl. DeepSeek) only attach the `usage`
+    // block to the FINAL stream chunk when this is requested. Providers that
+    // ignore the flag simply never report usage (metrics then count 0).
+    if (body.stream) body.stream_options = { include_usage: true };
     return body;
   }
 
@@ -86,6 +118,7 @@ class OpenAICompatibleProvider {
       content: message.content || '',
       tool_calls: Array.isArray(message.tool_calls) ? message.tool_calls : [],
       finish_reason: choice.finish_reason,
+      usage: normalizeUsage(payload.usage),
     };
   }
 
@@ -107,6 +140,7 @@ class OpenAICompatibleProvider {
     const toolCalls = new Map();
     let buffer = '';
     let sawFinish = false;
+    let usage = null;
 
     const consumeLine = (line) => {
       const trimmed = line.trim();
@@ -119,6 +153,10 @@ class OpenAICompatibleProvider {
       } catch {
         return;
       }
+      // The usage block arrives on its own final chunk (choices: []), so read
+      // it before requiring a choice.
+      const chunkUsage = normalizeUsage(json.usage);
+      if (chunkUsage) usage = chunkUsage;
       const choice = json.choices && json.choices[0];
       if (!choice) return;
       if (choice.finish_reason) sawFinish = true;
@@ -159,7 +197,7 @@ class OpenAICompatibleProvider {
       return message;
     }
 
-    return { role: 'assistant', content: text, tool_calls: calls, finish_reason: calls.length ? 'tool_calls' : 'stop' };
+    return { role: 'assistant', content: text, tool_calls: calls, finish_reason: calls.length ? 'tool_calls' : 'stop', usage };
   }
 }
 
@@ -172,4 +210,4 @@ function createProvider(options = {}) {
   return new OpenAICompatibleProvider(options);
 }
 
-module.exports = { createProvider, OpenAICompatibleProvider, normalizeChatCompletionsUrl };
+module.exports = { createProvider, OpenAICompatibleProvider, normalizeChatCompletionsUrl, normalizeUsage };

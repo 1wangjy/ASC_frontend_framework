@@ -22,6 +22,35 @@
         <span class="agent-panel__tools-hint" :title="toolsHintTitle">
           {{ toolsHint }}
         </span>
+        <span v-if="shortSessionId(sessionId)" class="agent-panel__session" :title="`会话 ${sessionId}`">
+          会话 {{ shortSessionId(sessionId) }}
+        </span>
+        <button
+          type="button"
+          class="agent-panel__ghost"
+          aria-controls="agent-metrics"
+          :aria-expanded="metricsOpen"
+          @click="toggleMetrics"
+        >
+          运行指标
+        </button>
+        <button
+          type="button"
+          class="agent-panel__ghost"
+          aria-controls="agent-sessions"
+          :aria-expanded="sessionsOpen"
+          @click="toggleSessions"
+        >
+          会话历史
+        </button>
+        <button
+          type="button"
+          class="agent-panel__ghost"
+          :disabled="streaming"
+          @click="newSession"
+        >
+          新建会话
+        </button>
         <button
           type="button"
           class="agent-panel__ghost"
@@ -30,14 +59,6 @@
           @click="authOpen = !authOpen"
         >
           工具权限
-        </button>
-        <button
-          type="button"
-          class="agent-panel__ghost"
-          :disabled="!messages.length || streaming"
-          @click="reset"
-        >
-          新对话
         </button>
         <button
           type="button"
@@ -93,6 +114,101 @@
       </p>
     </section>
 
+    <section v-if="metricsOpen" id="agent-metrics" class="agent-meta" aria-label="运行指标">
+      <div class="agent-meta__row">
+        <span class="agent-meta__title">运行指标</span>
+        <span v-if="metricsLoading" class="agent-meta__note">加载中…</span>
+        <span v-else-if="metrics.ok" class="agent-meta__line">{{ metrics.line }}</span>
+        <span v-else class="agent-meta__note">{{ metricsError || '暂无指标' }}</span>
+        <button
+          type="button"
+          class="agent-meta__refresh"
+          :disabled="metricsLoading"
+          @click="refreshMetrics"
+        >
+          刷新
+        </button>
+      </div>
+      <p v-if="metrics.ok" class="agent-meta__note">{{ metrics.tokensLine }}</p>
+      <ul v-if="metrics.tools.length" class="agent-meta__tools">
+        <li v-for="tool in metrics.tools" :key="tool.name">
+          <code>{{ tool.name }}</code>
+          <span>{{ tool.calls }} 次</span>
+          <span v-if="tool.errors" class="agent-meta__errors">失败 {{ tool.errors }}（{{ tool.errorRate }}）</span>
+          <span>平均 {{ tool.avgLabel }}</span>
+        </li>
+      </ul>
+    </section>
+
+    <section v-if="sessionsOpen" id="agent-sessions" class="agent-meta" aria-label="会话历史">
+      <div class="agent-meta__row">
+        <span class="agent-meta__title">会话历史</span>
+        <span class="agent-meta__note">{{ sessions.length }} 条</span>
+        <button
+          type="button"
+          class="agent-meta__refresh"
+          :disabled="sessionsLoading"
+          @click="refreshSessions"
+        >
+          {{ sessionsLoading ? '加载中…' : '刷新' }}
+        </button>
+      </div>
+
+      <p v-if="sessionError" class="agent-meta__warning" role="alert">{{ sessionError }}</p>
+      <p v-if="sessionPersistWarning" class="agent-meta__note">{{ sessionPersistWarning }}</p>
+
+      <p v-if="!sessions.length && !sessionsLoading" class="agent-meta__note">
+        还没有历史会话：发送一条提问会自动保存，之后可在这里打开并继续。
+      </p>
+      <ul v-else class="agent-sessions__list">
+        <li v-for="session in sessions" :key="session.sessionId" class="agent-sessions__item">
+          <button
+            type="button"
+            class="agent-session"
+            :class="{ 'agent-session--active': session.sessionId === sessionId }"
+            :aria-current="session.sessionId === sessionId ? 'true' : undefined"
+            :disabled="streaming || sessionsLoading"
+            :title="`打开会话：${session.title}`"
+            @click="openSession(session.sessionId)"
+          >
+            <span class="agent-session__title">{{ session.title }}</span>
+            <span class="agent-session__meta">
+              {{ session.turns }} 轮 · {{ formatSessionTime(session.updatedAt) }}
+            </span>
+          </button>
+          <template v-if="pendingDeleteId === session.sessionId">
+            <button
+              type="button"
+              class="agent-session__delete agent-session__delete--confirm"
+              :disabled="streaming"
+              :aria-label="`确认删除会话 ${session.title}`"
+              @click="removeSession(session.sessionId)"
+            >
+              确认删除
+            </button>
+            <button
+              type="button"
+              class="agent-session__delete"
+              :aria-label="`取消删除会话 ${session.title}`"
+              @click="pendingDeleteId = ''"
+            >
+              取消
+            </button>
+          </template>
+          <button
+            v-else
+            type="button"
+            class="agent-session__delete"
+            :disabled="streaming"
+            :aria-label="`删除会话 ${session.title}`"
+            @click="pendingDeleteId = session.sessionId"
+          >
+            删除
+          </button>
+        </li>
+      </ul>
+    </section>
+
     <div ref="logElement" class="agent-panel__log" role="log" aria-live="polite" aria-relevant="additions text">
       <div v-if="!messages.length" class="agent-panel__empty">
         <p class="agent-panel__empty-title">从一次真实的工具调用开始</p>
@@ -136,6 +252,7 @@
               </summary>
               <div class="agent-tool__detail">
                 <p v-if="tool.resultSummary" class="agent-tool__result">{{ tool.resultSummary }}</p>
+                <ToolEvidence :tool="tool" />
                 <pre class="agent-tool__code" tabindex="0">{{ toolPayload(tool) }}</pre>
               </div>
             </details>
@@ -147,7 +264,15 @@
           </span>
           <span v-if="message.streaming && message.content" class="agent-message__caret" aria-hidden="true"></span>
 
-          <p v-if="message.error" class="agent-message__error" role="alert">{{ message.error }}</p>
+          <div v-if="message.error" class="agent-message__error" role="alert">
+            <p class="agent-message__error-text">{{ message.error }}</p>
+            <p v-if="canRetry && message.id === lastAssistantId" class="agent-message__retry">
+              <button type="button" class="agent-btn agent-btn--retry" @click="retryTurn">
+                从断点续传
+              </button>
+              <span class="agent-message__retry-hint">{{ retryHint }}</span>
+            </p>
+          </div>
         </div>
       </article>
     </div>
@@ -195,7 +320,23 @@
 defineOptions({ name: 'AgentPanel' })
 
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { useAgentChat } from './useAgentChat.js'
+import { RETRY_HINT, useAgentChat } from './useAgentChat.js'
+import ToolEvidence from './ToolEvidence.vue'
+import {
+  createAgentSession,
+  deleteAgentSession,
+  getAgentMetrics,
+  getAgentSession,
+  listAgentSessions
+} from './api.js'
+import { describeMetrics } from './metrics.js'
+import {
+  formatSessionTime,
+  mapSessionDetail,
+  mapSessionList,
+  shortSessionId,
+  suggestSessionTitle
+} from './sessions.js'
 import {
   MUTATING_TOOLS,
   buildRequestOptions,
@@ -230,9 +371,15 @@ const {
   steps,
   tools,
   toolsError,
+  sessionId,
+  lastEventId,
+  canRetry,
   send,
+  retry,
   stop,
-  reset,
+  loadSession,
+  startSession,
+  adoptSession,
   loadTools,
   toolStatusLabel
 } = useAgentChat({
@@ -286,6 +433,135 @@ const toolsHint = computed(() => {
 
 const toolsHintTitle = computed(() => tools.value.map(tool => tool.name).join('、') || toolsError.value)
 
+/* --- T9 运行指标（GET /api/agent/metrics） -------------------------------- */
+
+const metricsOpen = ref(false)
+const metricsLoading = ref(false)
+const metricsError = ref('')
+const metricsRaw = ref(null)
+const metrics = computed(() => describeMetrics(metricsRaw.value))
+
+async function refreshMetrics() {
+  metricsLoading.value = true
+  metricsError.value = ''
+  try {
+    metricsRaw.value = await getAgentMetrics()
+  } catch (err) {
+    metricsRaw.value = null
+    metricsError.value = err?.message || '运行指标读取失败'
+  } finally {
+    metricsLoading.value = false
+  }
+}
+
+function toggleMetrics() {
+  metricsOpen.value = !metricsOpen.value
+  if (metricsOpen.value) void refreshMetrics()
+}
+
+/* --- T3 会话历史（/api/agent/sessions） ---------------------------------- */
+
+const sessionsOpen = ref(false)
+const sessionsLoading = ref(false)
+const sessions = ref([])
+const sessionError = ref('')
+/** 待确认删除的会话 id：删除历史不可撤销，必须二次确认。 */
+const pendingDeleteId = ref('')
+/** 会话存储不可用时的降级说明（提问照常，只是不落库/不能续传）。 */
+const sessionPersistWarning = ref('')
+
+async function refreshSessions() {
+  sessionsLoading.value = true
+  sessionError.value = ''
+  try {
+    sessions.value = mapSessionList(await listAgentSessions({ limit: 20 }))
+  } catch (err) {
+    sessions.value = []
+    sessionError.value = err?.message || '会话列表读取失败'
+  } finally {
+    sessionsLoading.value = false
+  }
+}
+
+function toggleSessions() {
+  sessionsOpen.value = !sessionsOpen.value
+  if (sessionsOpen.value) void refreshSessions()
+}
+
+/** 新建会话；服务端建失败时退回本地会话（不阻塞提问）。 */
+async function newSession() {
+  sessionError.value = ''
+  sessionPersistWarning.value = ''
+  try {
+    const created = await createAgentSession({})
+    startSession(created.sessionId)
+    if (sessionsOpen.value) await refreshSessions()
+  } catch (err) {
+    startSession('')
+    sessionPersistWarning.value = `${err?.message || '新建会话失败'}：已切换为本地会话（不保存历史，也无法断点续传）。`
+  }
+}
+
+/** 打开历史会话：回填消息，并把后续提问接到同一个 sessionId 上。 */
+async function openSession(id) {
+  if (streaming.value) return
+  sessionError.value = ''
+  sessionsLoading.value = true
+  try {
+    const detail = mapSessionDetail(await getAgentSession(id))
+    if (!detail) throw new Error('会话详情缺少 sessionId')
+    loadSession(detail)
+  } catch (err) {
+    sessionError.value = err?.message || '会话详情读取失败'
+  } finally {
+    sessionsLoading.value = false
+  }
+}
+
+async function removeSession(id) {
+  if (streaming.value) return
+  pendingDeleteId.value = ''
+  sessionError.value = ''
+  try {
+    await deleteAgentSession(id)
+    if (id === sessionId.value) {
+      startSession('')
+      sessionPersistWarning.value = '当前会话已删除，下一次提问会自动新建会话。'
+    }
+    await refreshSessions()
+  } catch (err) {
+    sessionError.value = err?.message || '会话删除失败'
+  }
+}
+
+/** 首次提问时惰性建会话：历史可回看、失败可续传；建失败也不阻塞提问。 */
+async function ensureSession(text) {
+  if (sessionId.value) return
+  sessionPersistWarning.value = ''
+  try {
+    const created = await createAgentSession({ title: suggestSessionTitle(text) })
+    adoptSession(created.sessionId)
+  } catch (err) {
+    sessionPersistWarning.value = `${err?.message || '会话创建失败'}：本轮不会保存，也无法断点续传。`
+  }
+}
+
+/* --- T11 断点续传 --------------------------------------------------------- */
+
+const lastAssistantId = computed(() => messages.value[messages.value.length - 1]?.id || '')
+const retryHint = computed(() => `${RETRY_HINT}（续传点：事件 #${lastEventId.value ?? 0}）`)
+
+async function retryTurn() {
+  await retry()
+}
+
+// 一轮结束后刷新已展开的历史/指标，让轮次与统计跟上（关闭时不发请求）。
+watch(streaming, (isStreaming, wasStreaming) => {
+  if (isStreaming || !wasStreaming) return
+  if (sessionsOpen.value) void refreshSessions()
+  if (metricsOpen.value) void refreshMetrics()
+})
+
 function toolPayload(tool) {
   const payload = { args: tool.args, result: tool.data }
   try {
@@ -300,11 +576,12 @@ function useExample(example) {
   inputElement.value?.focus()
 }
 
-function submit() {
+async function submit() {
   const value = draft.value
   if (!value.trim() || streaming.value || selection.value.blocked) return
   draft.value = ''
-  void send(value)
+  await ensureSession(value.trim())
+  await send(value)
 }
 
 function scrollToLatest() {
@@ -325,7 +602,7 @@ onMounted(() => {
   void loadTools()
 })
 
-defineExpose({ messages, streaming, steps })
+defineExpose({ messages, streaming, steps, sessionId })
 </script>
 
 <style scoped>
@@ -401,8 +678,10 @@ defineExpose({ messages, streaming, steps })
 .agent-panel__head-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
 }
 
 .agent-panel__status {
@@ -435,6 +714,18 @@ defineExpose({ messages, streaming, steps })
 .agent-panel__tools-hint {
   color: var(--agent-muted);
   font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.agent-panel__session {
+  padding: 2px 8px;
+  border: 1px solid var(--asc-border-strong);
+  border-radius: 999px;
+  background: var(--asc-surface);
+  color: var(--asc-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  font-weight: 650;
   white-space: nowrap;
 }
 
@@ -556,6 +847,195 @@ defineExpose({ messages, streaming, steps })
   background: #fdf1f1;
   color: #8f3232;
   font-size: 11.5px;
+}
+
+/* 会话历史 / 运行指标：同一个折叠区骨架，避免两套外观 */
+.agent-meta {
+  display: grid;
+  gap: 7px;
+  padding: 10px 14px 12px;
+  border-bottom: 1px solid var(--asc-border);
+  background: var(--asc-surface-soft);
+}
+
+.agent-meta__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.agent-meta__title {
+  color: var(--asc-heading);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-meta__line {
+  color: var(--asc-text);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-meta__note {
+  margin: 0;
+  color: var(--agent-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.agent-meta__warning {
+  margin: 0;
+  padding: 6px 9px;
+  border-left: 3px solid var(--asc-danger);
+  border-radius: 4px;
+  background: #fdf1f1;
+  color: #8f3232;
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.agent-meta__refresh {
+  margin-left: auto;
+  min-height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--asc-border-strong);
+  border-radius: var(--asc-control-radius);
+  background: #fff;
+  color: var(--asc-text);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.agent-meta__refresh:hover:not(:disabled) {
+  border-color: var(--asc-primary);
+  color: var(--asc-primary-hover);
+}
+
+.agent-meta__refresh:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.agent-meta__tools {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-meta__tools li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--asc-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-meta__tools code {
+  color: var(--asc-heading);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+}
+
+.agent-meta__errors {
+  color: var(--asc-danger);
+  font-weight: 650;
+}
+
+.agent-sessions__list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-sessions__item {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+
+.agent-session {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--asc-border-strong);
+  border-radius: var(--asc-radius);
+  background: #fff;
+  color: var(--asc-text);
+  text-align: left;
+  transition: border-color var(--asc-transition), background var(--asc-transition);
+}
+
+.agent-session:hover:not(:disabled) {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary-soft);
+}
+
+.agent-session--active {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary-soft);
+}
+
+.agent-session:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.agent-session__title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--asc-heading);
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-session__meta {
+  flex: 0 0 auto;
+  color: var(--agent-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-session__delete {
+  flex: 0 0 auto;
+  padding: 0 9px;
+  border: 1px solid var(--asc-border-strong);
+  border-radius: var(--asc-radius);
+  background: #fff;
+  color: var(--asc-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.agent-session__delete:hover:not(:disabled) {
+  border-color: var(--asc-danger);
+  color: var(--asc-danger);
+}
+
+.agent-session__delete--confirm {
+  border-color: var(--asc-danger);
+  background: #fdf1f1;
+  color: #8f3232;
+  font-weight: 700;
+}
+
+.agent-session__delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .agent-panel__log {
@@ -711,6 +1191,39 @@ defineExpose({ messages, streaming, steps })
   background: #fdf1f1;
   color: #8f3232;
   font-size: 12px;
+}
+
+.agent-message__error-text {
+  margin: 0;
+}
+
+.agent-message__retry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 7px 0 0;
+}
+
+.agent-message__retry-hint {
+  color: #8f3232;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.agent-btn--retry {
+  min-height: 26px;
+  padding: 0 12px;
+  border: 1px solid #e3b6b6;
+  border-radius: var(--asc-control-radius);
+  background: #fff;
+  color: var(--asc-danger);
+  font-size: 11.5px;
+}
+
+.agent-btn--retry:hover {
+  border-color: var(--asc-danger);
+  background: #fff6f6;
 }
 
 .agent-tools {

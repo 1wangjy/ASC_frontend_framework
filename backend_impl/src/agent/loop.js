@@ -6,8 +6,10 @@
  * state. Permission decisions belong to policy.js / tools/index.js; this file
  * only orchestrates and emits SSE frames.
  *
- * Frame contract (each `data: <json>\n\n`):
- *   message_delta | tool_call | tool_result | final | error | done
+ * Frame contract (each `data: <json>\n\n`; route.js adds the SSE `id:` line):
+ *   message_delta | tool_call | tool_result{…, ms} | final | error | done
+ * `error` carries `{code:'turn_timeout'}` when the turn hit the turn timeout;
+ * route.js adds `{sessionId, turnIndex}` to the `done` frame of a session turn.
  */
 
 const policy = require('./policy');
@@ -19,6 +21,61 @@ const MAX_STEPS_CAP = 10;
 const MAX_MESSAGES = 40;
 const MAX_MESSAGE_CHARS = 12000;
 const MAX_TOOL_PAYLOAD_CHARS = 12000;
+
+/** Turn-level wall-clock budget (AGENT_TURN_TIMEOUT_MS), 5 minutes by default. */
+const DEFAULT_TURN_TIMEOUT_MS = 300000;
+const MIN_TURN_TIMEOUT_MS = 50;
+const MAX_TURN_TIMEOUT_MS = 3600000;
+
+/**
+ * Resolve this turn's timeout: explicit option > AGENT_TURN_TIMEOUT_MS.
+ * Read per call (never cached at module load) so operators and tests can
+ * change it between turns.
+ */
+function resolveTurnTimeout(options = {}, env = process.env) {
+  return policy.clampInt(
+    options.timeoutMs,
+    policy.clampInt(env.AGENT_TURN_TIMEOUT_MS, DEFAULT_TURN_TIMEOUT_MS, MIN_TURN_TIMEOUT_MS, MAX_TURN_TIMEOUT_MS),
+    MIN_TURN_TIMEOUT_MS,
+    MAX_TURN_TIMEOUT_MS
+  );
+}
+
+function abortError() {
+  const error = new Error('aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+/**
+ * Await `promise`, but reject the moment `signal` aborts — even when the
+ * awaited work ignores its own AbortSignal. This is what makes the turn
+ * timeout a hard stop instead of a best-effort hint.
+ */
+function abortable(promise, signal) {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(abortError());
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(abortError());
+    signal.addEventListener('abort', onAbort, { once: true });
+    const settle = (fn) => (value) => {
+      signal.removeEventListener('abort', onAbort);
+      fn(value);
+    };
+    promise.then(settle(resolve), settle(reject));
+  });
+}
+
+/** Sum a provider `usage` block into the turn total (no-op when absent). */
+function addUsage(total, usage) {
+  if (!usage || typeof usage !== 'object') return total;
+  const count = (value) => (Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : 0);
+  total.prompt += count(usage.prompt);
+  total.completion += count(usage.completion);
+  total.total += count(usage.total);
+  if (usage.reported !== false) total.reported = true;
+  return total;
+}
 
 const SYSTEM_PROMPT = `你是 ASC（铝硅碳耐火材料）平台的智能助手，运行在「多轮对话」页面中。
 
@@ -86,14 +143,24 @@ function toolMessageContent(outcome) {
 /**
  * Run one agent turn.
  *
+ * The turn is hard-bounded by AGENT_TURN_TIMEOUT_MS (default 300000 = 5 min;
+ * overridable per request through `options.timeoutMs`). On expiry an `error`
+ * frame `{code:'turn_timeout'}` is emitted, followed by `done`, and no further
+ * tool is called. The bound holds even for a tool/LLM call that ignores its
+ * AbortSignal — see `abortable()`.
+ *
  * @param {object} params
  * @param {Array}  params.messages  normalised chat history
  * @param {{projectId?:string, graphId?:string}} params.context
  * @param {{maxSteps?:number, maxTools?:number, maxOptimize?:number, allowTools?:string[],
- *          webAllowlist?:string[], sessionId?:string}} params.options
+ *          webAllowlist?:string[], sessionId?:string, timeoutMs?:number}} params.options
  * @param {(frame:object)=>void} params.emit
  * @param {AbortSignal} [params.signal]
  * @param {object} [params.provider]
+ * @returns {Promise<{steps:number, timedOut:boolean,
+ *   usage:{prompt:number, completion:number, total:number, reported:boolean}}>}
+ *   Token usage is summed over the LLM calls of this turn; `reported:false`
+ *   means the provider returned no `usage` block (metrics then count 0 tokens).
  */
 async function runAgent({ messages, context = {}, options = {}, emit, signal, provider }) {
   const llm = provider || createProvider();
@@ -101,40 +168,58 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
   const toolSchemas = toolRegistry.getToolSchemas(allowed);
   const maxSteps = policy.clampInt(options.maxSteps, DEFAULT_MAX_STEPS, 1, MAX_STEPS_CAP);
   const quota = policy.resolveQuota(options);
-  const usage = { tools: 0, optimize: 0 };
+  const toolUsage = { tools: 0, optimize: 0 };
+  const tokenUsage = { prompt: 0, completion: 0, total: 0, reported: false };
   const sessionId = typeof options.sessionId === 'string' && options.sessionId.trim()
     ? options.sessionId.trim().slice(0, 64)
     : undefined;
+  const timeoutMs = resolveTurnTimeout(options);
+
+  const turn = new AbortController();
+  let timedOut = false;
+  const relayAbort = () => turn.abort();
+  if (signal) {
+    if (signal.aborted) turn.abort();
+    else signal.addEventListener('abort', relayAbort, { once: true });
+  }
+  const timer = setTimeout(() => {
+    timedOut = true;
+    turn.abort();
+  }, timeoutMs);
+  const turnSignal = turn.signal;
 
   const convo = [{ role: 'system', content: SYSTEM_PROMPT }, ...messages];
   let steps = 0;
   let lastText = '';
+  const done = () => ({ steps, timedOut, usage: tokenUsage });
 
   try {
     if (!llm.available) {
       emit({ type: 'error', message: 'LLM 未配置：请在后端设置 LLM_API_URL 与 LLM_API_KEY。' });
       emit({ type: 'done', steps: 0 });
-      return;
+      return done();
     }
 
     while (steps < maxSteps) {
+      if (turnSignal.aborted) throw abortError();
       steps += 1;
-      const assistant = await llm.streamChat({
+      const assistant = await abortable(llm.streamChat({
         messages: convo,
         tools: toolSchemas,
-        signal,
+        signal: turnSignal,
         onDelta: (text) => {
           lastText += text;
           emit({ type: 'message_delta', text });
         },
-      });
+      }), turnSignal);
+      addUsage(tokenUsage, assistant.usage);
 
       const calls = Array.isArray(assistant.tool_calls) ? assistant.tool_calls : [];
       if (calls.length === 0) {
         const finalText = assistant.content || lastText;
         emit({ type: 'final', text: finalText });
         emit({ type: 'done', steps });
-        return;
+        return done();
       }
 
       // Append the assistant turn exactly as the provider produced it so that
@@ -158,7 +243,7 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
         emit({ type: 'tool_call', id, name, args: parsedArgs || {} });
 
         // Per-turn quota: refuse (never throw) and stop calling more tools.
-        const quotaReason = policy.toolQuotaReason(name, usage, quota);
+        const quotaReason = policy.toolQuotaReason(name, toolUsage, quota);
         if (quotaReason) {
           policy.auditCall({
             name,
@@ -168,31 +253,33 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
             sessionId,
             error: `quota: maxTools=${quota.maxTools} maxOptimize=${quota.maxOptimize}`,
           });
-          emit({ type: 'tool_result', id, name, ok: false, summary: quotaReason, data: { quota_exceeded: true, used: { ...usage }, limit: { ...quota } } });
+          emit({ type: 'tool_result', id, name, ok: false, summary: quotaReason, data: { quota_exceeded: true, used: { ...toolUsage }, limit: { ...quota } }, ms: 0 });
           emit({ type: 'final', text: quotaReason });
           emit({ type: 'done', steps });
-          return;
+          return done();
         }
 
+        const callStarted = Date.now();
         let outcome;
         if (parsedArgs === null) {
           outcome = { ok: false, summary: `tool "${name}": arguments were not valid JSON`, data: null };
           policy.auditCall({ name, argsSummary: {}, ok: false, ms: 0, sessionId, error: 'invalid JSON arguments' });
         } else {
-          outcome = await toolRegistry.runTool(name, parsedArgs, {
+          outcome = await abortable(toolRegistry.runTool(name, parsedArgs, {
             allowed,
-            signal,
+            signal: turnSignal,
             projectId: context && context.projectId,
             graphId: context && context.graphId,
             webAllowlist: options.webAllowlist,
             sessionId,
-          });
+          }), turnSignal);
         }
+        const ms = Date.now() - callStarted;
 
-        usage.tools += 1;
-        if (policy.EXPENSIVE_TOOLS.has(name)) usage.optimize += 1;
+        toolUsage.tools += 1;
+        if (policy.EXPENSIVE_TOOLS.has(name)) toolUsage.optimize += 1;
 
-        emit({ type: 'tool_result', id, name, ok: outcome.ok, summary: outcome.summary, data: outcome.data });
+        emit({ type: 'tool_result', id, name, ok: outcome.ok, summary: outcome.summary, data: outcome.data, ms });
         convo.push({ role: 'tool', tool_call_id: id, content: toolMessageContent(outcome) });
       }
     }
@@ -201,14 +288,21 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
       || `已达到最大工具调用步数（${maxSteps}），请根据以上工具结果继续提问。`;
     emit({ type: 'final', text: exhausted });
     emit({ type: 'done', steps });
+    return done();
   } catch (error) {
-    if (error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+    if (timedOut) {
+      emit({ type: 'error', code: 'turn_timeout', message: `本回合已超时（${timeoutMs} ms），已停止工具调用。` });
+    } else if (error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
       emit({ type: 'error', message: error.name === 'TimeoutError' ? 'LLM 调用超时。' : '请求已中断。' });
     } else {
       emit({ type: 'error', message: String(error && error.message ? error.message : error).slice(0, 600) });
     }
     emit({ type: 'done', steps });
+    return done();
+  } finally {
+    clearTimeout(timer);
+    if (signal) signal.removeEventListener('abort', relayAbort);
   }
 }
 
-module.exports = { runAgent, normalizeMessages, SYSTEM_PROMPT };
+module.exports = { runAgent, normalizeMessages, SYSTEM_PROMPT, resolveTurnTimeout };
