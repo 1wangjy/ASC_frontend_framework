@@ -33,27 +33,27 @@ defineEmits(['update:mode'])
   width: fit-content;
   display: inline-flex;
   justify-self: center;
-  padding: 4px;
-  border: 1px solid var(--asc-border);
-  border-radius: 10px;
+  padding: var(--qa-space-1);
+  border: 1px solid var(--qa-border-color);
+  border-radius: var(--qa-radius-card);
   background: rgba(255, 255, 255, .72);
 }
 
 .qa-mode-switcher button {
-  min-height: 34px;
-  padding: 0 18px;
+  min-height: var(--qa-control-h);
+  padding: 0 var(--qa-space-4);
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--qa-radius-control);
   background: transparent;
-  color: var(--asc-muted);
+  color: var(--qa-muted);
   font: inherit;
-  font-size: 13px;
-  font-weight: 750;
+  font-size: var(--qa-control-font);
+  font-weight: var(--qa-weight-bold);
   cursor: pointer;
 }
 
 .qa-mode-switcher button.active {
-  background: var(--asc-primary);
+  background: var(--qa-accent);
   color: #fff;
   box-shadow: 0 4px 12px rgba(8, 105, 173, .18);
 }

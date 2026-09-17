@@ -1,0 +1,113 @@
+/*
+ * 问题研究 (QA) shared UI layer.
+ *
+ * Single source of truth for the 问题研究 surface: page shell metrics, the
+ * control grid, the card/panel language, an 8px-rhythm spacing scale and the
+ * type scale. It is imported once by src/views/AscQaView.vue and consumed by
+ * every src/features/qa/** component (plus the embedded platform AgentPanel)
+ * through `var(--qa-*)` tokens, and by the `.qa-panel` composition class.
+ *
+ * Rules:
+ *  - Tokens BUILD ON the app-wide --asc-* palette (src/styles/tokens.css);
+ *    they never redefine it and never touch the platform --pl-* family.
+ *  - Both 问题研究 modes (智能会话 /research?mode=multi and
+ *    深度研究 /research?mode=single) and every sub-panel resolve to the same
+ *    numbers here, so switching mode does not jump the layout.
+ */
+:root {
+  /* ---- color (aliases over the --asc-* palette) ---- */
+  --qa-surface: var(--asc-surface);
+  --qa-surface-soft: var(--asc-surface-soft);
+  --qa-surface-muted: #f5f8fb;
+  --qa-border-color: var(--asc-border);
+  --qa-border-strong: var(--asc-border-strong);
+  --qa-heading: var(--asc-heading);
+  --qa-text: var(--asc-text);
+  --qa-muted: var(--asc-muted);
+  --qa-accent: var(--asc-primary);
+  --qa-accent-hover: var(--asc-primary-hover);
+  --qa-accent-soft: var(--asc-primary-soft);
+  --qa-success: var(--asc-success);
+  --qa-success-soft: var(--asc-success-soft);
+  --qa-warning: var(--asc-warning);
+  --qa-warning-soft: var(--asc-warning-soft);
+  --qa-danger: var(--asc-danger);
+  --qa-danger-soft: #fff7f6;
+
+  /* ---- radii ---- */
+  --qa-radius-control: 8px;   /* buttons, inputs, selects, tab pills */
+  --qa-radius-card: 10px;     /* every panel / card */
+  --qa-radius-container: 12px; /* page-level workspace containers */
+  --qa-radius-chip: 999px;    /* status / tag pills */
+
+  /* ---- control grid (one height for buttons, inputs, selects, tabs, chips) ---- */
+  --qa-control-h: 32px;
+  --qa-control-h-sm: 28px;
+  --qa-chip-h: 24px;
+  --qa-control-pad-x: 12px;
+  --qa-control-font: 13px;
+
+  /* ---- spacing scale (4px step, 8px rhythm) ---- */
+  --qa-space-1: 4px;
+  --qa-space-2: 8px;
+  --qa-space-3: 12px;
+  --qa-space-4: 16px;
+  --qa-space-5: 20px;
+  --qa-space-6: 24px;
+  --qa-space-8: 32px;
+  --qa-space-10: 40px;
+  --qa-space-12: 48px;
+
+  /* ---- type scale ---- */
+  --qa-font-xs: 11px;
+  --qa-font-sm: 12px;
+  --qa-font-md: 14px;
+  --qa-font-lg: 15px;
+  --qa-font-xl: 16px;      /* hero / empty-state subtitle */
+  --qa-title-size: 15px;   /* panel / card heading */
+  --qa-heading-size: 18px; /* workspace section heading */
+  --qa-weight-semibold: 650;
+  --qa-weight-bold: 700;
+  --qa-weight-heavy: 800;
+
+  /* ---- page shell (identical for both modes) ---- */
+  --qa-topbar-h: 58px;
+  --qa-topbar-pad-y: 10px;
+  --qa-topbar-pad-x: var(--qa-space-6);
+  --qa-gutter: var(--qa-space-6);      /* 24px per side => calc(100% - 48px) */
+  --qa-page-max: 1180px;               /* active session / discussion width */
+  --qa-page-max-narrow: 980px;         /* centred home / empty width */
+  --qa-page-pad-top: var(--qa-space-6);
+  --qa-page-pad-bottom: var(--qa-space-8);
+  --qa-section-gap: var(--qa-space-5);
+
+  /* ---- panels ---- */
+  --qa-panel-pad: var(--qa-space-4);
+  --qa-panel-head-h: var(--qa-control-h);
+  --qa-shadow-card: 0 4px 14px rgba(16, 42, 67, 0.06);
+  --qa-shadow-panel: 0 12px 34px rgba(16, 42, 67, 0.1);
+  --qa-shadow-pop: var(--asc-shadow);
+  --qa-transition: var(--asc-transition);
+}
+
+@media (max-width: 760px) {
+  :root {
+    --qa-gutter: var(--qa-space-3);
+    --qa-topbar-pad-x: var(--qa-space-4);
+    --qa-page-pad-top: var(--qa-space-5);
+    --qa-page-pad-bottom: var(--qa-space-6);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Shared class layer — global by design, so the 问题研究 panels that
+ * opt into it render the exact same border/radius/surface/shadow.
+ * Consumed by QaQueryProgress.vue and AnswerDetailsTabs.vue; every
+ * other panel consumes the tokens above from its scoped rules.
+ * ------------------------------------------------------------------ */
+.qa-panel {
+  border: 1px solid var(--qa-border-color);
+  border-radius: var(--qa-radius-card);
+  background: var(--qa-surface);
+  box-shadow: var(--qa-shadow-card);
+}

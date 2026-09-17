@@ -43,16 +43,16 @@ defineProps({
 </script>
 
 <style scoped>
-.logic-derivation { display: grid; gap: 12px; white-space: normal; }
-.logic-derivation__section { display: grid; grid-template-columns: 128px minmax(0, 1fr); overflow: hidden; border: 1px solid #d7e5ee; border-radius: 10px; background: #fff; }
-.logic-derivation__label { padding: 14px 16px; border-right: 1px solid #d7e5ee; background: #f3f8fb; color: var(--asc-heading); font-size: 12px; font-weight: 800; }
-.logic-derivation__content { min-width: 0; padding: 13px 16px; }
+.logic-derivation { display: grid; gap: var(--qa-space-3); white-space: normal; }
+.logic-derivation__section { display: grid; grid-template-columns: 128px minmax(0, 1fr); overflow: hidden; border: 1px solid var(--qa-border-color); border-radius: var(--qa-radius-card); background: var(--qa-surface); }
+.logic-derivation__label { padding: var(--qa-panel-pad); border-right: 1px solid var(--qa-border-color); background: var(--qa-surface-soft); color: var(--qa-heading); font-size: var(--qa-font-sm); font-weight: var(--qa-weight-heavy); }
+.logic-derivation__content { min-width: 0; padding: var(--qa-space-3) var(--qa-panel-pad); }
 .logic-derivation__content p { margin: 0; line-height: 1.8; }
-.logic-derivation__content ol { display: grid; gap: 8px; margin: 0; padding-left: 20px; }
-.logic-derivation__terms { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
-.logic-derivation__terms span { padding: 4px 9px; border: 1px solid #add8ca; border-radius: 999px; background: #effaf6; color: #08745f; font-size: 13px; font-weight: 700; }
+.logic-derivation__content ol { display: grid; gap: var(--qa-space-2); margin: 0; padding-left: var(--qa-space-5); }
+.logic-derivation__terms { display: flex; flex-wrap: wrap; gap: var(--qa-space-2); margin-top: var(--qa-space-2); }
+.logic-derivation__terms span { min-height: var(--qa-chip-h); display: inline-flex; align-items: center; padding: 0 var(--qa-space-2); border: 1px solid #add8ca; border-radius: var(--qa-radius-chip); background: var(--qa-success-soft); color: #08745f; font-size: var(--qa-control-font); font-weight: var(--qa-weight-bold); }
 @media (max-width: 760px) {
   .logic-derivation__section { grid-template-columns: 1fr; }
-  .logic-derivation__label { border-right: 0; border-bottom: 1px solid #d7e5ee; }
+  .logic-derivation__label { border-right: 0; border-bottom: 1px solid var(--qa-border-color); }
 }
 </style>

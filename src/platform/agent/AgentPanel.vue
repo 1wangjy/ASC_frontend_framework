@@ -609,13 +609,37 @@ defineExpose({ messages, streaming, steps, sessionId })
 .agent-panel {
   /* 面板内的次要文本：由设计令牌派生，保证 11.5px 下仍满足 AA 对比度 */
   --agent-muted: color-mix(in srgb, var(--asc-muted) 82%, var(--asc-heading));
+  /* 嵌入问题研究页面时对齐 QA 控件网格 / 面板语言；独立使用时回落到平台令牌 */
+  --agent-ctl-h: var(--qa-control-h, var(--pl-ctl-h, 32px));
+  --agent-ctl-h-sm: var(--qa-control-h-sm, 28px);
+  --agent-chip-h: var(--qa-chip-h, 24px);
+  --agent-ctl-radius: var(--qa-radius-control, var(--asc-control-radius));
+  --agent-card-radius: var(--qa-radius-card, var(--pl-card-radius, 12px));
+  --agent-container-radius: var(--qa-radius-container, var(--pl-card-radius, 12px));
+  --agent-chip-radius: var(--qa-radius-chip, 999px);
+  --agent-border-color: var(--qa-border-color, var(--asc-border));
+  --agent-surface: var(--qa-surface, var(--asc-surface));
+  --agent-surface-soft: var(--qa-surface-soft, var(--asc-surface-soft));
+  --agent-ink: var(--qa-text, var(--asc-text));
+  --agent-heading: var(--qa-heading, var(--asc-heading));
+  --agent-font-xs: var(--qa-font-xs, 11px);
+  --agent-font-sm: var(--qa-font-sm, 12px);
+  --agent-font-md: var(--qa-font-md, 14px);
+  --agent-font-lg: var(--qa-font-lg, 15px);
+  --agent-title-size: var(--qa-title-size, 15px);
+  --agent-space-1: var(--qa-space-1, 4px);
+  --agent-space-2: var(--qa-space-2, 8px);
+  --agent-space-3: var(--qa-space-3, 12px);
+  --agent-space-4: var(--qa-space-4, 16px);
+  --agent-space-5: var(--qa-space-5, 20px);
+  --agent-shadow-card: var(--qa-shadow-card, 0 1px 2px rgba(16, 42, 67, 0.05));
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border: 1px solid var(--asc-border);
-  border-radius: var(--pl-card-radius, 12px);
-  background: var(--asc-surface);
-  box-shadow: 0 1px 2px rgba(16, 42, 67, 0.05);
+  border: 1px solid var(--agent-border-color);
+  border-radius: var(--agent-container-radius);
+  background: var(--agent-surface);
+  box-shadow: var(--agent-shadow-card);
   overflow: hidden;
 }
 
@@ -623,63 +647,65 @@ defineExpose({ messages, streaming, steps, sessionId })
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--pl-space-2, 16px);
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--asc-border);
-  background: var(--asc-surface-soft);
+  gap: var(--agent-space-2);
+  padding: var(--agent-space-3) var(--agent-space-4);
+  border-bottom: 1px solid var(--agent-border-color);
+  background: var(--agent-surface-soft);
 }
 
 .agent-panel__heading {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--agent-space-2);
   min-width: 0;
 }
 
 .agent-panel__badge {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: var(--agent-ctl-h);
+  height: var(--agent-ctl-h);
   flex: 0 0 auto;
-  border-radius: 9px;
+  border-radius: var(--agent-ctl-radius);
   background: var(--asc-primary);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--agent-font-xs);
   font-weight: 800;
   letter-spacing: 0.04em;
 }
 
 .agent-panel__title {
   margin: 0;
-  color: var(--asc-heading);
-  font-size: 14px;
+  color: var(--agent-heading);
+  font-size: var(--agent-title-size);
   font-weight: 800;
   line-height: 1.3;
 }
 
 .agent-panel__beta {
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 999px;
+  min-height: var(--agent-chip-h);
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--agent-space-1);
+  padding: 0 var(--agent-space-2);
+  border-radius: var(--agent-chip-radius);
   background: var(--asc-primary-soft);
   color: var(--asc-primary-hover);
-  font-size: 10px;
+  font-size: var(--agent-font-xs);
   font-weight: 800;
-  vertical-align: 1px;
 }
 
 .agent-panel__subtitle {
   margin: 2px 0 0;
-  color: var(--asc-muted);
-  font-size: 12px;
+  color: var(--agent-muted);
+  font-size: var(--agent-font-sm);
 }
 
 .agent-panel__head-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--agent-space-2);
   flex: 0 1 auto;
   flex-wrap: wrap;
 }
@@ -687,10 +713,10 @@ defineExpose({ messages, streaming, steps, sessionId })
 .agent-panel__status {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: var(--asc-text);
-  font-size: 11.5px;
-  font-weight: 650;
+  gap: var(--agent-space-1);
+  color: var(--agent-ink);
+  font-size: var(--agent-font-sm);
+  font-weight: var(--qa-weight-semibold, 650);
   white-space: nowrap;
 }
 
@@ -713,31 +739,35 @@ defineExpose({ messages, streaming, steps, sessionId })
 
 .agent-panel__tools-hint {
   color: var(--agent-muted);
-  font-size: 11.5px;
+  font-size: var(--agent-font-sm);
   white-space: nowrap;
 }
 
 .agent-panel__session {
-  padding: 2px 8px;
+  min-height: var(--agent-chip-h);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--agent-space-2);
   border: 1px solid var(--asc-border-strong);
-  border-radius: 999px;
-  background: var(--asc-surface);
-  color: var(--asc-text);
+  border-radius: var(--agent-chip-radius);
+  background: var(--agent-surface);
+  color: var(--agent-ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10.5px;
+  font-size: var(--agent-font-xs);
   font-weight: 650;
   white-space: nowrap;
 }
 
 .agent-panel__ghost {
-  min-height: var(--pl-ctl-h, 32px);
-  padding: 0 12px;
+  min-height: var(--agent-ctl-h);
+  padding: 0 var(--agent-space-3);
   border: 1px solid var(--asc-border-strong);
-  border-radius: var(--asc-control-radius);
-  background: #fff;
-  color: var(--asc-text);
-  font-size: 12px;
+  border-radius: var(--agent-ctl-radius);
+  background: var(--agent-surface);
+  color: var(--agent-ink);
+  font-size: var(--agent-font-sm);
   font-weight: 650;
+  cursor: pointer;
   transition: background var(--asc-transition), color var(--asc-transition);
 }
 
@@ -753,40 +783,41 @@ defineExpose({ messages, streaming, steps, sessionId })
 
 .agent-auth {
   display: grid;
-  gap: 8px;
-  padding: 10px 14px 12px;
-  border-bottom: 1px solid var(--asc-border);
-  background: var(--asc-surface-soft);
+  gap: var(--agent-space-2);
+  padding: var(--agent-space-2) var(--agent-space-4) var(--agent-space-3);
+  border-bottom: 1px solid var(--agent-border-color);
+  background: var(--agent-surface-soft);
 }
 
 .agent-auth__row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--agent-space-2);
   flex-wrap: wrap;
 }
 
 .agent-auth__title {
-  color: var(--asc-heading);
-  font-size: 12px;
+  color: var(--agent-heading);
+  font-size: var(--agent-font-sm);
   font-weight: 800;
 }
 
 .agent-auth__count {
   color: var(--agent-muted);
-  font-size: 11.5px;
+  font-size: var(--agent-font-sm);
 }
 
 .agent-auth__switch {
   margin-left: auto;
-  min-height: 26px;
-  padding: 0 11px;
+  min-height: var(--agent-ctl-h-sm);
+  padding: 0 var(--agent-space-2);
   border: 1px solid var(--asc-border-strong);
-  border-radius: 999px;
-  background: #fff;
-  color: var(--asc-text);
-  font-size: 11.5px;
+  border-radius: var(--agent-chip-radius);
+  background: var(--agent-surface);
+  color: var(--agent-ink);
+  font-size: var(--agent-font-sm);
   font-weight: 700;
+  cursor: pointer;
 }
 
 .agent-auth__switch--on {
@@ -798,27 +829,30 @@ defineExpose({ messages, streaming, steps, sessionId })
 .agent-auth__note {
   margin: 0;
   color: var(--agent-muted);
-  font-size: 11.5px;
+  font-size: var(--agent-font-sm);
   line-height: 1.6;
 }
 
 .agent-auth__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--agent-space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .agent-chip {
-  padding: 4px 10px;
+  min-height: var(--agent-chip-h);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--agent-space-2);
   border: 1px solid var(--asc-border-strong);
-  border-radius: 999px;
-  background: #fff;
-  color: var(--asc-text);
+  border-radius: var(--agent-chip-radius);
+  background: var(--agent-surface);
+  color: var(--agent-ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--agent-font-xs);
   font-weight: 650;
   transition: border-color var(--asc-transition), background var(--asc-transition);
 }
@@ -841,39 +875,39 @@ defineExpose({ messages, streaming, steps, sessionId })
 
 .agent-auth__warning {
   margin: 0;
-  padding: 6px 9px;
+  padding: var(--agent-space-1) var(--agent-space-2);
   border-left: 3px solid var(--asc-danger);
-  border-radius: 4px;
+  border-radius: var(--agent-space-1);
   background: #fdf1f1;
   color: #8f3232;
-  font-size: 11.5px;
+  font-size: var(--agent-font-sm);
 }
 
 /* 会话历史 / 运行指标：同一个折叠区骨架，避免两套外观 */
 .agent-meta {
   display: grid;
-  gap: 7px;
-  padding: 10px 14px 12px;
-  border-bottom: 1px solid var(--asc-border);
-  background: var(--asc-surface-soft);
+  gap: var(--agent-space-2);
+  padding: var(--agent-space-2) var(--agent-space-4) var(--agent-space-3);
+  border-bottom: 1px solid var(--agent-border-color);
+  background: var(--agent-surface-soft);
 }
 
 .agent-meta__row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--agent-space-2);
   flex-wrap: wrap;
 }
 
 .agent-meta__title {
-  color: var(--asc-heading);
-  font-size: 12px;
+  color: var(--agent-heading);
+  font-size: var(--agent-font-sm);
   font-weight: 800;
 }
 
 .agent-meta__line {
-  color: var(--asc-text);
-  font-size: 12px;
+  color: var(--agent-ink);
+  font-size: var(--agent-font-sm);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
@@ -881,31 +915,32 @@ defineExpose({ messages, streaming, steps, sessionId })
 .agent-meta__note {
   margin: 0;
   color: var(--agent-muted);
-  font-size: 11.5px;
+  font-size: var(--agent-font-sm);
   line-height: 1.6;
 }
 
 .agent-meta__warning {
   margin: 0;
-  padding: 6px 9px;
+  padding: var(--agent-space-1) var(--agent-space-2);
   border-left: 3px solid var(--asc-danger);
-  border-radius: 4px;
+  border-radius: var(--agent-space-1);
   background: #fdf1f1;
   color: #8f3232;
-  font-size: 11.5px;
+  font-size: var(--agent-font-sm);
   line-height: 1.6;
 }
 
 .agent-meta__refresh {
   margin-left: auto;
-  min-height: 24px;
-  padding: 0 10px;
+  min-height: var(--agent-ctl-h-sm);
+  padding: 0 var(--agent-space-2);
   border: 1px solid var(--asc-border-strong);
-  border-radius: var(--asc-control-radius);
-  background: #fff;
-  color: var(--asc-text);
-  font-size: 11.5px;
+  border-radius: var(--agent-ctl-radius);
+  background: var(--agent-surface);
+  color: var(--agent-ink);
+  font-size: var(--agent-font-sm);
   font-weight: 650;
+  cursor: pointer;
 }
 
 .agent-meta__refresh:hover:not(:disabled) {
@@ -920,7 +955,7 @@ defineExpose({ messages, streaming, steps, sessionId })
 
 .agent-meta__tools {
   display: grid;
-  gap: 3px;
+  gap: var(--agent-space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -929,15 +964,15 @@ defineExpose({ messages, streaming, steps, sessionId })
 .agent-meta__tools li {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--agent-space-2);
   flex-wrap: wrap;
-  color: var(--asc-text);
-  font-size: 11px;
+  color: var(--agent-ink);
+  font-size: var(--agent-font-xs);
   font-variant-numeric: tabular-nums;
 }
 
 .agent-meta__tools code {
-  color: var(--asc-heading);
+  color: var(--agent-heading);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-weight: 700;
 }
@@ -949,7 +984,7 @@ defineExpose({ messages, streaming, steps, sessionId })
 
 .agent-sessions__list {
   display: grid;
-  gap: 5px;
+  gap: var(--agent-space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -958,7 +993,7 @@ defineExpose({ messages, streaming, steps, sessionId })
 .agent-sessions__item {
   display: flex;
   align-items: stretch;
-  gap: 6px;
+  gap: var(--agent-space-1);
   min-width: 0;
 }
 
@@ -966,15 +1001,17 @@ defineExpose({ messages, streaming, steps, sessionId })
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--agent-space-2);
   flex: 1;
   min-width: 0;
-  padding: 6px 10px;
+  min-height: var(--agent-ctl-h-sm);
+  padding: var(--agent-space-1) var(--agent-space-2);
   border: 1px solid var(--asc-border-strong);
-  border-radius: var(--asc-radius);
-  background: #fff;
-  color: var(--asc-text);
+  border-radius: var(--agent-ctl-radius);
+  background: var(--agent-surface);
+  color: var(--agent-ink);
   text-align: left;
+  cursor: pointer;
   transition: border-color var(--asc-transition), background var(--asc-transition);
 }
 
@@ -996,8 +1033,8 @@ defineExpose({ messages, streaming, steps, sessionId })
 .agent-session__title {
   min-width: 0;
   overflow: hidden;
-  color: var(--asc-heading);
-  font-size: 12px;
+  color: var(--agent-heading);
+  font-size: var(--agent-font-sm);
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1006,19 +1043,21 @@ defineExpose({ messages, streaming, steps, sessionId })
 .agent-session__meta {
   flex: 0 0 auto;
   color: var(--agent-muted);
-  font-size: 11px;
+  font-size: var(--agent-font-xs);
   font-variant-numeric: tabular-nums;
 }
 
 .agent-session__delete {
   flex: 0 0 auto;
-  padding: 0 9px;
+  min-height: var(--agent-ctl-h-sm);
+  padding: 0 var(--agent-space-2);
   border: 1px solid var(--asc-border-strong);
-  border-radius: var(--asc-radius);
-  background: #fff;
+  border-radius: var(--agent-ctl-radius);
+  background: var(--agent-surface);
   color: var(--asc-muted);
-  font-size: 11px;
+  font-size: var(--agent-font-xs);
   font-weight: 650;
+  cursor: pointer;
 }
 
 .agent-session__delete:hover:not(:disabled) {
@@ -1043,50 +1082,52 @@ defineExpose({ messages, streaming, steps, sessionId })
   min-height: 220px;
   max-height: min(46vh, 460px);
   overflow-y: auto;
-  padding: 14px;
+  padding: var(--agent-space-4);
   background: var(--asc-canvas);
 }
 
 .agent-panel__empty {
   display: grid;
-  gap: 8px;
+  gap: var(--agent-space-2);
   justify-items: start;
-  padding: 8px 4px;
+  padding: var(--agent-space-2) var(--agent-space-1);
 }
 
 .agent-panel__empty-title {
   margin: 0;
-  color: var(--asc-heading);
-  font-size: 13px;
+  color: var(--agent-heading);
+  font-size: var(--agent-font-md);
   font-weight: 800;
 }
 
 .agent-panel__empty-text {
   margin: 0;
   max-width: 60ch;
-  color: var(--asc-text);
-  font-size: 12.5px;
+  color: var(--agent-ink);
+  font-size: var(--agent-font-md);
   line-height: 1.7;
 }
 
 .agent-panel__examples {
   display: grid;
-  gap: 6px;
+  gap: var(--agent-space-1);
   width: 100%;
-  margin: 4px 0 0;
+  margin: var(--agent-space-1) 0 0;
   padding: 0;
   list-style: none;
 }
 
 .agent-panel__examples button {
   width: 100%;
-  padding: 8px 10px;
+  min-height: var(--agent-ctl-h);
+  padding: var(--agent-space-1) var(--agent-space-3);
   border: 1px dashed var(--asc-border-strong);
-  border-radius: var(--asc-radius);
-  background: #fff;
-  color: var(--asc-text);
-  font-size: 12.5px;
+  border-radius: var(--agent-ctl-radius);
+  background: var(--agent-surface);
+  color: var(--agent-ink);
+  font-size: var(--agent-font-md);
   text-align: left;
+  cursor: pointer;
   transition: border-color var(--asc-transition), background var(--asc-transition);
 }
 
@@ -1097,24 +1138,24 @@ defineExpose({ messages, streaming, steps, sessionId })
 
 .agent-message {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 9px;
-  margin-bottom: 12px;
+  grid-template-columns: var(--agent-ctl-h-sm) minmax(0, 1fr);
+  gap: var(--agent-space-2);
+  margin-bottom: var(--agent-space-3);
 }
 
 .agent-message--user {
-  grid-template-columns: minmax(0, 1fr) 28px;
+  grid-template-columns: minmax(0, 1fr) var(--agent-ctl-h-sm);
 }
 
 .agent-message__avatar {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  width: var(--agent-ctl-h-sm);
+  height: var(--agent-ctl-h-sm);
+  border-radius: var(--agent-chip-radius);
   background: var(--asc-primary);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--agent-font-xs);
   font-weight: 800;
 }
 
@@ -1126,10 +1167,10 @@ defineExpose({ messages, streaming, steps, sessionId })
 
 .agent-message__body {
   min-width: 0;
-  padding: 10px 12px;
-  border: 1px solid var(--asc-border);
-  border-radius: 10px;
-  background: var(--asc-surface);
+  padding: var(--agent-space-2) var(--agent-space-3);
+  border: 1px solid var(--agent-border-color);
+  border-radius: var(--agent-card-radius);
+  background: var(--agent-surface);
 }
 
 .agent-message--user .agent-message__body {
@@ -1141,23 +1182,23 @@ defineExpose({ messages, streaming, steps, sessionId })
 
 .agent-message__meta {
   display: flex;
-  gap: 8px;
+  gap: var(--agent-space-2);
   align-items: baseline;
-  margin-bottom: 5px;
+  margin-bottom: var(--agent-space-1);
   color: var(--asc-muted);
-  font-size: 11px;
+  font-size: var(--agent-font-xs);
 }
 
 .agent-message__meta strong {
-  color: var(--asc-heading);
-  font-size: 11.5px;
+  color: var(--agent-heading);
+  font-size: var(--agent-font-sm);
   font-weight: 800;
 }
 
 .agent-message__text {
   margin: 0;
-  color: var(--asc-text);
-  font-size: 13px;
+  color: var(--agent-ink);
+  font-size: var(--agent-font-md);
   line-height: 1.75;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1165,7 +1206,7 @@ defineExpose({ messages, streaming, steps, sessionId })
 
 .agent-message__pending {
   color: var(--asc-muted);
-  font-size: 12.5px;
+  font-size: var(--agent-font-md);
 }
 
 .agent-message__caret {
@@ -1184,13 +1225,13 @@ defineExpose({ messages, streaming, steps, sessionId })
 }
 
 .agent-message__error {
-  margin: 6px 0 0;
-  padding: 6px 9px;
+  margin: var(--agent-space-1) 0 0;
+  padding: var(--agent-space-1) var(--agent-space-2);
   border-left: 3px solid var(--asc-danger);
-  border-radius: 4px;
+  border-radius: var(--agent-space-1);
   background: #fdf1f1;
   color: #8f3232;
-  font-size: 12px;
+  font-size: var(--agent-font-sm);
 }
 
 .agent-message__error-text {
@@ -1200,25 +1241,26 @@ defineExpose({ messages, streaming, steps, sessionId })
 .agent-message__retry {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--agent-space-2);
   flex-wrap: wrap;
-  margin: 7px 0 0;
+  margin: var(--agent-space-2) 0 0;
 }
 
 .agent-message__retry-hint {
   color: #8f3232;
-  font-size: 11px;
+  font-size: var(--agent-font-xs);
   line-height: 1.5;
 }
 
 .agent-btn--retry {
-  min-height: 26px;
-  padding: 0 12px;
+  min-height: var(--agent-ctl-h-sm);
+  padding: 0 var(--agent-space-3);
   border: 1px solid #e3b6b6;
-  border-radius: var(--asc-control-radius);
-  background: #fff;
+  border-radius: var(--agent-ctl-radius);
+  background: var(--agent-surface);
   color: var(--asc-danger);
-  font-size: 11.5px;
+  font-size: var(--agent-font-sm);
+  cursor: pointer;
 }
 
 .agent-btn--retry:hover {
@@ -1228,15 +1270,15 @@ defineExpose({ messages, streaming, steps, sessionId })
 
 .agent-tools {
   display: grid;
-  gap: 6px;
-  margin: 0 0 8px;
+  gap: var(--agent-space-1);
+  margin: 0 0 var(--agent-space-2);
 }
 
 .agent-tool {
-  border: 1px solid var(--asc-border);
+  border: 1px solid var(--agent-border-color);
   border-left: 3px solid var(--asc-muted);
-  border-radius: 7px;
-  background: var(--asc-surface-soft);
+  border-radius: var(--agent-ctl-radius);
+  background: var(--agent-surface-soft);
 }
 
 .agent-tool--running { border-left-color: var(--asc-primary); }
@@ -1246,11 +1288,11 @@ defineExpose({ messages, streaming, steps, sessionId })
 .agent-tool__summary {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 9px;
+  gap: var(--agent-space-2);
+  padding: var(--agent-space-1) var(--agent-space-2);
   cursor: pointer;
   list-style: none;
-  font-size: 11.5px;
+  font-size: var(--agent-font-sm);
 }
 
 .agent-tool__summary::-webkit-details-marker { display: none; }
@@ -1280,7 +1322,7 @@ defineExpose({ messages, streaming, steps, sessionId })
   overflow: hidden;
   color: var(--asc-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--agent-font-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1288,7 +1330,7 @@ defineExpose({ messages, streaming, steps, sessionId })
 .agent-tool__state {
   flex: 0 0 auto;
   color: var(--asc-muted);
-  font-size: 11px;
+  font-size: var(--agent-font-xs);
   font-weight: 700;
 }
 
@@ -1296,55 +1338,55 @@ defineExpose({ messages, streaming, steps, sessionId })
 .agent-tool--error .agent-tool__state { color: var(--asc-danger); }
 
 .agent-tool__detail {
-  padding: 0 9px 8px;
+  padding: 0 var(--agent-space-2) var(--agent-space-2);
 }
 
 .agent-tool__result {
-  margin: 0 0 6px;
-  color: var(--asc-text);
-  font-size: 12px;
+  margin: 0 0 var(--agent-space-1);
+  color: var(--agent-ink);
+  font-size: var(--agent-font-sm);
   line-height: 1.6;
 }
 
 .agent-tool__code {
   max-height: 180px;
   margin: 0;
-  padding: 8px 9px;
+  padding: var(--agent-space-2);
   overflow: auto;
-  border-radius: 6px;
-  background: #f2f5f9;
+  border-radius: var(--agent-ctl-radius);
+  background: var(--qa-surface-muted, #f2f5f9);
   color: #33445c;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--agent-font-xs);
   line-height: 1.55;
 }
 
 .agent-panel__banner {
   margin: 0;
-  padding: 8px 14px;
-  border-top: 1px solid var(--asc-border);
+  padding: var(--agent-space-2) var(--agent-space-4);
+  border-top: 1px solid var(--agent-border-color);
   background: #fdf1f1;
   color: #8f3232;
-  font-size: 12px;
+  font-size: var(--agent-font-sm);
 }
 
 .agent-panel__composer {
   display: grid;
-  gap: 6px;
-  padding: 10px 12px 12px;
-  border-top: 1px solid var(--asc-border);
-  background: var(--asc-surface);
+  gap: var(--agent-space-1);
+  padding: var(--agent-space-2) var(--agent-space-3) var(--agent-space-3);
+  border-top: 1px solid var(--agent-border-color);
+  background: var(--agent-surface);
 }
 
 .agent-panel__input {
   width: 100%;
   min-height: 62px;
-  padding: 9px 11px;
+  padding: var(--agent-space-2) var(--agent-space-3);
   border: 1px solid var(--asc-border-strong);
-  border-radius: var(--asc-radius);
-  background: #fff;
-  color: var(--asc-text);
-  font-size: 13px;
+  border-radius: var(--agent-ctl-radius);
+  background: var(--agent-surface);
+  color: var(--agent-ink);
+  font-size: var(--agent-font-md);
   line-height: 1.6;
   resize: vertical;
 }
@@ -1364,21 +1406,22 @@ defineExpose({ messages, streaming, steps, sessionId })
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--agent-space-2);
 }
 
 .agent-panel__hint {
   color: var(--agent-muted);
-  font-size: 11.5px;
+  font-size: var(--agent-font-sm);
 }
 
 .agent-btn {
-  min-height: var(--pl-ctl-h, 32px);
-  padding: 0 18px;
+  min-height: var(--agent-ctl-h);
+  padding: 0 var(--agent-space-4);
   border: none;
-  border-radius: var(--asc-control-radius);
-  font-size: 12.5px;
-  font-weight: 750;
+  border-radius: var(--agent-ctl-radius);
+  font-size: var(--agent-font-md);
+  font-weight: var(--qa-weight-bold, 750);
+  cursor: pointer;
   transition: background var(--asc-transition), transform var(--asc-transition);
 }
 

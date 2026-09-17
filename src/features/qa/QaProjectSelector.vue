@@ -143,7 +143,7 @@ watch(
   z-index: 1000;
   display: grid;
   place-items: start end;
-  padding: 68px 28px 28px;
+  padding: 68px var(--qa-space-6) var(--qa-space-6);
   background: rgba(14, 40, 60, 0.2);
 }
 
@@ -153,10 +153,10 @@ watch(
   width: min(390px, calc(100vw - 32px));
   height: min(470px, calc(100vh - 96px));
   overflow: hidden;
-  border: 1px solid var(--asc-border);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 18px 48px rgba(21, 52, 74, 0.2);
+  border: 1px solid var(--qa-border-color);
+  border-radius: var(--qa-radius-container);
+  background: var(--qa-surface);
+  box-shadow: var(--qa-shadow-pop);
 }
 
 .qa-project-selector__dialog > header {
@@ -167,10 +167,10 @@ watch(
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
-  padding: 17px 18px 14px;
-  border-bottom: 1px solid var(--asc-border);
-  background: #fff;
+  gap: var(--qa-space-4);
+  padding: var(--qa-space-4) var(--qa-panel-pad) var(--qa-space-3);
+  border-bottom: 1px solid var(--qa-border-color);
+  background: var(--qa-surface);
 }
 
 .qa-project-selector h2,
@@ -179,20 +179,21 @@ watch(
 }
 
 .qa-project-selector h2 {
-  color: var(--asc-heading);
-  font-size: 15px;
+  color: var(--qa-heading);
+  font-size: var(--qa-title-size);
+  font-weight: var(--qa-weight-heavy);
 }
 
 .qa-project-selector p,
 .qa-project-selector small {
-  color: var(--asc-muted);
-  font-size: 12px;
+  color: var(--qa-muted);
+  font-size: var(--qa-font-sm);
 }
 
 .qa-project-selector header button {
   border: 0;
   background: transparent;
-  color: var(--asc-muted);
+  color: var(--qa-muted);
   font-size: 22px;
   line-height: 1;
   cursor: pointer;
@@ -202,10 +203,10 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 24px 18px;
-  color: var(--asc-muted);
-  font-size: 13px;
+  gap: var(--qa-space-3);
+  padding: var(--qa-space-6) var(--qa-panel-pad);
+  color: var(--qa-muted);
+  font-size: var(--qa-control-font);
 }
 
 .qa-project-selector__state--error {
@@ -213,21 +214,24 @@ watch(
 }
 
 .qa-project-selector__state button {
-  padding: 6px 10px;
+  min-height: var(--qa-control-h);
+  padding: 0 var(--qa-space-3);
   border: 1px solid currentColor;
-  border-radius: 6px;
-  background: #fff;
+  border-radius: var(--qa-radius-control);
+  background: var(--qa-surface);
   color: inherit;
+  font-size: var(--qa-control-font);
+  font-weight: var(--qa-weight-bold);
 }
 
 .qa-project-selector__list {
   display: grid;
   flex: 1 1 auto;
-  gap: 8px;
+  gap: var(--qa-space-2);
   min-height: 0;
   margin: 0;
   overflow-y: auto;
-  padding: 12px;
+  padding: var(--qa-space-3);
   align-content: start;
   list-style: none;
 }
@@ -237,12 +241,12 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--asc-border);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--asc-heading);
+  gap: var(--qa-space-3);
+  padding: var(--qa-space-3);
+  border: 1px solid var(--qa-border-color);
+  border-radius: var(--qa-radius-control);
+  background: var(--qa-surface);
+  color: var(--qa-heading);
   text-align: left;
   cursor: pointer;
 }
@@ -256,7 +260,7 @@ watch(
 .qa-project-selector__list span {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: var(--qa-space-1);
 }
 
 .qa-project-selector__list strong {
@@ -266,14 +270,14 @@ watch(
 }
 
 .qa-project-selector__list b {
-  color: var(--asc-primary);
-  font-size: 13px;
+  color: var(--qa-accent);
+  font-size: var(--qa-control-font);
 }
 
 @media (max-width: 560px) {
   .qa-project-selector {
     place-items: start center;
-    padding: 68px 16px 16px;
+    padding: 68px var(--qa-space-4) var(--qa-space-4);
   }
 }
 </style>

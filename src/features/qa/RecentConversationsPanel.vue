@@ -80,11 +80,12 @@ function closeCompactPanel() {
 
 <style scoped>
 .recent-conversations {
+  /* quiet-rail text colours are graded against the QA canvas (#f3f7fb) */
   --recent-text: #496a7f;
   --recent-heading: #42647a;
   --recent-muted: #557286;
   min-width: 0;
-  padding: 92px 20px 28px 2px;
+  padding: 92px var(--qa-space-5) var(--qa-space-6) var(--qa-space-1);
   color: var(--recent-text);
 }
 
@@ -94,7 +95,7 @@ function closeCompactPanel() {
 
 .recent-conversations__content {
   display: grid;
-  gap: 8px;
+  gap: var(--qa-space-2);
 }
 
 .recent-conversations--workflow {
@@ -102,38 +103,38 @@ function closeCompactPanel() {
 }
 
 .recent-conversations__workflow-link {
-  min-height: 38px;
+  min-height: var(--qa-control-h);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  margin: 0 8px;
-  padding: 0 11px;
-  border: 1px solid #79b5dc;
-  border-radius: 7px;
-  background: #eef7fd;
+  gap: var(--qa-space-2);
+  margin: 0 var(--qa-space-2);
+  padding: 0 var(--qa-space-3);
+  border: 1px solid var(--qa-border-strong);
+  border-radius: var(--qa-radius-control);
+  background: var(--qa-accent-soft);
   box-shadow: 0 5px 14px rgba(20, 105, 160, 0.1);
-  color: var(--asc-primary);
-  font-size: 13px;
-  font-weight: 800;
+  color: var(--qa-accent);
+  font-size: var(--qa-control-font);
+  font-weight: var(--qa-weight-heavy);
   text-decoration: none;
-  transition: color var(--asc-transition), background var(--asc-transition), border-color var(--asc-transition), box-shadow var(--asc-transition);
+  transition: color var(--qa-transition), background var(--qa-transition), border-color var(--qa-transition), box-shadow var(--qa-transition);
 }
 
 .recent-conversations__workflow-link:hover,
 .recent-conversations__workflow-link:focus-visible {
-  border-color: var(--asc-primary);
-  background: var(--asc-primary);
+  border-color: var(--qa-accent);
+  background: var(--qa-accent);
   box-shadow: 0 7px 18px rgba(20, 105, 160, 0.2);
   color: #fff;
   outline: none;
 }
 
 .recent-conversations__heading {
-  margin: 0 8px 10px;
+  margin: 0 var(--qa-space-2) var(--qa-space-2);
   color: var(--recent-heading);
-  font-size: 12px;
-  font-weight: 750;
+  font-size: var(--qa-font-sm);
+  font-weight: var(--qa-weight-bold);
   letter-spacing: 0.08em;
 }
 
@@ -141,31 +142,31 @@ function closeCompactPanel() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--qa-space-2);
 }
 
 .recent-conversations__heading small {
   color: var(--recent-muted);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--qa-font-xs);
+  font-weight: var(--qa-weight-semibold);
   letter-spacing: 0;
 }
 
 .recent-conversations__action {
-  min-height: 32px;
+  min-height: var(--qa-control-h);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  margin: 0 8px;
-  padding: 0 8px;
+  gap: var(--qa-space-1);
+  margin: 0 var(--qa-space-2);
+  padding: 0 var(--qa-space-2);
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--qa-radius-control);
   background: transparent;
   color: var(--recent-muted);
-  font-size: 13px;
-  font-weight: 700;
-  transition: color var(--asc-transition), background var(--asc-transition), border-color var(--asc-transition);
+  font-size: var(--qa-font-sm);
+  font-weight: var(--qa-weight-bold);
+  transition: color var(--qa-transition), background var(--qa-transition), border-color var(--qa-transition);
 }
 
 .recent-conversations__exit :deep(.asc-icon) {
@@ -176,7 +177,7 @@ function closeCompactPanel() {
 .recent-conversations__action:focus-visible {
   border-color: rgba(159, 196, 218, 0.72);
   background: rgba(255, 255, 255, 0.72);
-  color: var(--asc-primary);
+  color: var(--qa-accent);
   outline: none;
 }
 
@@ -200,16 +201,16 @@ function closeCompactPanel() {
 .recent-conversations__item {
   width: 100%;
   min-width: 0;
-  padding: 8px;
+  padding: var(--qa-space-2);
   overflow: hidden;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--qa-radius-control);
   background: transparent;
   color: var(--recent-text);
-  font-size: 13px;
+  font-size: var(--qa-control-font);
   line-height: 1.4;
   text-align: left;
-  transition: color var(--asc-transition), background var(--asc-transition);
+  transition: color var(--qa-transition), background var(--qa-transition);
 }
 
 .recent-conversations__item span {
@@ -228,24 +229,25 @@ function closeCompactPanel() {
 .recent-conversations__more {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin: 7px 8px 0;
-  padding: 5px 0;
+  gap: var(--qa-space-1);
+  margin: var(--qa-space-2) var(--qa-space-2) 0;
+  padding: var(--qa-space-1) 0;
   border: 0;
   background: transparent;
   color: var(--recent-muted);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--qa-font-sm);
+  font-weight: var(--qa-weight-semibold);
+  cursor: pointer;
 }
 
 .recent-conversations__more:hover,
 .recent-conversations__more:focus-visible {
-  color: var(--asc-primary);
+  color: var(--qa-accent);
 }
 
 .recent-conversations__more :deep(.asc-icon),
 .recent-conversations__compact-toggle :deep(.asc-icon) {
-  transition: transform var(--asc-transition);
+  transition: transform var(--qa-transition);
 }
 
 .recent-conversations__more :deep(.asc-icon.is-open),
@@ -257,7 +259,7 @@ function closeCompactPanel() {
   .recent-conversations {
     position: absolute;
     z-index: 24;
-    top: 58px;
+    top: var(--qa-topbar-h);
     right: 0;
     width: 176px;
   }
@@ -269,38 +271,38 @@ function closeCompactPanel() {
     z-index: 24;
     grid-row: 1;
     width: 100%;
-    min-height: 48px;
+    min-height: var(--qa-space-12);
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    padding: 7px 18px;
+    padding: var(--qa-space-2) var(--qa-space-4);
   }
 
   .recent-conversations__compact-toggle {
-    min-height: 34px;
+    min-height: var(--qa-control-h);
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 0 11px;
+    gap: var(--qa-space-2);
+    padding: 0 var(--qa-space-3);
     border: 1px solid rgba(169, 198, 216, 0.8);
-    border-radius: 8px;
+    border-radius: var(--qa-radius-control);
     background: rgba(255, 255, 255, 0.9);
     box-shadow: 0 5px 16px rgba(13, 65, 98, 0.08);
     color: var(--recent-text);
-    font-size: 13px;
-    font-weight: 650;
+    font-size: var(--qa-control-font);
+    font-weight: var(--qa-weight-semibold);
     backdrop-filter: blur(10px);
   }
 
   .recent-conversations__content {
     position: absolute;
     top: calc(100% - 2px);
-    right: 18px;
+    right: var(--qa-space-4);
     width: min(230px, calc(100vw - 32px));
     display: none;
-    padding: 13px 10px 11px;
-    border: 1px solid var(--asc-border);
-    border-radius: 10px;
+    padding: var(--qa-space-3) var(--qa-space-3);
+    border: 1px solid var(--qa-border-color);
+    border-radius: var(--qa-radius-card);
     background: rgba(255, 255, 255, 0.96);
     box-shadow: 0 14px 34px rgba(11, 61, 93, 0.14);
     backdrop-filter: blur(14px);
@@ -313,12 +315,12 @@ function closeCompactPanel() {
 
 @media (max-width: 760px) {
   .recent-conversations {
-    min-height: 46px;
-    padding: 6px 12px;
+    min-height: var(--qa-space-12);
+    padding: var(--qa-space-2) var(--qa-space-3);
   }
 
   .recent-conversations__content {
-    right: 12px;
+    right: var(--qa-space-3);
   }
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <section class="answer-details" aria-labelledby="answer-details-title">
+  <section class="answer-details qa-panel" aria-labelledby="answer-details-title">
     <div class="answer-details__heading">
       <h2 id="answer-details-title">回答详情</h2>
       <div class="answer-details__tabs" role="tablist" aria-label="回答详情模块">
@@ -91,46 +91,46 @@ const domainTerms = computed(() => buildAscDomainTerms({
 </script>
 
 <style scoped>
+/* 面板外观（边框/圆角/底色/阴影）来自共享的 .qa-panel 层 */
 .answer-details {
   overflow: hidden;
-  border: 1px solid var(--asc-border);
-  border-radius: var(--asc-radius);
-  background: #fff;
 }
 
 .answer-details__heading {
+  min-height: var(--qa-panel-head-h);
   display: flex;
   align-items: center;
-  gap: 28px;
-  padding: 0 22px;
-  border-bottom: 1px solid var(--asc-border);
+  gap: var(--qa-space-6);
+  padding: 0 var(--qa-panel-pad);
+  border-bottom: 1px solid var(--qa-border-color);
 }
 
 .answer-details h2 {
   flex: 0 0 auto;
   margin: 0;
-  color: var(--asc-heading);
-  font-size: 17px;
+  color: var(--qa-heading);
+  font-size: var(--qa-title-size);
+  font-weight: var(--qa-weight-heavy);
 }
 
 .answer-details__tabs {
   min-width: 0;
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  gap: var(--qa-space-2);
   overflow-x: auto;
 }
 
 .answer-details__tabs button {
   position: relative;
-  min-height: 58px;
-  padding: 0 16px;
+  min-height: var(--qa-panel-head-h);
+  padding: 0 var(--qa-space-4);
   border: 0;
   background: transparent;
-  color: var(--asc-text);
+  color: var(--qa-text);
   font: inherit;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--qa-control-font);
+  font-weight: var(--qa-weight-bold);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -147,18 +147,18 @@ const domainTerms = computed(() => buildAscDomainTerms({
 }
 
 .answer-details__tabs button.active {
-  color: var(--asc-primary);
+  color: var(--qa-accent);
 }
 
 .answer-details__tabs button.active::after {
-  background: var(--asc-primary);
+  background: var(--qa-accent);
 }
 
 .answer-details__body {
   min-height: 96px;
-  padding: 18px 22px;
-  color: var(--asc-text);
-  font-size: 14px;
+  padding: var(--qa-panel-pad);
+  color: var(--qa-text);
+  font-size: var(--qa-font-md);
   line-height: 1.9;
   white-space: pre-wrap;
 }
@@ -186,11 +186,11 @@ const domainTerms = computed(() => buildAscDomainTerms({
 @media (max-width: 760px) {
   .answer-details__heading {
     display: block;
-    padding-top: 18px;
+    padding-top: var(--qa-panel-pad);
   }
 
   .answer-details__tabs {
-    margin-top: 8px;
+    margin-top: var(--qa-space-2);
   }
 }
 </style>

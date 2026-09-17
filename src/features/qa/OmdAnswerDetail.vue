@@ -66,10 +66,10 @@ defineEmits(['citation'])
 <style scoped>
 .omd-answer {
   display: grid;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: var(--qa-space-3);
+  padding: var(--qa-panel-pad);
   border: 1px solid #99f6e4;
-  border-radius: 8px;
+  border-radius: var(--qa-radius-card);
   background: #ecfdf5;
   color: #115e59;
   line-height: 1.8;
@@ -82,14 +82,14 @@ defineEmits(['citation'])
 }
 
 .omd-answer__tail {
-  color: var(--asc-text);
+  color: var(--qa-text);
 }
 
 .omd-answer__scaffold {
-  padding: 12px 14px;
+  padding: var(--qa-space-3);
   border: 1px solid #5eead4;
   border-left: 4px solid #0f766e;
-  border-radius: 8px;
+  border-radius: var(--qa-radius-control);
   background: #f8fffd;
   color: #134e4a;
 }
@@ -100,18 +100,18 @@ defineEmits(['citation'])
 }
 
 .omd-answer__scaffold p {
-  margin: 5px 0 0;
+  margin: var(--qa-space-1) 0 0;
 }
 
 .omd-answer__scaffold ol {
   display: grid;
-  gap: 6px;
-  margin: 8px 0 0;
-  padding-left: 20px;
+  gap: var(--qa-space-2);
+  margin: var(--qa-space-2) 0 0;
+  padding-left: var(--qa-space-5);
 }
 
 .omd-answer__scaffold li {
-  padding-left: 2px;
+  padding-left: var(--qa-space-1);
   line-height: 1.65;
 }
 </style>

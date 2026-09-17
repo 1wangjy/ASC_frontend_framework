@@ -1,5 +1,5 @@
 <template>
-  <section class="query-progress" aria-label="查询进度" aria-live="polite">
+  <section class="query-progress qa-panel" aria-label="查询进度" aria-live="polite">
     <header class="query-progress__header">
       <div class="query-progress__status">
         <strong class="query-progress__title">正在执行全局查询</strong>
@@ -69,60 +69,58 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 面板外观（边框/圆角/底色/阴影）来自共享的 .qa-panel 层 */
 .query-progress {
-  padding: 24px;
-  border: 1px solid #d4e1eb;
-  border-radius: 11px;
-  background: #fff;
-  box-shadow: 0 3px 12px rgba(40, 72, 99, .05);
+  padding: var(--qa-space-6);
 }
 
 .query-progress__header {
+  min-height: var(--qa-panel-head-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--qa-space-4);
 }
 
 .query-progress__status {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--qa-space-3);
 }
 
 .query-progress__title {
-  color: var(--asc-heading);
-  font-size: 17px;
-  font-weight: 750;
+  color: var(--qa-heading);
+  font-size: var(--qa-heading-size);
+  font-weight: var(--qa-weight-heavy);
 }
 
 .query-progress__elapsed {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: #627a91;
-  font-size: 13px;
-  font-weight: 650;
+  gap: var(--qa-space-1);
+  color: var(--qa-muted);
+  font-size: var(--qa-control-font);
+  font-weight: var(--qa-weight-semibold);
 }
 
 .query-progress__elapsed > span {
-  color: #6a83a0;
-  font-size: 16px;
+  color: var(--qa-muted);
+  font-size: var(--qa-font-xl);
 }
 
 .query-progress__percent {
   color: #174fb8;
-  font-size: 17px;
+  font-size: var(--qa-heading-size);
   font-weight: 850;
 }
 
 .query-progress__track {
   height: 6px;
-  margin: 14px 0 22px;
+  margin: var(--qa-space-3) 0 var(--qa-space-5);
   overflow: hidden;
-  border-radius: 999px;
-  background: #e8eef7;
+  border-radius: var(--qa-radius-chip);
+  background: var(--qa-border-color);
 }
 
 .query-progress__track span {
@@ -136,20 +134,20 @@ onUnmounted(() => {
 .query-progress__steps {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 14px;
+  gap: var(--qa-space-3) var(--qa-space-4);
 }
 
 .query-progress__step {
   display: grid;
   grid-template-columns: 12px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: var(--qa-space-3);
   min-height: 78px;
-  padding: 15px 17px;
-  border: 1px solid #dbe5ee;
-  border-radius: 9px;
-  background: #fbfcfe;
-  color: #75889b;
+  padding: var(--qa-space-4);
+  border: 1px solid var(--qa-border-color);
+  border-radius: var(--qa-radius-control);
+  background: var(--qa-surface-soft);
+  color: var(--qa-muted);
   transition: border-color .25s ease, background-color .25s ease, color .25s ease;
 }
 
@@ -168,15 +166,15 @@ onUnmounted(() => {
 .query-progress__step strong {
   display: block;
   color: inherit;
-  font-size: 14px;
-  font-weight: 750;
+  font-size: var(--qa-font-md);
+  font-weight: var(--qa-weight-bold);
   line-height: 1.4;
 }
 
 .query-progress__step p {
-  margin: 6px 0 0;
-  color: #8294a6;
-  font-size: 12px;
+  margin: var(--qa-space-2) 0 0;
+  color: var(--qa-muted);
+  font-size: var(--qa-font-sm);
   line-height: 1.5;
 }
 
@@ -185,8 +183,8 @@ onUnmounted(() => {
   align-self: start;
   padding-top: 1px;
   color: inherit;
-  font-size: 12px;
-  font-weight: 750;
+  font-size: var(--qa-font-sm);
+  font-weight: var(--qa-weight-bold);
 }
 
 .query-progress__step--completed {
@@ -238,7 +236,7 @@ onUnmounted(() => {
 
 @media (max-width: 560px) {
   .query-progress {
-    padding: 16px;
+    padding: var(--qa-panel-pad);
   }
 
   .query-progress__header,
@@ -248,13 +246,13 @@ onUnmounted(() => {
 
   .query-progress__status {
     flex-direction: column;
-    gap: 4px;
+    gap: var(--qa-space-1);
   }
 
   .query-progress__step {
     grid-template-columns: 10px minmax(0, 1fr);
     min-height: 72px;
-    padding: 14px;
+    padding: var(--qa-space-3);
   }
 
   .query-progress__step small {

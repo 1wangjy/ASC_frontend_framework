@@ -259,16 +259,16 @@ onBeforeUnmount(releaseSelectedImage)
 .composer-shell {
   width: 100%;
   display: grid;
-  gap: 12px;
+  gap: var(--qa-space-3);
 }
 
 .composer {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #b9cedd;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 12px 34px rgba(39, 74, 99, 0.08);
+  padding: var(--qa-space-3);
+  border: 1px solid var(--qa-border-strong);
+  border-radius: var(--qa-radius-container);
+  background: var(--qa-surface);
+  box-shadow: var(--qa-shadow-panel);
 }
 
 .composer:focus-within {
@@ -280,18 +280,18 @@ onBeforeUnmount(releaseSelectedImage)
   width: 100%;
   min-height: 105px;
   resize: none;
-  padding: 13px 14px 10px;
+  padding: var(--qa-space-3) var(--qa-space-4) var(--qa-space-2);
   border: 0;
   outline: 0;
   background: transparent;
-  color: var(--asc-heading);
-  font-size: 15px;
+  color: var(--qa-heading);
+  font-size: var(--qa-font-lg);
   line-height: 1.7;
 }
 
 .composer--compact textarea {
   min-height: 52px;
-  padding-top: 8px;
+  padding-top: var(--qa-space-2);
 }
 
 .composer textarea::placeholder {
@@ -302,20 +302,20 @@ onBeforeUnmount(releaseSelectedImage)
   width: fit-content;
   max-width: min(100%, 360px);
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) 28px;
+  grid-template-columns: 46px minmax(0, 1fr) var(--qa-control-h-sm);
   align-items: center;
-  gap: 9px;
-  margin: 0 12px 12px;
-  padding: 7px;
-  border: 1px solid var(--asc-border);
-  border-radius: 9px;
-  background: #f7fbfe;
+  gap: var(--qa-space-2);
+  margin: 0 var(--qa-space-3) var(--qa-space-3);
+  padding: var(--qa-space-2);
+  border: 1px solid var(--qa-border-color);
+  border-radius: var(--qa-radius-control);
+  background: var(--qa-surface-soft);
 }
 
 .multi-image-preview img {
   width: 46px;
   height: 46px;
-  border-radius: 6px;
+  border-radius: var(--qa-radius-control);
   object-fit: cover;
 }
 
@@ -326,7 +326,7 @@ onBeforeUnmount(releaseSelectedImage)
   padding: 0;
   overflow: hidden;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--qa-radius-control);
   background: transparent;
   cursor: zoom-in;
 }
@@ -338,25 +338,25 @@ onBeforeUnmount(releaseSelectedImage)
 
 .multi-image-preview > span {
   overflow: hidden;
-  color: var(--asc-text);
-  font-size: 13px;
+  color: var(--qa-text);
+  font-size: var(--qa-control-font);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .multi-image-preview button,
 .attachment-button {
-  border: 1px solid var(--asc-border);
-  background: #fff;
-  color: var(--asc-text);
+  border: 1px solid var(--qa-border-color);
+  background: var(--qa-surface);
+  color: var(--qa-text);
   cursor: pointer;
 }
 
 .multi-image-preview button {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  font-size: 18px;
+  width: var(--qa-control-h-sm);
+  height: var(--qa-control-h-sm);
+  border-radius: var(--qa-radius-control);
+  font-size: var(--qa-font-lg);
   line-height: 1;
 }
 
@@ -376,41 +376,41 @@ onBeforeUnmount(releaseSelectedImage)
 .composer__toolbar {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--qa-space-2);
   flex-wrap: wrap;
 }
 
 .attachment-button {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--asc-control-radius);
-  font-size: 21px;
+  width: var(--qa-control-h);
+  height: var(--qa-control-h);
+  border-radius: var(--qa-radius-control);
+  font-size: 20px;
   line-height: 1;
 }
 
 .composer-control {
-  min-height: 34px;
+  min-height: var(--qa-control-h);
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 0 9px;
-  border: 1px solid var(--asc-border);
-  border-radius: var(--asc-control-radius);
-  background: #fff;
-  color: var(--asc-text);
-  font-size: 13px;
-  font-weight: 650;
+  gap: var(--qa-space-1);
+  padding: 0 var(--qa-space-2);
+  border: 1px solid var(--qa-border-color);
+  border-radius: var(--qa-radius-control);
+  background: var(--qa-surface);
+  color: var(--qa-text);
+  font-size: var(--qa-control-font);
+  font-weight: var(--qa-weight-semibold);
 }
 
 .composer-control select {
   max-width: 136px;
-  padding: 0 14px 0 0;
+  padding: 0 var(--qa-space-4) 0 0;
   border: 0;
   outline: 0;
   background: transparent;
-  color: var(--asc-heading);
-  font-size: 13px;
-  font-weight: 700;
+  color: var(--qa-heading);
+  font-size: var(--qa-control-font);
+  font-weight: var(--qa-weight-bold);
 }
 
 .composer-control--model select {
@@ -420,27 +420,27 @@ onBeforeUnmount(releaseSelectedImage)
 .multimodal-answer-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 30px;
-  padding: 5px 9px;
-  border: 1px solid #cbd3df;
-  border-radius: 9px;
-  background: #f8fafc;
+  gap: var(--qa-space-2);
+  min-height: var(--qa-control-h);
+  padding: 0 var(--qa-space-2);
+  border: 1px solid var(--qa-border-color);
+  border-radius: var(--qa-radius-control);
+  background: var(--qa-surface-soft);
   color: #556278;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--qa-control-font);
   cursor: pointer;
-  transition: border-color .18s ease, background .18s ease, color .18s ease;
+  transition: border-color var(--qa-transition), background var(--qa-transition), color var(--qa-transition);
 }
 
 .multimodal-answer-toggle strong {
-  font-size: 13px;
+  font-size: var(--qa-control-font);
 }
 
 .multimodal-answer-toggle small {
-  padding-left: 6px;
+  padding-left: var(--qa-space-2);
   border-left: 1px solid currentColor;
-  font-size: 12px;
+  font-size: var(--qa-font-sm);
   opacity: .72;
 }
 
@@ -459,21 +459,21 @@ onBeforeUnmount(releaseSelectedImage)
 .multimodal-render-mode {
   display: inline-flex;
   padding: 2px;
-  border: 1px solid #d8dee8;
-  border-radius: 8px;
-  background: #f4f6f9;
+  border: 1px solid var(--qa-border-color);
+  border-radius: var(--qa-radius-control);
+  background: var(--qa-surface-soft);
 }
 
 .multimodal-render-mode button {
-  min-height: 25px;
-  padding: 3px 9px;
+  min-height: var(--qa-control-h-sm);
+  padding: 0 var(--qa-space-2);
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--qa-radius-control);
   background: transparent;
   color: #6a7689;
   font: inherit;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--qa-control-font);
+  font-weight: var(--qa-weight-heavy);
   cursor: pointer;
 }
 
@@ -489,24 +489,24 @@ onBeforeUnmount(releaseSelectedImage)
 }
 
 .send-button {
-  min-height: 36px;
+  min-height: var(--qa-control-h);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--qa-space-2);
   margin-left: auto;
-  padding: 0 17px;
+  padding: 0 var(--qa-space-4);
   border: 0;
-  border-radius: 7px;
-  background: var(--asc-primary);
+  border-radius: var(--qa-radius-control);
+  background: var(--qa-accent);
   color: #fff;
-  font-size: 13px;
-  font-weight: 800;
-  transition: background var(--asc-transition), transform var(--asc-transition);
+  font-size: var(--qa-control-font);
+  font-weight: var(--qa-weight-heavy);
+  transition: background var(--qa-transition), transform var(--qa-transition);
 }
 
 .send-button:hover:not(:disabled) {
-  background: var(--asc-primary-hover);
+  background: var(--qa-accent-hover);
   transform: translateY(-1px);
 }
 
@@ -532,12 +532,12 @@ onBeforeUnmount(releaseSelectedImage)
 
 @media (max-width: 560px) {
   .composer {
-    padding: 8px;
+    padding: var(--qa-space-2);
   }
 
   .composer textarea {
     min-height: 94px;
-    padding-inline: 8px;
+    padding-inline: var(--qa-space-2);
   }
 
   .composer-control {
