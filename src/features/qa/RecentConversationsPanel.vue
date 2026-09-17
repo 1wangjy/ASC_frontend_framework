@@ -20,33 +20,9 @@
       <AscIcon name="chevron" :class="{ 'is-open': compactOpen }" />
     </button>
 
-    <div
-      v-if="mode === 'single'"
-      id="recent-conversation-list"
-      class="recent-conversations__content"
-    >
-    </div>
-
-    <div v-else id="recent-conversation-list" class="recent-conversations__content">
-      <button
-        class="recent-conversations__action recent-conversations__new"
-        type="button"
-        :disabled="disabled"
-        @click="$emit('new-chat')"
-      >
-        <AscIcon name="plus" />
-        <span>新建讨论</span>
-      </button>
-      <button
-        class="recent-conversations__action recent-conversations__exit"
-        type="button"
-        :disabled="disabled"
-        @click="$emit('exit-multi')"
-      >
-        <AscIcon name="chevron" />
-        <span>退出多轮</span>
-      </button>
-    </div>
+    <!-- 新建讨论 / 退出多轮 已移除：前者与多轮面板内的“新建讨论”重复，
+         后者与模式切换（QaModeSwitcher）重复 -->
+    <div id="recent-conversation-list" class="recent-conversations__content"></div>
   </aside>
 </template>
 
@@ -66,7 +42,6 @@ const props = defineProps({
   disabled: Boolean
 })
 
-defineEmits(['new-chat', 'exit-multi'])
 const compactOpen = ref(false)
 const compactToggle = ref(null)
 const panelTitle = computed(() => props.mode === 'single' ? '快捷入口' : props.title)
@@ -150,40 +125,6 @@ function closeCompactPanel() {
   font-size: var(--qa-font-xs);
   font-weight: var(--qa-weight-semibold);
   letter-spacing: 0;
-}
-
-.recent-conversations__action {
-  min-height: var(--qa-control-h);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--qa-space-1);
-  margin: 0 var(--qa-space-2);
-  padding: 0 var(--qa-space-2);
-  border: 1px solid transparent;
-  border-radius: var(--qa-radius-control);
-  background: transparent;
-  color: var(--recent-muted);
-  font-size: var(--qa-font-sm);
-  font-weight: var(--qa-weight-bold);
-  transition: color var(--qa-transition), background var(--qa-transition), border-color var(--qa-transition);
-}
-
-.recent-conversations__exit :deep(.asc-icon) {
-  transform: rotate(180deg);
-}
-
-.recent-conversations__action:hover,
-.recent-conversations__action:focus-visible {
-  border-color: rgba(159, 196, 218, 0.72);
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--qa-accent);
-  outline: none;
-}
-
-.recent-conversations__action:disabled {
-  cursor: not-allowed;
-  opacity: 0.48;
 }
 
 .recent-conversations__list {

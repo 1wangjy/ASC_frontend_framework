@@ -217,8 +217,6 @@
       v-if="!qaState.evidenceOpen"
       :mode="qaState.mode"
       :disabled="multiNavigationLocked"
-      @new-chat="startNewQa"
-      @exit-multi="exitMultiDiscussion"
     />
 
     <EvidencePanel
@@ -706,27 +704,7 @@ function reset() {
   questionGuides.value = createQuestionGuideState()
 }
 
-function startNewQa() {
-  if (qaState.value.mode === 'multi') {
-    if (multiNavigationLocked.value) return
-    if (multiDiscussionPanel.value) multiDiscussionPanel.value.startNewDiscussion()
-    else clearSavedMultiDiscussion(browserStorage, activeProject.value?.graphId)
-    draft.value = ''
-    questionGuides.value = createQuestionGuideState()
-    return
-  }
-  reset()
-}
 
-async function exitMultiDiscussion() {
-  if (multiNavigationLocked.value) return
-  await updateMode('single')
-  reset()
-  const query = { ...route.query }
-  delete query.conversation
-  delete query.new
-  await router.replace({ path: '/research', query })
-}
 
 async function returnToQaHome() {
   if (qaState.value.mode === 'multi') {
