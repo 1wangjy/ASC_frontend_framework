@@ -7,7 +7,12 @@
  *   POST /api/agent/stream  → SSE (text/event-stream)
  *
  * Request body for /stream:
- *   { messages:[{role,content}], context?:{projectId?}, options?:{maxSteps?, allowTools?} }
+ *   { messages:[{role,content}], sessionId?, context?:{projectId?},
+ *     options?:{maxSteps?, maxTools?, maxOptimize?, allowTools?, webAllowlist?} }
+ *
+ * `options.allowTools` and `options.webAllowlist` can only NARROW the operator
+ * configuration (registry / AGENT_WEB_ALLOWLIST); quota options are clamped by
+ * policy.resolveQuota and can never be raised by the client.
  *
  * This router is self-contained: mounting it is the only wiring step, and
  * removing the `app.use('/api/agent', …)` line removes the feature entirely.
@@ -39,6 +44,10 @@ async function streamHandler(req, res) {
   const context = body.context && typeof body.context === 'object' ? body.context : {};
   const options = body.options && typeof body.options === 'object' ? body.options : {};
   const requestedTools = Array.isArray(options.allowTools) ? options.allowTools.slice(0, 32) : undefined;
+  const requestedWebHosts = Array.isArray(options.webAllowlist)
+    ? options.webAllowlist.filter((entry) => typeof entry === 'string').slice(0, 16)
+    : undefined;
+  const sessionId = typeof body.sessionId === 'string' && body.sessionId.trim() ? body.sessionId.trim() : undefined;
 
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -69,7 +78,14 @@ async function streamHandler(req, res) {
     await runAgent({
       messages,
       context,
-      options: { maxSteps: options.maxSteps, allowTools: requestedTools },
+      options: {
+        maxSteps: options.maxSteps,
+        maxTools: options.maxTools,
+        maxOptimize: options.maxOptimize,
+        allowTools: requestedTools,
+        webAllowlist: requestedWebHosts,
+        sessionId,
+      },
       emit: (frame) => sendFrame(res, frame),
       signal: controller.signal,
     });

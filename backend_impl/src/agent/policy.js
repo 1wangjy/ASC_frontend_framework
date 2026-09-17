@@ -10,11 +10,16 @@
  *   3. network policy : web_browse host allowlist + private/link-local/metadata
  *                       address blocking (see webBrowse.js for redirect hops).
  *   4. audit          : one line per tool call, never containing private payloads.
+ *   5. quota          : per-turn tool budget + cap on expensive tool calls.
  *
  * There is intentionally NO file, shell, database or env accessor anywhere in
  * this module or in `tools/` — the agent cannot read ./private,
- * backend_impl/data, sqlite files, _code, or .env by construction.
+ * backend_impl/data, sqlite files, _code, or .env by construction. The only
+ * filesystem write in the whole module is the append-only audit trail
+ * (audit.js), which stores argument *shapes*, never payloads.
  */
+
+const audit = require('./audit');
 
 const MAX_ARG_STRING = 4000;
 const MAX_ARG_ARRAY = 64;
@@ -184,6 +189,69 @@ function isHostAllowlisted(hostname, allowlist) {
   });
 }
 
+/**
+ * NARROW-ONLY allowlist intersection: a per-request list may remove hosts from
+ * the operator allowlist but can never add one. Entries are compared as exact
+ * patterns, so `*.example.com` cannot be widened from `a.example.com` either.
+ * @param {string[]} base       operator allowlist (AGENT_WEB_ALLOWLIST)
+ * @param {string[]|undefined} requested  per-request narrowing
+ * @returns {string[]}
+ */
+function narrowAllowlist(base, requested) {
+  const allowed = Array.isArray(base) ? base : [];
+  if (!Array.isArray(requested) || requested.length === 0) return [...allowed];
+  const known = new Set(allowed);
+  const narrowed = requested
+    .map((entry) => String(entry || '').trim().toLowerCase())
+    .filter((entry) => known.has(entry));
+  return [...new Set(narrowed)];
+}
+
+// ---------------------------------------------------------------------------
+// Quota (per turn)
+// ---------------------------------------------------------------------------
+
+const DEFAULT_MAX_TOOLS = 8;
+const DEFAULT_MAX_OPTIMIZE = 1;
+const RECIPE_OPT_MAX_CALLS_CAP = 2;
+
+/** Tools expensive enough to deserve their own per-turn cap. */
+const EXPENSIVE_TOOLS = new Set(['recipe_optimize']);
+
+/**
+ * Resolve this turn's tool budget. Client options may only lower the defaults;
+ * the recipe_optimize cap is additionally hard-capped by
+ * AGENT_RECIPE_OPT_MAX_CALLS (default 2), which options cannot raise.
+ * @param {{maxTools?:number, maxOptimize?:number}} options
+ * @param {Record<string,string|undefined>} [env]
+ */
+function resolveQuota(options = {}, env = process.env) {
+  const hardCap = clampInt(env.AGENT_RECIPE_OPT_MAX_CALLS, RECIPE_OPT_MAX_CALLS_CAP, 1, 8);
+  return {
+    maxTools: clampInt(options.maxTools, DEFAULT_MAX_TOOLS, 1, 32),
+    maxOptimize: clampInt(options.maxOptimize, DEFAULT_MAX_OPTIMIZE, 1, hardCap),
+    maxOptimizeHardCap: hardCap,
+  };
+}
+
+/**
+ * Reason the NEXT tool call must be refused, or null when it may run.
+ * @param {string} name
+ * @param {{tools:number, optimize:number}} usage  calls already made this turn
+ * @param {{maxTools:number, maxOptimize:number}} quota
+ * @returns {string|null}
+ */
+function toolQuotaReason(name, usage, quota) {
+  if (EXPENSIVE_TOOLS.has(name) && usage.optimize >= quota.maxOptimize) {
+    return `${name} 本回合最多调用 ${quota.maxOptimize} 次（昂贵操作），本次调用已被配额拒绝；`
+      + '请直接使用已有的优化结果作答。';
+  }
+  if (usage.tools >= quota.maxTools) {
+    return `本回合工具调用次数已达上限（${quota.maxTools} 次），本次调用已被配额拒绝；请基于已有结果作答。`;
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Audit
 // ---------------------------------------------------------------------------
@@ -220,18 +288,26 @@ function summarizeArgs(name, args) {
   return safe;
 }
 
-/** One audit line per tool call: {name, argsSummary, ok, ms}. No private data. */
+/**
+ * One audit line per tool call: {ts, tool, argsSummary, ok, ms, sessionId?}.
+ * Printed to stdout AND appended to the NDJSON trail (audit.js). Only argument
+ * shapes are ever recorded — never payloads, urls' bodies or private data.
+ * @param {{name:string, argsSummary?:object, ok:boolean, ms:number, sessionId?:string, error?:string, auditDir?:string}} entry
+ */
 function auditCall(entry) {
   const line = {
     ts: new Date().toISOString(),
-    name: entry.name,
+    tool: entry.name,
     argsSummary: entry.argsSummary || {},
     ok: !!entry.ok,
     ms: entry.ms,
   };
+  if (entry.sessionId) line.sessionId = String(entry.sessionId).slice(0, 64);
   if (entry.error) line.error = String(entry.error).slice(0, 200);
   // eslint-disable-next-line no-console
   console.log('[agent:audit]', JSON.stringify(line));
+  audit.appendAuditLine(line, { dir: entry.auditDir });
+  return line;
 }
 
 module.exports = {
@@ -242,7 +318,14 @@ module.exports = {
   isBlockedIp,
   parseHostAllowlist,
   isHostAllowlisted,
+  narrowAllowlist,
+  resolveQuota,
+  toolQuotaReason,
   summarizeArgs,
   auditCall,
   PRIVATE_HOST_PATTERNS,
+  DEFAULT_MAX_TOOLS,
+  DEFAULT_MAX_OPTIMIZE,
+  RECIPE_OPT_MAX_CALLS_CAP,
+  EXPENSIVE_TOOLS,
 };
