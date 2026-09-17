@@ -46,6 +46,15 @@
         </div>
       </header>
 
+      <!-- 图谱项目门禁提示：唯一位置（topbar 之下、各模式内容之前），保证所有子页面相对位置一致 -->
+      <div v-if="projectUnavailableMessage" class="qa-project-message" :class="{ error: projectError }">
+        <span>{{ projectUnavailableMessage }}</span>
+        <button v-if="projectError" type="button" @click="retryQualifiedProjects">重试</button>
+        <button v-if="!projectsLoading && !activeProject" type="button" @click="selectorOpen = true">
+          选择项目
+        </button>
+      </div>
+
       <section
         v-if="qaState.mode === 'multi'"
         class="qa-multi-page"
@@ -75,13 +84,6 @@
           </button>
         </div>
 
-        <div v-if="projectUnavailableMessage" class="qa-project-message" :class="{ error: projectError }">
-          <span>{{ projectUnavailableMessage }}</span>
-          <button v-if="projectError" type="button" @click="retryQualifiedProjects">重试</button>
-          <button v-if="!projectsLoading && !activeProject" type="button" @click="selectorOpen = true">
-            选择项目
-          </button>
-        </div>
 
         <div
           class="qa-multi-page__workspace"
@@ -135,13 +137,6 @@
           <p>围绕耐火材料配方、工艺、组织结构、服役性能与失效机理提出问题</p>
         </div>
 
-        <div v-if="projectUnavailableMessage" class="qa-project-message" :class="{ error: projectError }">
-          <span>{{ projectUnavailableMessage }}</span>
-          <button v-if="projectError" type="button" @click="retryQualifiedProjects">重试</button>
-          <button v-if="!projectsLoading && !activeProject" type="button" @click="selectorOpen = true">
-            选择项目
-          </button>
-        </div>
 
         <QuestionComposer
           v-model="draft"
