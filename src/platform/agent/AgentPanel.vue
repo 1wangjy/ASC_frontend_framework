@@ -25,6 +25,15 @@
         <button
           type="button"
           class="agent-panel__ghost"
+          aria-controls="agent-tool-auth"
+          :aria-expanded="authOpen"
+          @click="authOpen = !authOpen"
+        >
+          工具权限
+        </button>
+        <button
+          type="button"
+          class="agent-panel__ghost"
           :disabled="!messages.length || streaming"
           @click="reset"
         >
@@ -40,6 +49,49 @@
         </button>
       </div>
     </header>
+
+    <section v-if="authOpen" id="agent-tool-auth" class="agent-auth" aria-label="工具权限">
+      <div class="agent-auth__row">
+        <span class="agent-auth__title">工具权限</span>
+        <span class="agent-auth__count">已启用 {{ selection.enabled.length }}/{{ selection.total }}</span>
+        <button
+          type="button"
+          role="switch"
+          class="agent-auth__switch"
+          :class="{ 'agent-auth__switch--on': prefs.readOnly }"
+          :aria-checked="prefs.readOnly"
+          @click="applyReadOnly(!prefs.readOnly)"
+        >
+          只读模式
+        </button>
+      </div>
+
+      <p v-if="prefs.readOnly" class="agent-auth__note">{{ readOnlyNote }}</p>
+      <p v-if="toolsError" class="agent-auth__note">{{ toolsError }}</p>
+      <p v-else-if="!tools.length" class="agent-auth__note">工具清单尚未加载，暂时无法调整。</p>
+      <ul v-else class="agent-auth__chips">
+        <li v-for="tool in tools" :key="tool.name">
+          <button
+            type="button"
+            class="agent-chip"
+            :class="{
+              'agent-chip--on': isToolOn(tool.name),
+              'agent-chip--locked': isLocked(tool.name)
+            }"
+            :aria-pressed="isToolOn(tool.name)"
+            :disabled="isLocked(tool.name)"
+            :title="isLocked(tool.name) ? '只读模式下不可用' : (tool.description || tool.name)"
+            @click="toggleToolChip(tool.name)"
+          >
+            {{ tool.name }}
+          </button>
+        </li>
+      </ul>
+
+      <p v-if="selection.blocked" class="agent-auth__warning" role="alert">
+        已禁用全部可用工具，请至少启用一个工具再发送。
+      </p>
+    </section>
 
     <div ref="logElement" class="agent-panel__log" role="log" aria-live="polite" aria-relevant="additions text">
       <div v-if="!messages.length" class="agent-panel__empty">
@@ -115,7 +167,9 @@
         @keydown.enter.exact.prevent="submit"
       ></textarea>
       <div class="agent-panel__composer-foot">
-        <span class="agent-panel__hint">Enter 发送 · Shift+Enter 换行</span>
+        <span class="agent-panel__hint">
+          {{ selection.blocked ? '已禁用全部可用工具，无法发送' : 'Enter 发送 · Shift+Enter 换行' }}
+        </span>
         <button
           v-if="streaming"
           type="button"
@@ -128,7 +182,7 @@
           v-else
           type="submit"
           class="agent-btn agent-btn--send"
-          :disabled="!draft.trim()"
+          :disabled="!draft.trim() || selection.blocked"
         >
           发送
         </button>
@@ -142,6 +196,17 @@ defineOptions({ name: 'AgentPanel' })
 
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useAgentChat } from './useAgentChat.js'
+import {
+  MUTATING_TOOLS,
+  buildRequestOptions,
+  createDefaultToolPrefs,
+  isToolEnabled,
+  loadToolPrefs,
+  resolveToolSelection,
+  saveToolPrefs,
+  setReadOnly,
+  toggleTool
+} from './toolPrefs.js'
 
 const props = defineProps({
   projectId: {
@@ -171,12 +236,40 @@ const {
   loadTools,
   toolStatusLabel
 } = useAgentChat({
-  getContext: () => (props.projectId ? { projectId: props.projectId } : {})
+  getContext: () => (props.projectId ? { projectId: props.projectId } : {}),
+  // `selection` 在下方定义；箭头函数只在发送时求值，默认（全开）返回空对象。
+  getRequestOptions: () => buildRequestOptions(selection.value)
 })
 
 const draft = ref('')
 const logElement = ref(null)
 const inputElement = ref(null)
+const authOpen = ref(false)
+const prefs = ref(createDefaultToolPrefs())
+
+const toolNames = computed(() => tools.value.map(tool => tool.name))
+const selection = computed(() => resolveToolSelection(prefs.value, toolNames.value))
+
+function isToolOn(name) {
+  return isToolEnabled(prefs.value, name)
+}
+
+function isLocked(name) {
+  return prefs.value.readOnly && MUTATING_TOOLS.includes(name)
+}
+
+function toggleToolChip(name) {
+  if (isLocked(name)) return
+  prefs.value = toggleTool(prefs.value, name)
+}
+
+function applyReadOnly(value) {
+  prefs.value = setReadOnly(prefs.value, value)
+}
+
+watch(prefs, value => { saveToolPrefs(value) }, { deep: true })
+
+const readOnlyNote = computed(() => `只读：禁用配方优化（${MUTATING_TOOLS.join('、')}）`)
 
 const statusText = computed(() => {
   if (streaming.value) return '正在执行'
@@ -188,7 +281,7 @@ const statusText = computed(() => {
 const toolsHint = computed(() => {
   if (toolsError.value) return toolsError.value
   if (!tools.value.length) return '工具清单加载中…'
-  return `可用工具 ${tools.value.length} 个`
+  return `已启用 ${selection.value.enabled.length}/${selection.value.total}`
 })
 
 const toolsHintTitle = computed(() => tools.value.map(tool => tool.name).join('、') || toolsError.value)
@@ -209,7 +302,7 @@ function useExample(example) {
 
 function submit() {
   const value = draft.value
-  if (!value.trim() || streaming.value) return
+  if (!value.trim() || streaming.value || selection.value.blocked) return
   draft.value = ''
   void send(value)
 }
@@ -228,6 +321,7 @@ watch(
 )
 
 onMounted(() => {
+  prefs.value = loadToolPrefs()
   void loadTools()
 })
 
@@ -236,6 +330,8 @@ defineExpose({ messages, streaming, steps })
 
 <style scoped>
 .agent-panel {
+  /* 面板内的次要文本：由设计令牌派生，保证 11.5px 下仍满足 AA 对比度 */
+  --agent-muted: color-mix(in srgb, var(--asc-muted) 82%, var(--asc-heading));
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -337,7 +433,7 @@ defineExpose({ messages, streaming, steps })
 }
 
 .agent-panel__tools-hint {
-  color: var(--asc-muted);
+  color: var(--agent-muted);
   font-size: 11.5px;
   white-space: nowrap;
 }
@@ -362,6 +458,104 @@ defineExpose({ messages, streaming, steps })
 .agent-panel__ghost:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.agent-auth {
+  display: grid;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-bottom: 1px solid var(--asc-border);
+  background: var(--asc-surface-soft);
+}
+
+.agent-auth__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.agent-auth__title {
+  color: var(--asc-heading);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-auth__count {
+  color: var(--agent-muted);
+  font-size: 11.5px;
+}
+
+.agent-auth__switch {
+  margin-left: auto;
+  min-height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--asc-border-strong);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--asc-text);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.agent-auth__switch--on {
+  border-color: var(--asc-warning);
+  background: var(--asc-warning-soft);
+  color: #7d520a;
+}
+
+.agent-auth__note {
+  margin: 0;
+  color: var(--agent-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.agent-auth__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-chip {
+  padding: 4px 10px;
+  border: 1px solid var(--asc-border-strong);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--asc-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 650;
+  transition: border-color var(--asc-transition), background var(--asc-transition);
+}
+
+.agent-chip--on {
+  border-color: var(--asc-primary);
+  background: var(--asc-primary-soft);
+  color: var(--asc-primary-hover);
+}
+
+.agent-chip--locked {
+  border-style: dashed;
+  opacity: 0.62;
+  text-decoration: line-through;
+}
+
+.agent-chip--locked:disabled {
+  cursor: not-allowed;
+}
+
+.agent-auth__warning {
+  margin: 0;
+  padding: 6px 9px;
+  border-left: 3px solid var(--asc-danger);
+  border-radius: 4px;
+  background: #fdf1f1;
+  color: #8f3232;
+  font-size: 11.5px;
 }
 
 .agent-panel__log {
@@ -661,7 +855,7 @@ defineExpose({ messages, streaming, steps })
 }
 
 .agent-panel__hint {
-  color: var(--asc-muted);
+  color: var(--agent-muted);
   font-size: 11.5px;
 }
 
