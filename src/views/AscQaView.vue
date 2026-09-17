@@ -37,23 +37,24 @@
             新建组会
           </button>
         </div>
-        <div class="qa-project-context">
+        <!-- 图谱项目：唯一的"选择/更换图谱"入口（合并原门禁提示） -->
+        <div
+          class="qa-project-context"
+          :class="{ 'qa-project-context--required': projectRequired, 'qa-project-context--error': !!projectError }"
+          :title="projectUnavailableMessage || '当前问答所依据的图谱项目'"
+        >
           <span>当前图谱</span>
-          <strong>{{ activeProject ? projectLabel(activeProject) : '未选择' }}</strong>
-          <button type="button" :disabled="multiNavigationLocked" @click="selectorOpen = true">
-            {{ activeProject ? '更换图谱' : '选择图谱' }}
+          <strong>{{ activeProject ? projectLabel(activeProject) : '未选择项目' }}</strong>
+          <button
+            type="button"
+            :disabled="multiNavigationLocked || projectsLoading"
+            :class="{ 'qa-project-context__action--required': projectRequired }"
+            @click="onProjectAction"
+          >
+            {{ projectActionLabel }}
           </button>
         </div>
       </header>
-
-      <!-- 图谱项目门禁提示：唯一位置（topbar 之下、各模式内容之前），保证所有子页面相对位置一致 -->
-      <div v-if="projectUnavailableMessage" class="qa-project-message" :class="{ error: projectError }">
-        <span>{{ projectUnavailableMessage }}</span>
-        <button v-if="projectError" type="button" @click="retryQualifiedProjects">重试</button>
-        <button v-if="!projectsLoading && !activeProject" type="button" @click="selectorOpen = true">
-          选择项目
-        </button>
-      </div>
 
       <section
         v-if="qaState.mode === 'multi'"
@@ -396,6 +397,19 @@ const projectUnavailableMessage = computed(() => {
 
 function projectLabel(project) {
   return project.projectName || project.projectId
+}
+
+/** 是否"必须选择图谱才能问答"（未选 或 原项目资格失效）。 */
+const projectRequired = computed(() => !activeProject.value || scopeSelectionRequired.value)
+/** 右上一个按钮承载全部状态：重试 / 加载 / 更换 / 选择。 */
+const projectActionLabel = computed(() => {
+  if (projectError.value) return '重试'
+  if (projectsLoading.value) return '加载中…'
+  return activeProject.value ? '更换图谱' : '选择图谱'
+})
+function onProjectAction() {
+  if (projectError.value) return retryQualifiedProjects()
+  selectorOpen.value = true
 }
 
 const qaProjectContext = createQaProjectContextController({
@@ -992,6 +1006,28 @@ onUnmounted(() => {
   color: var(--qa-accent);
 }
 
+/* 未选择（必需）/ 出错：同一入口给出状态强调（不再另设门禁提示块） */
+.qa-project-context--required strong {
+  color: var(--qa-warning, #b45309);
+}
+.qa-project-context__action--required {
+  border-color: var(--qa-warning, #b45309);
+  color: var(--qa-warning, #b45309);
+  background: var(--qa-warning-soft, #fef3c7);
+}
+.qa-project-context__action--required:hover {
+  border-color: var(--qa-warning, #b45309);
+  color: #ffffff;
+  background: var(--qa-warning, #b45309);
+}
+.qa-project-context--error strong,
+.qa-project-context--error button {
+  color: var(--qa-danger, #b91c1c);
+}
+.qa-project-context--error button {
+  border-color: var(--qa-danger, #b91c1c);
+}
+
 .qa-project-context button:hover,
 .qa-topbar__action:hover {
   border-color: var(--qa-accent);
@@ -1238,37 +1274,6 @@ onUnmounted(() => {
   letter-spacing: 0.005em;
   line-height: 1.7;
   text-align: center;
-}
-
-.qa-project-message {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--qa-space-2);
-  padding: var(--qa-space-2) var(--qa-space-3);
-  border: 1px solid var(--qa-border-strong);
-  border-radius: var(--qa-radius-control);
-  background: var(--qa-surface-soft);
-  color: var(--qa-muted);
-  font-size: var(--qa-control-font);
-}
-
-.qa-project-message.error {
-  border-color: #e6b5af;
-  background: var(--qa-danger-soft);
-  color: #9e4037;
-}
-
-.qa-project-message button {
-  min-height: var(--qa-control-h);
-  padding: 0 var(--qa-space-2);
-  border: 1px solid var(--qa-accent);
-  border-radius: var(--qa-radius-control);
-  background: var(--qa-accent-soft);
-  color: var(--qa-accent);
-  font-size: var(--qa-control-font);
-  font-weight: var(--qa-weight-heavy);
 }
 
 .qa-session {
