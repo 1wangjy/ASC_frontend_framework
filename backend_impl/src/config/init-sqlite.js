@@ -132,6 +132,7 @@ class SQLiteInitializer {
           note TEXT,
           entry_type TEXT,
           attachment TEXT,
+          collection TEXT,           -- 文献收集批次标记（如 aug / sep）
           create_time TIMESTAMP NOT NULL,
           update_time TIMESTAMP NOT NULL,
           is_delete INTEGER DEFAULT 0
@@ -340,12 +341,25 @@ class SQLiteInitializer {
         } else {
           console.log('SQLite tables created successfully');
           this.ensureLiteratureAttachmentColumn()
+            .then(() => this.ensureLiteratureCollectionColumn())
             .then(() => this.initBasicData())
             .then(resolve)
             .catch(reject);
         }
       });
     });
+  }
+
+  async ensureLiteratureCollectionColumn() {
+    const columns = await new Promise((resolve, reject) => {
+      this.db.all('PRAGMA table_info(literature)', (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+    if (columns.some(column => column.name === 'collection')) return;
+    await this.dbRun('ALTER TABLE literature ADD COLUMN collection TEXT', []);
+    console.log('Added literature.collection column');
   }
 
   async ensureLiteratureAttachmentColumn() {

@@ -115,7 +115,9 @@ def parse_bib(text):
             else:
                 end = body.find(',', k)
                 val = body[k:end if end > 0 else len(body)]
-            fields[name] = re.sub(r'\s+', ' ', val).strip()
+            # biblatex 用 {..}/{..} 保护大小写与间距：入库前去掉花括号，压缩空白
+            cleaned = re.sub(r'[{}]', '', val)
+            fields[name] = re.sub(r'\s+', ' ', cleaned).strip()
         entries.append({'type': etype, 'key': key, 'fields': fields})
         i = j
     return entries
@@ -205,6 +207,7 @@ def main():
     ap.add_argument('--db', default=str(DB_DEFAULT))
     ap.add_argument('--store-root', default=str(STORE_DEFAULT))
     ap.add_argument('--roots', default=','.join(ROOTS_DEFAULT))
+    ap.add_argument('--collection', default='', help='collection 标记（如 aug / sep），写入 literature.collection')
     ap.add_argument('--apply', action='store_true')
     ap.add_argument('--copy', action='store_true')
     args = ap.parse_args()
@@ -220,10 +223,22 @@ def main():
     conn = sqlite3.connect(args.db)
     conn.executescript(LIT_FILE_DDL)
     cur = conn.cursor()
+    cols = [r[1] for r in cur.execute('PRAGMA table_info(literature)').fetchall()]
+    if 'collection' not in cols:
+        cur.execute('ALTER TABLE literature ADD COLUMN collection TEXT')
+        print('added literature.collection column')
+    # 性能：DOI 查找需索引（否则每条目全表扫描 O(n^2)）+ 预载现有 DOI->lit_id
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_literature_doi ON literature(lower(doi))')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_literature_collection ON literature(collection)')
+    existing_by_doi = {}
+    for row in cur.execute("SELECT lower(doi), lit_id FROM literature WHERE doi IS NOT NULL AND doi <> '' AND is_delete=0").fetchall():
+        if row[0]:
+            existing_by_doi.setdefault(row[0], row[1])
     # next lit_id sequence
     row = cur.execute("SELECT COALESCE(MAX(CAST(substr(lit_id,4) AS INTEGER)),0) FROM literature WHERE lit_id LIKE 'LIT%'").fetchone()
     seq = row[0] if row else 0
 
+    collection = (args.collection or '').strip()
     stats = {'entries': len(entries), 'matched': 0, 'pdf': 0, 'md': 0, 'unmatched': 0,
              'inserted': 0, 'updated': 0, 'files': 0}
     unmatched_keys = []
@@ -254,16 +269,16 @@ def main():
 
         # idempotency key (D4)
         idkey = doi or hashlib.sha1((title + authors + str(year or '')).encode('utf-8')).hexdigest()
-        existing = None
-        if doi:
-            existing = cur.execute("SELECT lit_id FROM literature WHERE lower(doi)=? AND is_delete=0", (doi,)).fetchone()
+        existing = existing_by_doi.get(doi) if doi else None
         if existing:
-            lit_id = existing[0]
+            lit_id = existing
             stats['updated'] += 1
         else:
             seq += 1
             lit_id = 'LIT%06d' % seq
             stats['inserted'] += 1
+            if doi:
+                existing_by_doi[doi] = lit_id
 
         primary = None
         if files:
@@ -273,17 +288,22 @@ def main():
 
         cur.execute(
             """INSERT INTO literature (lit_id,title,authors,journal,year,volume,number,pages,doi,
-                                       abstract,note,entry_type,attachment,create_time,update_time,is_delete)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,0)
+                                       abstract,note,entry_type,attachment,collection,
+                                       create_time,update_time,is_delete)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,0)
                ON CONFLICT(lit_id) DO UPDATE SET
                  title=excluded.title, authors=excluded.authors, journal=excluded.journal, year=excluded.year,
                  volume=excluded.volume, number=excluded.number, pages=excluded.pages, doi=excluded.doi,
                  abstract=excluded.abstract, note=excluded.note, entry_type=excluded.entry_type,
-                 attachment=excluded.attachment, update_time=CURRENT_TIMESTAMP""",
-            (lit_id, title, authors, f.get('journal', ''), year, f.get('volume', ''), f.get('number', ''),
-             f.get('pages', ''), f.get('doi', ''), f.get('abstract', ''), f.get('note', ''),
-             e['type'], primary))
+                 attachment=COALESCE(literature.attachment, excluded.attachment),
+                 collection=COALESCE(NULLIF(literature.collection,''), excluded.collection),
+                 update_time=CURRENT_TIMESTAMP""",
+            (lit_id, title, authors, f.get('journal') or f.get('journaltitle') or '', year,
+             f.get('volume', ''), f.get('number', ''), f.get('pages', ''), f.get('doi', ''),
+             f.get('abstract', ''), f.get('note', ''), e['type'], primary, collection))
 
+        if args.apply and (stats['inserted'] + stats['updated']) % 500 == 0:
+            conn.commit()
         for kind, p in files:
             if args.copy:
                 dest_dir = Path(args.store_root) / lit_id
@@ -313,7 +333,7 @@ def main():
     print(json.dumps(stats, ensure_ascii=False))
     if unmatched_keys:
         print('unmatched (first 20):', unmatched_keys[:20])
-    print('mode:', 'APPLY' if args.apply else 'DRY-RUN', '| copy:', args.copy,
+    print('collection:', collection or '(none)', '| mode:', 'APPLY' if args.apply else 'DRY-RUN', '| copy:', args.copy,
           '| roots:', roots, '| db:', args.db)
     conn.close()
 
