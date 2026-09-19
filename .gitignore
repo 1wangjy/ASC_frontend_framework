@@ -45,3 +45,6 @@ AI4Sci-NEXUS-ASC-Development-Domain
 backend_impl/python/model_predict/.venv
 backend_impl/python/model_predict/MODEL/outputs/
 backend_impl/python/model_predict/FEATURE/outputs/
+
+# 本地文献资源（bib 源，不入库）
+data/
