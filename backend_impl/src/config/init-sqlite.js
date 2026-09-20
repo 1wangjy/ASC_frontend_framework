@@ -412,7 +412,8 @@ class SQLiteInitializer {
     console.log('Initializing basic data...');
     
     const defaultUsername = 'admin';
-    const defaultPassword = require('crypto').randomBytes(8).toString('hex');
+    // 初始化密码：默认 123456（可用 ADMIN_INIT_PASSWORD 覆盖）；仅首次建库时写入
+    const defaultPassword = process.env.ADMIN_INIT_PASSWORD || '123456';
     
     try {
       // 创建 admin 用户
@@ -430,10 +431,12 @@ class SQLiteInitializer {
           [defaultUsername, hashedPassword, 'admin']
         );
         console.log('Default admin user created');
-        console.log(`========================================`);
+        console.log('========================================');
         console.log(`Admin credentials: ${defaultUsername} / ${defaultPassword}`);
-        console.log(`IMPORTANT: Please change this password immediately!`);
-        console.log(`========================================`);
+        if (defaultPassword === '123456') {
+          console.log('WARNING: default password in use — change it before exposing this instance.');
+        }
+        console.log('========================================');
       } else {
         console.log('Admin user already exists');
       }
