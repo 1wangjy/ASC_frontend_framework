@@ -201,6 +201,19 @@ def sha256_file(p, limit=None):
     return h.hexdigest()
 
 
+def normalize_text(value):
+    """归一化：小写 + 仅保留字母数字与 CJK（用于无 DOI 条目的去重键）。"""
+    return re.sub(r'[^0-9a-z\u4e00-\u9fff]+', '', (value or '').lower())
+
+
+def dedupe_key_of(doi, title, authors, year):
+    """DOI 优先；无 DOI（中文文献常见）时用 归一化(标题|作者|年份) 的 sha1。"""
+    if doi:
+        return 'doi:' + doi
+    raw = '%s|%s|%s' % (normalize_text(title), normalize_text(authors), year or '')
+    return 't:' + hashlib.sha1(raw.encode('utf-8')).hexdigest()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('bib')
@@ -227,9 +240,18 @@ def main():
     if 'collection' not in cols:
         cur.execute('ALTER TABLE literature ADD COLUMN collection TEXT')
         print('added literature.collection column')
+    if 'dedupe_key' not in cols:
+        cur.execute('ALTER TABLE literature ADD COLUMN dedupe_key TEXT')
+        print('added literature.dedupe_key column')
     # 性能：DOI 查找需索引（否则每条目全表扫描 O(n^2)）+ 预载现有 DOI->lit_id
     cur.execute('CREATE INDEX IF NOT EXISTS idx_literature_doi ON literature(lower(doi))')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_literature_collection ON literature(collection)')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_literature_dedupe_key ON literature(dedupe_key)')
+    cur.execute("UPDATE literature SET dedupe_key = 'doi:' || lower(doi) "
+                "WHERE (dedupe_key IS NULL OR dedupe_key = '') AND doi IS NOT NULL AND doi <> ''")
+    existing_by_dedupe = {}
+    for row in cur.execute("SELECT dedupe_key, lit_id FROM literature WHERE dedupe_key IS NOT NULL AND dedupe_key <> '' AND is_delete=0").fetchall():
+        existing_by_dedupe.setdefault(row[0], row[1])
     existing_by_doi = {}
     for row in cur.execute("SELECT lower(doi), lit_id FROM literature WHERE doi IS NOT NULL AND doi <> '' AND is_delete=0").fetchall():
         if row[0]:
@@ -267,9 +289,13 @@ def main():
         if not args.apply:
             continue
 
-        # idempotency key (D4)
-        idkey = doi or hashlib.sha1((title + authors + str(year or '')).encode('utf-8')).hexdigest()
-        existing = existing_by_doi.get(doi) if doi else None
+        # 幂等键：DOI 优先，无 DOI 时 标题+作者+年份 归一化哈希（中文文献去重）
+        dedupe_key = dedupe_key_of(doi, title, authors, year)
+        existing = None
+        if doi:
+            existing = existing_by_doi.get(doi)
+        if not existing:
+            existing = existing_by_dedupe.get(dedupe_key)
         if existing:
             lit_id = existing
             stats['updated'] += 1
@@ -279,6 +305,7 @@ def main():
             stats['inserted'] += 1
             if doi:
                 existing_by_doi[doi] = lit_id
+        existing_by_dedupe[dedupe_key] = lit_id
 
         primary = None
         if files:
@@ -288,9 +315,9 @@ def main():
 
         cur.execute(
             """INSERT INTO literature (lit_id,title,authors,journal,year,volume,number,pages,doi,
-                                       abstract,note,entry_type,attachment,collection,
+                                       abstract,note,entry_type,attachment,collection,dedupe_key,
                                        create_time,update_time,is_delete)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,0)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,0)
                ON CONFLICT(lit_id) DO UPDATE SET
                  title=excluded.title, authors=excluded.authors, journal=excluded.journal, year=excluded.year,
                  volume=excluded.volume, number=excluded.number, pages=excluded.pages, doi=excluded.doi,
@@ -300,7 +327,7 @@ def main():
                  update_time=CURRENT_TIMESTAMP""",
             (lit_id, title, authors, f.get('journal') or f.get('journaltitle') or '', year,
              f.get('volume', ''), f.get('number', ''), f.get('pages', ''), f.get('doi', ''),
-             f.get('abstract', ''), f.get('note', ''), e['type'], primary, collection))
+             f.get('abstract', ''), f.get('note', ''), e['type'], primary, collection, dedupe_key))
 
         if args.apply and (stats['inserted'] + stats['updated']) % 500 == 0:
             conn.commit()

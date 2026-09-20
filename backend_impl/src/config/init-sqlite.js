@@ -132,7 +132,8 @@ class SQLiteInitializer {
           note TEXT,
           entry_type TEXT,
           attachment TEXT,
-          collection TEXT,           -- 文献收集批次标记（如 aug / sep）
+          collection TEXT,           -- 文献收集批次标记（如 aug / sep / r3）
+          dedupe_key TEXT,           -- 去重键：doi:<doi> 或 无 DOI 时的 标题|作者|年份 哈希
           create_time TIMESTAMP NOT NULL,
           update_time TIMESTAMP NOT NULL,
           is_delete INTEGER DEFAULT 0
@@ -342,12 +343,25 @@ class SQLiteInitializer {
           console.log('SQLite tables created successfully');
           this.ensureLiteratureAttachmentColumn()
             .then(() => this.ensureLiteratureCollectionColumn())
+            .then(() => this.ensureLiteratureDedupeKeyColumn())
             .then(() => this.initBasicData())
             .then(resolve)
             .catch(reject);
         }
       });
     });
+  }
+
+  async ensureLiteratureDedupeKeyColumn() {
+    const columns = await new Promise((resolve, reject) => {
+      this.db.all('PRAGMA table_info(literature)', (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+    if (columns.some(column => column.name === 'dedupe_key')) return;
+    await this.dbRun('ALTER TABLE literature ADD COLUMN dedupe_key TEXT', []);
+    console.log('Added literature.dedupe_key column');
   }
 
   async ensureLiteratureCollectionColumn() {
