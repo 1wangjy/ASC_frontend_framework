@@ -344,12 +344,31 @@ class SQLiteInitializer {
           this.ensureLiteratureAttachmentColumn()
             .then(() => this.ensureLiteratureCollectionColumn())
             .then(() => this.ensureLiteratureDedupeKeyColumn())
+            .then(() => this.normalizeLiteratureEntryTypes())
             .then(() => this.initBasicData())
             .then(resolve)
             .catch(reject);
         }
       });
     });
+  }
+
+  // BibTeX 取值（article/inproceedings…）与平台规范类型（journal/conference/patent/book）
+  // 不一致时，"按类型"统计会把同一类型列两次。此处把存量数据折到规范值，幂等。
+  async normalizeLiteratureEntryTypes() {
+    const map = [
+      ['journal', ['article', 'review', 'periodical', 'journal-article']],
+      ['conference', ['inproceedings', 'proceedings']],
+      ['book', ['incollection', 'inbook', 'booklet', 'phdthesis', 'mastersthesis', 'techreport', 'report', 'manual']],
+      ['patent', ['patent']],
+    ];
+    for (const [canonical, legacy] of map) {
+      const placeholders = legacy.map(() => '?').join(',');
+      await this.dbRun(
+        `UPDATE literature SET entry_type = ? WHERE lower(trim(entry_type)) IN (${placeholders})`,
+        [canonical, ...legacy],
+      );
+    }
   }
 
   async ensureLiteratureDedupeKeyColumn() {

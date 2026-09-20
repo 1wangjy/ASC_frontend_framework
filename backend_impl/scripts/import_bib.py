@@ -32,6 +32,22 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 DB_DEFAULT = HERE.parent / "data" / "sqlite" / "database.db"
 STORE_DEFAULT = HERE.parent / "data" / "files"
+# BibTeX/biblatex 类型 → 平台规范类型（journal/conference/patent/book）
+LIT_TYPE_BY_BIB = {
+    'article': 'journal', 'review': 'journal', 'periodical': 'journal',
+    'inproceedings': 'conference', 'conference': 'conference', 'proceedings': 'conference',
+    'incollection': 'book', 'inbook': 'book', 'book': 'book', 'booklet': 'book',
+    'phdthesis': 'book', 'mastersthesis': 'book', 'techreport': 'book', 'report': 'book',
+    'manual': 'book',
+    'patent': 'patent',
+}
+
+
+def normalize_entry_type(bib_type):
+    """未知/泛型（misc）→ ''：交给界面归入"未分类"，不硬塞一个可能错的类型。"""
+    return LIT_TYPE_BY_BIB.get((bib_type or '').strip().lower(), '')
+
+
 ROOTS_DEFAULT = ["/mnt/e/pdfs/asc_01", "/mnt/e/pdfs/asc_02", "/mnt/e/pdfs/ASC_Handbook"]
 
 LIT_FILE_DDL = """
@@ -118,7 +134,7 @@ def parse_bib(text):
             # biblatex 用 {..}/{..} 保护大小写与间距：入库前去掉花括号，压缩空白
             cleaned = re.sub(r'[{}]', '', val)
             fields[name] = re.sub(r'\s+', ' ', cleaned).strip()
-        entries.append({'type': etype, 'key': key, 'fields': fields})
+        entries.append({'type': normalize_entry_type(etype), 'key': key, 'fields': fields})
         i = j
     return entries
 

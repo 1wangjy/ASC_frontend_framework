@@ -563,13 +563,12 @@ import {
   toggleCurrentPageLiteratureSelection,
   toggleLiteratureSelection,
 } from '../utils/literatureSelection.js'
-import { assignComponentId, MC_TYPE_OPTIONS, MR_TYPE_OPTIONS, LIT_TYPE_OPTIONS, ID_FIELD_MAP, validateComponentRows } from '../types/entities'
+import { assignComponentId, MC_TYPE_OPTIONS, MR_TYPE_OPTIONS, LIT_TYPE_OPTIONS, ID_FIELD_MAP, validateComponentRows, normalizeLiteratureEntryType, literatureTypeLabel } from '../types/entities'
 
 const MAIN_TABS = [{ key: 'parse', label: '数据解析' }, { key: 'manage', label: '数据管理' }, { key: 'ml', label: 'ML 数据集' }, { key: 'literature', label: '文献库管理' }, { key: 'mongodb', label: 'MongoDB测试' }]
 const PARSE_TABS = [{ key: 'recipe', label: '配方/测试解析' }, { key: 'working', label: '工况解析' }, { key: 'service', label: '服役解析' }, { key: 'reconstruct', label: '重建解析' }]
 const MANAGE_TABS = [{ key: 'mc', label: '原料表' }, { key: 'mr', label: '配方表' }, { key: 'mp', label: '物性表' }, { key: 'tp', label: '测试表' }, { key: 'fe', label: '工况记录' }, { key: 'ru', label: '服役记录' }]
 const ADD_RECORD_LABELS = { mp: '新建物性记录', tp: '新建测试记录' }
-const LIT_TYPE_LABELS = { journal: '期刊论文', conference: '会议论文', patent: '专利', book: '书籍' }
 
 const dataStore = usePlatformDataStore()
 const mlLoading = ref(false)
@@ -661,7 +660,7 @@ const defaultGraphProjectName = computed(() => suggestNextProjectName(graphTaskM
 const litTypeOptions = computed(() => getLiteratureEntryTypes(
   litData.value,
   LIT_TYPE_OPTIONS.map((option) => option.value),
-).map((value) => ({ value, label: LIT_TYPE_LABELS[value] || value })))
+).map((value) => ({ value, label: literatureTypeLabel(value) })))
 const litYearOptions = computed(() => getLiteratureYears(litData.value))
 const litCollectionData = computed(() => {
   const rows = litData.value
@@ -700,7 +699,7 @@ const litLibraryCollections = computed(() => {
 const litTypeCollections = computed(() => {
   const counts = new Map()
   for (const lit of litData.value) {
-    const type = String(lit?.entry_type || '').trim()
+    const type = normalizeLiteratureEntryType(lit?.entry_type)
     if (type) counts.set(type, (counts.get(type) || 0) + 1)
   }
   return litTypeOptions.value.map((option) => ({
@@ -803,7 +802,8 @@ function selectLitCollection(key) {
 function litTypeLabel(value) {
   const raw = String(value || '').trim()
   if (!raw) return ''
-  return litTypeOptions.value.find((option) => option.value === raw)?.label || raw
+  return litTypeOptions.value.find((option) => option.value === normalizeLiteratureEntryType(raw))?.label
+    || literatureTypeLabel(raw)
 }
 function hasGraphAttachment(lit) { return Boolean(String(lit?.attachment || '').trim()) }
 function toggleLitSelection(lit) {

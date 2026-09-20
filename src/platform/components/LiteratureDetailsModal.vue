@@ -46,6 +46,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { normalizeLiteratureEntryType } from '../types/entities.js'
 
 const props = defineProps({
   literature: {
@@ -68,7 +69,8 @@ function displayValue(value) {
 }
 
 const typeLabel = computed(() => {
-  const entryType = String(props.literature.entry_type ?? '').trim()
+  const entryType = normalizeLiteratureEntryType(props.literature.entry_type)
+  if (!entryType) return displayValue('')
   const option = props.typeOptions.find((item) => item.value === entryType)
   return displayValue(option?.label || entryType)
 })

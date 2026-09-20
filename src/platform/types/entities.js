@@ -32,6 +32,48 @@ export const LIT_TYPE_OPTIONS = [
   { label: '书籍', value: 'book' },
 ]
 
+/**
+ * BibTeX / XMP / legacy type spellings folded onto the canonical vocabulary above.
+ * Without this the 按类型 rail lists the same concept twice — once as the Chinese label
+ * (`journal` → 期刊论文) and once as the raw imported value (`article`).
+ */
+export const LIT_TYPE_ALIASES = {
+  article: 'journal',
+  'journal-article': 'journal',
+  journalarticle: 'journal',
+  review: 'journal',
+  periodical: 'journal',
+  inproceedings: 'conference',
+  proceedings: 'conference',
+  proceedingsarticle: 'conference',
+  conferencepaper: 'conference',
+  incollection: 'book',
+  inbook: 'book',
+  bookchapter: 'book',
+  monograph: 'book',
+  phdthesis: 'book',
+  mastersthesis: 'book',
+  techreport: 'book',
+  report: 'book',
+  misc: '',        // 泛型条目归入"未分类"，不硬塞类型
+}
+
+/** Fold any stored literature type onto the canonical vocabulary ('' stays ''). */
+export function normalizeLiteratureEntryType(value) {
+  const raw = String(value ?? '').trim()
+  if (!raw) return ''
+  const key = raw.toLowerCase().replace(/[\s_-]+/g, '')
+  if (LIT_TYPE_OPTIONS.some((option) => option.value === raw)) return raw
+  return key in LIT_TYPE_ALIASES ? LIT_TYPE_ALIASES[key] : raw
+}
+
+/** Human label for a stored literature type. */
+export function literatureTypeLabel(value) {
+  const normalized = normalizeLiteratureEntryType(value)
+  if (!normalized) return ''
+  return LIT_TYPE_OPTIONS.find((option) => option.value === normalized)?.label || normalized
+}
+
 export function resolveComponentSelection(tableType, material) {
   if (!material) return { name: '', id: '' }
   if (tableType === 'mc' && material.mp_id) {

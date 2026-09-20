@@ -1,6 +1,7 @@
 import { uploadPdfFiles } from '../../api/pdfLibrary.js'
 import { adaptPdfFile, uploadPdfDocuments } from '../../features/library/pdfLibraryAdapter.js'
 import platformRequest from '../api/request.js'
+import { normalizeLiteratureEntryType } from '../types/entities.js'
 import { getAttachmentUrl } from '../api/attachment.js'
 
 const CATEGORY_BY_ENTRY_TYPE = {
@@ -28,7 +29,7 @@ async function fetchCurrentAttachmentBlob(literature) {
 
 async function uploadCurrentPdfToLibrary(file, literature) {
   const result = await uploadPdfDocuments(uploadPdfFiles, [file], {
-    category: CATEGORY_BY_ENTRY_TYPE[literature.entry_type] || '未分类',
+    category: CATEGORY_BY_ENTRY_TYPE[normalizeLiteratureEntryType(literature.entry_type)] || '未分类',
     description: `由数据平台文献 ${literature.lit_id || ''} 提供的本次构图输入副本`,
   })
   if (result.errors.length) {

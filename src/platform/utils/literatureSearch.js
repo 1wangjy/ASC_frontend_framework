@@ -1,3 +1,5 @@
+import { normalizeLiteratureEntryType } from '../types/entities.js'
+
 const SEARCH_FIELDS = ['title', 'authors', 'journal', 'doi', 'abstract']
 
 function normalizeLiteratureYear(value) {
@@ -9,8 +11,10 @@ export function getLiteratureEntryTypes(literature = [], defaultTypes = []) {
   const rows = Array.isArray(literature) ? literature : []
   const types = new Set()
 
+  // 归一化后再收集：article/inproceedings 等 BibTeX 取值要折到 journal/conference，
+  // 否则侧栏会把同一类型显示两次（中文标签 + 原始英文值）。
   for (const value of [...defaultTypes, ...rows.map((item) => item?.entry_type)]) {
-    const normalizedType = String(value ?? '').trim()
+    const normalizedType = normalizeLiteratureEntryType(value)
     if (normalizedType) types.add(normalizedType)
   }
 
@@ -27,14 +31,14 @@ export function getLiteratureYears(literature = []) {
 export function filterLiteratureByQuery(literature = [], query = '', entryType = '', year = '') {
   const rows = Array.isArray(literature) ? literature : []
   const normalizedQuery = String(query ?? '').trim().toLocaleLowerCase()
-  const normalizedType = String(entryType ?? '').trim()
+  const normalizedType = normalizeLiteratureEntryType(entryType)
   const normalizedYear = normalizeLiteratureYear(year)
 
   return rows.filter((item) => {
     const matchesQuery = !normalizedQuery || SEARCH_FIELDS.some((field) => (
       String(item?.[field] ?? '').toLocaleLowerCase().includes(normalizedQuery)
     ))
-    const matchesType = !normalizedType || String(item?.entry_type ?? '').trim() === normalizedType
+    const matchesType = !normalizedType || normalizeLiteratureEntryType(item?.entry_type) === normalizedType
     const matchesYear = !normalizedYear || normalizeLiteratureYear(item?.year) === normalizedYear
 
     return matchesQuery && matchesType && matchesYear
