@@ -22,6 +22,12 @@ Usage: python3 backend_impl/scripts/build_resource3_bib.py [--out data/resource3
 import re, sys, argparse
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from doi_resolve import (pdf_doi, load_cache, save_cache,  # noqa: E402
+                         crossref_work, clean_meta_title)
+
+_CR_META: dict = {}
+
 ROOTS = [
     "/mnt/e/Dingding_data/2026_05_11_literature_pipeline_v4/ASC_Papers_2",
     "/mnt/e/Dingding_data/2026_05_11_literature_pipeline_v4/ASC_Papers/Research papers",
@@ -29,7 +35,8 @@ ROOTS = [
 DEFAULT_OUT = Path(__file__).resolve().parent.parent.parent / "data" / "resource3.bib"
 
 DOI_FILE_RE = re.compile(r'^(10\.\d{4,9})_(.+?)(?:\.pdf)?$', re.IGNORECASE)
-JUNK_TITLE = re.compile(r'^(untitled|microsoft word|document\d*|pdf|scan\d*|paper\d*)$', re.IGNORECASE)
+JUNK_TITLE = re.compile(r'^(?:untitled|microsoft word|document\d*|pdf|scan\d*|paper\d*)$'
+                        r'|^(?:pii|doi)\b|^https?://|^10\.\d{4,9}/|^s?\d{4}-\d{4}\(\d{2}\)', re.IGNORECASE)
 
 
 def doi_from_filename(stem: str):
@@ -58,7 +65,8 @@ def pdf_meta(path: Path):
                 doi = m.group(0).rstrip('.').rstrip(')')
         if not title and len(r.pages):
             lines = [l.strip() for l in (r.pages[0].extract_text() or '').splitlines()]
-            lines = [l for l in lines if 12 <= len(l) <= 200 and not re.match(r'^(abstract|keywords|introduction|摘要|关键词)', l, re.I)]
+            lines = [l for l in lines if 12 <= len(l) <= 200
+                     and not re.match(r'^(abstract|keywords|introduction|摘要|关键词|doi|https?://|10\.\d{4,9}/)', l, re.I)]
             title = lines[0] if lines else ''
         return title, author, doi
     except Exception:
@@ -109,8 +117,9 @@ def main():
 
     entries = []
     seen = {}          # dedupe key -> entry index (DOI first, else title|author)
+    doi_cache = load_cache()
     stats = {'pdf': 0, 'skipped': 0, 'cn': 0, 'en': 0, 'with_doi': 0,
-             'title_from_meta': 0, 'title_unresolved': 0}
+             'title_from_meta': 0, 'title_unresolved': 0, 'doi_src': {}}
     for root in ROOTS:
         base = Path(root)
         if not base.exists():
@@ -121,9 +130,15 @@ def main():
             stem = path.stem
             is_cn = bool(re.search(r'[\u4e00-\u9fff]', stem))
 
-            meta_title, meta_author, meta_doi = pdf_meta(path)
-            doi = doi_from_filename(stem) or meta_doi
             name_title, name_author, year = parse_pdf_name(stem)
+            meta_title, meta_author, meta_doi = pdf_meta(path)
+            meta_title, meta_author = clean_meta_title(meta_title), clean_meta_title(meta_author)
+            # DOI 全程优先：文件名 -> PDF 文本/元数据 -> 出版商 ID(PII/Springer) -> OCR -> Crossref/OpenAlex
+            doi, doi_src = pdf_doi(path, title=name_title or meta_title,
+                                   author=name_author or meta_author, cache=doi_cache)
+            doi = doi or doi_from_filename(stem) or meta_doi
+            if doi:
+                stats['doi_src'][doi_src] = stats['doi_src'].get(doi_src, 0) + 1
             if is_cn:
                 # 中文/无 DOI：文件名（知网 标题-作者、NoDOI 下载器/Zotero 命名）比内嵌元数据可靠
                 title, author = name_title or meta_title, name_author or meta_author
@@ -135,6 +150,14 @@ def main():
                     stats['title_from_meta'] += 1
                 elif meta_author:
                     author = meta_author
+            # 有 DOI 但标题缺失/是出版商编号（"PII: …"）时，用 Crossref 反查补齐元数据
+            if doi and (not title or not author or JUNK_TITLE.match(title)):
+                if doi not in _CR_META:
+                    _CR_META[doi] = crossref_work(doi) or {}
+                m = _CR_META[doi]
+                title = title if (title and not JUNK_TITLE.match(title)) else (m.get('title') or title)
+                author = author or m.get('author', '')
+                year = year or m.get('year', '')
             if not title or JUNK_TITLE.match(title):
                 title, stats['title_unresolved'] = name_title or stem, stats['title_unresolved'] + 1
             if doi:
@@ -159,7 +182,8 @@ def main():
         '% 标记：collection=r3；file= 指向本机原始 PDF（不复制）',
         f'% 生成：{len(entries)} 条（扫描 pdf {stats["pdf"]}，重复跳过 {stats["skipped"]}，'
         f'中文 {stats["cn"]} / 英文 {stats["en"]}，含 DOI {stats["with_doi"]}，'
-        f'标题取自 PDF 元数据 {stats["title_from_meta"]}，未解析 {stats["title_unresolved"]}）',
+        f'标题取自 PDF 元数据 {stats["title_from_meta"]}，未解析 {stats["title_unresolved"]}，'
+        f'DOI 来源 {stats["doi_src"]}）',
         '',
     ]
     for e in entries:
@@ -172,11 +196,15 @@ def main():
             lines.append(f"  doi = {{{e['doi']}}},")
         if e.get('year'):
             lines.append(f"  year = {{{e['year']}}},")
+        if not e['doi']:
+            lines.append("  note = {源 PDF 未印 DOI（OCR 已核验），按 标题+作者+年份 去重},")
         lines.append(f"  file = {{{e['file']}}},")
         lines.append("}")
         lines.append('')
     out.write_text('\n'.join(lines), encoding='utf-8')
-    print(f"wrote {out} :: {len(entries)} entries; {stats}")
+    save_cache(doi_cache)
+    no_doi = sum(1 for e in entries if not e['doi'])
+    print(f"wrote {out} :: {len(entries)} entries; without DOI: {no_doi}; {stats}")
 
 
 if __name__ == '__main__':
