@@ -34,17 +34,30 @@
           <button
             type="button"
             class="nav-item nav-item--parent"
-            :title="collapsed ? item.label : undefined"
+            :class="{ 'nav-item--locked': itemLocked(item) }"
+            :title="navTitle(item)"
             @click="toggleGroup(item)"
           >
             <AscIcon :name="item.icon" />
             <span>{{ item.label }}</span>
-            <AscIcon v-if="!collapsed" name="chevron" class="nav-group__caret" />
+            <AscIcon v-if="itemLocked(item)" name="lock" class="nav-item__lock" />
+            <AscIcon v-else-if="!collapsed" name="chevron" class="nav-group__caret" />
           </button>
           <transition name="navsub">
             <ul v-if="!collapsed && isGroupOpen(item)" class="nav-sublist">
               <li v-for="child in item.children" :key="child.path">
+                <button
+                  v-if="itemLocked(child)"
+                  type="button"
+                  class="nav-subitem nav-subitem--locked"
+                  :title="`${child.label}（需登录）`"
+                  @click="requireLogin"
+                >
+                  <AscIcon name="lock" class="nav-subitem__lock" />
+                  <span>{{ child.label }}</span>
+                </button>
                 <router-link
+                  v-else
                   :to="child.path"
                   class="nav-subitem"
                   :class="{ 'is-active': childIsActive(child) }"
@@ -58,6 +71,17 @@
           </transition>
         </div>
         <!-- plain item -->
+        <button
+          v-else-if="itemLocked(item)"
+          type="button"
+          class="nav-item nav-item--locked"
+          :title="navTitle(item)"
+          @click="requireLogin"
+        >
+          <AscIcon :name="item.icon" />
+          <span>{{ item.label }}</span>
+          <AscIcon name="lock" class="nav-item__lock" />
+        </button>
         <router-link
           v-else
           :to="navigationState.target(item)"
@@ -104,6 +128,7 @@ import {
   primaryNavigation
 } from '../../features/navigation/appNavigation.js'
 import { useAuthStore } from '../../store/auth.js'
+import { navigationItemLocked } from '../../config/routeAccess.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -130,11 +155,29 @@ const props = defineProps({
 const expanded = ref('')
 const emit = defineEmits(['close', 'toggle-collapse'])
 
+// 未登录时：首页展示页可用，其余条目按路由配置判定为锁定（点击引导登录）
+function itemLocked(item) {
+  return navigationItemLocked(authStore.isLoggedIn, router, item.path)
+}
+
+function navTitle(item) {
+  if (itemLocked(item)) return `${item.label}（需登录）`
+  return props.collapsed ? item.label : undefined
+}
+
+function requireLogin() {
+  authStore.openLoginModal()
+}
+
 function isGroupOpen(item) {
   return expanded.value === item.path
 }
 
 function toggleGroup(item) {
+  if (itemLocked(item)) {
+    requireLogin()
+    return
+  }
   if (props.collapsed) {
     // collapsed rail: no room for the list, just go to the overview
     emit('close')
@@ -355,6 +398,33 @@ watch(
   opacity: 1;
 }
 
+/* 未登录：条目仍可见可点，但点击引导登录（视觉上弱化 + 右侧锁标） */
+.nav-item--locked {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  color: #93aec5;
+  cursor: pointer;
+}
+
+.nav-item--locked .asc-icon {
+  opacity: 0.6;
+}
+
+.nav-item--locked:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cfe2f1;
+}
+
+.nav-item__lock {
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  opacity: 0.75;
+}
+
 /* ── 用户信息栏 ── */
 .sidebar-footer {
   margin-top: auto;
@@ -569,6 +639,26 @@ watch(
 .nav-subitem.is-active .nav-subitem__dot {
   opacity: 1;
   box-shadow: 0 0 0 3px rgba(79, 183, 236, 0.18);
+}
+.nav-subitem--locked {
+  width: calc(100% - 8px);
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  color: #8ea8bf;
+  cursor: pointer;
+}
+.nav-subitem--locked:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cfe2f1;
+}
+.nav-subitem__lock {
+  width: 12px;
+  height: 12px;
+  opacity: 0.7;
+  flex: 0 0 auto;
 }
 
 .navsub-enter-active,

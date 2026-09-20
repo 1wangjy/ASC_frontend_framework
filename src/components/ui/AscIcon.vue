@@ -35,6 +35,11 @@
       <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" />
       <path d="m4.5 7.8 7.5 4.4 7.5-4.4M12 12.2V21" />
     </template>
+    <template v-else-if="name === 'lock'">
+      <rect x="4.5" y="10.5" width="15" height="9.5" rx="2" />
+      <path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3" />
+      <path d="M12 14.5v1.8" />
+    </template>
     <template v-else-if="name === 'plus'">
       <path d="M12 5v14M5 12h14" />
     </template>

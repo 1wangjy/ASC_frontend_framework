@@ -28,9 +28,12 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../store/auth.js'
+import { consumeIntendedPath } from '../../config/routeAccess.js'
 
 const authStore = useAuthStore()
+const router = useRouter()
 const username = ref('')
 const password = ref('')
 const errorMsg = ref('')
@@ -55,6 +58,9 @@ async function handleLogin() {
       authStore.closeLoginModal()
       username.value = ''
       password.value = ''
+      // 登录前被拦截的目标页，登录成功后直接送达
+      const intended = consumeIntendedPath()
+      if (intended) router.replace(intended)
     } else {
       errorMsg.value = res.data?.message || '登录失败'
     }

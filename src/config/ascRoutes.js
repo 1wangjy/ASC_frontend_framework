@@ -4,7 +4,7 @@ export const ascRouteDefinitions = [
     path: '/',
     name: 'AscHome',
     component: () => import('../views/LandingHomeView.vue'),
-    meta: { title: '首页' }
+    meta: { title: '首页', public: true }
   },
   // ── 问题研究：智能问答 ──
   {
