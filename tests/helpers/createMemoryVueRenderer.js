@@ -1,5 +1,23 @@
 import { createRenderer } from 'vue'
 
+/**
+ * `v-html` 在浏览器里把字符串当作标记注入元素；内存渲染器没有 DOM 解析，
+ * 这里把它折算成"该元素可见的文本"，让断言拿到与浏览器一致的可读内容。
+ */
+function htmlToText(html) {
+  return String(html || '')
+    .replace(/<(?:script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function detach(node) {
   const siblings = node?.parent?.children
   if (!siblings) return
@@ -41,7 +59,14 @@ export function createMemoryVueRenderer() {
 
   const root = createNode('root')
   const renderer = createRenderer({
-    patchProp(node, key, previous, next) { node.props[key] = next },
+    patchProp(node, key, previous, next) {
+      if (key === 'innerHTML') {
+        node.props.innerHTML = next
+        node.innerHTMLText = htmlToText(next)
+        return
+      }
+      node.props[key] = next
+    },
     insert(child, parent, anchor = null) {
       detach(child)
       child.parent = parent
@@ -76,5 +101,5 @@ export function createMemoryVueRenderer() {
 }
 
 export function renderedText(node) {
-  return `${node?.text || ''}${(node?.children || []).map(renderedText).join('')}`
+  return `${node?.text || ''}${node?.innerHTMLText || ''}${(node?.children || []).map(renderedText).join('')}`
 }

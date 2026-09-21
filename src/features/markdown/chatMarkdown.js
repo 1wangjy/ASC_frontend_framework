@@ -1,3 +1,11 @@
+/**
+ * 会话 markdown 渲染：智能体输出与多轮讨论共用的唯一渲染器。
+ *
+ * 输入先整体转义 HTML（模型/用户文本一律不可执行），再按已知语法还原为展示标记：
+ * 标题、表格、围栏代码、列表、引用、行内 code/粗体/斜体/下划线、安全链接，
+ * 以及领域相关的化学式下标（Al2O3 → Al₂O₃）与行内/块级 LaTeX。
+ * 流式输出安全：未闭合的围栏/公式按"到文本末尾"处理，不会抛错或吃掉内容。
+ */
 const escapeHtml = value => String(value ?? '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -162,7 +170,7 @@ const stripLegacyHtml = value => String(value || '')
   .replace(/<\/(?:p|div|li|h[1-6])\s*>/gi, '\n')
   .replace(/<\/?[A-Za-z][^>]*>/g, '')
 
-export const normalizeDiscussionMarkdown = value => {
+export const normalizeChatMarkdown = value => {
   let text = stripLegacyHtml(value)
     .replace(/\r\n/g, '\n')
     .replace(/\*{4,}/g, '**')
@@ -254,8 +262,8 @@ const renderList = (lines, ordered) => {
   return `<${tag} class="md-list">${items}</${tag}>`
 }
 
-export const renderDiscussionMarkdown = value => {
-  const source = normalizeDiscussionMarkdown(value)
+export const renderChatMarkdown = value => {
+  const source = normalizeChatMarkdown(value)
   if (!source) return ''
   const lines = source.split('\n')
   const blocks = []

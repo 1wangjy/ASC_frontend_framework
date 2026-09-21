@@ -105,8 +105,8 @@
             >
               <div
                 v-if="block.type === 'text'"
-                class="message-content is-markdown"
-                v-html="renderDiscussionMarkdown(block.text || '')"
+                class="message-content is-markdown asc-md"
+                v-html="renderChatMarkdown(block.text || '')"
               ></div>
               <section
                 v-else-if="block.type === 'visual_evidence' && block.items?.length"
@@ -539,7 +539,7 @@ import {
   resolveMultiDiscussionAssetUrl,
   sendMultiDiscussionMessage
 } from './api'
-import { renderDiscussionMarkdown } from './markdown'
+import { renderChatMarkdown } from '../../markdown/chatMarkdown.js'
 import { getBrowserStorage } from '../../../utils/browserStorage.js'
 import {
   clearSavedMultiDiscussion,
@@ -1589,180 +1589,6 @@ onBeforeUnmount(() => {
   overflow-wrap: anywhere;
 }
 
-.message-content.is-markdown {
-  white-space: normal;
-}
-
-.message-content.is-markdown :deep(p) {
-  margin: 0 0 9px;
-}
-
-.message-content.is-markdown :deep(p:last-child) {
-  margin-bottom: 0;
-}
-
-.message-content.is-markdown :deep(h2),
-.message-content.is-markdown :deep(h3),
-.message-content.is-markdown :deep(h4) {
-  margin: 14px 0 7px;
-  color: #263451;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.message-content.is-markdown :deep(h2:first-child),
-.message-content.is-markdown :deep(h3:first-child),
-.message-content.is-markdown :deep(h4:first-child) {
-  margin-top: 0;
-}
-
-.message-content.is-markdown :deep(strong) {
-  color: #263451;
-  font-weight: 850;
-}
-
-.message-content.is-markdown :deep(.md-key-underline) {
-  text-decoration: underline;
-  text-decoration-color: #797ad3;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
-}
-
-.message-content.is-markdown :deep(.md-latex) {
-  color: #263451;
-  font-family: "STIX Two Math", "Cambria Math", "Times New Roman", serif;
-  overflow-wrap: normal;
-}
-
-.message-content.is-markdown :deep(.md-latex-inline) {
-  display: inline-flex;
-  align-items: baseline;
-  gap: .08em;
-  padding: 0 .08em;
-}
-
-.message-content.is-markdown :deep(.md-latex-block) {
-  display: block;
-  max-width: 100%;
-  margin: 10px 0;
-  padding: 9px 12px;
-  overflow-x: auto;
-  border-radius: 7px;
-  background: #f7f8fc;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.message-content.is-markdown :deep(.md-latex sub),
-.message-content.is-markdown :deep(.md-latex sup) {
-  font-size: .72em;
-  line-height: 0;
-}
-
-.message-content.is-markdown :deep(.md-latex-frac) {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: stretch;
-  margin: 0 .14em;
-  vertical-align: middle;
-  line-height: 1.05;
-  text-align: center;
-}
-
-.message-content.is-markdown :deep(.md-latex-num) {
-  padding: 0 .16em .08em;
-  border-bottom: 1px solid currentColor;
-}
-
-.message-content.is-markdown :deep(.md-latex-den) {
-  padding: .08em .16em 0;
-}
-
-.message-content.is-markdown :deep(.md-latex-bold) {
-  font-weight: 800;
-}
-
-.message-content.is-markdown :deep(.md-latex-italic) {
-  font-style: italic;
-}
-
-.message-content.is-markdown :deep(.md-latex-roman) {
-  font-style: normal;
-}
-
-.message-content.is-markdown :deep(.md-list) {
-  margin: 7px 0 10px;
-  padding-left: 20px;
-}
-
-.message-content.is-markdown :deep(.md-list li) {
-  margin: 3px 0;
-  padding-left: 2px;
-}
-
-.message-content.is-markdown :deep(blockquote) {
-  margin: 8px 0;
-  padding: 8px 11px;
-  border-left: 3px solid #9d9ee8;
-  border-radius: 0 7px 7px 0;
-  background: #f6f6fd;
-  color: #59657c;
-}
-
-.message-content.is-markdown :deep(.md-table-wrap) {
-  max-width: 100%;
-  margin: 9px 0;
-  overflow-x: auto;
-  border: 1px solid #dfe4ed;
-  border-radius: 8px;
-}
-
-.message-content.is-markdown :deep(table) {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  font-size: 12px;
-}
-
-.message-content.is-markdown :deep(th),
-.message-content.is-markdown :deep(td) {
-  min-width: 100px;
-  padding: 7px 9px;
-  border-bottom: 1px solid #e8ebf1;
-  text-align: left;
-  vertical-align: top;
-}
-
-.message-content.is-markdown :deep(th) {
-  background: #f2f4fa;
-  color: #43506a;
-  font-weight: 850;
-}
-
-.message-content.is-markdown :deep(.md-inline-code) {
-  padding: 1px 4px;
-  border-radius: 4px;
-  background: #eef0f5;
-  color: #4b4db3;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: .92em;
-}
-
-.message-content.is-markdown :deep(.md-code) {
-  margin: 9px 0;
-  padding: 10px 12px;
-  overflow-x: auto;
-  border-radius: 8px;
-  background: #202638;
-  color: #eef1f7;
-  font-size: 12px;
-}
-
-.message-content.is-markdown :deep(.md-link) {
-  color: #5052bf;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
 
 .message-image-grid {
   display: grid;

@@ -1,0 +1,183 @@
+/**
+ * 会话 markdown 公共样式（.asc-md 容器）
+ *
+ * 由 src/features/markdown/chatMarkdown.js 产出的标记在这里统一着色/排版：
+ * 标题、段落、粗体、下划线重点、行内 code、围栏代码、列表、引用、表格，
+ * 以及 LaTeX 片段（上下标/分式/正斜体）。智能体会话与多轮讨论共用这一份，
+ * 避免各处再写一套 markdown 样式。
+ */
+
+.asc-md {
+  white-space: normal;
+}
+
+.asc-md p {
+  margin: 0 0 9px;
+}
+
+.asc-md p:last-child {
+  margin-bottom: 0;
+}
+
+.asc-md h2,
+.asc-md h3,
+.asc-md h4 {
+  margin: 14px 0 7px;
+  color: #263451;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.asc-md h2:first-child,
+.asc-md h3:first-child,
+.asc-md h4:first-child {
+  margin-top: 0;
+}
+
+.asc-md strong {
+  color: #263451;
+  font-weight: 850;
+}
+
+.asc-md .md-key-underline {
+  text-decoration: underline;
+  text-decoration-color: #797ad3;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.asc-md .md-latex {
+  color: #263451;
+  font-family: "STIX Two Math", "Cambria Math", "Times New Roman", serif;
+  overflow-wrap: normal;
+}
+
+.asc-md .md-latex-inline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .08em;
+  padding: 0 .08em;
+}
+
+.asc-md .md-latex-block {
+  display: block;
+  max-width: 100%;
+  margin: 10px 0;
+  padding: 9px 12px;
+  overflow-x: auto;
+  border-radius: 7px;
+  background: #f7f8fc;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.asc-md .md-latex sub,
+.asc-md .md-latex sup {
+  font-size: .72em;
+  line-height: 0;
+}
+
+.asc-md .md-latex-frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  margin: 0 .14em;
+  vertical-align: middle;
+  line-height: 1.05;
+  text-align: center;
+}
+
+.asc-md .md-latex-num {
+  padding: 0 .16em .08em;
+  border-bottom: 1px solid currentColor;
+}
+
+.asc-md .md-latex-den {
+  padding: .08em .16em 0;
+}
+
+.asc-md .md-latex-bold {
+  font-weight: 800;
+}
+
+.asc-md .md-latex-italic {
+  font-style: italic;
+}
+
+.asc-md .md-latex-roman {
+  font-style: normal;
+}
+
+.asc-md .md-list {
+  margin: 7px 0 10px;
+  padding-left: 20px;
+}
+
+.asc-md .md-list li {
+  margin: 3px 0;
+  padding-left: 2px;
+}
+
+.asc-md blockquote {
+  margin: 8px 0;
+  padding: 8px 11px;
+  border-left: 3px solid #9d9ee8;
+  border-radius: 0 7px 7px 0;
+  background: #f6f6fd;
+  color: #59657c;
+}
+
+.asc-md .md-table-wrap {
+  max-width: 100%;
+  margin: 9px 0;
+  overflow-x: auto;
+  border: 1px solid #dfe4ed;
+  border-radius: 8px;
+}
+
+.asc-md table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 12px;
+}
+
+.asc-md th,
+.asc-md td {
+  min-width: 100px;
+  padding: 7px 9px;
+  border-bottom: 1px solid #e8ebf1;
+  text-align: left;
+  vertical-align: top;
+}
+
+.asc-md th {
+  background: #f2f4fa;
+  color: #43506a;
+  font-weight: 850;
+}
+
+.asc-md .md-inline-code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #eef0f5;
+  color: #4b4db3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .92em;
+}
+
+.asc-md .md-code {
+  margin: 9px 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: #202638;
+  color: #eef1f7;
+  font-size: 12px;
+}
+
+.asc-md .md-link {
+  color: #5052bf;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

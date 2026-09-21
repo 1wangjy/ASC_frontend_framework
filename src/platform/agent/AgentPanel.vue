@@ -258,7 +258,15 @@
             </details>
           </div>
 
-          <p v-if="message.content" class="agent-message__text">{{ message.content }}</p>
+          <p
+            v-if="message.content && message.role === 'user'"
+            class="agent-message__text"
+          >{{ message.content }}</p>
+          <div
+            v-else-if="message.content"
+            class="agent-message__text agent-message__markdown asc-md"
+            v-html="renderMessageMarkdown(message)"
+          ></div>
           <span v-if="message.streaming && !message.content" class="agent-message__pending">
             思考中<span aria-hidden="true">…</span>
           </span>
@@ -322,6 +330,7 @@ defineOptions({ name: 'AgentPanel' })
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { RETRY_HINT, useAgentChat } from './useAgentChat.js'
 import ToolEvidence from './ToolEvidence.vue'
+import { renderChatMarkdown } from '../../features/markdown/chatMarkdown.js'
 import {
   createAgentSession,
   deleteAgentSession,
@@ -547,6 +556,21 @@ async function ensureSession(text) {
 }
 
 /* --- T11 断点续传 --------------------------------------------------------- */
+
+// 智能体输出按 markdown 渲染（渲染器先整体剥离/转义 HTML，模型文本不可执行）。
+// 缓存按"内容本身"做键：流式增量是追加，但 final 帧会用等长的新文本替换内容，
+// 只按长度缓存会命中陈旧结果（界面停在旧文本）。
+const renderedMarkdownCache = new Map()
+function renderMessageMarkdown(message) {
+  const content = String(message?.content || '')
+  const key = `${message?.id}\u0000${content}`
+  const cached = renderedMarkdownCache.get(key)
+  if (cached !== undefined) return cached
+  if (renderedMarkdownCache.size > 300) renderedMarkdownCache.clear()
+  const html = renderChatMarkdown(content)
+  renderedMarkdownCache.set(key, html)
+  return html
+}
 
 const lastAssistantId = computed(() => messages.value[messages.value.length - 1]?.id || '')
 const retryHint = computed(() => `${RETRY_HINT}（续传点：事件 #${lastEventId.value ?? 0}）`)
@@ -1202,6 +1226,11 @@ defineExpose({ messages, streaming, steps, sessionId })
   line-height: 1.75;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* markdown 容器不能沿用 pre-wrap：渲染块之间的换行会被显示成多余空行 */
+.agent-message__markdown {
+  white-space: normal;
 }
 
 .agent-message__pending {
