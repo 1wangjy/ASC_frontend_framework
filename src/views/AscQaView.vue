@@ -560,7 +560,8 @@ async function loadMultiDiscussionModels() {
     }))
     modelSelectionByMode.value.multi = response.data?.default_model_mode || modes[0]?.mode || 'default'
   } catch (_error) {
-    multiModelOptions.value = [{ value: 'default', label: '默认模式 · Qwen3-VL 32B' }]
+    // 能力接口不可用时的兜底：与后端 model_modes 的默认保持一致（deepseek-v4-flash）
+    multiModelOptions.value = [{ value: 'default', label: '默认模式 · deepseek-v4-flash' }]
     modelSelectionByMode.value.multi = 'default'
   }
 }

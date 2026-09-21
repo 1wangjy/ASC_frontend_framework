@@ -653,7 +653,7 @@ const fallbackModelModes = [
   {
     mode: 'default',
     label: '默认模式',
-    model: 'qwen/qwen3-vl-32b-instruct',
+    model: 'deepseek-v4-flash',
     description: '未选择其他模式时使用'
   },
   {
