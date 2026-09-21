@@ -262,6 +262,7 @@ import '../features/qa/qa-ui.css'
 import QuestionComposer from '../features/qa/QuestionComposer.vue'
 import TaskShortcuts from '../features/qa/TaskShortcuts.vue'
 import ConversationPanel from '../features/qa/ConversationPanel.vue'
+import { needsModelModeOptions, resolveModelModeSelection } from '../features/qa/qaModelMode.js'
 import AnswerDetailsTabs from '../features/qa/AnswerDetailsTabs.vue'
 import EvidencePanel from '../features/qa/EvidencePanel.vue'
 import QualityPanel from '../features/qa/QualityPanel.vue'
@@ -492,9 +493,10 @@ async function sendQuestion(submission = draft.value) {
       : { question: String(submission || ''), image: null, multiModule: 'inline' }
     if (!payload.question?.trim() && !payload.image) return
     draft.value = ''
+    const multiMode = await ensureMultiDiscussionModels()
     await multiDiscussionPanel.value?.submitExternal({
       ...payload,
-      model: qaState.value.settings.model,
+      model: multiMode,
       reasoning: qaState.value.settings.reasoning
     })
     return
@@ -566,13 +568,34 @@ async function loadMultiDiscussionModels() {
   }
 }
 
+/** 确保智能会话的模型模式清单已加载，并把当前选择收敛成合法模式 id。
+ *  直接以 ?mode=multi 打开时 updateMode 会被"模式未变化"短路，必须在这里补上，
+ *  否则下拉为空、且发送时会带着"深度研究"的模型标签当 model_mode。 */
+async function ensureMultiDiscussionModels() {
+  if (needsModelModeOptions(multiModelOptions.value)) {
+    await loadMultiDiscussionModels()
+  }
+  const resolved = resolveModelModeSelection({
+    requested: modelSelectionByMode.value.multi,
+    options: multiModelOptions.value,
+    fallback: 'default'
+  })
+  modelSelectionByMode.value.multi = resolved
+  if (qaState.value.mode === 'multi') {
+    qaState.value = updateQaSettings(qaState.value, { model: resolved })
+  }
+  return resolved
+}
+
 async function updateMode(mode) {
-  if (mode === qaState.value.mode) return
+  if (mode === qaState.value.mode) {
+    if (mode === 'multi') await ensureMultiDiscussionModels()
+    return
+  }
   modelSelectionByMode.value[qaState.value.mode] = qaState.value.settings.model
   qaState.value = selectQaMode(qaState.value, mode)
   if (mode === 'multi') {
-    await loadMultiDiscussionModels()
-    qaState.value = updateQaSettings(qaState.value, { model: modelSelectionByMode.value.multi })
+    await ensureMultiDiscussionModels()
     return
   }
   qaState.value = updateQaSettings(qaState.value, { model: modelSelectionByMode.value.single })
@@ -815,6 +838,7 @@ async function consumeActiveQaRouteQuery() {
   const queryMode = route.query.mode
   if (queryMode === 'multi' || queryMode === 'single') {
     if (qaState.value.mode !== queryMode) void updateMode(queryMode)
+    else if (queryMode === 'multi') void ensureMultiDiscussionModels()
   }
 
   const snapshot = activeQaQuerySnapshot()
@@ -889,6 +913,7 @@ watch(
 
 onMounted(() => {
   void consumeActiveQaRouteQuery()
+  if (qaState.value.mode === 'multi') void ensureMultiDiscussionModels()
   graphTaskMonitor.start()
 })
 onUnmounted(() => {

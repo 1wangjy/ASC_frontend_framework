@@ -540,6 +540,7 @@ import {
   sendMultiDiscussionMessage
 } from './api'
 import { renderChatMarkdown } from '../../markdown/chatMarkdown.js'
+import { resolveModelModeSelection } from '../qaModelMode.js'
 import { getBrowserStorage } from '../../../utils/browserStorage.js'
 import {
   clearSavedMultiDiscussion,
@@ -1122,7 +1123,12 @@ const submitExternal = async ({
   reasoning = 'Auto'
 } = {}) => {
   if (sending.value) return
-  selectedModelMode.value = String(model || 'default')
+  // 外部传入的可能是"深度研究"的模型标签：不在模式清单里就退回默认模式
+  selectedModelMode.value = resolveModelModeSelection({
+    requested: model,
+    options: modelModeOptions.value,
+    fallback: 'default'
+  })
   selectedReasoningMode.value = ({ Auto: 'auto', CoT: 'cot', ToT: 'tot' })[reasoning] || 'auto'
   enableMultimodalResponse.value = multimodalResponse === true
   multimodalRenderMode.value = multiModule === 'evidence' ? 'evidence_section' : 'inline'
