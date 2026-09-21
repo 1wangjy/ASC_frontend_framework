@@ -81,6 +81,10 @@ export function useAgentChat(options = {}) {
       case 'message_delta':
         if (typeof event.text === 'string') assistant.content += event.text
         break
+      case 'reasoning_delta':
+        // 推理模型的思考过程：单独累积，由面板折叠展示（折叠态默认收起）
+        if (typeof event.text === 'string') assistant.reasoning = `${assistant.reasoning || ''}${event.text}`
+        break
       case 'tool_call':
         assistant.toolCalls.push({
           id: event.id || nextId('call'),
@@ -200,6 +204,7 @@ export function useAgentChat(options = {}) {
       id: nextId('assistant'),
       role: 'assistant',
       content: '',
+      reasoning: '',
       toolCalls: [],
       streaming: true,
       stopped: false,

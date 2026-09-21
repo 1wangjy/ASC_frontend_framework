@@ -158,6 +158,79 @@
           </p>
         </section>
 
+        <!-- 逐成分约束 -->
+        <section class="m2-sec" aria-label="成分约束">
+          <header class="m2-sec__head">
+            <div>
+              <h3 class="m2-sec__title">成分约束</h3>
+              <p class="m2-sec__sub">对指定原料限定区间 / 固定含量 / 禁用</p>
+            </div>
+            <span v-if="ingredientRules.length" class="m2-sec__badge">{{ ingredientRules.length }} 条</span>
+          </header>
+
+          <p v-if="materialsError" class="m2-constraint__err" role="alert">{{ materialsError }}</p>
+
+          <div v-if="ingredientRules.length" class="m2-constraints">
+            <div v-for="(rule, index) in ingredientRules" :key="index" class="m2-constraint-row">
+              <select
+                v-model="rule.name"
+                class="m2-constraint__material"
+                :disabled="status === 'running'"
+                :aria-label="`第 ${index + 1} 条约束的原料`"
+              >
+                <option value="">选择原料…</option>
+                <option v-for="name in materialOptions" :key="name" :value="name">{{ name }}</option>
+              </select>
+
+              <select
+                v-model="rule.mode"
+                class="m2-constraint__mode"
+                :disabled="status === 'running'"
+                :aria-label="`第 ${index + 1} 条约束的模式`"
+              >
+                <option v-for="mode in INGREDIENT_MODE_OPTIONS" :key="mode.value" :value="mode.value">
+                  {{ mode.label }}
+                </option>
+              </select>
+
+              <template v-if="rule.mode === 'range'">
+                <input
+                  v-model.number="rule.min" type="number" step="any" min="0" max="100"
+                  class="m2-constraint__num" placeholder="下限 %"
+                  :disabled="status === 'running'" :aria-label="`第 ${index + 1} 条约束的下限`"
+                >
+                <span class="m2-constraint__tilde" aria-hidden="true">~</span>
+                <input
+                  v-model.number="rule.max" type="number" step="any" min="0" max="100"
+                  class="m2-constraint__num" placeholder="上限 %"
+                  :disabled="status === 'running'" :aria-label="`第 ${index + 1} 条约束的上限`"
+                >
+              </template>
+              <input
+                v-else-if="rule.mode === 'fixed'"
+                v-model.number="rule.value" type="number" step="any" min="0" max="100"
+                class="m2-constraint__num m2-constraint__num--wide" placeholder="固定 %"
+                :disabled="status === 'running'" :aria-label="`第 ${index + 1} 条约束的固定值`"
+              >
+              <span v-else class="m2-constraint__note">该原料不参与配方</span>
+
+              <button
+                type="button" class="m2-constraint__del" :disabled="status === 'running'"
+                :aria-label="`删除第 ${index + 1} 条约束`" @click="removeIngredientRule(index)"
+              >×</button>
+            </div>
+          </div>
+          <p v-else class="m2-constraints-empty">未设置 —— 优化器只在全局范围（3~20 种原料、0.5%~40%）内搜索。</p>
+
+          <div class="m2-constraint__actions">
+            <button type="button" class="m2-link-btn" :disabled="status === 'running'" @click="addIngredientRule">＋ 添加成分约束</button>
+            <button
+              v-if="ingredientRules.length" type="button" class="m2-link-btn"
+              :disabled="status === 'running'" @click="clearIngredientRules"
+            >清空</button>
+          </div>
+        </section>
+
         <!-- action row -->
         <div class="m2-left__actions">
           <div v-if="errorMsg" class="status-message error" role="alert" style="margin:0">{{ errorMsg }}</div>
@@ -345,6 +418,20 @@
                     </span>
                   </div>
                 </div>
+
+                <div v-if="appliedMaterialRules.length" class="m2-met">
+                  <span class="m2-met__label">
+                    成分约束 <i class="m2-met-chip__icon">{{ optResult.material_rules_met ? '✓ 已满足' : '✕ 未满足' }}</i>
+                  </span>
+                  <div class="m2-met__chips">
+                    <span v-for="rule in appliedMaterialRules" :key="rule.name" class="m2-met-chip m2-met-chip--ok" :title="rule.name">
+                      {{ describeIngredientRule(rule) }}
+                    </span>
+                  </div>
+                  <p v-if="!optResult.material_rules_met && materialViolations.length" class="m2-constraint__warn" role="alert">
+                    {{ materialViolations.join('；') }}
+                  </p>
+                </div>
               </template>
 
               <!-- idle / error: empty state -->
@@ -448,9 +535,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { streamOptimizeModel2 } from '../api/models'
+import { getModel2Materials, streamOptimizeModel2 } from '../api/models'
+import {
+  INGREDIENT_MODE_OPTIONS,
+  buildIngredientConstraints,
+  createIngredientRule,
+  describeIngredientRule,
+  ingredientRulesError,
+} from '../utils/ingredientConstraints'
 
 const router = useRouter()
 
@@ -511,6 +605,26 @@ function algoName(id) {
 const targets = ref(defaultTargets())
 const algorithm = ref('nsga2')
 const budget = ref(80)
+
+/* ── 逐成分约束（禁用 / 固定 / 区间） ── */
+const materialOptions = ref([])
+const materialsError = ref('')
+const ingredientRules = ref([])
+const ingredientRuleTexts = computed(() => ingredientRules.value.map(describeIngredientRule))
+
+async function loadMaterials() {
+  try {
+    const res = await getModel2Materials()
+    materialOptions.value = Array.isArray(res?.materials) ? res.materials : []
+    materialsError.value = ''
+  } catch (e) {
+    materialsError.value = '原料清单加载失败：' + (e?.message || '请稍后重试')
+  }
+}
+function addIngredientRule() { ingredientRules.value.push(createIngredientRule()) }
+function removeIngredientRule(index) { ingredientRules.value.splice(index, 1) }
+function clearIngredientRules() { ingredientRules.value = [] }
+onMounted(loadMaterials)
 
 /* ── 运行 / 流式状态 ── */
 const status = ref('idle') // idle | running | done | error
@@ -590,6 +704,12 @@ function resetAll() {
 async function runOptimize() {
   if (status.value === 'running') return
   errorMsg.value = ''
+  const rulesError = ingredientRulesError(ingredientRules.value)
+  if (rulesError) {
+    errorMsg.value = rulesError
+    return
+  }
+  const ingredientConstraints = buildIngredientConstraints(ingredientRules.value)
   const cleanTargets = targets.value
     .filter(t => t && t.name)
     .map(t => ({
@@ -612,6 +732,7 @@ async function runOptimize() {
           targets: cleanTargets.length ? cleanTargets : [],
           algorithm: algorithm.value,
           budget: Math.max(5, Math.min(100000, Number(budget.value) || 60)),
+          ...(ingredientConstraints.length ? { ingredient_constraints: ingredientConstraints } : {}),
         },
         (p) => {
           if (status.value !== 'running') return
@@ -685,6 +806,14 @@ const elapsedText = computed(() => {
 })
 
 /* ── 统计 tiles（完成态） ── */
+/* 结果里的成分约束回显：后端原样返回本次生效的规则与最优配方的校验结果 */
+const appliedMaterialRules = computed(() => (
+  Array.isArray(optResult.value?.material_rules) ? optResult.value.material_rules : []
+))
+const materialViolations = computed(() => (
+  Array.isArray(optResult.value?.material_violations) ? optResult.value.material_violations : []
+))
+
 const metEntries = computed(() => {
   const tm = optResult.value?.target_met
   if (!tm || typeof tm !== 'object') return []
@@ -907,6 +1036,23 @@ function predVal(key) {
 .m2-remove:hover:not(:disabled) { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
 .m2-remove:disabled { opacity: .4; cursor: not-allowed; }
 .m2-goals-empty { font-size: 12px; color: #72879c; background: #f6f9fc; border: 1px dashed #cbd9e6; border-radius: 9px; padding: 10px 10px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+/* ── 逐成分约束编辑器 ── */
+.m2-sec__badge { font-size: 11px; font-weight: 700; color: #005bac; background: #e6f1fb; border-radius: 999px; padding: 2px 8px; }
+.m2-constraints { display: flex; flex-direction: column; gap: 6px; }
+.m2-constraint-row { display: flex; align-items: center; gap: 6px; }
+.m2-constraint__material { flex: 1 1 auto; min-width: 0; height: 30px; padding: 0 6px; font-size: 12px; border: 1px solid #cbd9e6; border-radius: 7px; background: #fff; color: #1d3a5c; }
+.m2-constraint__mode { flex: 0 0 64px; height: 30px; padding: 0 4px; font-size: 12px; border: 1px solid #cbd9e6; border-radius: 7px; background: #fff; color: #1d3a5c; }
+.m2-constraint__num { flex: 0 0 62px; height: 30px; padding: 0 6px; font-size: 12px; border: 1px solid #cbd9e6; border-radius: 7px; background: #fff; color: #1d3a5c; }
+.m2-constraint__num--wide { flex: 0 0 88px; }
+.m2-constraint__tilde { color: #8aa0b6; font-size: 12px; }
+.m2-constraint__note { flex: 1 1 auto; font-size: 11.5px; color: #8aa0b6; }
+.m2-constraint__del { flex: 0 0 auto; width: 26px; height: 30px; border: 1px solid #e3ebf3; border-radius: 7px; background: #fff; color: #90a4b8; font-size: 15px; line-height: 1; cursor: pointer; }
+.m2-constraint__del:hover:not(:disabled) { color: #c62828; border-color: #f1c3c3; background: #fff7f7; }
+.m2-constraint__actions { display: flex; gap: 10px; margin-top: 7px; }
+.m2-constraints-empty { margin: 0; font-size: 11.5px; color: #8aa0b6; line-height: 1.6; }
+.m2-constraint__err { margin: 6px 0 0; font-size: 11.5px; color: #991b1b; }
+.m2-constraint__warn { margin: 6px 0 0; font-size: 11.5px; color: #991b1b; }
 .m2-goal__actions { display: flex; }
 .m2-link-btn {
   font: inherit; font-size: 12px; font-weight: 650; color: #0869ad; background: none;

@@ -8,7 +8,16 @@ Reads ONE JSON object from stdin:
   "targets":   [ {"name": str, "direction": "max"|"min"|"constrain"|..., "lower": float|null, "upper": float|null}, ...],
                # optional — omitted/empty => recipe_opt.config.TARGET_THRESHOLDS defaults
   "algorithm": "nsga2" | "evolutionary" | "bayesian" | "hybrid" | "random",
-  "budget":    int   # number of iterations (default 60)
+  "budget":    int,  # number of iterations (default 60)
+  "ingredient_constraints": [
+      # 逐成分约束（可选）。mode:
+      #   "range"    区间 —— 用 min/max（百分比）
+      #   "fixed"    固定 —— 用 value（百分比）
+      #   "disabled" 禁用 —— 该原料比例恒为 0
+      {"name": "棕刚玉", "mode": "range", "min": 10, "max": 30},
+      {"name": "球状沥青", "mode": "fixed", "value": 8},
+      {"name": "防爆纤维", "mode": "disabled"}
+  ]
 }
 
 By default the bridge runs the optimization through the real `recipe_opt`
@@ -289,6 +298,54 @@ def _effective_targets(targets):
     return effective
 
 
+def _parse_ingredient_constraints(raw, material_names):
+    """把请求里的逐成分约束解析成 RecipeConstraint 的 kwargs。
+
+    返回 (kwargs, rules)：kwargs 直接喂给 RecipeConstraint；rules 是归一化后的规则列表，
+    用于回显给前端（说明这条规则是否被识别、绑定到哪个原料）。
+    """
+    bounds, fixed, disabled, rules = {}, {}, [], []
+    for item in raw or []:
+        if not isinstance(item, dict):
+            raise ValueError("ingredient_constraints 里每一项必须是对象")
+        name = str(item.get("name") or "").strip()
+        mode = str(item.get("mode") or "").strip().lower()
+        if not name:
+            raise ValueError("ingredient_constraints 缺少 name")
+        if name not in material_names:
+            raise ValueError(f"成分 {name!r} 不在可优化原料范围内")
+        if mode in ("range", "interval", "bounds"):
+            low = item.get("min")
+            high = item.get("max")
+            if low is None and high is None:
+                raise ValueError(f"成分 {name} 的区间约束缺少 min/max")
+            low = 0.0 if low is None else float(low)
+            high = 100.0 if high is None else float(high)
+            if low > high:
+                raise ValueError(f"成分 {name} 的区间下限大于上限")
+            bounds[name] = (low, high)
+            rules.append({"name": name, "mode": "range", "min": low, "max": high, "applied": True})
+        elif mode == "fixed":
+            value = item.get("value", item.get("min"))
+            if value is None:
+                raise ValueError(f"成分 {name} 的固定约束缺少 value")
+            fixed[name] = float(value)
+            rules.append({"name": name, "mode": "fixed", "value": float(value), "applied": True})
+        elif mode in ("disabled", "disable", "exclude"):
+            disabled.append(name)
+            rules.append({"name": name, "mode": "disabled", "applied": True})
+        else:
+            raise ValueError(f"成分 {name} 的约束模式不支持: {mode!r}（可用 range/fixed/disabled）")
+    kwargs = {}
+    if bounds:
+        kwargs["material_bounds"] = bounds
+    if fixed:
+        kwargs["material_fixed"] = fixed
+    if disabled:
+        kwargs["material_disabled"] = disabled
+    return kwargs, rules
+
+
 def _build_target_config(req_target, property_names):
     """One request target -> {internal name: {"direction", "min"?, "max"?}}."""
     internal = _resolve_property_name(req_target.get("name"), property_names)
@@ -534,13 +591,28 @@ def run(request, emit=None):
 
     # ---- search space / constraint --------------------------------------
     search_space = SearchSpace(map_path=str(MAP_PATH))
-    constraint = RecipeConstraint(
-        max_ingredients=config.max_ingredients,
-        min_ingredients=config.min_ingredients,
-        min_content=config.min_content,
-        max_content=config.max_content,
-        material_names=search_space.material_names,
+    material_kwargs, material_rules = _parse_ingredient_constraints(
+        request.get("ingredient_constraints"), search_space.material_names
     )
+    if material_rules:
+        _log("ingredient constraints: %s" % json.dumps(material_rules, ensure_ascii=False))
+    try:
+        constraint = RecipeConstraint(
+            max_ingredients=config.max_ingredients,
+            min_ingredients=config.min_ingredients,
+            min_content=config.min_content,
+            max_content=config.max_content,
+            material_names=search_space.material_names,
+            **material_kwargs,
+        )
+    except TypeError as exc:
+        # 逐成分约束需要 recipe_opt.constraints 支持（material_bounds/fixed/disabled）。
+        # 运行的是旧版优化器包时给出明确指引，而不是静默忽略用户设的约束。
+        if material_kwargs:
+            raise ValueError(
+                "当前 recipe_opt 版本不支持逐成分约束（material_bounds/fixed/disabled）：%s" % exc
+            ) from exc
+        raise
     _log("search space: %d materials" % search_space.n_materials)
 
     # ---- record every predictor.predict call (1 per evaluated candidate) -
@@ -668,10 +740,29 @@ def run(request, emit=None):
         "hypervolume": hypervolume,
         "target_met": _target_met(targets, best_predicted),
     }
+    if material_rules:
+        # 回显规则 + 用约束对象校验最优配方，前端据此说明"约束是否真的生效"
+        data["material_rules"] = material_rules
+        proportions = np.zeros(search_space.n_materials)
+        for name, pct in zip(best_recipe.keys(), best_recipe.values()):
+            if name in search_space.material_names:
+                proportions[search_space.material_names.index(name)] = float(pct) / 100.0
+        data["material_violations"] = constraint.validate_material_rules(proportions)
+        data["material_rules_met"] = not data["material_violations"]
     return data
 
 
+def list_materials():
+    """输出可优化原料清单（与 MAP_PATH 同一份映射，避免调用方各自解析路径）。"""
+    search_space = SearchSpace(map_path=str(MAP_PATH))
+    return {"ok": True, "materials": list(search_space.material_names)}
+
+
 def main():
+    if "--list-materials" in sys.argv[1:]:
+        sys.stdout.write(json.dumps(list_materials(), ensure_ascii=False))
+        sys.stdout.flush()
+        return
     raw = sys.stdin.read()
     if not raw.strip():
         raise ValueError("stdin 为空: 期望一个 JSON 请求对象")

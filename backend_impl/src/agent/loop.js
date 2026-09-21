@@ -211,6 +211,8 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
           lastText += text;
           emit({ type: 'message_delta', text });
         },
+        // 推理模型的思考内容单独成帧，前端折叠展示；它不进对话历史（上游会拒收）。
+        onReasoning: (text) => emit({ type: 'reasoning_delta', text }),
       }), turnSignal);
       addUsage(tokenUsage, assistant.usage);
 

@@ -32,13 +32,50 @@
             <button v-if="metadataError" type="button" class="m1-link-btn" @click="loadMetadata">重试元数据</button>
           </div>
 
+          <!-- ── 自然语言配方 ── -->
+          <section class="m1-sec" aria-labelledby="m1-sec-nl">
+            <div class="m1-sec-head">
+              <div>
+                <h4 id="m1-sec-nl" class="m1-sec-title">自然语言配方</h4>
+                <p class="m1-sec-sub">用原料名描述配方，自动编码成模型需要的代号与百分比</p>
+              </div>
+              <span v-if="nlResult" class="m1-sec-badge">
+                {{ nlResult.method === 'llm' ? '模型解析' : (nlResult.method === 'rule+llm' ? '规则 + 模型' : '规则解析') }}
+              </span>
+            </div>
+
+            <textarea
+              v-model="nlRecipeText" class="m1-nl-input" rows="2"
+              placeholder="例如：90矾土 12%、97黑碳化硅 8%、FDN 0.8%，其余用 95硅灰（ELKEM）补齐"
+              :disabled="nlParsing" aria-label="自然语言配方描述"
+            ></textarea>
+
+            <div class="m1-nl-actions">
+              <button type="button" class="m1-btn m1-btn--primary" :disabled="nlParsing" @click="parseNlRecipe">
+                {{ nlParsing ? '解析中…' : '解析为组分' }}
+              </button>
+              <button v-if="nlRecipeText || nlResult" type="button" class="m1-link-btn" :disabled="nlParsing" @click="clearNlRecipe">清空</button>
+            </div>
+
+            <p v-if="nlError" class="m1-nl-error" role="alert">{{ nlError }}</p>
+
+            <details v-if="nlResult && nlResult.reasoning" class="m1-nl-reasoning" :open="nlReasoningOpen" @toggle="nlReasoningOpen = $event.target.open">
+              <summary class="m1-nl-reasoning__summary">
+                <span>推理解析</span>
+                <span class="m1-nl-reasoning__meta">收起 / 展开</span>
+              </summary>
+              <p class="m1-nl-reasoning__body">{{ nlResult.reasoning }}</p>
+              <p v-if="nlResult.unmatched" class="m1-nl-reasoning__unmatched">未识别的片段：{{ nlResult.unmatched }}</p>
+            </details>
+          </section>
+
           <!-- ── 组分 X_comp ── -->
           <section class="m1-sec" aria-labelledby="m1-sec-comp">
             <div class="m1-sec-head">
               <div>
                 <h4 id="m1-sec-comp" class="m1-sec-title">组分 X_comp</h4>
                 <p class="m1-sec-sub">
-                  每行 [material_id, ratio_pct]<template v-if="hasMaterials"> · 原料 {{ materialOptions.length }} 项可选（名称为 base 名）</template>
+                  每行 [原料, ratio_pct]<template v-if="hasMaterials"> · 原料 {{ materialOptions.length }} 项可选</template>
                 </p>
               </div>
               <span class="m1-sec-badge">组分数 {{ validRows.length }} · Σ {{ sumRatioText }}%</span>
@@ -47,7 +84,7 @@
             <div class="m1-rows" role="group" aria-label="组分列表">
               <div class="m1-rows__head" aria-hidden="true">
                 <span>#</span>
-                <span>原料 · material_id</span>
+                <span>原料（名称）</span>
                 <span>ratio_pct %</span>
                 <span />
               </div>
@@ -81,7 +118,7 @@
 
             <div class="m1-inline-actions">
               <button type="button" class="m1-ghost-btn m1-ghost-btn--sm" @click="addRow()">＋ 添加组分</button>
-              <span class="m1-inline-hint">下拉显示「名称 (编码)」，提交的仍是 material_id。</span>
+              <span class="m1-inline-hint">下拉按原料名选择（代号由编码器在内部映射，悬停可见）。</span>
             </div>
             <p v-if="materialsError" class="m1-hint-txt m1-hint-txt--warn">
               原料列表不可用（{{ materialsError }}）—— 已回退为手工输入 material_id 编码，不影响预测。
@@ -388,7 +425,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getPredictMetadata, getPredictMaterials, predictSimple } from '../api/predictV1'
+import { encodeMaterials, getPredictMetadata, getPredictMaterials, predictSimple } from '../api/predictV1'
 
 const router = useRouter()
 
@@ -449,12 +486,57 @@ const materials = ref([])
 const materialsLoading = ref(false)
 const materialsError = ref('')
 
+/* ── 自然语言配方解析（自然语言 → 材料代号 + 百分比） ── */
+const nlRecipeText = ref('')
+const nlParsing = ref(false)
+const nlError = ref('')
+const nlResult = ref(null)
+const nlReasoningOpen = ref(false)
+
+async function parseNlRecipe() {
+  if (nlParsing.value) return
+  if (!nlRecipeText.value.trim()) {
+    nlError.value = '请先输入配方描述，例如“90矾土 12%、FDN 0.8%”'
+    return
+  }
+  nlParsing.value = true
+  nlError.value = ''
+  try {
+    const data = await encodeMaterials(nlRecipeText.value)
+    const items = Array.isArray(data?.items) ? data.items : []
+    if (!items.length) {
+      nlError.value = '没能从这段描述里识别出原料，请改用更完整的原料名（可参考下方下拉列表）。'
+      nlResult.value = { reasoning: data?.reasoning || '', unmatched: data?.unmatched || '', method: data?.method || 'rule' }
+      nlReasoningOpen.value = true
+      return
+    }
+    // 覆盖式填充：解析结果就是这一轮 X_comp 的组成
+    rows.value = items.map((item) => ({
+      uid: `r${++rowSeq}`,
+      material_id: String(item.materialId || ''),
+      ratio_pct: item.ratioPct === null || item.ratioPct === undefined ? '' : item.ratioPct,
+    }))
+    nlResult.value = { reasoning: data?.reasoning || '', unmatched: data?.unmatched || '', method: data?.method || 'rule' }
+    nlReasoningOpen.value = Boolean(data?.unmatched)
+  } catch (e) {
+    nlError.value = e?.response?.data?.message || e?.message || '解析失败，请稍后重试'
+  } finally {
+    nlParsing.value = false
+  }
+}
+
+function clearNlRecipe() { nlRecipeText.value = ''; nlError.value = ''; nlResult.value = null; nlReasoningOpen.value = false }
+
+// 下拉只显示原料名（数字代号是模型内部编码，不该出现在主界面；需要时用 title 提示）
 const materialOptions = computed(() => materials.value
-  .map((m) => ({ id: String(m.material_id), label: `${m.name} (${m.material_id})` }))
+  .map((m) => ({ id: String(m.material_id), label: m.name, code: String(m.material_id) }))
   .filter((m) => m.id))
 const materialIds = computed(() => new Set(materialOptions.value.map((m) => m.id)))
 const hasMaterials = computed(() => materialOptions.value.length > 0)
-const materialLabel = (id) => materialOptions.value.find((m) => m.id === String(id))?.label || ''
+const materialLabel = (id) => {
+  const found = materialOptions.value.find((m) => m.id === String(id))
+  return found ? `${found.label}（代号 ${found.code}）` : ''
+}
 
 async function loadMaterials() {
   materialsLoading.value = true
@@ -830,6 +912,17 @@ const fmtRange = (v) => (Math.abs(v) >= 100 ? Number(v).toFixed(0) : Number(v).t
 
 /* composition rows */
 .m1-rows { display: flex; flex-direction: column; gap: 4px; }
+/* ── 自然语言配方解析 ── */
+.m1-nl-input { width: 100%; resize: vertical; min-height: 56px; padding: 8px 10px; font: inherit; font-size: 12.5px; line-height: 1.6; color: #123; background: #fff; border: 1px solid var(--m1-line, #cbd9e6); border-radius: 8px; }
+.m1-nl-input:disabled { background: #f6f9fc; }
+.m1-nl-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.m1-nl-error { margin: 8px 0 0; font-size: 12px; color: #991b1b; }
+.m1-nl-reasoning { margin-top: 8px; border: 1px solid var(--m1-line, #cbd9e6); border-radius: 8px; background: #f7fafd; }
+.m1-nl-reasoning__summary { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; font-weight: 650; color: #4a6b8a; cursor: pointer; }
+.m1-nl-reasoning__meta { margin-left: auto; font-weight: 500; opacity: .75; font-size: 11px; }
+.m1-nl-reasoning__body { margin: 0; padding: 0 10px 10px; font-size: 12px; line-height: 1.7; color: #4a6b8a; white-space: pre-wrap; }
+.m1-nl-reasoning__unmatched { margin: 0; padding: 0 10px 10px; font-size: 11.5px; color: #9a6b00; }
+
 .m1-rows__head {
   display: grid; grid-template-columns: 20px minmax(0, 1.6fr) minmax(0, 1fr) 22px;
   gap: 7px; padding: 0 2px; font-size: 10px; font-weight: 750; color: #7c8b98;

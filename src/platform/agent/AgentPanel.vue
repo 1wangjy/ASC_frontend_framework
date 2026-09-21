@@ -258,6 +258,18 @@
             </details>
           </div>
 
+          <details
+            v-if="message.reasoning"
+            class="agent-reasoning"
+            :class="{ 'agent-reasoning--live': message.streaming && !message.content }"
+          >
+            <summary class="agent-reasoning__summary">
+              <span class="agent-reasoning__label">思考过程</span>
+              <span class="agent-reasoning__meta">{{ reasoningMeta(message) }}</span>
+            </summary>
+            <div class="agent-reasoning__body">{{ message.reasoning }}</div>
+          </details>
+
           <p
             v-if="message.content && message.role === 'user'"
             class="agent-message__text"
@@ -267,7 +279,7 @@
             class="agent-message__text agent-message__markdown asc-md"
             v-html="renderMessageMarkdown(message)"
           ></div>
-          <span v-if="message.streaming && !message.content" class="agent-message__pending">
+          <span v-if="message.streaming && !message.content && !message.reasoning" class="agent-message__pending">
             思考中<span aria-hidden="true">…</span>
           </span>
           <span v-if="message.streaming && message.content" class="agent-message__caret" aria-hidden="true"></span>
@@ -556,6 +568,14 @@ async function ensureSession(text) {
 }
 
 /* --- T11 断点续传 --------------------------------------------------------- */
+
+/** 折叠标题右侧的提示：流式且尚无正文时说明仍在思考，结束后只给字数。 */
+function reasoningMeta(message) {
+  const text = String(message?.reasoning || '')
+  if (!text) return ''
+  if (message?.streaming && !message?.content) return `思考中 · ${text.length} 字`
+  return `${text.length} 字`
+}
 
 // 智能体输出按 markdown 渲染（渲染器先整体剥离/转义 HTML，模型文本不可执行）。
 // 缓存按"内容本身"做键：流式增量是追加，但 final 帧会用等长的新文本替换内容，
@@ -1231,6 +1251,75 @@ defineExpose({ messages, streaming, steps, sessionId })
 /* markdown 容器不能沿用 pre-wrap：渲染块之间的换行会被显示成多余空行 */
 .agent-message__markdown {
   white-space: normal;
+}
+
+/* 思考过程：默认收起，点击展开；流式期间左侧加一条活动指示 */
+.agent-reasoning {
+  margin: 0 0 8px;
+  border: 1px solid var(--asc-border, rgba(15, 42, 70, 0.12));
+  border-radius: 8px;
+  background: rgba(15, 42, 70, 0.03);
+  font-size: calc(var(--agent-font-md) - 1px);
+}
+
+.agent-reasoning__summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  color: var(--asc-muted, #5b7591);
+  font-weight: 600;
+  list-style: none;
+}
+
+.agent-reasoning__summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-reasoning__summary::before {
+  content: '▸';
+  font-size: 11px;
+  transition: transform 0.15s ease;
+}
+
+.agent-reasoning[open] .agent-reasoning__summary::before {
+  transform: rotate(90deg);
+}
+
+.agent-reasoning--live .agent-reasoning__label::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: agent-reasoning-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes agent-reasoning-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+.agent-reasoning__meta {
+  margin-left: auto;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.agent-reasoning__body {
+  max-height: 260px;
+  overflow: auto;
+  padding: 0 10px 10px;
+  border-top: 1px solid rgba(15, 42, 70, 0.08);
+  margin-top: 2px;
+  padding-top: 8px;
+  color: var(--asc-muted, #5b7591);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .agent-message__pending {

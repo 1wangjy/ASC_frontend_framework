@@ -67,6 +67,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      // 材料编码（自然语言配方 → 材料代号）：Node 侧新增能力，不属于 Python /api/v1 代理
+      '/api/material-encoder': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api/model1': {
         target: 'http://127.0.0.1:3001',
         changeOrigin: true,

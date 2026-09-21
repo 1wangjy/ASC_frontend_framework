@@ -68,6 +68,7 @@ app.use(express.static(path.join(__dirname, '../public'), {
 
 // 路由导入
 const model1Routes = require('./routes/model1');
+const materialEncoderRoutes = require('./routes/materialEncoder');
 const model2Routes = require('./routes/model2');
 const model3Routes = require('./routes/model3');
 const model4Routes = require('./routes/model4');
@@ -88,6 +89,7 @@ const agentRoutes = require('./agent');
 app.use('/api/embedding', embeddingRoutes);
 app.use('/api/llm', llmRoutes);
 app.use('/api/model1', model1Routes);
+app.use('/api/material-encoder', materialEncoderRoutes);
 app.use('/api/model2', model2Routes);
 app.use('/api/model3', model3Routes);
 app.use('/api/model4', model4Routes);

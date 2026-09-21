@@ -69,6 +69,7 @@ test('session detail mapping turns persisted messages into chat messages', () =>
       {
         role: 'assistant',
         content: '找到 2 条证据',
+        reasoning: '先检索热震相关证据，再比对温度区间。',
         toolCalls: [{ name: 'kg_search', argsSummary: '{"query":"热震"}', ok: true, ms: 1200 }]
       },
       { role: 'assistant', content: '失败的一次', toolCalls: [{ name: 'web_browse', ok: false, ms: 300 }] }
@@ -82,6 +83,8 @@ test('session detail mapping turns persisted messages into chat messages', () =>
   assert.deepEqual(messages.map(message => message.role), ['user', 'assistant', 'assistant'])
   assert.equal(messages[0].content, '检索热震稳定性')
   assert.deepEqual(messages[0].toolCalls, [])
+  assert.equal(messages[1].reasoning, '先检索热震相关证据，再比对温度区间。')
+  assert.equal(messages[0].reasoning, '')
   assert.deepEqual(messages[1].toolCalls, [
     {
       id: 'history-1-0-kg_search',

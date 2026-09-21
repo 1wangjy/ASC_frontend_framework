@@ -21,6 +21,12 @@ function normalizeChatCompletionsUrl(raw) {
   return `${base}/v1/chat/completions`;
 }
 
+/** 兼容各家的推理字段名：DeepSeek 用 reasoning_content，部分网关用 reasoning。 */
+function reasoningOf(delta) {
+  const value = delta && (delta.reasoning_content !== undefined ? delta.reasoning_content : delta.reasoning);
+  return typeof value === 'string' ? value : '';
+}
+
 function emptyToolCallAccumulator() {
   return { id: '', type: 'function', function: { name: '', arguments: '' } };
 }
@@ -60,7 +66,7 @@ class OpenAICompatibleProvider {
   constructor(options = {}) {
     this.chatUrl = normalizeChatCompletionsUrl(options.apiUrl || process.env.LLM_API_URL);
     this.apiKey = options.apiKey !== undefined ? options.apiKey : process.env.LLM_API_KEY;
-    this.model = options.model || process.env.AGENT_LLM_MODEL || 'deepseek-flash';
+    this.model = options.model || process.env.AGENT_LLM_MODEL || 'deepseek-v4-flash';
     this.timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
     this.fetchImpl = options.fetchImpl || fetch;
   }
@@ -116,6 +122,9 @@ class OpenAICompatibleProvider {
     return {
       role: 'assistant',
       content: message.content || '',
+      // 推理模型把思考写在 reasoning_content（OpenAI 兼容方言也有用 reasoning 的），
+      // 它不是回答正文，但对"展示思考过程"是唯一来源。
+      reasoning: reasoningOf(message),
       tool_calls: Array.isArray(message.tool_calls) ? message.tool_calls : [],
       finish_reason: choice.finish_reason,
       usage: normalizeUsage(payload.usage),
@@ -127,16 +136,18 @@ class OpenAICompatibleProvider {
    * resolves with the assembled assistant message (content + tool_calls).
    * Falls back to a non-streaming call if the stream yields nothing usable.
    */
-  async streamChat({ messages, tools, signal, temperature, onDelta }) {
+  async streamChat({ messages, tools, signal, temperature, onDelta, onReasoning }) {
     const response = await this.post(this.buildBody({ messages, tools, stream: true, temperature }), signal);
     if (!response.body) {
       const message = await this.chat({ messages, tools, signal, temperature });
       if (message.content) onDelta(message.content);
+      if (message.reasoning && onReasoning) onReasoning(message.reasoning);
       return message;
     }
 
     const decoder = new TextDecoder();
     const content = [];
+    const reasoning = [];
     const toolCalls = new Map();
     let buffer = '';
     let sawFinish = false;
@@ -161,6 +172,11 @@ class OpenAICompatibleProvider {
       if (!choice) return;
       if (choice.finish_reason) sawFinish = true;
       const delta = choice.delta || {};
+      const reasoningText = reasoningOf(delta);
+      if (reasoningText) {
+        reasoning.push(reasoningText);
+        if (onReasoning) onReasoning(reasoningText);
+      }
       if (delta.content) {
         content.push(delta.content);
         onDelta(delta.content);
@@ -197,7 +213,14 @@ class OpenAICompatibleProvider {
       return message;
     }
 
-    return { role: 'assistant', content: text, tool_calls: calls, finish_reason: calls.length ? 'tool_calls' : 'stop', usage };
+    return {
+      role: 'assistant',
+      content: text,
+      reasoning: reasoning.join(''),
+      tool_calls: calls,
+      finish_reason: calls.length ? 'tool_calls' : 'stop',
+      usage,
+    };
   }
 }
 

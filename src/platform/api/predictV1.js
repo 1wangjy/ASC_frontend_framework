@@ -9,6 +9,7 @@
  *   conditions: e.g. ["110℃","1500℃"]；properties: e.g. ["bulk_density"]
  */
 import request from './request'
+import { unwrapApiResult } from './request'
 
 // 模型元数据：properties(含 trained_conditions/unit)、component_feature_names、global_feature_names、metrics
 export function getPredictMetadata(params) {
@@ -33,4 +34,15 @@ export function predictStandard(data) {
 // 批量预测：{ request_id?, items:[{sample,...}] }
 export function predictBatch(data) {
   return request.post('/api/v1/predict/batch', data)
+}
+
+/**
+ * 自然语言配方 → 材料代号 + 百分比。
+ * Node 侧新增的解析能力（规则优先 + 模型兜底），响应是 {code,data} 包装。
+ * data: { items:[{materialId,name,ratioPct,source}], unmatched, reasoning, method }
+ */
+export function encodeMaterials(text, options = {}) {
+  return request
+    .post('/api/material-encoder/encode', { text, useLlm: options.useLlm !== false })
+    .then(unwrapApiResult)
 }

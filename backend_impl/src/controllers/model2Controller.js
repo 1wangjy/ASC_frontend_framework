@@ -3,6 +3,34 @@ const vectorService = require('../services/vectorService');
 const localModelService = require('../services/localModelService');
 const model2OptimizationService = require('../services/model2OptimizationService');
 
+const { spawn } = require('node:child_process');
+const path = require('node:path');
+
+// 逐成分约束：只允许已定义的三种模式，数值字段必须有限。
+// 原料名是否合法由 Python 侧用真实材料表判定（错误信息原样回给前端）。
+const INGREDIENT_MODES = new Set(['range', 'fixed', 'disabled', 'interval', 'bounds', 'disable', 'exclude']);
+
+function sanitizeIngredientConstraints(raw) {
+  if (!Array.isArray(raw)) return undefined;
+  const cleaned = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const name = typeof item.name === 'string' ? item.name.trim() : '';
+    const mode = typeof item.mode === 'string' ? item.mode.trim().toLowerCase() : '';
+    if (!name || !INGREDIENT_MODES.has(mode)) continue;
+    const entry = { name, mode };
+    for (const key of ['min', 'max', 'value']) {
+      const value = item[key];
+      if (typeof value === 'number' && Number.isFinite(value)) entry[key] = value;
+    }
+    cleaned.push(entry);
+  }
+  return cleaned.length ? cleaned : undefined;
+}
+
+const BRIDGE_SCRIPT = path.join(__dirname, '..', '..', 'python', 'recipe_opt_bridge.py');
+let materialsCache = null;
+
 class Model2Controller {
   // 提交测试指标
   async submitTestMetrics(req, res) {
@@ -67,6 +95,10 @@ class Model2Controller {
       if (Array.isArray(targets)) {
         payload.targets = targets;
       }
+      const ingredientConstraints = sanitizeIngredientConstraints(req.body?.ingredient_constraints);
+      if (ingredientConstraints) {
+        payload.ingredient_constraints = ingredientConstraints;
+      }
 
       const data = await model2OptimizationService.optimizeRecipe(payload);
 
@@ -88,6 +120,38 @@ class Model2Controller {
     }
   }
 
+  // 可优化原料清单 (GET /api/model2/materials)
+  // 走 recipe_opt_bridge.py --list-materials —— 与优化器共用同一份映射，Node 侧不重复解析路径；
+  // 结果在进程内缓存（映射随模型产物更新，需重启后端进程刷新）。
+  async listMaterials(req, res) {
+    try {
+      if (!materialsCache) {
+        const command = process.env.PYTHON_CMD || 'python3';
+        const output = await new Promise((resolve, reject) => {
+          const child = spawn(command, [BRIDGE_SCRIPT, '--list-materials'], { env: process.env });
+          let stdout = '';
+          let stderr = '';
+          child.stdout.on('data', (chunk) => { stdout += chunk; });
+          child.stderr.on('data', (chunk) => { stderr += chunk; });
+          child.on('error', reject);
+          child.on('close', (code) => {
+            if (code !== 0) {
+              reject(new Error(stderr.trim() || `原料清单获取失败（退出码 ${code}）`));
+              return;
+            }
+            resolve(stdout);
+          });
+        });
+        const parsed = JSON.parse(output);
+        materialsCache = Array.isArray(parsed.materials) ? parsed.materials : [];
+      }
+      res.json({ code: 200, data: { materials: materialsCache } });
+    } catch (error) {
+      console.error('Error listing model2 materials:', error);
+      res.status(500).json({ code: 500, message: error.message || '原料清单获取失败' });
+    }
+  }
+
   // 流式配方优化 (POST /api/model2/optimize/stream)
   //
   // SSE-over-POST: the bridge's NDJSON progress lines are re-framed as SSE
@@ -105,6 +169,10 @@ class Model2Controller {
     };
     if (Array.isArray(targets)) {
       payload.targets = targets;
+    }
+    const ingredientConstraints = sanitizeIngredientConstraints(req.body?.ingredient_constraints);
+    if (ingredientConstraints) {
+      payload.ingredient_constraints = ingredientConstraints;
     }
 
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');

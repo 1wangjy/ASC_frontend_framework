@@ -17,6 +17,11 @@ export function predictModel1(recipe) {
   return request.post('/api/model1/predict', { recipe }).then(unwrapApiResult)
 }
 
+// 可优化原料清单（配方优化"逐成分约束"编辑器用；与优化器同一份映射）
+export function getModel2Materials() {
+  return request.get('/api/model2/materials').then(unwrapApiResult)
+}
+
 export function submitModel2(data) {
   return request.post('/api/model2/submit', data).then(unwrapApiResult)
 }

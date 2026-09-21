@@ -167,13 +167,17 @@ function attachEmitter({ stream, sessionId, endOnDone = false }) {
  * text, tool-call summaries (paired by tool-call id) and any error frame.
  */
 function createTurnLog(user) {
-  return { user, finalText: '', deltaText: '', toolCalls: [], pending: new Map(), error: null };
+  return { user, finalText: '', deltaText: '', reasoningText: '', toolCalls: [], pending: new Map(), error: null };
 }
 
 function noteFrame(log, frame) {
   switch (frame.type) {
     case 'message_delta':
       log.deltaText += frame.text || '';
+      break
+    case 'reasoning_delta':
+      // 思考过程单独累计，落库后可在会话回看时折叠展开。
+      log.reasoningText += frame.text || '';
       break;
     case 'tool_call': {
       const entry = {
@@ -209,6 +213,7 @@ function noteFrame(log, frame) {
 /** Summary-only assistant message: never tool payloads, never file contents. */
 function assistantMessage(log) {
   const message = { role: 'assistant', content: log.finalText || log.deltaText || '' };
+  if (log.reasoningText) message.reasoning = log.reasoningText;
   if (log.toolCalls.length) {
     message.toolCalls = log.toolCalls.map(({ name, argsSummary, ok, ms }) => ({ name, argsSummary, ok, ms }));
   }

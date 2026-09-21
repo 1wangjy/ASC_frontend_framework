@@ -175,3 +175,42 @@ test('tool argument summaries stay on one bounded line', () => {
   assert.equal(long.length, 150)
   assert.ok(long.endsWith('…'))
 })
+
+test('reasoning frames accumulate into the assistant message', async () => {
+  const { baseUrl, close } = await startSseServer((request, response) => {
+    response.write(frame({ type: 'reasoning_delta', text: '先看 SiC 含量' }))
+    response.write(frame({ type: 'reasoning_delta', text: '，再比对证据。' }))
+    response.write(frame({ type: 'message_delta', text: '结论' }))
+    response.write(frame({ type: 'final', text: '结论如下。' }))
+    response.write(frame({ type: 'done', steps: 1 }))
+    response.end()
+  })
+
+  try {
+    const chat = useAgentChat({ baseUrl })
+    await chat.send('为什么 SiC 影响抗氧化？')
+
+    const assistant = chat.messages.value[1]
+    assert.equal(assistant.reasoning, '先看 SiC 含量，再比对证据。')
+    assert.equal(assistant.content, '结论如下。')
+    assert.equal(chat.error.value, '')
+  } finally {
+    await close()
+  }
+})
+
+test('a turn without reasoning leaves the field empty', async () => {
+  const { baseUrl, close } = await startSseServer((request, response) => {
+    response.write(frame({ type: 'final', text: '直接回答。' }))
+    response.write(frame({ type: 'done', steps: 1 }))
+    response.end()
+  })
+
+  try {
+    const chat = useAgentChat({ baseUrl })
+    await chat.send('问一句')
+    assert.equal(chat.messages.value[1].reasoning, '')
+  } finally {
+    await close()
+  }
+})

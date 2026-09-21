@@ -43,6 +43,7 @@ export function sessionMessagesToChat(messages) {
     id: `history-${index}`,
     role: role(message?.role),
     content: text(message?.content),
+    reasoning: text(message?.reasoning),
     toolCalls: sessionToolCallsToChat(message?.toolCalls, index),
     streaming: false,
     stopped: false,
