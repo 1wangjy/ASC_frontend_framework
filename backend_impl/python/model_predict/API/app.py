@@ -18,8 +18,13 @@ from pydantic import BaseModel, Field
 ROOT = Path(__file__).resolve().parents[1]
 FEATURE_DIR = ROOT / "FEATURE"
 MODEL_DIR = ROOT / "MODEL"
-MODEL_OUTPUT_DIR = MODEL_DIR / "outputs"
-DEFAULT_VARIANT = "minmax"
+# 模型产物目录（按优先级解析变体）：
+#   outputs_selective_selector/ = 交接包的最新模型（特征选择 + stacking，推荐）
+#   outputs/                    = 早期基础版（minmax 等，保留兼容）
+MODEL_OUTPUT_DIRS = [MODEL_DIR / "outputs_selective_selector", MODEL_DIR / "outputs"]
+MODEL_OUTPUT_DIR = MODEL_OUTPUT_DIRS[0]
+# 默认变体：yangquan 在四项性能上指标最好且量纲一致（bulk_density RMSE 0.03 g/cm3）
+DEFAULT_VARIANT = "yangquan"
 
 for module_dir in (FEATURE_DIR, MODEL_DIR):
     module_path = str(module_dir)
@@ -27,11 +32,14 @@ for module_dir in (FEATURE_DIR, MODEL_DIR):
         sys.path.insert(0, module_path)
 
 from build_features import build_feature_row  # noqa: E402
-import model_property_more as model_utils  # noqa: E402
+try:
+    import model_selective_selector as model_utils  # noqa: E402  (最新交接版训练脚本)
+except Exception:  # pragma: no cover - 回退到基础版
+    import model_property_more as model_utils  # noqa: E402
 
 
-# The existing joblib files were trained by running MODEL/model_property_more.py
-# as a script, so pickle looks for this class on __main__ during loading.
+# 模型 joblib 由训练脚本作为 __main__ 运行后 pickle，加载时需要同名类；
+# 两个脚本的 TrainOnlyFeatureFilter / prepare_base_features 实现一致，可共用。
 sys.modules["__main__"].TrainOnlyFeatureFilter = model_utils.TrainOnlyFeatureFilter
 
 
@@ -104,6 +112,10 @@ class PredictRequest(BaseModel):
         default=None,
         description="预测性能属性。不传时返回当前版本下全部可用属性。",
     )
+    variant: Optional[str] = Field(
+        default=None,
+        description="模型变体（base/processed/fill/zibo/yangquan/batch183）。不传时使用服务默认变体。",
+    )
 
 
 class BatchPredictRequest(BaseModel):
@@ -125,6 +137,7 @@ class SimplePredictRequest(BaseModel):
         default=None,
         description="预测性能属性。不传时返回全部可用属性。",
     )
+    variant: Optional[str] = Field(default=None, description="模型变体，不传时使用服务默认变体。")
 
 
 def verify_api_key(x_api_key: Optional[str] = Header(default=None)) -> None:
@@ -135,6 +148,27 @@ def verify_api_key(x_api_key: Optional[str] = Header(default=None)) -> None:
 
 def api_key_enabled() -> bool:
     return bool(os.getenv("MODEL_API_KEY"))
+
+
+def variant_dir(variant: str) -> Optional[Path]:
+    """变体所在产物目录（先找最新交接版，再退回基础版）。"""
+    for directory in MODEL_OUTPUT_DIRS:
+        if (directory / "models" / variant).is_dir():
+            return directory
+    return None
+
+
+def available_variants() -> Dict[str, List[str]]:
+    """{variant: [property, ...]}，跨所有产物目录合并。"""
+    result: Dict[str, List[str]] = {}
+    for directory in MODEL_OUTPUT_DIRS:
+        models_root = directory / "models"
+        if not models_root.is_dir():
+            continue
+        for path in sorted(models_root.iterdir()):
+            if path.is_dir():
+                result.setdefault(path.name, available_properties(path.name))
+    return result
 
 
 def load_metadata(variant: str) -> Dict[str, Any]:
@@ -148,10 +182,10 @@ def load_metadata(variant: str) -> Dict[str, Any]:
 
 
 def available_properties(variant: str) -> List[str]:
-    model_dir = MODEL_OUTPUT_DIR / "models" / variant
-    if not model_dir.exists():
+    directory = variant_dir(variant)
+    if directory is None:
         return []
-    return sorted(path.stem for path in model_dir.glob("*.joblib"))
+    return sorted(path.stem for path in (directory / "models" / variant).glob("*.joblib"))
 
 
 def load_model_bundle(variant: str, property_name: str) -> Dict[str, Any]:
@@ -159,7 +193,8 @@ def load_model_bundle(variant: str, property_name: str) -> Dict[str, Any]:
     if cache_key in MODEL_CACHE:
         return MODEL_CACHE[cache_key]
 
-    path = MODEL_OUTPUT_DIR / "models" / variant / f"{property_name}.joblib"
+    directory = variant_dir(variant)
+    path = (directory / "models" / variant / f"{property_name}.joblib") if directory else Path()
     if not path.exists():
         raise HTTPException(
             status_code=404,
@@ -266,7 +301,7 @@ def trained_conditions(metadata: Dict[str, Any], property_name: Optional[str] = 
 
 
 def predict_one(request: PredictRequest) -> Dict[str, Any]:
-    variant = DEFAULT_VARIANT
+    variant = request.variant or DEFAULT_VARIANT
     metadata = load_metadata(variant)
     properties = request.properties or available_properties(variant)
     if not properties:
@@ -332,10 +367,19 @@ def predict_one(request: PredictRequest) -> Dict[str, Any]:
 
 
 def metrics_summary(variant: str) -> List[Dict[str, Any]]:
-    path = MODEL_OUTPUT_DIR / f"metrics_{variant}.csv"
+    directory = variant_dir(variant)
+    path = (directory / f"metrics_{variant}.csv") if directory else Path()
     if not path.exists():
-        return []
-    metrics = pd.read_csv(path)
+        # 有些产物只有汇总表，取其中该变体的最优行
+        all_path = (directory / "metrics_all.csv") if directory else Path()
+        if not all_path.exists():
+            return []
+        metrics = pd.read_csv(all_path)
+        if "variant" in metrics.columns:
+            metrics = metrics.loc[metrics["variant"] == variant].copy()
+        path = None
+    else:
+        metrics = pd.read_csv(path)
     if "status" in metrics.columns:
         metrics = metrics.loc[metrics["status"] == "trained"].copy()
     keep = [
@@ -357,8 +401,13 @@ def metrics_summary(variant: str) -> List[Dict[str, Any]]:
 
 app = FastAPI(
     title="Refractory Property Prediction API",
-    version="1.0.0",
-    description="HTTP API wrapper for the local yangquan refractory material property models.",
+    version="2.0.0",
+    description=(
+        "HTTP API wrapper for the refractory material property models. Models come from the ML "
+        "handover package (MODEL/outputs_selective_selector: feature selection + stacking, "
+        "variants base/processed/fill/zibo/yangquan/batch183); the earlier basic models "
+        "(MODEL/outputs, e.g. minmax) stay available for comparison."
+    ),
 )
 
 cors_origins = [item.strip() for item in os.getenv("MODEL_API_CORS_ORIGINS", "*").split(",") if item.strip()]
@@ -377,7 +426,7 @@ def health() -> Dict[str, Any]:
         "status": "ok",
         "default_variant": DEFAULT_VARIANT,
         "api_key_enabled": api_key_enabled(),
-        "models": {DEFAULT_VARIANT: available_properties(DEFAULT_VARIANT)},
+        "models": available_variants(),
     }
 
 
@@ -386,6 +435,8 @@ def get_model_metadata(variant: str = DEFAULT_VARIANT) -> Dict[str, Any]:
     metadata = load_metadata(variant)
     return {
         "variant": variant,
+        "available_variants": sorted(available_variants()),
+        "variant_models_dir": str(variant_dir(variant) or ""),
         "properties": [
             {
                 "property": name,
@@ -418,6 +469,7 @@ def predict_simple(request: SimplePredictRequest) -> Dict[str, Any]:
         ),
         conditions=request.conditions,
         properties=request.properties,
+        variant=request.variant,
     )
     return predict_one(wrapped)
 

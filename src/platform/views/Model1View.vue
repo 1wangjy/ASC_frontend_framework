@@ -682,13 +682,17 @@ const EXAMPLE_RECIPE = [
   ['54', 7.0],   // 回转窑88矾土
   ['27', 3.5],   // CA71水泥
 ]
-const EXAMPLE_CONDITIONS = ['110℃', '1100℃', '1300℃', '1500℃']
+// 兜底工况：优先使用当前模型变体元数据里的已训练工况（不同变体的工况集合不同，
+// 例如 yangquan 的 1500℃ 训练目标是 1450℃/1500℃ 合并工况）。
+const EXAMPLE_CONDITIONS_FALLBACK = ['110℃', '1100℃', '1300℃', '1500℃']
 function loadExample() {
   rows.value = []
   rowSeq = 0
   EXAMPLE_RECIPE.forEach(([id, pct]) => addRow(id, pct))
   globalValues.value = globalNames.value.map((_, i) => GLOBAL_PLACEHOLDERS[i] ?? '')
-  selectedConditions.value = [...EXAMPLE_CONDITIONS]
+  selectedConditions.value = conditionOptions.value.length
+    ? [...conditionOptions.value]
+    : [...EXAMPLE_CONDITIONS_FALLBACK]
   // 全部属性（4 项）——显式选中以呈现完整示例
   selectedProperties.value = properties.value.map((p) => p.property)
   predictError.value = ''

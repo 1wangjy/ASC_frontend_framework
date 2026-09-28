@@ -1,8 +1,9 @@
 # 耐火材料性能预测模型接口文档
 
-版本：1.0.0  
-日期：2026-09-11  
-模型数据源：`yangquan.npy`  
+版本：2.0.0  
+日期：2026-09-28  
+模型数据源：ML 交接包（`MODEL/outputs_selective_selector`，特征选择 + stacking）  
+默认变体：`yangquan`（四项性能指标最好、量纲一致）  
 服务封装：特征工程 + 模型预测
 
 ## 1. 接入方式
@@ -15,7 +16,11 @@
 - 按属性加载对应 `joblib` 模型。
 - 返回预测结果。
 
-前端不需要生成 `features_minmax.csv`，也不需要直接调用或加载 `joblib`。
+前端不需要生成 `features_*.csv`，也不需要直接调用或加载 `joblib`。
+
+模型资产（`MODEL/outputs_selective_selector/**`、`FEATURE/outputs/metadata_*.json`）体积较大且不入库，
+部署时从 ML 交接包（`_ref/交接工作代码以及说明.zip` → `ML.zip`）拷贝到本目录即可；推理代码与特征工程
+`FEATURE/build_features.py` 保持一致，因此训练时落盘的特征表可作为推理特征的对齐基准。
 
 如果前端只想要最简调用，可以直接使用：
 
@@ -211,6 +216,21 @@ JSON 没有合法的 `NaN` 值，前端缺失值统一传 `null`。
 
 ## 6. 模型输出能力
 
+服务按变体（variant）加载模型，可用变体见 `GET /health` 的 `models` 字段：
+
+| 变体 | 训练数据 | 说明 |
+| --- | --- | --- |
+| `yangquan`（默认） | 阳泉 141 条 | 四项性能指标最好（bulk_density test_r2 0.94、linear_change 0.93）|
+| `processed` | 清洗后全量 780 条 | 覆盖最广，bulk_density/cold_modulus 表现好 |
+| `fill` | 缺失化学字段填补后 780 条 | 同上，化学字段更完整 |
+| `base` | 原始 780 条 | 未清洗基线 |
+| `batch183` | 183 批次 182 条 | 单来源 |
+| `zibo` | 淄博 457 条 | 单来源（bulk_density/linear_change 泛化较差）|
+| `minmax` | 早期基础版模型 | 兼容保留，供对照 |
+
+请求体可选传 `variant` 覆盖默认变体，例如 `{"variant": "processed", ...}`；
+`GET /api/v1/model/metadata?variant=<名称>` 可查看该变体的属性、工况与指标。
+
 | 属性 key | 中文名 | 单位 | 模型实际输出工况 |
 | --- | --- | --- | --- |
 | `bulk_density` | 体积密度 | `g/cm3` | `110℃`, `1100℃`, `1300℃`, `1500℃` |
@@ -219,6 +239,9 @@ JSON 没有合法的 `NaN` 值，前端缺失值统一传 `null`。
 | `linear_change` | 线变化率 | `%` | `1100℃`, `1300℃`, `1500℃` |
 
 如果 `conditions` 不传，接口会按每个属性的已训练工况全部预测。例如 `linear_change` 默认不会返回 `110℃`。
+工况标签以 `GET /api/v1/model/metadata` 返回的 `trained_conditions` 为准：交接包训练数据已把
+`1450℃/1500℃` 合并为一个工况，因此 `yangquan` 变体下传 `1500℃` 会得到 `UNTRAINED_CONDITION`
+提示（模型外推），推荐直接使用元数据中的工况标签。
 
 如果 `conditions` 指定了某个属性没有直接训练过的工况，接口仍会返回模型外推结果，并在 `warnings` 中提示 `UNTRAINED_CONDITION`。
 
@@ -353,7 +376,9 @@ JSON 没有合法的 `NaN` 值，前端缺失值统一传 `null`。
 | `component_feature_names` | `X_comp` 的完整列顺序。 |
 | `global_feature_names` | `X_global` 的完整列顺序。 |
 | `target_condition_merge` | 训练时工况合并规则。 |
-| `metrics` | 当前已选模型的指标摘要。 |
+| `metrics` | 当前已选模型的指标摘要（来自 `metrics_<variant>.csv` 的最优行）。 |
+| `available_variants` | 服务当前可用的全部变体名。 |
+| `variant_models_dir` | 该变体模型的产物目录（交接版或兼容版）。 |
 
 ## 11. 错误码
 

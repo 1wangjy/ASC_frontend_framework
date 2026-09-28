@@ -14,9 +14,33 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATASETS = {
-    "minmax": ROOT / "yangquan.npy",
-    #"meanstd": ROOT / "dataset_clean_meanstd.npy",
+    "base": ROOT / "datasetv2.npy",
+    "processed": ROOT / "dataset_processed.npy",
+    "fill": ROOT / "dataset_fill.npy",
+    "zibo": ROOT / "zibo.npy",
+    "yangquan": ROOT / "yangquan.npy",
+    "batch183": ROOT / "batch183.npy"
 }
+
+TARGET_CONDITION_MERGE = {
+    "none": ["None"],
+    "110": ["110℃", "110℃×24h"],
+    "1100": ["1100℃", "1100℃×3h"],
+    "1450": ["1450℃", "1450℃×1h", "1450℃×3h"],
+    "1500": ["1500℃", "1450℃/1500℃"],
+    "1300": ["1300℃"],
+}
+
+TARGET_CONDITION_DISPLAY = {
+    "none": "None",
+    "110": "110℃",
+    "1100": "1100℃",
+    "1450": "1450℃",
+    "1300": "1300℃",
+    "1500": "1500℃",
+}
+
+TARGET_CONDITION_ORDER = {"none": 0, "110": 1, "1100": 2, "1450": 3, "1300": 4, "1500": 5}
 
 NUMBER_RE = re.compile(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?")
 
@@ -151,10 +175,58 @@ def build_feature_row(
     return row
 
 
-def build_target_row(sample: dict[str, Any], target_names: dict[tuple[str, Any], str]) -> dict[str, Any]:
+def normalize_condition(condition: Any) -> str:
+    if condition is None:
+        return "none"
+    text = str(condition).strip()
+    if not text or text.lower() in {"nan", "none", "null"}:
+        return "none"
+
+    # Match longer/high-priority merged conditions before shorter substrings.
+    if "1500" in text:
+        return "1500"
+    if "1450" in text:
+        return "1450"
+    if "1300" in text:
+        return "1300"
+    if "1100" in text:
+        return "1100"
+    if "110" in text:
+        return "110"
+
+    return safe_name(text, "condition")
+
+
+def condition_display_name(merged_condition: str) -> str:
+    return TARGET_CONDITION_DISPLAY.get(merged_condition, merged_condition)
+
+
+def condition_sort_key(merged_condition: str) -> tuple[int, str]:
+    return TARGET_CONDITION_ORDER.get(merged_condition, 99), merged_condition
+
+
+def build_target_row(
+    sample: dict[str, Any],
+    target_names: dict[tuple[str, Any], str],
+    merge_target_conditions: bool = False,
+) -> dict[str, Any]:
     row: dict[str, Any] = {"recipe_id": sample.get("recipe_id")}
     labels = sample.get("y_labels", {})
     if not isinstance(labels, dict):
+        return row
+
+    if merge_target_conditions:
+        grouped_values: dict[str, list[float]] = {}
+        for property_name, conditions in labels.items():
+            if not isinstance(conditions, dict):
+                continue
+            for condition, raw_value in conditions.items():
+                target_key = (str(property_name), normalize_condition(condition))
+                grouped_values.setdefault(target_names[target_key], []).append(parse_number(raw_value))
+
+        for target_name, values in grouped_values.items():
+            finite_values = [value for value in values if math.isfinite(value)]
+            row[target_name] = float(np.mean(finite_values)) if finite_values else np.nan
         return row
 
     for property_name, conditions in labels.items():
@@ -166,7 +238,13 @@ def build_target_row(sample: dict[str, Any], target_names: dict[tuple[str, Any],
     return row
 
 
-def collect_target_names(samples: list[dict[str, Any]]) -> tuple[dict[tuple[str, Any], str], dict[str, dict[str, str]]]:
+def collect_target_names(
+    samples: list[dict[str, Any]],
+    merge_target_conditions: bool = False,
+) -> tuple[dict[tuple[str, Any], str], dict[str, dict[str, Any]]]:
+    if merge_target_conditions:
+        return collect_merged_target_names(samples)
+
     keys: list[tuple[str, Any]] = []
     for sample in samples:
         labels = sample.get("y_labels", {})
@@ -191,12 +269,128 @@ def collect_target_names(samples: list[dict[str, Any]]) -> tuple[dict[tuple[str,
     return mapping, metadata
 
 
+def collect_merged_target_names(
+    samples: list[dict[str, Any]],
+) -> tuple[dict[tuple[str, Any], str], dict[str, dict[str, Any]]]:
+    raw_conditions: dict[tuple[str, str], set[str]] = {}
+    for sample in samples:
+        labels = sample.get("y_labels", {})
+        if not isinstance(labels, dict):
+            continue
+        for property_name, conditions in labels.items():
+            if not isinstance(conditions, dict):
+                continue
+            for condition in conditions:
+                property_key = str(property_name)
+                merged_condition = normalize_condition(condition)
+                raw_condition = "None" if condition is None else str(condition)
+                raw_conditions.setdefault((property_key, merged_condition), set()).add(raw_condition)
+
+    seen: set[str] = set()
+    mapping: dict[tuple[str, Any], str] = {}
+    metadata: dict[str, dict[str, Any]] = {}
+    for property_name, merged_condition in sorted(
+        raw_conditions,
+        key=lambda item: (item[0], condition_sort_key(item[1])),
+    ):
+        name = make_unique(f"{safe_name(property_name)}__{merged_condition}", seen)
+        mapping[(property_name, merged_condition)] = name
+        metadata[name] = {
+            "property": property_name,
+            "condition": condition_display_name(merged_condition),
+            "merged_condition": merged_condition,
+            "raw_conditions": sorted(raw_conditions[(property_name, merged_condition)]),
+        }
+    return mapping, metadata
+
+
+def collect_target_merge_report(
+    samples: list[dict[str, Any]],
+    target_names: dict[tuple[str, Any], str],
+) -> pd.DataFrame:
+    raw_stats: dict[tuple[str, str, str], dict[str, Any]] = {}
+    merged_sample_values: dict[tuple[str, str], dict[Any, list[tuple[str, float]]]] = {}
+
+    for sample in samples:
+        recipe_id = sample.get("recipe_id")
+        labels = sample.get("y_labels", {})
+        if not isinstance(labels, dict):
+            continue
+        for property_name, conditions in labels.items():
+            if not isinstance(conditions, dict):
+                continue
+            property_key = str(property_name)
+            for condition, raw_value in conditions.items():
+                merged_condition = normalize_condition(condition)
+                raw_condition = "None" if condition is None else str(condition)
+                parsed_value = parse_number(raw_value)
+                stats_key = (property_key, merged_condition, raw_condition)
+                stats = raw_stats.setdefault(
+                    stats_key,
+                    {
+                        "raw_observation_count": 0,
+                        "valid_numeric_count": 0,
+                        "dataset_sources": set(),
+                    },
+                )
+                stats["raw_observation_count"] += 1
+                if math.isfinite(parsed_value):
+                    stats["valid_numeric_count"] += 1
+                if sample.get("dataset_source") is not None:
+                    stats["dataset_sources"].add(str(sample.get("dataset_source")))
+                merged_sample_values.setdefault((property_key, merged_condition), {}).setdefault(
+                    recipe_id,
+                    [],
+                ).append((raw_condition, parsed_value))
+
+    merged_counts: dict[tuple[str, str], dict[str, int]] = {}
+    for key, sample_values in merged_sample_values.items():
+        row_count = 0
+        collision_count = 0
+        for values in sample_values.values():
+            if any(math.isfinite(value) for _, value in values):
+                row_count += 1
+            if len({raw_condition for raw_condition, _ in values}) > 1:
+                collision_count += 1
+        merged_counts[key] = {
+            "merged_target_row_count": row_count,
+            "samples_with_multiple_raw_conditions": collision_count,
+        }
+
+    rows: list[dict[str, Any]] = []
+    for (property_name, merged_condition, raw_condition), stats in sorted(
+        raw_stats.items(),
+        key=lambda item: (item[0][0], condition_sort_key(item[0][1]), item[0][2]),
+    ):
+        target_name = target_names[(property_name, merged_condition)]
+        rows.append(
+            {
+                "target": target_name,
+                "property": property_name,
+                "merged_condition": merged_condition,
+                "merged_condition_display": condition_display_name(merged_condition),
+                "raw_condition": raw_condition,
+                "raw_observation_count": stats["raw_observation_count"],
+                "valid_numeric_count": stats["valid_numeric_count"],
+                "merged_target_row_count": merged_counts[(property_name, merged_condition)][
+                    "merged_target_row_count"
+                ],
+                "samples_with_multiple_raw_conditions": merged_counts[(property_name, merged_condition)][
+                    "samples_with_multiple_raw_conditions"
+                ],
+                "dataset_sources": ";".join(sorted(stats["dataset_sources"])),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def build_dataset(
     input_path: Path,
     variant: str,
     output_dir: Path,
     categorical_columns: set[str],
     drop_component_columns: set[str],
+    merge_target_conditions: bool = False,
 ) -> None:
     data = load_dataset(input_path)
     samples = list(data["samples"])
@@ -205,7 +399,7 @@ def build_dataset(
 
     first_comp = np.asarray(samples[0]["X_comp"], dtype=object)
     comp_names = get_feature_names(data.get("metadata", {}), first_comp.shape[1])
-    target_names, target_metadata = collect_target_names(samples)
+    target_names, target_metadata = collect_target_names(samples, merge_target_conditions)
 
     features = pd.DataFrame(
         [
@@ -213,7 +407,9 @@ def build_dataset(
             for sample in samples
         ]
     )
-    targets = pd.DataFrame([build_target_row(sample, target_names) for sample in samples])
+    targets = pd.DataFrame(
+        [build_target_row(sample, target_names, merge_target_conditions) for sample in samples]
+    )
 
     for source in sorted(features["dataset_source"].dropna().unique()):
         source_col = f"source__{safe_name(source, 'source')}"
@@ -236,9 +432,16 @@ def build_dataset(
     feature_path = output_dir / f"features_{variant}.csv"
     target_path = output_dir / f"targets_{variant}.csv"
     metadata_path = output_dir / f"metadata_{variant}.json"
+    merge_report_path = output_dir / f"target_merge_report_{variant}.csv"
 
     features.to_csv(feature_path, index=False, encoding="utf-8-sig")
     targets.to_csv(target_path, index=False, encoding="utf-8-sig")
+    if merge_target_conditions:
+        collect_target_merge_report(samples, target_names).to_csv(
+            merge_report_path,
+            index=False,
+            encoding="utf-8-sig",
+        )
 
     metadata = {
         "input_path": str(input_path),
@@ -257,17 +460,37 @@ def build_dataset(
             "Kept in feature files; train-only model pipelines decide whether to drop them."
         ),
     }
+    if merge_target_conditions:
+        metadata.update(
+            {
+                "target_condition_merge": TARGET_CONDITION_MERGE,
+                "within_sample_duplicate_target_rule": (
+                    "Mean of finite numeric values after raw conditions are merged."
+                ),
+            }
+        )
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(f"[{variant}] wrote {feature_path} shape={features.shape}")
     print(f"[{variant}] wrote {target_path} shape={targets.shape}")
+    if merge_target_conditions:
+        print(f"[{variant}] wrote {merge_report_path}")
     print(f"[{variant}] wrote {metadata_path}")
 
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build fixed-width recipe features from cleaned npy datasets.")
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "FEATURE" / "outputs_yangquan")
+def parse_args(
+    default_output_dir: Path | None = None,
+    default_merge_target_conditions: bool = True,  # ✨ 将此处默认值改为 True
+    description: str = "Build fixed-width recipe features from cleaned npy datasets.",
+) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument("--output-dir", type=Path, default=default_output_dir or ROOT / "FEATURE" / "outputs")
     parser.add_argument("--dataset", choices=sorted(DEFAULT_DATASETS), action="append")
+    parser.add_argument(
+        "--merge-target-conditions",
+        action="store_true",
+        default=default_merge_target_conditions,  # 此处会同步继承上面的 True
+        help="Merge equivalent y-label conditions and write target_merge_report_*.csv.",
+    )
     parser.add_argument(
         "--categorical-columns",
         type=str,
@@ -282,9 +505,12 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-
-def main() -> None:
-    args = parse_args()
+def main(
+    default_output_dir: Path | None = None,
+    default_merge_target_conditions: bool = False,
+    description: str = "Build fixed-width recipe features from cleaned npy datasets.",
+) -> None:
+    args = parse_args(default_output_dir, default_merge_target_conditions, description)
     variants = args.dataset or list(DEFAULT_DATASETS)
     categorical_columns = {item.strip() for item in args.categorical_columns.split(",") if item.strip()}
     drop_component_columns = {
@@ -297,6 +523,7 @@ def main() -> None:
             args.output_dir,
             categorical_columns,
             drop_component_columns,
+            args.merge_target_conditions,
         )
 
 

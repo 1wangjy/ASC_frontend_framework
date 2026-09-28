@@ -1,0 +1,142 @@
+{
+  "format_version": "enterprise_input_v1",
+  "source_dataset": "datasetv2.npy",
+  "note": "Only X input fields are included. y_labels/performance targets are intentionally omitted.",
+  "x_global_field_order": [
+    "water_amount",
+    "hardening_time",
+    "hardening_time_uncertainty"
+  ],
+  "x_comp_column_order": [
+    "material_id",
+    "ratio_pct",
+    "particle_size_min",
+    "particle_size_max",
+    "base",
+    "PC1",
+    "PC2",
+    "PC3",
+    "PC4",
+    "PC5",
+    "PC6",
+    "PC7",
+    "PC8",
+    "PC9",
+    "PC10",
+    "PC11",
+    "PC12",
+    "PC13",
+    "PC14",
+    "PC15",
+    "PC16",
+    "PC17",
+    "PC18",
+    "PC19",
+    "PC20",
+    "component_batch",
+    "SiC",
+    "SiO2",
+    "AL2O3",
+    "Fe2O3",
+    "TiO2",
+    "CaO",
+    "MgO",
+    "K2O",
+    "Na2O",
+    "PH",
+    "loss_on_ignition",
+    "bulk_density",
+    "true_density",
+    "water_absorption",
+    "porosity",
+    "moisture",
+    "d50",
+    "ph",
+    "fired_bulk_density",
+    "fired_cold_modulus",
+    "fired_crushing_strength",
+    "fired_linear_change"
+  ],
+  "records": [
+    {
+      "recipe_id": "enterprise-recipe-001",
+      "dataset_source": "enterprise",
+      "X_global": {
+        "water_amount": 0.0329,
+        "hardening_time": null,
+        "hardening_time_uncertainty": null
+      },
+      "X_comp": [
+        {
+          "material_id": null,
+          "material_name": "",
+          "ratio_pct": null,
+          "particle_size_min": null,
+          "particle_size_max": null,
+          "base": "",
+          "component_batch": "",
+          "chemical_composition": {
+            "SiC": null,
+            "SiO2": null,
+            "AL2O3": null,
+            "Fe2O3": null,
+            "TiO2": null,
+            "CaO": null,
+            "MgO": null,
+            "K2O": null,
+            "Na2O": null,
+            "PH": null,
+            "ph": null,
+            "loss_on_ignition": null
+          },
+          "physical_properties": {
+            "bulk_density": null,
+            "true_density": null,
+            "water_absorption": null,
+            "porosity": null,
+            "moisture": null,
+            "d50": null
+          },
+          "fired_properties": {
+            "fired_bulk_density": null,
+            "fired_cold_modulus": null,
+            "fired_crushing_strength": null,
+            "fired_linear_change": null
+          },
+          "derived_features": {
+            "PC1": null,
+            "PC2": null,
+            "PC3": null,
+            "PC4": null,
+            "PC5": null,
+            "PC6": null,
+            "PC7": null,
+            "PC8": null,
+            "PC9": null,
+            "PC10": null,
+            "PC11": null,
+            "PC12": null,
+            "PC13": null,
+            "PC14": null,
+            "PC15": null,
+            "PC16": null,
+            "PC17": null,
+            "PC18": null,
+            "PC19": null,
+            "PC20": null
+          }
+        }
+      ],
+      "validation_rules": {
+        "ratio_pct_total_should_be": 100,
+        "missing_numeric_value": null,
+        "do_not_fill_product_targets_here": [
+          "y_labels.bulk_density",
+          "y_labels.cold_modulus",
+          "y_labels.crushing_strength",
+          "y_labels.linear_change"
+        ]
+      }
+    }
+  ]
+}
