@@ -19,7 +19,7 @@ export const landingCapabilities = [
   },
   {
     icon: '🕸️',
-    title: '知识图谱与报告',
+    title: '知识图谱',
     status: '已上线',
     route: { path: '/process' },
     hint: '图谱构建 · 证据推理 · 报告',

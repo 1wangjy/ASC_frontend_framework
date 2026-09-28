@@ -17,6 +17,11 @@
             浏览数据平台
           </router-link>
         </div>
+        <ul class="landing__stats">
+          <li v-for="stat in heroStats" :key="stat.label">
+            <strong>{{ stat.value }}</strong><span>{{ stat.label }}</span>
+          </li>
+        </ul>
       </div>
       <div class="landing__visual" aria-hidden="true">
         <div class="landing__vis-grid"></div>
@@ -57,6 +62,14 @@
 // 宣传首页：整页一屏（不滚动）。卡片数据在 config/landingCapabilities.js，
 // 与平台真实模块一一对应（状态取自各模块实现，入口由单测校验不产生死链）。
 import { landingCapabilities as capabilities } from '../config/landingCapabilities.js'
+
+// Hero 下方的关键数据条（均为平台实测规模，保持一行）
+const heroStats = [
+  { value: '17,698', label: '条文献' },
+  { value: '6', label: '张数据主表' },
+  { value: '4 × 7', label: '性能模型（属性 × 来源）' },
+  { value: 'v1', label: '图谱版本管理' },
+]
 </script>
 
 <style scoped>
@@ -72,10 +85,11 @@ import { landingCapabilities as capabilities } from '../config/landingCapabiliti
   background: linear-gradient(180deg, #eef4fb 0%, #f7fafd 40%, #eef3f8 100%);
 }
 
-/* ── Hero ── */
+/* ── Hero（占整页 2/3） ── */
 .landing__hero {
   position: relative;
-  flex: 0 0 auto;
+  flex: 2 1 0;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
   align-items: center;
@@ -139,10 +153,15 @@ import { landingCapabilities as capabilities } from '../config/landingCapabiliti
 .landing__btn--ghost { border-color: #cfe0ee; background: rgba(255, 255, 255, 0.8); color: var(--asc-primary); }
 .landing__btn--ghost:hover { transform: translateY(-1px); background: #fff; }
 
-/* 主视觉：按可用高度收缩，不挤压下方卡片 */
+/* 主视觉：在 hero 内纵向拉伸，填满 2/3 高度 */
 .landing__visual {
   position: relative;
-  height: clamp(150px, 26vh, 300px);
+  align-self: stretch;
+  justify-self: stretch;
+  height: auto;
+  min-height: clamp(140px, 22vh, 260px);
+  max-height: 460px;
+  margin: clamp(0px, 1.6vh, 18px) 0;
   border: 1px solid #dbe7f2;
   border-radius: 18px;
   background: radial-gradient(120% 120% at 78% 22%, #0a6bad 0%, #0d4a7a 46%, #072f52 100%);
@@ -171,13 +190,35 @@ import { landingCapabilities as capabilities } from '../config/landingCapabiliti
   font-size: 11px; letter-spacing: 0.06em;
 }
 
-/* ── 平台能力：占满剩余高度 ── */
+/* Hero 关键数据条：填补 2/3 区域的留白，同时给出真实规模 */
+.landing__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: clamp(14px, 2.4vh, 26px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.landing__stats li { display: flex; align-items: baseline; gap: 6px; }
+.landing__stats strong {
+  color: var(--asc-primary);
+  font-size: clamp(16px, 1.5vw, 20px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.landing__stats span { color: #55708a; font-size: 12.5px; }
+
+/* ── 平台能力：固定占整页 1/3，并作为"被划定的区域"呈现 ── */
 .landing__section {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: clamp(10px, 2vh, 26px) 40px clamp(12px, 2.4vh, 32px);
+  padding: clamp(14px, 2.4vh, 26px) 40px clamp(12px, 2.2vh, 28px);
+  border-top: 1px solid #dde8f3;
+  border-radius: 20px 20px 0 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.72));
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
 .landing__section-head { flex: 0 0 auto; margin-bottom: clamp(8px, 1.6vh, 18px); }
@@ -189,19 +230,36 @@ import { landingCapabilities as capabilities } from '../config/landingCapabiliti
 }
 .landing__section-head p { margin: 0; color: #5b7085; font-size: 12.5px; }
 
-/* 8 张卡：4 / 2 / 1 列，行高自适应可用高度，无空位、不滚动 */
+/* 8 张卡：能力区固定占 1/3 高，单行 8 列排布 —— 两行会在 1/3 高度内被压到 100px 以下并裁切文字。
+   列数固定（不用 auto-fit），避免出现 3+3+2 这类空位。 */
 .landing__cards {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   grid-auto-rows: minmax(0, 1fr);
-  gap: clamp(10px, 1.6vh, 18px);
+  gap: clamp(8px, 1.2vh, 16px);
 }
-@media (max-width: 1080px) {
+/* 窄屏（卡片宽度撑不开 8 列）：改为 2 / 1 列，并放宽"一屏不滚动 + 1/3 高度"约束，
+   优先保证卡片可读（窄屏滚动是正常预期）。 */
+/* 窄于 1180px：单行 8 列会把卡片压到 ~100px 以下（标题被省略），改为 4 / 2 / 1 列，
+   同时放宽"1/3 高度 + 不滚动"（优先保证卡片可读，窄窗口出现滚动是合理预期）。 */
+@media (max-width: 1180px) {
+  .landing {
+    height: auto;
+    min-height: calc(100dvh - var(--landing-footer-h));
+    overflow: visible;
+  }
+  .landing__section { flex: 0 0 auto; }
+  .landing__cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: minmax(112px, auto);
+  }
+}
+@media (max-width: 900px) {
   .landing__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 640px) {
+@media (max-width: 560px) {
   .landing__cards { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -257,6 +315,7 @@ import { landingCapabilities as capabilities } from '../config/landingCapabiliti
 }
 .landing__card p {
   margin: 0;
+  min-height: calc(2 * 1.5em);   /* 统一两行高度，保证 8 张卡基线一致 */
   color: #4a6076;
   font-size: clamp(11.5px, 0.82vw, 12.5px);
   line-height: 1.5;
@@ -273,4 +332,5 @@ import { landingCapabilities as capabilities } from '../config/landingCapabiliti
   .landing__visual { display: none; }
   .landing__eyebrow { margin-bottom: 6px; }
 }
+
 </style>

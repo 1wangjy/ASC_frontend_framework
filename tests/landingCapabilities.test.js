@@ -53,7 +53,7 @@ test('cards state an explicit implementation status and only 服役预测 is pen
 test('capability coverage matches the real modules', () => {
   const titles = landingCapabilities.map((c) => c.title)
   assert.deepEqual(titles, [
-    '文献库管理', '数据平台', '知识图谱与报告', '问题研究',
+    '文献库管理', '数据平台', '知识图谱', '问题研究',
     '性能预测', '配方优化', '仿真重建', '服役预测',
   ])
   for (const cap of landingCapabilities) assert.ok(cap.icon, `${cap.title} 缺少 icon`)
