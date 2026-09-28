@@ -87,18 +87,18 @@ const heroStats = [
 </script>
 
 <style scoped>
+/* 首页样式全部基于 tokens.css 的设计令牌：字体栈 / 字阶 / 字距 / 间距 / 圆角 / 渐变 / 阴影 / 缓动 */
 .landing {
   /* 外壳页脚固定高度；首页占满其余高度，桌面宽度下不产生滚动 */
   --landing-footer-h: var(--asc-footer-h);
+  --landing-gutter: clamp(28px, 4.2vw, 76px);   /* hero 与能力区共用同一侧边距，保证左右对齐 */
   display: flex;
   flex-direction: column;
   height: calc(100vh - var(--landing-footer-h));
   height: calc(100dvh - var(--landing-footer-h));
   overflow: hidden;
   color: var(--asc-heading);
-  background:
-    radial-gradient(120% 90% at 88% 6%, rgba(10, 163, 216, 0.1), transparent 60%),
-    linear-gradient(180deg, #f3f7fc 0%, #fbfcfe 46%, #eef3f9 100%);
+  background: var(--asc-grad-page);
 }
 
 /* ── Hero（2/3） ── */
@@ -110,7 +110,7 @@ const heroStats = [
   grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
   align-items: center;
   gap: clamp(24px, 4vw, 64px);
-  padding: clamp(24px, 5vh, 64px) 56px clamp(20px, 4vh, 44px);
+  padding: clamp(24px, 5vh, 64px) var(--landing-gutter) clamp(20px, 4vh, 44px);
   overflow: hidden;
 }
 
@@ -128,57 +128,65 @@ const heroStats = [
 
 .landing__eyebrow {
   margin: 0 0 clamp(12px, 2.2vh, 22px);
-  color: var(--asc-primary);
-  font-size: 11.5px;
-  font-weight: 800;
-  letter-spacing: 0.34em;
+  color: #0a6bad;
+  font-size: var(--asc-fs-micro);
+  font-weight: 700;
+  letter-spacing: var(--asc-track-caps);
   text-transform: uppercase;
 }
 
 .landing__title {
   margin: 0 0 clamp(14px, 2.4vh, 24px);
-  font-size: clamp(30px, 3.5vw, 52px);
+  font-size: var(--asc-fs-display);
   font-weight: 800;
-  line-height: 1.16;
-  letter-spacing: -1px;
+  line-height: var(--asc-lh-tight);
+  letter-spacing: var(--asc-track-tight);
+  text-wrap: balance;
 }
 
 .landing__lead {
-  max-width: 40em;
+  max-width: 38em;
   margin: 0;
-  color: #45596e;
+  color: #4a5f74;
   font-size: clamp(13.5px, 1.05vw, 16px);
-  line-height: 1.8;
+  line-height: 1.75;
+  letter-spacing: 0.002em;
 }
 
-.landing__cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: clamp(18px, 3vh, 32px); }
+.landing__cta { display: flex; flex-wrap: wrap; gap: var(--asc-sp-3); margin-top: clamp(18px, 3vh, 32px); }
 
 .landing__btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--asc-sp-2);
   padding: 12px 22px;
   border: 1px solid transparent;
-  border-radius: 999px;
-  font-size: 14px;
+  border-radius: var(--asc-radius-pill);
+  font-size: var(--asc-fs-body);
   font-weight: 700;
+  letter-spacing: 0.01em;
   text-decoration: none;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  transition: transform var(--asc-transition-base), box-shadow var(--asc-transition-base),
+    background var(--asc-transition-base), border-color var(--asc-transition-base);
 }
 .landing__btn--primary {
-  background: linear-gradient(135deg, #0a6bad, #0d8ecb);
+  background: var(--asc-grad-brand);
   color: #fff;
-  box-shadow: 0 10px 26px rgba(8, 105, 173, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), var(--asc-shadow-md);
 }
-.landing__btn--primary:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(8, 105, 173, 0.34); }
-.landing__btn--ghost { border-color: #cededf; background: rgba(255, 255, 255, 0.85); color: var(--asc-primary); }
-.landing__btn--ghost:hover { transform: translateY(-2px); background: #fff; border-color: #b6d3e8; }
+.landing__btn--primary:hover { transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 14px 30px rgba(8, 105, 173, 0.3); }
+.landing__btn--ghost {
+  border-color: rgba(8, 105, 173, 0.2);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--asc-primary);
+}
+.landing__btn--ghost:hover { transform: translateY(-2px); background: #fff; border-color: rgba(8, 105, 173, 0.34); }
 
-/* 关键数据条：细分隔线而非方块，整体更疏朗 */
+/* 关键数据条：等宽数字 + 发丝竖分隔，强调纵向基线一致 */
 .landing__stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 0;
+  gap: 10px 6px;
   margin: clamp(18px, 3vh, 34px) 0 0;
   padding: 0;
   list-style: none;
@@ -186,21 +194,22 @@ const heroStats = [
 .landing__stats li {
   display: flex;
   align-items: baseline;
-  gap: 7px;
-  padding: 0 clamp(14px, 1.5vw, 24px);
-  border-left: 1px solid #d8e4ef;
+  gap: var(--asc-sp-1);
+  padding: 0 clamp(16px, 1.8vw, 30px);
+  white-space: nowrap;
+  border-left: 1px solid var(--asc-hairline);
 }
 .landing__stats li:first-child { padding-left: 0; border-left: 0; }
 .landing__stats strong {
   color: #0a5c96;
   font-size: clamp(18px, 1.7vw, 24px);
   font-weight: 800;
-  letter-spacing: -0.4px;
+  letter-spacing: var(--asc-track-tight);
   font-variant-numeric: tabular-nums;
 }
-.landing__stats span { color: #5c7591; font-size: 12.5px; }
+.landing__stats span { color: #5c7591; font-size: var(--asc-fs-caption); font-weight: 500; }
 
-/* 主视觉：在 hero 内纵向拉伸 */
+/* 主视觉：品牌渐变面板 + 内部高光，承载真实研究链路 */
 .landing__visual {
   position: relative;
   align-self: stretch;
@@ -210,26 +219,10 @@ const heroStats = [
   max-height: 440px;
   margin: clamp(0px, 2vh, 22px) 0;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 24px;
-  background: radial-gradient(115% 120% at 76% 20%, #0f7fbe 0%, #0d4d7d 45%, #072b4b 100%);
-  box-shadow: 0 24px 60px rgba(6, 42, 74, 0.22);
+  border-radius: var(--asc-radius-xl);
+  background: var(--asc-grad-panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), var(--asc-shadow-lg);
   overflow: hidden;
-}
-.landing__vis-caption {
-  position: absolute; top: clamp(12px, 2vh, 20px); left: clamp(14px, 1.4vw, 22px);
-  margin: 0; color: rgba(255, 255, 255, 0.72); font-size: 11px; letter-spacing: 0.16em;
-}
-.landing__vis-steps {
-  position: absolute; left: clamp(14px, 1.4vw, 22px); right: clamp(14px, 1.4vw, 22px); bottom: clamp(12px, 2vh, 20px);
-  display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none;
-}
-.landing__vis-steps li {
-  display: inline-flex; align-items: center; gap: 6px;
-  color: rgba(255, 255, 255, 0.9); font-size: 11.5px; font-weight: 600;
-}
-.landing__vis-steps span {
-  color: rgba(173, 222, 250, 0.85);
-  font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10.5px; font-weight: 700;
 }
 .landing__vis-grid {
   position: absolute; inset: 0;
@@ -238,40 +231,64 @@ const heroStats = [
   background-size: 40px 40px;
 }
 .landing__vis-orb {
-  position: absolute; top: 50%; left: 50%;
+  position: absolute; top: 52%; left: 50%;
   width: clamp(110px, 16vh, 200px); height: clamp(110px, 16vh, 200px);
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(140, 222, 252, 0.9), rgba(10, 105, 173, 0.14) 60%, transparent 72%);
-  box-shadow: 0 0 90px rgba(190, 240, 255, 0.35);
+  background: radial-gradient(closest-side, rgba(150, 226, 252, 0.9), rgba(10, 105, 173, 0.12) 58%, transparent 72%);
+  box-shadow: 0 0 96px rgba(190, 240, 255, 0.32);
+}
+.landing__vis-caption {
+  position: absolute; top: clamp(12px, 2vh, 20px); left: clamp(14px, 1.4vw, 22px);
+  margin: 0; color: rgba(233, 245, 253, 0.78);
+  font-size: var(--asc-fs-micro); font-weight: 600; letter-spacing: 0.18em;
+}
+.landing__vis-steps {
+  position: absolute; left: clamp(14px, 1.4vw, 22px); right: clamp(14px, 1.4vw, 22px); bottom: clamp(12px, 2vh, 20px);
+  display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none;
+}
+.landing__vis-steps li {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: rgba(240, 248, 254, 0.94);
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em;
+}
+.landing__vis-steps span {
+  color: rgba(173, 222, 250, 0.9);
+  font-family: var(--asc-font-mono);
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em;
 }
 
-/* ── 平台能力（1/3）：细横条目 4 × 2 ── */
+/* ── 平台能力（1/3）：无框细栏 + 发丝分隔，顶端一条渐变细线界定区域 ── */
 .landing__section {
+  position: relative;
   flex: 1 1 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: clamp(16px, 2.4vh, 28px) 56px clamp(14px, 2.2vh, 26px);
-  border-top: 1px solid #e1eaf3;
-  background: rgba(255, 255, 255, 0.72);
+  padding: clamp(16px, 2.4vh, 28px) var(--landing-gutter) clamp(14px, 2.2vh, 26px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.66));
   backdrop-filter: blur(6px);
+}
+.landing__section::before {
+  content: '';
+  position: absolute; inset: 0 0 auto 0; height: 1px;
+  background: var(--asc-hairline);
 }
 
 .landing__section-head {
   flex: 0 0 auto;
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: var(--asc-sp-3);
   margin-bottom: clamp(10px, 1.8vh, 18px);
 }
 .landing__section-head h2 {
   margin: 0;
-  font-size: clamp(15px, 1.2vw, 18px);
+  font-size: var(--asc-fs-h2);
   font-weight: 800;
-  letter-spacing: -0.2px;
+  letter-spacing: 0;
 }
-.landing__section-head p { margin: 0; color: #64798f; font-size: 12px; }
+.landing__section-head p { margin: 0; color: #63798f; font-size: var(--asc-fs-caption); font-weight: 500; }
 
 .landing__cards {
   flex: 1 1 auto;
@@ -282,24 +299,23 @@ const heroStats = [
   gap: 0;
 }
 
-/* 无框细栏：仅用发丝分隔线与悬停高亮，避免 8 个方框造成的拥挤感 */
 .landing__card {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 clamp(10px, 1.1vw, 20px);
+  gap: var(--asc-sp-3);
+  padding: clamp(8px, 1.3vh, 14px) clamp(12px, 1.1vw, 20px);
   border: 0;
-  border-top: 1px solid #e8eff6;
-  border-radius: 8px;
+  border-top: 1px solid var(--asc-hairline);
+  border-radius: var(--asc-radius);
   background: transparent;
   color: inherit;
   text-decoration: none;
-  transition: background 0.16s ease;
+  transition: background var(--asc-transition-base);
 }
 .landing__card:nth-child(-n + 4) { border-top: 0; }
 .landing__card:hover { background: rgba(10, 140, 200, 0.06); }
-.landing__card:focus-visible { outline: 2px solid var(--asc-primary); outline-offset: -2px; }
+.landing__card:focus-visible { outline: 2px solid rgba(8, 105, 173, 0.55); outline-offset: -2px; }
 
 .landing__card-icon {
   display: grid;
@@ -307,37 +323,38 @@ const heroStats = [
   flex: 0 0 auto;
   width: clamp(30px, 3.6vh, 38px);
   height: clamp(30px, 3.6vh, 38px);
-  border-radius: 10px;
-  background: linear-gradient(135deg, #eaf4fd, #f5fafe);
+  border-radius: 11px;
+  background: var(--asc-grad-brand-soft);
+  box-shadow: inset 0 0 0 1px rgba(8, 105, 173, 0.08);
   color: #0a6bad;
 }
 .landing__card-icon :deep(.asc-icon) { width: 18px; height: 18px; }
 
-.landing__card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.landing__card-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .landing__card-title {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #17324d;
-  font-size: clamp(13px, 0.98vw, 14.5px);
+  color: #14293f;
+  font-size: clamp(13.5px, 0.98vw, 14.5px);
   font-weight: 700;
+  letter-spacing: 0;
   white-space: nowrap;
 }
 .landing__card-hint {
-  color: #52687f;
+  color: #5d7288;
   font-size: clamp(11.5px, 0.8vw, 12.5px);
-  line-height: 1.45;
-  /* 允许两行：窄窗口下不至于被省略号截断（行高足够容纳两行） */
+  line-height: 1.5;
 }
 .landing__badge {
   padding: 1px 6px;
-  border: 1px solid #e2e8ee;
-  border-radius: 999px;
+  border: 1px solid rgba(16, 42, 67, 0.1);
+  border-radius: var(--asc-radius-pill);
   background: #f5f7fa;
   color: #8296a8;
   font-size: 10px;
   font-style: normal;
-  font-weight: 700;
+  font-weight: 600;
 }
 .landing__card-arrow {
   width: 16px;
@@ -346,15 +363,14 @@ const heroStats = [
   flex: 0 0 auto;
   color: #9db4c8;
   transform: rotate(-90deg);
-  transition: color 0.16s ease, transform 0.16s ease;
+  transition: color var(--asc-transition-base), transform var(--asc-transition-base);
 }
 .landing__card:hover .landing__card-arrow { color: var(--asc-primary); transform: rotate(-90deg) translateX(3px); }
-/* 建设中：保留箭头以维持行内节奏，但明显弱化 */
 .landing__card-arrow--muted { color: #cbd8e3; }
 .landing__card--wip:hover .landing__card-arrow { color: #cbd8e3; transform: rotate(-90deg); }
 
 .landing__card--wip { opacity: 0.72; }
-.landing__card--wip .landing__card-icon { background: #f2f5f9; color: #8ea2b5; }
+.landing__card--wip .landing__card-icon { background: #f2f5f9; box-shadow: none; color: #8ea2b5; }
 .landing__card--wip .landing__card-title { color: #55708a; }
 .landing__card--wip:hover { background: rgba(10, 140, 200, 0.03); cursor: default; }
 
@@ -372,6 +388,5 @@ const heroStats = [
 }
 @media (max-width: 720px) {
   .landing__cards { grid-template-columns: minmax(0, 1fr); }
-  .landing__hero, .landing__section { padding-inline: 24px; }
 }
 </style>

@@ -14,8 +14,15 @@ body {
   background: var(--asc-bg);
   color: var(--asc-text);
   font-family: var(--asc-font);
-  font-size: 14px;
+  font-size: var(--asc-fs-body);
   line-height: 1.5;
+  /* 现代排版细节：字形平滑 + 连字，数字用等宽数字便于对齐 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'tnum' 1;
 }
 
 button,

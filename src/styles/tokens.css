@@ -27,5 +27,52 @@
   --asc-sidebar-width: 208px;
   --asc-sidebar-collapsed-width: 72px;
   --asc-transition: 180ms ease;
-  --asc-font: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --asc-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --asc-transition-base: 160ms var(--asc-ease);
+
+  /* ── 字体：系统优先（内网离线部署，不依赖 webfont）── */
+  --asc-font: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC",
+    "Source Han Sans SC", system-ui, sans-serif;
+  --asc-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* ── 字阶（按用途命名，避免散落的魔法数字）── */
+  --asc-fs-display: clamp(30px, 3.4vw, 52px);
+  --asc-fs-h1: 22px;
+  --asc-fs-h2: 17px;
+  --asc-fs-h3: 15px;
+  --asc-fs-body: 14px;
+  --asc-fs-small: 13px;
+  --asc-fs-caption: 12px;
+  --asc-fs-micro: 11px;
+  --asc-lh-tight: 1.16;
+  --asc-lh-heading: 1.35;
+  --asc-lh-body: 1.7;
+  --asc-track-caps: 0.3em;
+  --asc-track-tight: -0.015em;
+
+  /* ── 间距（4 的倍数）与圆角 ── */
+  --asc-sp-1: 4px;
+  --asc-sp-2: 8px;
+  --asc-sp-3: 12px;
+  --asc-sp-4: 16px;
+  --asc-sp-5: 24px;
+  --asc-sp-6: 32px;
+  --asc-sp-7: 48px;
+  --asc-radius-lg: 12px;
+  --asc-radius-xl: 20px;
+  --asc-radius-pill: 999px;
+
+  /* ── 阴影（品牌蓝调，避免纯黑投影的廉价感）── */
+  --asc-shadow-sm: 0 2px 8px rgba(12, 52, 86, 0.06);
+  --asc-shadow-md: 0 10px 24px rgba(12, 52, 86, 0.1);
+  --asc-shadow-lg: 0 24px 60px rgba(6, 42, 74, 0.22);
+
+  /* ── 渐变 ── */
+  --asc-grad-brand: linear-gradient(135deg, #0a6bad 0%, #0f8ac6 100%);
+  --asc-grad-brand-soft: linear-gradient(135deg, #eaf4fd 0%, #f6fbff 100%);
+  --asc-grad-panel: radial-gradient(115% 120% at 76% 18%, #1187c4 0%, #0d4d7d 46%, #062946 100%);
+  --asc-grad-page: radial-gradient(120% 90% at 88% 4%, rgba(10, 163, 216, 0.1), transparent 62%),
+    linear-gradient(180deg, #f4f8fc 0%, #fbfcfe 46%, #edf2f8 100%);
+  --asc-hairline: rgba(16, 42, 67, 0.08);
 }
