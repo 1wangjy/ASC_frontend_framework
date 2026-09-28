@@ -56,5 +56,8 @@ test('capability coverage matches the real modules', () => {
     '文献库管理', '数据平台', '知识图谱', '问题研究',
     '性能预测', '配方优化', '仿真重建', '服役预测',
   ])
-  for (const cap of landingCapabilities) assert.ok(cap.icon, `${cap.title} 缺少 icon`)
+  const LINE_ICONS = ['book', 'database', 'graph', 'chat', 'chart', 'flask', 'cube', 'thermometer']
+  for (const cap of landingCapabilities) {
+    assert.ok(LINE_ICONS.includes(cap.icon), `${cap.title} 的 icon 应为 AscIcon 线性图标名，当前：${cap.icon}`)
+  }
 })

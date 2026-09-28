@@ -35,6 +35,31 @@
       <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" />
       <path d="m4.5 7.8 7.5 4.4 7.5-4.4M12 12.2V21" />
     </template>
+    <template v-else-if="name === 'book'">
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5z" />
+      <path d="M4 5.5v15M8 7.5h7M8 11h7" />
+    </template>
+    <template v-else-if="name === 'chat'">
+      <path d="M20 12.5c0 3.9-3.6 7-8 7-1 0-2-.2-2.9-.5L5 21l1.2-3.4A6.6 6.6 0 0 1 4 12.5c0-3.9 3.6-7 8-7s8 3.1 8 7Z" />
+      <path d="M9 12h6M9 15h4" />
+    </template>
+    <template v-else-if="name === 'chart'">
+      <path d="M4 20V4M4 20h16" />
+      <path d="M8 16v-3M12 16V9M16 16v-5M20 16v-2" />
+    </template>
+    <template v-else-if="name === 'flask'">
+      <path d="M9 3h6M10 3v6.2L5.6 17A2.4 2.4 0 0 0 7.7 20.6h8.6A2.4 2.4 0 0 0 18.4 17L14 9.2V3" />
+      <path d="M7.5 14h9" />
+    </template>
+    <template v-else-if="name === 'cube'">
+      <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" />
+      <path d="M4 7.5 12 12l8-4.5M12 12v9" />
+      <circle cx="12" cy="12" r="1.4" />
+    </template>
+    <template v-else-if="name === 'thermometer'">
+      <path d="M13.5 14.4V5.5a2 2 0 1 0-4 0v8.9a4 4 0 1 0 4 0Z" />
+      <path d="M11.5 17.5h0" />
+    </template>
     <template v-else-if="name === 'lock'">
       <rect x="4.5" y="10.5" width="15" height="9.5" rx="2" />
       <path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3" />
