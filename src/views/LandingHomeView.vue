@@ -9,7 +9,7 @@
           面向耐火材料研究的<br />智能设计平台
         </h1>
         <p class="landing__lead">
-          贯通「文献 · 知识图谱 · 问答 · 性能预测 · 报告」的全流程 AI 科研闭环，
+          贯通「文献 · 数据平台 · 知识图谱 · 问题研究 · 性能预测与配方优化 · 报告」的全流程 AI 科研闭环，
           让每一次材料决策都有据可依。
         </p>
         <div class="landing__cta">
@@ -29,55 +29,42 @@
       </div>
     </section>
 
-    <!-- 平台能力 -->
+    <!-- 平台能力：与平台真实模块一一对应 -->
     <section class="landing__section">
       <div class="landing__section-head">
         <h2>平台能力</h2>
-        <p>从原始文献到可解释结论的完整研究链路</p>
+        <p>对应平台真实模块，卡片入口需登录后使用</p>
       </div>
       <div class="landing__cards">
-        <article class="landing__card">
-          <div class="landing__card-icon">📚</div>
-          <h3>文献与知识图谱</h3>
-          <p>多源文献整理、实体抽取与图谱构建，沉淀领域知识基座。</p>
-        </article>
-        <article class="landing__card">
-          <div class="landing__card-icon">💬</div>
-          <h3>智能问答</h3>
-          <p>面向配方、工艺、结构与性能的深度问答，附可追溯证据。</p>
-        </article>
-        <article class="landing__card">
-          <div class="landing__card-icon">📈</div>
-          <h3>性能预测与优化</h3>
-          <p>基于配方与工况的模型预测、配方优化与服役评估。</p>
-        </article>
-        <article class="landing__card">
-          <div class="landing__card-icon">📄</div>
-          <h3>研究报告生成</h3>
-          <p>自动汇总研究过程与证据，一键生成结构化工况报告。</p>
-        </article>
+        <router-link
+          v-for="cap in capabilities"
+          :key="cap.title"
+          class="landing__card landing__card--link"
+          :class="{ 'landing__card--wip': cap.status !== '已上线' }"
+          :to="cap.route"
+        >
+          <div class="landing__card-top">
+            <div class="landing__card-icon">{{ cap.icon }}</div>
+            <span class="landing__badge" :class="cap.status === '已上线' ? 'landing__badge--live' : 'landing__badge--wip'">
+              {{ cap.status }}
+            </span>
+          </div>
+          <h3>{{ cap.title }}</h3>
+          <p>{{ cap.desc }}</p>
+          <ul class="landing__facts">
+            <li v-for="fact in cap.facts" :key="fact">{{ fact }}</li>
+          </ul>
+          <span class="landing__more">{{ cap.status === '已上线' ? '进入 →' : '建设中 · 敬请期待' }}</span>
+        </router-link>
       </div>
     </section>
-
-    <!-- 研究流程 -->
-    <section class="landing__section landing__section--flow">
-      <div class="landing__section-head">
-        <h2>研究流程</h2>
-      </div>
-      <ol class="landing__flow">
-        <li><span class="landing__flow-no">01</span><strong>文献管理</strong><em>导入并整理研究资料</em></li>
-        <li><span class="landing__flow-no">02</span><strong>图谱构建</strong><em>抽取实体与关系</em></li>
-        <li><span class="landing__flow-no">03</span><strong>问题研究</strong><em>深度问答与推理</em></li>
-        <li><span class="landing__flow-no">04</span><strong>报告生成</strong><em>沉淀研究结论</em></li>
-      </ol>
-    </section>
-
   </div>
 </template>
 
 <script setup>
-// 宣传首页：纯图文占位，不含业务逻辑。
-// 各能力卡片与流程为静态示意，点击入口跳转到对应功能模块。
+// 宣传首页：静态展示。能力卡片数据在 config/landingCapabilities.js，
+// 与平台真实模块一一对应（状态与事实取自各模块实现与本机实测，入口由单测校验不产生死链）。
+import { landingCapabilities as capabilities } from '../config/landingCapabilities.js'
 </script>
 
 <style scoped>
@@ -219,8 +206,6 @@
   padding: 48px 40px;
 }
 
-.landing__section--flow { background: rgba(255, 255, 255, 0.6); border-top: 1px solid #e5edf5; border-bottom: 1px solid #e5edf5; }
-
 .landing__section-head { margin-bottom: 32px; }
 .landing__section-head h2 {
   margin: 0 0 8px;
@@ -230,63 +215,68 @@
 }
 .landing__section-head p { margin: 0; color: var(--asc-muted); font-size: 14px; }
 
+/* 8 张能力卡：按 4 / 2 / 1 列排版，避免 auto-fit 出现 3+3+2 的空位 */
 .landing__cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
+}
+@media (min-width: 1080px) {
+  .landing__cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .landing__cards { grid-template-columns: minmax(0, 1fr); }
 }
 
 .landing__card {
-  padding: 26px 24px;
-  border: 1px solid #e2ecf5;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 8px 24px rgba(15, 55, 88, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.landing__card:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(8, 105, 173, 0.12); }
-
-.landing__card-icon { display: grid; place-items: center; width: 46px; height: 46px; margin-bottom: 16px; border-radius: 12px; background: var(--asc-primary-soft); font-size: 24px; }
-.landing__card h3 { margin: 0 0 10px; font-size: 18px; font-weight: 700; }
-.landing__card p { margin: 0; color: var(--asc-muted); font-size: 13.5px; line-height: 1.7; }
-
-/* ── Flow ── */
-/* Flow uses the same column count as the capability cards so the two
-   grids align exactly; identical radius/padding/height for visual unity. */
-.landing__flow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 20px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.landing__flow li {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 24px;
+  padding: 24px 22px;
+  border: 1px solid #e2ecf5;
   border-radius: 14px;
   background: #fff;
-  border: 1px solid #e2ecf5;
   box-shadow: 0 8px 24px rgba(15, 55, 88, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
-.landing__flow-no {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: var(--asc-primary-soft);
-  color: var(--asc-primary);
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 14px;
-  font-weight: 800;
-}
-.landing__flow strong { display: block; font-size: 16px; font-weight: 700; }
-.landing__flow em { color: var(--asc-muted); font-size: 13px; font-style: normal; line-height: 1.6; }
+.landing__card:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(8, 105, 173, 0.12); }
+.landing__card--link { color: inherit; text-decoration: none; }
+.landing__card--link:hover { border-color: #bcd8ec; }
+.landing__card--link:focus-visible { outline: 2px solid var(--asc-primary); outline-offset: 2px; }
 
+/* 建设中：整体弱化（虚线边框 + 降饱和 + 无悬停升起），与 7 张已上线卡片区分 */
+.landing__card--wip {
+  background: #fbfcfe; border-style: dashed;
+  filter: saturate(0.85); opacity: 0.94;
+}
+.landing__card--wip .landing__card-icon { background: #eef1f5; }
+.landing__card--wip:hover { transform: none; box-shadow: 0 8px 24px rgba(15, 55, 88, 0.06); border-color: #e2ecf5; }
+
+.landing__card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.landing__card-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--asc-primary-soft); font-size: 22px; }
+.landing__badge {
+  padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.02em;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.landing__badge--live { background: #e7f7ef; border-color: #bfe9d3; color: #0e7a4c; }
+.landing__badge--wip { background: #f4f7fa; border-color: #e2e8ee; color: #7c8b98; }
+
+.landing__card h3 { margin: 0 0 8px; font-size: 17px; font-weight: 700; }
+/* 能力卡正文用更深的灰（4.5:1 以上），比 --asc-muted 更易读 */
+.landing__card p { margin: 0; color: #40566d; font-size: 13.5px; line-height: 1.7; }
+
+.landing__facts { margin: 14px 0 16px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 7px; }
+.landing__facts li {
+  position: relative; padding-left: 15px; color: #33495e; font-size: 12.5px; line-height: 1.6;
+}
+.landing__facts li::before {
+  content: ''; position: absolute; left: 2px; top: 8px;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--asc-primary); opacity: .55;
+}
+.landing__more {
+  margin-top: auto; padding-top: 12px; border-top: 1px solid #eef3f8;
+  color: var(--asc-primary); font-size: 12.5px; font-weight: 700;
+}
+.landing__card--wip .landing__more { color: #8a9aa9; }
 
 @media (max-width: 860px) {
   .landing__hero { grid-template-columns: 1fr; padding-top: 56px; }
