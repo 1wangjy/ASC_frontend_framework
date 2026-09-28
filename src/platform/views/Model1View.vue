@@ -6,7 +6,21 @@
         <h1>性能预测</h1>
         <div class="m1-header__sub">配方组成 X_comp → 烧成性能 · 工况环雷达对比</div>
         <div class="m1-header__chips">
-          <span class="m1-chip m1-chip--brand"><i class="m1-dot m1-dot--live" />属性预测引擎 · {{ variant || '—' }}</span>
+          <label class="m1-chip m1-chip--brand m1-variant" title="按数据来源初始化预测模型权重">
+            <i class="m1-dot m1-dot--live" />
+            <span class="m1-variant__label">预测来源</span>
+            <select
+              v-model="selectedVariant"
+              class="m1-variant__select"
+              :disabled="metadataLoading || !variantOptions.length"
+              aria-label="预测模型来源（变体）"
+              @change="onVariantChange"
+            >
+              <option v-for="opt in variantOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+            </select>
+          </label>
+          <span v-if="variantNote" class="m1-chip m1-chip--idle">{{ variantNote }}</span>
+          <span v-if="variantCaution" class="m1-chip m1-chip--warn">⚠ {{ variantCaution }}</span>
           <span class="m1-chip">{{ propertiesMeta.length || '—' }} 项性能属性</span>
           <span class="m1-chip">{{ conditionOptions.length || '—' }} 个训练工况</span>
           <span v-if="metadataLoading" class="m1-chip m1-chip--running"><i class="m1-spin" /> 元数据加载中…</span>
@@ -426,6 +440,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { encodeMaterials, getPredictMetadata, getPredictMaterials, predictSimple } from '../api/predictV1'
+import { buildVariantOptions, variantCautionText, variantNoteText } from '../utils/modelSources.js'
 
 const router = useRouter()
 
@@ -465,17 +480,36 @@ const globalNames = computed(() => {
   return Array.isArray(names) && names.length ? names : DEFAULT_GLOBAL_NAMES
 })
 
-async function loadMetadata() {
+/* ── 预测来源（模型变体）：不同数据来源训练出的权重不同，切换后重新初始化模型 ── */
+const selectedVariant = ref('')
+
+const variantOptions = computed(() => buildVariantOptions(metadata.value?.available_variants))
+const variantNote = computed(() => variantNoteText(variant.value))
+const variantCaution = computed(() => variantCautionText(variant.value))
+
+async function loadMetadata(target = '') {
   metadataLoading.value = true
   metadataError.value = ''
   try {
-    const data = await getPredictMetadata()
+    const data = await getPredictMetadata(target ? { variant: target } : undefined)
     metadata.value = data || null
+    if (data?.variant) selectedVariant.value = data.variant
   } catch (e) {
     metadataError.value = e?.response?.data?.detail?.message || e?.message || '元数据加载失败'
   } finally {
     metadataLoading.value = false
   }
+}
+
+/** 切换来源：清空旧结果 → 拉取该来源的元数据 → 按新工况/属性重建选择（即"重新初始化模型"）。 */
+async function onVariantChange() {
+  result.value = null
+  resultAt.value = ''
+  predictError.value = ''
+  await loadMetadata(selectedVariant.value)
+  if (metadataError.value) return
+  selectedConditions.value = [...conditionOptions.value]
+  selectedProperties.value = propertiesMeta.value.map((p) => p.property)
 }
 onMounted(loadMetadata)
 
@@ -656,6 +690,8 @@ async function runPrediction() {
   if (globalPayload.value) payload.X_global = globalPayload.value
   if (selectedConditions.value.length) payload.conditions = [...selectedConditions.value]
   if (selectedProperties.value.length) payload.properties = [...selectedProperties.value]
+  // 明确带上所选来源，避免"界面显示 A 来源、后端用默认变体预测"的错配
+  if (selectedVariant.value) payload.variant = selectedVariant.value
 
   predicting.value = true
   try {
@@ -851,6 +887,18 @@ const fmtRange = (v) => (Math.abs(v) >= 100 ? Number(v).toFixed(0) : Number(v).t
 .m1-chip--warn { background: #fdf3e4; border-color: #f0d9b4; color: #b26a14; }
 .m1-chip--running { background: #f0f8ff; border-color: #cfe8f7; color: #0869ad; }
 .m1-chip--idle { background: #f4f7fa; border-color: #e2e8ee; color: #7c8b98; }
+/* 预测来源下拉：外观保持 chip 质感，但可交互 */
+.m1-variant { padding: 2px 8px 2px 10px; gap: 7px; cursor: pointer; }
+.m1-variant__label { white-space: nowrap; }
+.m1-variant__select {
+  appearance: none; -webkit-appearance: none;
+  padding: 1px 20px 1px 6px; border: 0; border-radius: 999px;
+  background: rgba(255, 255, 255, .72) url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4.5 6 8.5l4-4' fill='none' stroke='%23005bac' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 5px center / 11px 11px;
+  color: #005bac; font: inherit; font-size: 11.5px; font-weight: 700;
+  cursor: pointer; max-width: 210px;
+}
+.m1-variant__select:focus-visible { outline: 2px solid #0869ad; outline-offset: 1px; }
+.m1-variant__select:disabled { opacity: .6; cursor: default; }
 .m1-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; background: currentColor; opacity: .85; }
 .m1-dot--live { background: #22c55e; animation: m1-pulse 1.6s infinite; }
 .m1-spin {

@@ -10,7 +10,8 @@
     "test:domain-highlighter": "node --test tests/ascDomainHighlighter.test.js",
     "test:literature-types": "node --test tests/literatureEntryTypes.test.js",
     "test:route-access": "node --test tests/routeAccess.test.js",
-    "test:chat-markdown": "node --test tests/chatMarkdown.test.js"
+    "test:chat-markdown": "node --test tests/chatMarkdown.test.js",
+    "test:model-sources": "node --test tests/modelSources.test.js"
   },
   "dependencies": {
     "axios": "^1.13.2",
