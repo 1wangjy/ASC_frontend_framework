@@ -12,6 +12,8 @@
   --asc-heading: #102a43;
   --asc-text: #334e68;
   --asc-muted: #6b7f93;
+  /* 外壳页脚高度：首页等“整页一屏”的页面据此计算可用高度 */
+  --asc-footer-h: 50px;
   --asc-border: #d8e3ed;
   --asc-border-strong: #bfd1df;
   --asc-success: #139968;

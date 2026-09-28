@@ -1,5 +1,11 @@
 <template>
-  <div class="app-shell" :class="{ 'app-shell--sidebar-collapsed': sidebarCollapsed }">
+  <div
+    class="app-shell"
+    :class="{
+      'app-shell--sidebar-collapsed': sidebarCollapsed,
+      'app-shell--landing': isLandingRoute
+    }"
+  >
     <AscSidebar
       :mobile-open="mobileNavOpen"
       :collapsed="sidebarCollapsed"
@@ -68,6 +74,8 @@ const mobileNavOpen = ref(false)
 const sidebarCollapsed = ref(false)
 const graphProjectPanelCollapsed = ref(false)
 const isGraphWorkflowRoute = computed(() => route.meta.navigationPath === '/process')
+// 首页为整页一屏布局：取消 route-frame 的 100vh 下限，由页面自身按 100vh - 页脚 计算
+const isLandingRoute = computed(() => route.name === 'AscHome')
 </script>
 
 <style scoped>
@@ -83,6 +91,7 @@ const isGraphWorkflowRoute = computed(() => route.meta.navigationPath === '/proc
 
 .app-shell__footer {
   flex: 0 0 auto;
+  min-height: var(--asc-footer-h);
   padding: 14px 24px 18px;
   text-align: center;
   color: var(--asc-muted);
@@ -93,6 +102,9 @@ const isGraphWorkflowRoute = computed(() => route.meta.navigationPath === '/proc
 .app-shell--sidebar-collapsed .app-shell__body {
   margin-left: var(--asc-sidebar-collapsed-width);
 }
+
+/* 首页：内容高度自管（100vh - 页脚），不被 route-frame 的 100vh 下限撑出滚动条 */
+.app-shell--landing .app-shell__route-frame { min-height: 0; }
 
 .app-shell__route-frame {
   min-width: 0;
