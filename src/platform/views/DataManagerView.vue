@@ -559,7 +559,8 @@ import { assignComponentId, MC_TYPE_OPTIONS, MR_TYPE_OPTIONS, LIT_TYPE_OPTIONS, 
 
 const MAIN_TABS = [{ key: 'parse', label: '数据解析' }, { key: 'manage', label: '数据管理' }, { key: 'literature', label: '文献库管理' }, { key: 'mongodb', label: 'MongoDB测试' }]
 const PARSE_TABS = [{ key: 'recipe', label: '配方/测试解析' }, { key: 'working', label: '工况解析' }, { key: 'service', label: '服役解析' }, { key: 'reconstruct', label: '重建解析' }]
-const MANAGE_TABS = [{ key: 'mc', label: '原料表' }, { key: 'mr', label: '配方表' }, { key: 'mp', label: '物性表' }, { key: 'tp', label: '测试表' }, { key: 'fe', label: '工况记录' }, { key: 'ru', label: '服役记录' }, { key: 'ml', label: 'ML 数据集' }]
+// 六表标签顺序：配方表 → 原料表 → 测试表 → 物性表 → 工况 → 服役（ML 数据集排最后）
+const MANAGE_TABS = [{ key: 'mr', label: '配方表' }, { key: 'mc', label: '原料表' }, { key: 'tp', label: '测试表' }, { key: 'mp', label: '物性表' }, { key: 'fe', label: '工况记录' }, { key: 'ru', label: '服役记录' }, { key: 'ml', label: 'ML 数据集' }]
 const ADD_RECORD_LABELS = { mp: '新建物性记录', tp: '新建测试记录' }
 
 const dataStore = usePlatformDataStore()
@@ -570,7 +571,7 @@ const router = useRouter()
 
 const currentMainTab = ref('parse')
 const currentParseTab = ref('recipe')
-const currentManageTable = ref('mc')
+const currentManageTable = ref('mr')
 const addRecordLabel = computed(() => ADD_RECORD_LABELS[currentManageTable.value] || '添加数据')
 const manageSearchFilter = ref('')
 const litSearchFilter = ref('')
