@@ -17,6 +17,7 @@
 const express = require('express');
 const router = express.Router();
 const svc = require('../services/materialBaseService');
+const vocab = require('../services/vocabService');
 
 function fail(res, status, message, extra = {}) {
   return res.status(status).json({ code: status, message, ...extra });
@@ -106,6 +107,34 @@ router.post('/resolve', async (req, res) => {
     const { name } = req.body || {};
     if (typeof name !== 'string' || !name.trim()) return fail(res, 400, 'name is required');
     return ok(res, await svc.resolveMaterialBase(name));
+  } catch (error) {
+    return fail(res, 500, error.message);
+  }
+});
+
+// ── 变体 one-hot 词表与覆盖报告 ──
+router.get('/vocab', async (req, res) => {
+  try {
+    return ok(res, { variants: await vocab.listVocab() });
+  } catch (error) {
+    return fail(res, 500, error.message);
+  }
+});
+
+router.post('/vocab/refresh', async (req, res) => {
+  try {
+    const variants = req.body && Array.isArray(req.body.variants) ? req.body.variants : null;
+    return ok(res, await vocab.refreshVocab({ variants }), '词表已刷新');
+  } catch (error) {
+    return fail(res, 500, error.message);
+  }
+});
+
+router.post('/coverage', async (req, res) => {
+  try {
+    const { variant, material_ids } = req.body || {};
+    const ids = Array.isArray(material_ids) ? material_ids.map(String) : [];
+    return ok(res, await vocab.coverageReport({ variant, materialIds: ids }));
   } catch (error) {
     return fail(res, 500, error.message);
   }
