@@ -9,6 +9,13 @@ import { reconstructModel4, generateStatic, generateAnimation } from '../api/mod
 import { readFileAsArrayBuffer, readFileAsText, parseTempData } from '../utils/fileReader'
 import { getTemperatureColor } from '../utils/temperatureColor'
 
+// 场景参数（集中可调）：
+//  GRID_DIVISIONS：地面网格等分数，10 → 40 让网格更密，便于观察尺度
+//  VIEW_DISTANCE_FACTOR：相机到模型中心的距离系数，1.5 → 2.2 让模型在画布中显示更小
+const GRID_SIZE = 10
+const GRID_DIVISIONS = 40
+const VIEW_DISTANCE_FACTOR = 2.2
+
 function hslToRgb(h, s, l) {
   let r, g, b
   if (s === 0) { r = g = b = l }
@@ -113,7 +120,7 @@ export function useThreeViewer() {
     const dl = new THREE.DirectionalLight(0xffffff, 0.8)
     dl.position.set(5, 5, 5)
     scene.add(dl)
-    scene.add(new THREE.GridHelper(10, 10))
+    scene.add(new THREE.GridHelper(GRID_SIZE, GRID_DIVISIONS, 0x3a5875, 0x24384c))
     scene.add(new THREE.AxesHelper(5))
 
     wheelHandler = (e) => {
@@ -121,7 +128,7 @@ export function useThreeViewer() {
       if (!camera) return
       const dir = camera.position.y < 0 ? -1 : 1
       camera.position.y += e.deltaY * 0.01 * dir
-      camera.position.y = Math.max(1, Math.min(20, Math.abs(camera.position.y))) * dir
+      camera.position.y = Math.max(1, Math.min(60, Math.abs(camera.position.y))) * dir
     }
     container.addEventListener('wheel', wheelHandler)
 
@@ -174,7 +181,7 @@ export function useThreeViewer() {
     const maxDim = Math.max(size.x, size.y, size.z)
     const fov = camera.fov * (Math.PI / 180)
     const cz = Math.abs(maxDim / 2 / Math.tan(fov / 2))
-    camera.position.set(0, -cz * 1.5, 0)
+    camera.position.set(0, -cz * VIEW_DISTANCE_FACTOR, 0)
     camera.lookAt(0, 0, 0)
     vertexCount.value = posAttr.count
     triangleCount.value = Math.round(posAttr.count / 3)
@@ -242,7 +249,8 @@ export function useThreeViewer() {
           if (tempPoints.length > 0) { minT = Math.min(...tempPoints.map(p => p.temperature)); maxT = Math.max(...tempPoints.map(p => p.temperature)) }
         } catch { console.log('温度文件加载失败') }
       }
-      await reconstructModel4({ stlContent: Array.from(new Uint8Array(stlArrayBuffer)), tempPoints })
+      // 只回传字节数：重建在前端做，避免把整份 STL 转成数组回传（旧写法会产生 MB 级请求体）
+      await reconstructModel4({ stlBytes: stlArrayBuffer.byteLength, tempPoints })
       showStatus('正在生成3D可视化...', 'success')
       visualizeSTLModel(geometry, tempPoints, minT, maxT)
       showControls.value = true; showRotationControls.value = true
@@ -293,7 +301,7 @@ export function useThreeViewer() {
       const maxDim = Math.max(size.x, size.y, size.z)
       const fov = camera.fov * (Math.PI / 180)
       const cz = Math.abs(maxDim / 2 / Math.tan(fov / 2))
-      camera.position.set(0, -cz * 1.5, 0)
+      camera.position.set(0, -cz * VIEW_DISTANCE_FACTOR, 0)
       camera.lookAt(0, 0, 0)
       updateRotationRefs()
     }

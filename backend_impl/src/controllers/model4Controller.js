@@ -11,12 +11,24 @@ class Model4Controller {
 
   async reconstruct(req, res) {
     try {
-      const { stlContent, tempPoints } = req.body;
-      
-      if (!stlContent || !tempPoints) {
+      // 3D 重建在前端完成；这里只登记一次重建（不回传 STL 内容，避免 MB 级请求体）。
+      const { stlContent, tempPoints = [], stlBytes } = req.body;
+
+      if (!Array.isArray(tempPoints)) {
         return res.status(400).json({
           code: 400,
-          message: 'STL content and temperature points are required'
+          message: 'tempPoints must be an array'
+        });
+      }
+
+      const bytes = Number.isFinite(stlBytes)
+        ? stlBytes
+        : (Array.isArray(stlContent) ? stlContent.length : 0);
+
+      if (!bytes) {
+        return res.status(400).json({
+          code: 400,
+          message: 'stlBytes (or stlContent) is required'
         });
       }
 
@@ -24,7 +36,7 @@ class Model4Controller {
         code: 200,
         message: 'Temperature field reconstructed successfully',
         data: {
-          stlContent: stlContent,
+          stlBytes: bytes,
           tempPoints: tempPoints,
           timestamp: new Date().toISOString()
         }

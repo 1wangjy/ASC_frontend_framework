@@ -133,12 +133,17 @@ export function reconstructModel4(data) {
   return request.post('/api/model4/reconstruct', data)
 }
 
+// 提示：request 的响应拦截器已返回 body，故 .then(res => …) 的 res 即
+// { code, message, data: { success, type, data | frames, … } }，unwrapApiResult(res) 就是 res.data。
 export function generateStatic() {
   return request.get('/api/model4/generate-static')
-    .then(res => unwrapApiResult(res).data)
+    .then(res => unwrapApiResult(res)?.data || null)   // { vertices, faces }
 }
 
 export function generateAnimation() {
   return request.get('/api/model4/generate-animation')
-    .then(res => unwrapApiResult(res).frames)
+    .then(res => {
+      const frames = unwrapApiResult(res)?.frames
+      return Array.isArray(frames) ? frames : []       // 10 帧：{ step, vertices, faces, thickness_matrix }
+    })
 }

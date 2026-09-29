@@ -21,6 +21,13 @@
               <label for="m4-stl">结构拓扑文件 (.stl, .obj)</label>
               <input id="m4-stl" type="file" class="m4-file" accept=".stl,.obj" @change="onStlChange">
               <div v-if="stlFileName" class="file-info" style="margin-top:6px">已选择: {{ stlFileName }} ({{ stlFileSize }})</div>
+              <div class="m4-sample">
+                <button type="button" class="btn btn-ghost" :disabled="sampleLoading" @click="loadSampleStl">
+                  <span v-if="sampleLoading" class="loading" />{{ sampleLoading ? '加载中...' : '加载示例 STL' }}
+                </button>
+                <a class="m4-sample__dl" :href="SAMPLE_STL_PATH" download>下载示例 STL（iron_gutter_test.stl）</a>
+              </div>
+              <p class="m4-sample__hint">示例可直接点「加载示例 STL」：自动载入铁沟试件并重建温度场。</p>
             </div>
             <div class="form-group">
               <label for="m4-temp">温度点文件 (.csv, .json)</label>
@@ -42,6 +49,7 @@
                 <span v-if="animLoading" class="loading" />{{ animLoading ? '生成中...' : '生成厚度衰减动画' }}
               </button>
             </div>
+            <p class="m4-sample__hint">动画演示无需上传文件：直接点「生成静态 Gutter 几何」或「生成厚度衰减动画」即可播放（10 帧循环）。</p>
           </div>
 
           <div v-if="modelInfo" class="m4-info">
@@ -108,10 +116,14 @@ import { useThreeViewer } from '../composables/useThreeViewer'
 const router = useRouter()
 const { showControls, showRotationControls, showColorBar, modelInfo, vertexCount, triangleCount, tempPointCount, minTemp, maxTemp, rotationX, rotationY, rotationZ, statusMessage, statusType, initScene, loadSTL, loadStaticGutter, loadAnimation, setRotation, resetView, toggleWireframe, exportImage, cleanup } = useThreeViewer()
 
+// 示例 STL（随前端发布的静态资源，见 public/iron_gutter_test.stl）
+const SAMPLE_STL_PATH = '/iron_gutter_test.stl'
+
 const canvasContainer = ref(null)
 const stlFile = ref(null); const stlFileName = ref(''); const stlFileSize = ref('')
 const tempFile = ref(null); const tempFileName = ref(''); const tempFileSize = ref('')
 const canProcess = ref(false); const loading = ref(false); const gutterLoading = ref(false); const animLoading = ref(false)
+const sampleLoading = ref(false)
 
 onMounted(() => { if (canvasContainer.value) initScene(canvasContainer.value) })
 onUnmounted(() => { cleanup() })
@@ -120,6 +132,28 @@ function onStlChange(e) { const file = e.target.files?.[0]; if (file) { stlFile.
 function onTempChange(e) { const file = e.target.files?.[0]; if (file) { tempFile.value = file; tempFileName.value = file.name; tempFileSize.value = (file.size/1024).toFixed(2)+' KB' } }
 function clearAll() { stlFile.value = null; stlFileName.value = ''; stlFileSize.value = ''; tempFile.value = null; tempFileName.value = ''; tempFileSize.value = ''; canProcess.value = false; showControls.value = false; showRotationControls.value = false; showColorBar.value = false; modelInfo.value = false; if (canvasContainer.value) initScene(canvasContainer.value) }
 async function processStl() { if (!stlFile.value) return; loading.value = true; try { await loadSTL(stlFile.value, tempFile.value ?? undefined) } finally { loading.value = false } }
+
+/** 一键示例：拉取内置示例 STL → 填充为普通 File → 走同一条「重建温度场」链路。 */
+async function loadSampleStl() {
+  if (sampleLoading.value) return
+  sampleLoading.value = true
+  try {
+    const response = await fetch(SAMPLE_STL_PATH)
+    if (!response.ok) throw new Error(`示例文件不可用（HTTP ${response.status}）`)
+    const blob = await response.blob()
+    const file = new File([blob], 'iron_gutter_test.stl', { type: 'model/stl' })
+    stlFile.value = file
+    stlFileName.value = file.name
+    stlFileSize.value = `${(file.size / 1024).toFixed(2)} KB`
+    canProcess.value = true
+    await processStl()
+  } catch (e) {
+    statusMessage.value = `示例加载失败：${e.message || e}`
+    statusType.value = 'error'
+  } finally {
+    sampleLoading.value = false
+  }
+}
 async function handleStaticGutter() { gutterLoading.value = true; try { await loadStaticGutter() } finally { gutterLoading.value = false } }
 async function handleAnimation() { animLoading.value = true; try { await loadAnimation() } finally { animLoading.value = false } }
 function onRotationX(v) { setRotation(v, rotationY.value, rotationZ.value) }
@@ -215,6 +249,19 @@ function onRotationZ(v) { setRotation(rotationX.value, rotationY.value, v) }
   white-space: nowrap;
 }
 .m4-actions .btn .loading { width: 12px; height: 12px; border-width: 2px; }
+
+.m4-sample { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.m4-sample .btn {
+  height: var(--pl-ctl-h, 32px);
+  padding: 0 14px;
+  font-size: var(--pl-font-sm, 13px);
+  border-radius: var(--pl-ctl-radius, 8px);
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.m4-sample .btn .loading { width: 12px; height: 12px; border-width: 2px; }
+.m4-sample__dl { color: var(--asc-primary, #0869ad); font-size: var(--pl-font-xs, 12px); text-decoration: none; }
+.m4-sample__dl:hover { text-decoration: underline; }
+.m4-sample__hint { margin: 6px 0 0; color: #78899a; font-size: var(--pl-font-xs, 12px); line-height: 1.6; }
 
 .m4-info {
   border: 1px solid #e3ebf3;
