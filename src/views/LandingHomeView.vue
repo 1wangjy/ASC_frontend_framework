@@ -101,10 +101,10 @@ const heroStats = [
   background: var(--asc-grad-page);
 }
 
-/* ── Hero（2/3） ── */
+/* ── Hero（3/4） ── */
 .landing__hero {
   position: relative;
-  flex: 2 1 0;
+  flex: 3 1 0;
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
@@ -215,8 +215,8 @@ const heroStats = [
   align-self: stretch;
   justify-self: stretch;
   height: auto;
-  min-height: clamp(150px, 24vh, 280px);
-  max-height: 440px;
+  min-height: clamp(150px, 24vh, 300px);
+  max-height: 520px;
   margin: clamp(0px, 2vh, 22px) 0;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--asc-radius-xl);
@@ -258,14 +258,14 @@ const heroStats = [
   font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em;
 }
 
-/* ── 平台能力（1/3）：无框细栏 + 发丝分隔，顶端一条渐变细线界定区域 ── */
+/* ── 平台能力（1/4）：无框细栏 + 发丝分隔线界定区域 ── */
 .landing__section {
   position: relative;
   flex: 1 1 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: clamp(16px, 2.4vh, 28px) var(--landing-gutter) clamp(14px, 2.2vh, 26px);
+  padding: clamp(10px, 1.6vh, 20px) var(--landing-gutter) clamp(8px, 1.4vh, 18px);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.66));
   backdrop-filter: blur(6px);
 }
@@ -279,16 +279,16 @@ const heroStats = [
   flex: 0 0 auto;
   display: flex;
   align-items: baseline;
-  gap: var(--asc-sp-3);
-  margin-bottom: clamp(10px, 1.8vh, 18px);
+  gap: var(--asc-sp-2);
+  margin-bottom: clamp(6px, 1vh, 12px);
 }
 .landing__section-head h2 {
   margin: 0;
-  font-size: var(--asc-fs-h2);
+  font-size: var(--asc-fs-h3);
   font-weight: 800;
   letter-spacing: 0;
 }
-.landing__section-head p { margin: 0; color: #63798f; font-size: var(--asc-fs-caption); font-weight: 500; }
+.landing__section-head p { margin: 0; color: #63798f; font-size: var(--asc-fs-micro); font-weight: 500; }
 
 .landing__cards {
   flex: 1 1 auto;
@@ -303,8 +303,8 @@ const heroStats = [
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--asc-sp-3);
-  padding: clamp(8px, 1.3vh, 14px) clamp(12px, 1.1vw, 20px);
+  gap: var(--asc-sp-2);
+  padding: clamp(4px, 0.9vh, 10px) clamp(10px, 1vw, 18px);
   border: 0;
   border-top: 1px solid var(--asc-hairline);
   border-radius: var(--asc-radius);
@@ -321,29 +321,29 @@ const heroStats = [
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: clamp(30px, 3.6vh, 38px);
-  height: clamp(30px, 3.6vh, 38px);
-  border-radius: 11px;
+  width: clamp(24px, 2.7vh, 30px);
+  height: clamp(24px, 2.7vh, 30px);
+  border-radius: 9px;
   background: var(--asc-grad-brand-soft);
   box-shadow: inset 0 0 0 1px rgba(8, 105, 173, 0.08);
   color: #0a6bad;
 }
-.landing__card-icon :deep(.asc-icon) { width: 18px; height: 18px; }
+.landing__card-icon :deep(.asc-icon) { width: clamp(13px, 1.6vh, 16px); height: clamp(13px, 1.6vh, 16px); }
 
-.landing__card-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.landing__card-text { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .landing__card-title {
   display: flex;
   align-items: center;
   gap: 6px;
   color: #14293f;
-  font-size: clamp(13.5px, 0.98vw, 14.5px);
+  font-size: clamp(12.5px, 0.9vw, 13.5px);
   font-weight: 700;
   letter-spacing: 0;
   white-space: nowrap;
 }
 .landing__card-hint {
   color: #5d7288;
-  font-size: clamp(11.5px, 0.8vw, 12.5px);
+  font-size: clamp(11px, 0.74vw, 11.5px);
   line-height: 1.5;
 }
 .landing__badge {
