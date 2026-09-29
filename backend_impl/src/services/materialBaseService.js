@@ -32,6 +32,18 @@ function requireDb() {
   return handle
 }
 
+/** 启动瞬间（database.connect 尚未 resolve）短暂等待，避免首个请求 500。 */
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)) }
+async function waitForDb(timeoutMs = 8000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const handle = getDb()
+    if (handle) return handle
+    await sleep(100)
+  }
+  return requireDb()
+}
+
 function all(handle, sql, params = []) {
   return new Promise((resolve, reject) => handle.all(sql, params, (e, rows) => (e ? reject(e) : resolve(rows || []))))
 }
@@ -41,7 +53,7 @@ function get(handle, sql, params = []) {
 /** 惰性建表：按句柄缓存结果，避免依赖启动顺序（测试注入新库时自动重新建表）。 */
 const ensuredHandles = new WeakSet()
 async function ensureReady(dbOverride) {
-  const handle = dbOverride || requireDb()
+  const handle = dbOverride || await waitForDb()
   if (!ensuredHandles.has(handle)) {
     await ensureMaterialBaseSchema(handle)
     ensuredHandles.add(handle)
@@ -454,7 +466,7 @@ async function stats() {
 
 module.exports = {
   JSON_PATH,
-  setDb, getDb, requireDb, setJsonPath, getJsonPath,
+  setDb, getDb, requireDb, waitForDb, setJsonPath, getJsonPath,
   ensureMaterialBaseSchema, ensureReady,
   listBases, getBaseById, getBaseByName, upsertBase, setBaseEnabled,
   listRules, addRule, setRuleEnabled, removeRule,
