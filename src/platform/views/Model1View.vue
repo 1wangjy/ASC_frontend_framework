@@ -42,6 +42,19 @@
             <div>
               <h3 class="m1-sec-title">输入配置</h3>
               <p class="m1-sec-sub">X_comp 组分 + X_global 全局工艺 → /api/v1/predict/simple</p>
+              <div class="m1-recipe-import">
+                <select v-model="selectedMrId" class="m1-recipe-import__select" :disabled="mrLoading || !mrOptions.length">
+                  <option value="">{{ mrOptions.length ? '从配方表带入…' : '配方表暂无数据' }}</option>
+                  <option v-for="mr in mrOptions" :key="mr.mr_id" :value="mr.mr_id">
+                    {{ mr.formula_name || mr.mr_id }}
+                  </option>
+                </select>
+                <button type="button" class="m1-link-btn" :disabled="!selectedMrId || mrLoading" @click="importFromRecipe">
+                  {{ mrLoading ? '带入中…' : '带入' }}
+                </button>
+                <span v-if="importNote" class="m1-chip m1-chip--idle">{{ importNote }}</span>
+                <span v-if="importWarning" class="m1-chip m1-chip--warn">⚠ {{ importWarning }}</span>
+              </div>
             </div>
             <button v-if="metadataError" type="button" class="m1-link-btn" @click="loadMetadata">重试元数据</button>
           </div>
@@ -602,6 +615,76 @@ function condNum(c) {
 }
 
 /* ───────────────────────── X_comp 组分编辑 ───────────────────────── */
+/* ── 从配方表带入（六张业务表 → 预测输入） ── */
+const mrOptions = ref([])
+const mrLoading = ref(false)
+const selectedMrId = ref('')
+const importNote = ref('')
+const importWarning = ref('')
+
+async function loadMrOptions() {
+  try {
+    const { getAll } = await import('../api/newData')
+    mrOptions.value = (await getAll('mr')) || []
+  } catch {
+    mrOptions.value = []
+  }
+}
+
+/** 由 mr_formula 行带入组分：优先 meta.material_id，否则按名称解析（拆解/规则）。 */
+async function importFromRecipe() {
+  const mr = mrOptions.value.find((item) => item.mr_id === selectedMrId.value)
+  if (!mr) return
+  mrLoading.value = true
+  importNote.value = ''
+  importWarning.value = ''
+  try {
+    const { resolveMaterialName, materialCoverage } = await import('../api/materialBase')
+    const list = typeof mr.component_list === 'string' ? JSON.parse(mr.component_list || '[]') : (mr.component_list || [])
+    const nextRows = []
+    const unresolvedNames = []
+    for (const tuple of list) {
+      const [name, , meta, ratio] = tuple
+      let materialId = ''
+      try {
+        const parsed = typeof meta === 'string' ? JSON.parse(meta || '{}') : (meta || {})
+        materialId = parsed.material_id || ''
+      } catch { materialId = '' }
+      if (!materialId && name) {
+        try {
+          const resolved = await resolveMaterialName(String(name))
+          if (resolved?.resolved) materialId = resolved.base.material_id || ''
+          else unresolvedNames.push(String(name))
+        } catch { unresolvedNames.push(String(name)) }
+      }
+      nextRows.push({ uid: `r${++rowSeq}`, material_id: String(materialId || ''), ratio_pct: ratio })
+    }
+    if (!nextRows.length) { importWarning.value = '该配方没有组分数据'; return }
+    rows.value = nextRows
+    importNote.value = `已带入 ${mr.formula_name || mr.mr_id}（${nextRows.length} 个组分）`
+
+    if (unresolvedNames.length) {
+      importWarning.value = `${unresolvedNames.length} 个原料未映射（请在「数据管理 → 原料 base 名」建规则）：${unresolvedNames.join('、')}`
+    } else {
+      const ids = nextRows.map((r) => r.material_id).filter(Boolean)
+      const report = await materialCoverage({ variant: selectedVariant.value || undefined, material_ids: ids })
+      const coverage = report?.coverage
+      if (coverage) {
+        importNote.value += ` · 覆盖 ${coverage.known.length}/${coverage.total}`
+        if (coverage.unknown.length) {
+          importWarning.value = `变体 ${coverage.variant} 不认识 ${coverage.unknown.length} 种原料（one-hot 恒 0）${report.recommendedVariant ? `，建议切换为 ${report.recommendedVariant}` : ''}`
+        }
+      }
+    }
+  } catch (e) {
+    importWarning.value = e?.response?.data?.message || e.message || '带入失败'
+  } finally {
+    mrLoading.value = false
+  }
+}
+
+onMounted(loadMrOptions)
+
 const rows = ref([])
 let rowSeq = 0
 
@@ -889,6 +972,8 @@ const fmtRange = (v) => (Math.abs(v) >= 100 ? Number(v).toFixed(0) : Number(v).t
 .m1-chip--idle { background: #f4f7fa; border-color: #e2e8ee; color: #7c8b98; }
 /* 预测来源下拉：外观保持 chip 质感，但可交互 */
 .m1-variant { padding: 2px 8px 2px 10px; gap: 7px; cursor: pointer; }
+.m1-recipe-import { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.m1-recipe-import__select { height: 28px; max-width: 220px; padding: 0 8px; border: 1px solid #dbe5ef; border-radius: 7px; font-size: 12.5px; background: #fff; }
 .m1-variant__label { white-space: nowrap; }
 .m1-variant__select {
   appearance: none; -webkit-appearance: none;

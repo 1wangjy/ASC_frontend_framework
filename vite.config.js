@@ -32,6 +32,18 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      // 原料 base 注册表 / 解析规则 / 覆盖报告
+      '/api/material-base': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        secure: false,
+      },
+      // 从配方（业务表）直接预测
+      '/api/predict': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api/admin': {
         target: 'http://127.0.0.1:3001',
         changeOrigin: true,

@@ -42,7 +42,7 @@
         <div class="tab-container">
           <button v-for="mt in MANAGE_TABS" :key="mt.key" :class="['tab-btn', { active: currentManageTable === mt.key }]" @click="switchManageTable(mt.key)">{{ mt.label }}</button>
         </div>
-        <div v-if="currentManageTable !== 'ml'" class="manage-toolbar">
+        <div v-if="currentManageTable !== 'ml' && currentManageTable !== 'mbase'" class="manage-toolbar">
           <input v-model="manageSearchFilter" type="text" placeholder="输入关键词搜索当前表记录..." class="filter-input" aria-label="搜索当前数据表记录" />
           <div class="manage-summary" aria-label="当前数据概览">
             <span class="manage-chip manage-chip--label">{{ currentManageTableLabel }}</span>
@@ -54,13 +54,23 @@
             <button class="btn btn-ghost" title="重新从服务端加载当前表数据" @click="loadManageData()">刷新数据</button>
           </div>
         </div>
+        <!-- 原料 base 名注册表（映射真源） -->
+        <MaterialBasePanel v-else-if="currentManageTable === 'mbase'" class="pl-eqfill pl-scroll" />
         <!-- ML 数据集已并入数据管理：载入与状态由 MlDatasetView 自身承担，此处不再重复入口 -->
-        <MlDatasetView v-if="currentManageTable === 'ml'" class="pl-eqfill pl-scroll" />
+        <MlDatasetView v-else-if="currentManageTable === 'ml'" class="pl-eqfill pl-scroll" />
         <DataTable v-else ref="tableRef" class="pl-eqfill pl-scroll" :data="manageData" :table="currentManageTable" :editing-row-id="editingRowId"
           :mc-options="dataStore.allMcData" :mp-options="dataStore.allMpData" :mr-options="dataStore.allMrData"
           :pure-properties="propertiesStore.pureMaterialProperties" :test-properties="propertiesStore.testProperties"
           @start-edit="startEdit" @cancel-edit="cancelEdit" @save-edit="saveEdit" @delete="handleDelete"
           @jump-to-tab="jumpToTab" @open-create-mp="openCreateMp" @open-create-mc="openCreateMc" />
+
+        <!-- 原料名未映射到 base 时弹出：建规则后自动重试入库 -->
+        <BaseRuleDialog
+          :visible="baseRule.visible"
+          :payload="baseRule.payload || {}"
+          @close="baseRule = { visible: false, payload: null, retry: null }"
+          @created="onBaseRuleCreated"
+        />
       </div>
     </div>
 
@@ -542,6 +552,8 @@ import { startResearchBuildFromLibrary } from '../../features/research/researchQ
 import { useGraphTaskMonitor } from '../../features/tasks/graphTaskMonitor.js'
 import { create, update, remove, getAllLiterature, toLiteraturePayload } from '../api/newData'
 import MlDatasetView from '../components/MlDatasetView.vue'
+import MaterialBasePanel from './manage/MaterialBasePanel.vue'
+import BaseRuleDialog from '../components/BaseRuleDialog.vue'
 import { removeAttachment, uploadAttachment, testMongoDB } from '../api/attachment'
 import { prepareDocumentsForGraph } from '../services/graphDocumentBridge.js'
 import { importLiteraturePdf } from '../services/literaturePdfImport.js'
@@ -560,7 +572,7 @@ import { assignComponentId, MC_TYPE_OPTIONS, MR_TYPE_OPTIONS, LIT_TYPE_OPTIONS, 
 const MAIN_TABS = [{ key: 'parse', label: '数据解析' }, { key: 'manage', label: '数据管理' }, { key: 'literature', label: '文献库管理' }, { key: 'mongodb', label: 'MongoDB测试' }]
 const PARSE_TABS = [{ key: 'recipe', label: '配方/测试解析' }, { key: 'working', label: '工况解析' }, { key: 'service', label: '服役解析' }, { key: 'reconstruct', label: '重建解析' }]
 // 六表标签顺序：配方表 → 原料表 → 测试表 → 物性表 → 工况 → 服役（ML 数据集排最后）
-const MANAGE_TABS = [{ key: 'mr', label: '配方表' }, { key: 'mc', label: '原料表' }, { key: 'tp', label: '测试表' }, { key: 'mp', label: '物性表' }, { key: 'fe', label: '工况记录' }, { key: 'ru', label: '服役记录' }, { key: 'ml', label: 'ML 数据集' }]
+const MANAGE_TABS = [{ key: 'mr', label: '配方表' }, { key: 'mc', label: '原料表' }, { key: 'mbase', label: '原料 base 名' }, { key: 'tp', label: '测试表' }, { key: 'mp', label: '物性表' }, { key: 'fe', label: '工况记录' }, { key: 'ru', label: '服役记录' }, { key: 'ml', label: 'ML 数据集' }]
 const ADD_RECORD_LABELS = { mp: '新建物性记录', tp: '新建测试记录' }
 
 const dataStore = usePlatformDataStore()
@@ -851,7 +863,7 @@ function cancelGraphSelection() {
 }
 
 function switchMainTab(tab) { if (isGraphSelectMode.value && tab !== 'literature') return; currentMainTab.value = tab; if (tab === 'manage') loadManageData(); else if (tab === 'literature') loadLitData(); else if (tab === 'mongodb') checkMongoDBStatus() }
-function switchManageTable(table) { addToNavigationHistory(); editingRowId.value = null; currentManageTable.value = table; if (table !== 'ml') loadManageData() }
+function switchManageTable(table) { addToNavigationHistory(); editingRowId.value = null; currentManageTable.value = table; if (table !== 'ml' && table !== 'mbase') loadManageData() }
 function addToNavigationHistory() { navigationHistory.value.push({ table: currentManageTable.value, scrollY: window.scrollY }); if (navigationHistory.value.length > 10) navigationHistory.value.shift() }
 function navigateBack() { const prev = navigationHistory.value.pop(); if (prev) { editingRowId.value = null; currentManageTable.value = prev.table; loadManageData() } }
 function jumpToTab(type, targetId) { addToNavigationHistory(); currentManageTable.value = type; editingRowId.value = null; loadManageData(); setTimeout(() => { highlightRowId.value = targetId; setTimeout(() => { highlightRowId.value = null }, 2000) }, 300) }
@@ -862,11 +874,35 @@ function getRowId(row, table) { return row[ID_FIELD_MAP[table]] }
 function handleDelete(row) { const id = getRowId(row, currentManageTable.value); if (!confirm('确定要删除这条记录吗？')) return; remove(currentManageTable.value, id).then(() => loadManageData()).catch(e => alert('删除失败：' + (e.message || '请重试'))) }
 function startEdit(row) { editingRowId.value = getRowId(row, currentManageTable.value) }
 function cancelEdit() { editingRowId.value = null }
-async function saveEdit(payload) { const id = editingRowId.value; if (!id) return; if ((currentManageTable.value === 'mc' || currentManageTable.value === 'mr') && payload.component_list) { const validationError = validateComponentRows(currentManageTable.value, payload.component_list); if (validationError) { alert(validationError); return } } try { await update(currentManageTable.value, id, payload); editingRowId.value = null; await loadManageData() } catch (e) { alert('保存失败：' + (e.message || '请重试')) } }
+async function saveEdit(payload) { const id = editingRowId.value; if (!id) return; if ((currentManageTable.value === 'mc' || currentManageTable.value === 'mr') && payload.component_list) { const validationError = validateComponentRows(currentManageTable.value, payload.component_list); if (validationError) { alert(validationError); return } } try { await update(currentManageTable.value, id, payload); editingRowId.value = null; await loadManageData() } catch (e) { if (unresolvedBasePayload(e)) { openBaseRuleDialog(e, () => saveEdit(payload)); return } alert('保存失败：' + (e.response?.data?.message || e.message || '请重试')) } }
 
 function openAddModal() { switch (currentManageTable.value) { case 'mc': showAddMcModal.value = true; break; case 'mr': showAddMrModal.value = true; break; case 'mp': addMpProps.value = createEmptyPropertyDocument(); addMpValid.value = true; showAddMpModal.value = true; break; case 'tp': addTpMrId.value = ''; addTpResults.value = createEmptyPropertyDocument(); addTpValid.value = true; showAddTpModal.value = true; break; case 'fe': showAddFeModal.value = true; break; case 'ru': showAddRuModal.value = true; break } }
 
-async function submitAddMc() { if (!addMcBatchNo.value) { alert('请输入批次号'); return } const validationError = validateComponentRows('mc', addMcComponents.value); if (validationError) { alert(validationError); return } try { await create('mc', { batch_no: addMcBatchNo.value, type: addMcType.value, component_list: addMcComponents.value.map(c => [c.name, c.id, '{}', Number(c.ratio)]) }); showAddMcModal.value = false; addMcBatchNo.value = ''; addMcComponents.value = [{ name: '新建原料', id: null, ratio: 100 }]; await loadManageData() } catch (e) { alert('添加失败：' + (e.message || '请重试')) } }
+// 原料 base 闸门：未映射时弹出「新建映射规则」，规则创建后自动重试入库
+const baseRule = ref({ visible: false, payload: null, retry: null })
+
+function unresolvedBasePayload(error) {
+  const data = error?.response?.data
+  if (!data) return null
+  if (data.code !== 'UNRESOLVED_BASE' && !data.unresolved) return null
+  const first = (data.unresolved && data.unresolved[0]) || {}
+  return {
+    raw: data.raw || first.raw || '',
+    suggestions: data.suggestions || first.suggestions || [],
+    ruleTemplate: data.ruleTemplate || (first.suggestedRules && first.suggestedRules[0]) || null,
+    unresolved: data.unresolved || [],
+  }
+}
+function openBaseRuleDialog(error, retry) {
+  baseRule.value = { visible: true, payload: unresolvedBasePayload(error) || {}, retry }
+}
+async function onBaseRuleCreated() {
+  const retry = baseRule.value.retry
+  baseRule.value = { visible: false, payload: null, retry: null }
+  if (typeof retry === 'function') await retry()
+}
+
+async function submitAddMc() { if (!addMcBatchNo.value) { alert('请输入批次号'); return } const validationError = validateComponentRows('mc', addMcComponents.value); if (validationError) { alert(validationError); return } try { await create('mc', { batch_no: addMcBatchNo.value, type: addMcType.value, component_list: addMcComponents.value.map(c => [c.name, c.id, '{}', Number(c.ratio)]) }); showAddMcModal.value = false; addMcBatchNo.value = ''; addMcComponents.value = [{ name: '新建原料', id: null, ratio: 100 }]; await loadManageData() } catch (e) { if (unresolvedBasePayload(e)) { openBaseRuleDialog(e, submitAddMc); return } alert('添加失败：' + (e.response?.data?.message || e.message || '请重试')) } }
 async function submitAddMr() { if (!addMrFormulaName.value) { alert('请输入配方名称'); return } const validationError = validateComponentRows('mr', addMrComponents.value); if (validationError) { alert(validationError); return } try { await create('mr', { formula_name: addMrFormulaName.value, formula_type: addMrFormulaType.value, batch_no: addMrBatchNo.value, component_list: addMrComponents.value.map(c => [c.name, c.id, '{}', Number(c.ratio)]), tp_ids: [] }); showAddMrModal.value = false; addMrFormulaName.value = ''; addMrBatchNo.value = ''; addMrComponents.value = [{ name: '新建成分', id: null, ratio: 100 }]; await loadManageData() } catch (e) { alert('添加失败：' + (e.message || '请重试')) } }
 async function submitAddMp() { if (!addMpValid.value) { alert('请先修正物性测量中的格式或单位错误'); return } try { await create('mp', { fixed_properties: addMpProps.value, custom_properties: [] }); showAddMpModal.value = false; addMpProps.value = createEmptyPropertyDocument(); await loadManageData() } catch (e) { alert('添加失败：' + (e.message || '请重试')) } }
 async function submitAddTp() { if (!addTpMrId.value) { alert('请选择关联配方'); return } if (!addTpValid.value) { alert('请先修正测试物性中的格式或单位错误'); return } try { await create('tp', { mr_id: addTpMrId.value, test_params: {}, test_results: addTpResults.value }); showAddTpModal.value = false; addTpMrId.value = ''; addTpResults.value = createEmptyPropertyDocument(); await loadManageData() } catch (e) { alert('添加失败：' + (e.message || '请重试')) } }
