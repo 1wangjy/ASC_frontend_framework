@@ -17,10 +17,21 @@ if (!fs.existsSync(uploadsDir)) {
 
 // 数据库连接
 const database = require('./config/database');
-database.connect().catch(error => {
-  console.error('Database connection failed:', error);
-  process.exit(1);
-});
+const materialBaseService = require('./services/materialBaseService');
+
+database.connect()
+  .then(async () => {
+    // 原料 base 注册表：建表（幂等）+ 首次从 data/material_base_map.json 引导种子
+    await materialBaseService.ensureReady();
+    const boot = await materialBaseService.bootstrapFromJson();
+    if (boot.inserted || boot.rulesInserted) {
+      console.log(`[material-base] bootstrapped ${boot.inserted} bases / ${boot.rulesInserted} rules from json`);
+    }
+  })
+  .catch(error => {
+    console.error('Database connection failed:', error);
+    process.exit(1);
+  });
 
 // 创建Express应用
 const app = express();
