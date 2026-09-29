@@ -18,6 +18,7 @@ if (!fs.existsSync(uploadsDir)) {
 // 数据库连接
 const database = require('./config/database');
 const materialBaseService = require('./services/materialBaseService');
+const materialBaseRoutes = require('./routes/materialBase');
 
 database.connect()
   .then(async () => {
@@ -101,6 +102,7 @@ app.use('/api/embedding', embeddingRoutes);
 app.use('/api/llm', llmRoutes);
 app.use('/api/model1', model1Routes);
 app.use('/api/material-encoder', materialEncoderRoutes);
+app.use('/api/material-base', materialBaseRoutes);
 app.use('/api/model2', model2Routes);
 app.use('/api/model3', model3Routes);
 app.use('/api/model4', model4Routes);
