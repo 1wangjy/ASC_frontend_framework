@@ -118,3 +118,33 @@
 5. 生成报告；前端携带 `task_id` 到报告页并 POST 查询状态。
 6. 报告完成后进入互动页，执行 Report Chat、CoD 查询、评价或批量采访。
 
+## 9. 原料 base 注册表与「业务表 → 预测」接口（2026-09-29 新增）
+
+把六张业务表接到预测链路：原料名先解析到规范 base（拿到模型 `material_id`），才能落到 one-hot 位
+`material_id__<id>_frac`；未映射则**不入表**并可一键建规则。
+
+| 方法与路径 | 作用 | 关键字段 |
+| --- | --- | --- |
+| `GET /api/material-base` | 注册表列表 + 统计 | query `keyword`/`enabled`；返回 `{bases, stats:{total,mapped,unmapped}}` |
+| `POST /api/material-base` | 新增/更新 base（按 `base_name` 去重） | `{base_name, material_id?, aliases?, category?}` |
+| `PUT /api/material-base/:baseId` | 启停 base | `{enabled}` |
+| `GET /api/material-base/rules` | 规则列表（按 priority 升序） | — |
+| `POST /api/material-base/rules` | 新增规则（建完即可入库） | `{kind:alias\|exact\|normalize\|keyword\|regex, pattern, target_base_id, priority?, note?}` |
+| `PUT /api/material-base/rules/:ruleId`、`DELETE …` | 启停 / 删除规则 | `{enabled}` |
+| `POST /api/material-base/resolve` | 解析一个原料名 | `{name}` → `{resolved, via, base, suggestions, suggestedRules, decomposed}` |
+| `GET /api/material-base/vocab` | 各变体 one-hot 词表规模 | `{variants:[{variant,size}]}`（实测 yangquan 26 / zibo 48 / batch183 60 / base·fill·processed 89） |
+| `POST /api/material-base/vocab/refresh` | 从模型产物重建词表 | `{variants?}` |
+| `POST /api/material-base/coverage` | 覆盖报告 | `{variant?, material_ids[]}` → `{coverage, coverageByVariant, recommendedVariant}` |
+| `GET/POST /api/material-base/export\|import` | 注册表 JSON 快照导出/导入（`data/material_base_map.json`） | 幂等 |
+| `POST /api/predict/from-formula` | **由配方/组件直接预测** | `{mr_id?}` 或 `{components:[{base_name\|material_id, ratio_pct}], globals?, conditions?, properties?, variant?, auto_switch_variant?}` |
+
+**入库闸门**：`POST /api/new-data/mc` 与 `POST /api/recipe-parser/submit` 在写库前解析原料名；
+未映射返回 **400 `UNRESOLVED_BASE`**，载荷含 `raw` / `suggestions` / `ruleTemplate`（前端据此弹出「新建 base 映射规则」，
+建好后自动重试）。通过后 `component_list` 元组第 3 位由 `'{}'` 升级为 `{base_id, material_id, base_name, raw}`（读侧兼容旧值）。
+
+**`from-formula` 语义**：
+- 变体：显式 `variant` > 模型默认（`yangquan`）。覆盖率与指标质量是两个维度，**默认不自动切换**权重；
+  覆盖不足时返回 `VARIANT_RECOMMENDED`（附建议变体），仅当显式传 `auto_switch_variant: true` 才切换（返回 `VARIANT_SWITCHED`）。
+- 告警码：`MATERIAL_NOT_IN_VOCAB`（该 id 在该变体 one-hot 中恒为 0，附 `evaluatedVariant`）、
+  `MATERIAL_WITHOUT_ID`、`MATERIAL_NOT_IN_REGISTRY`、`RATIO_NOT_100`、`GLOBALS_MISSING`。
+- `coverage` 描述**最终使用的变体**，`coverageByVariant` 保留各变体对照（含默认变体缺口）。

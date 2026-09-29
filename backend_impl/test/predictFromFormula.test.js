@@ -11,13 +11,22 @@ const { predictFromFormula, componentsFromMr } = require('../src/services/predic
 
 const SEED = path.join(__dirname, '..', '..', 'data', 'material_base_map.json');
 
+/** 测试隔离：只用种子里的 bases（不带运行期新增的规则），避免线上规则泄漏进断言。 */
+function basesOnlySeed(filePath) {
+  const snapshot = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  const target = path.join(path.dirname(filePath), `seed-bases-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  fs.writeFileSync(target, JSON.stringify({ version: snapshot.version, bases: snapshot.bases, rules: [] }), 'utf8');
+  return target;
+}
+
+
 async function withRegistry(run) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'asc-predict-formula-'));
   const db = new sqlite3.Database(path.join(dir, 'database.db'));
   svc.setDb(db);
   svc.setJsonPath(path.join(dir, 'material_base_map.json'));
   await svc.ensureMaterialBaseSchema(db);
-  await svc.bootstrapFromJson({ filePath: SEED });
+  await svc.bootstrapFromJson({ filePath: basesOnlySeed(SEED) });
   await vocab.refreshVocab({ variants: ['yangquan', 'processed'] });
   try {
     return await run(db);
@@ -80,23 +89,23 @@ test('未映射原料：400 UNRESOLVED_BASE，不调用模型', async () => {
   });
 });
 
-test('未知 material_id 进入覆盖告警并自动切换到覆盖更好的变体', async () => {
+test('未知 material_id：默认只告警 + 建议（不静默切换），显式开关才切换', async () => {
   await withRegistry(async () => {
-    const out = await predictFromFormula({
-      components: [{ material_id: '61', ratio_pct: 50 }, { material_id: '0', ratio_pct: 50 }],
-    }, { callPredict: stubModel([]) });
-    const codes = out.warnings.map((w) => w.code);
-    assert.ok(codes.includes('MATERIAL_NOT_IN_VOCAB'));
-    assert.ok(codes.includes('VARIANT_SWITCHED'));
-    assert.equal(out.variant, 'processed', '0 号原料只在 processed/base/fill 词表内');
-    // coverage 描述“最终使用的变体”（processed 覆盖 0 号原料）
-    assert.deepEqual(out.coverage.unknown, []);
-    assert.equal(out.coverage.variant, 'processed');
-    // 各变体对照里仍能看到默认变体 yangquan 的缺口
-    const yq = out.coverageByVariant.find((c) => c.variant === 'yangquan');
-    assert.deepEqual(yq.unknown, ['0']);
-    const warn = out.warnings.find((w) => w.code === 'MATERIAL_NOT_IN_VOCAB');
-    assert.equal(warn.evaluatedVariant, 'yangquan');
+    const ids = [{ material_id: '61', ratio_pct: 50 }, { material_id: '0', ratio_pct: 50 }];
+
+    const def = await predictFromFormula({ components: ids }, { callPredict: stubModel([]) });
+    const codes = def.warnings.map((w) => w.code);
+    assert.ok(codes.includes('MATERIAL_NOT_IN_VOCAB'), '应告知 one-hot 恒 0 的原料');
+    assert.ok(codes.includes('VARIANT_RECOMMENDED'), '应给出更优变体建议');
+    assert.ok(!codes.includes('VARIANT_SWITCHED'), '默认不得静默切换权重');
+    assert.equal(def.variant, 'yangquan', '默认仍用模型默认变体');
+    assert.deepEqual(def.coverage.unknown, ['0'], 'coverage 描述最终使用的变体（yangquan）');
+    assert.equal(def.coverageByVariant.find((c) => c.variant === 'yangquan').unknown.length, 1);
+
+    const sw = await predictFromFormula({ components: ids, auto_switch_variant: true }, { callPredict: stubModel([]) });
+    assert.ok(sw.warnings.some((w) => w.code === 'VARIANT_SWITCHED'));
+    assert.equal(sw.variant, 'processed');
+    assert.deepEqual(sw.coverage.unknown, [], '切换后的 coverage 应描述 processed');
   });
 });
 

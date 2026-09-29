@@ -123,12 +123,22 @@ async function predictFromFormula(input = {}, deps = {}) {
   const materialIds = resolved.map((r) => r.material_id);
   const coverageReport = await vocab.coverageReport({ variant: input.variant, materialIds, defaultVariant: DEFAULT_VARIANT });
   let variant = coverageReport.variant;
+  // 词表覆盖与指标质量是两个维度：自动切换会换掉整套权重（例如 base/processed 的 bulk_density 量纲异常），
+  // 因此默认只「告警 + 建议」，只有显式 auto_switch_variant: true 才切换。
   if (!input.variant && coverageReport.recommendedVariant) {
-    variant = coverageReport.recommendedVariant;
-    warnings.push({
-      code: 'VARIANT_SWITCHED',
-      message: `默认变体 ${coverageReport.variant} 对当前原料覆盖不足（未覆盖 ${coverageReport.coverage?.unknown?.length ?? 0} 种），已自动切换为 ${variant}`,
-    });
+    if (input.auto_switch_variant === true) {
+      variant = coverageReport.recommendedVariant;
+      warnings.push({
+        code: 'VARIANT_SWITCHED',
+        message: `默认变体 ${coverageReport.variant} 对当前原料覆盖不足（未覆盖 ${coverageReport.coverage?.unknown?.length ?? 0} 种），已按请求切换为 ${variant}；切换会改变模型权重，请核对指标`,
+      });
+    } else {
+      warnings.push({
+        code: 'VARIANT_RECOMMENDED',
+        message: `默认变体 ${coverageReport.variant} 未覆盖 ${coverageReport.coverage?.unknown?.length ?? 0} 种原料，变体 ${coverageReport.recommendedVariant} 覆盖更好；如切换请显式传 auto_switch_variant: true 或 variant 并核对指标`,
+        recommendedVariant: coverageReport.recommendedVariant,
+      });
+    }
   }
   if (coverageReport.coverage && coverageReport.coverage.unknown.length) {
     warnings.push({

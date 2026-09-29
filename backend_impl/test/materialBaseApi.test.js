@@ -11,6 +11,15 @@ const router = require('../src/routes/materialBase');
 
 const SEED = path.join(__dirname, '..', '..', 'data', 'material_base_map.json');
 
+/** 测试隔离：只用种子里的 bases（不带运行期新增的规则），避免线上规则泄漏进断言。 */
+function basesOnlySeed(filePath) {
+  const snapshot = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  const target = path.join(path.dirname(filePath), `seed-bases-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  fs.writeFileSync(target, JSON.stringify({ version: snapshot.version, bases: snapshot.bases, rules: [] }), 'utf8');
+  return target;
+}
+
+
 /** 起一个只挂该路由的临时 app（端口 0），用 fetch 验证 HTTP 契约。 */
 async function startApi() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'asc-mbase-api-'));
@@ -18,7 +27,7 @@ async function startApi() {
   svc.setDb(db);
   svc.setJsonPath(path.join(dir, 'material_base_map.json'));
   await svc.ensureMaterialBaseSchema(db);
-  await svc.bootstrapFromJson({ filePath: SEED });
+  await svc.bootstrapFromJson({ filePath: basesOnlySeed(SEED) });
 
   const app = express();
   app.use(express.json());

@@ -12,6 +12,15 @@ const newDataController = require('../src/controllers/newDataController');
 
 const SEED = path.join(__dirname, '..', '..', 'data', 'material_base_map.json');
 
+/** 测试隔离：只用种子里的 bases（不带运行期新增的规则），避免线上规则泄漏进断言。 */
+function basesOnlySeed(filePath) {
+  const snapshot = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  const target = path.join(path.dirname(filePath), `seed-bases-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  fs.writeFileSync(target, JSON.stringify({ version: snapshot.version, bases: snapshot.bases, rules: [] }), 'utf8');
+  return target;
+}
+
+
 function exec(db, sql, params = []) {
   return new Promise((resolve, reject) => db.run(sql, params, function cb(e) { e ? reject(e) : resolve(this) }));
 }
@@ -27,7 +36,7 @@ async function startApi() {
   svc.setDb(db);
   svc.setJsonPath(path.join(dir, 'material_base_map.json'));
   await svc.ensureMaterialBaseSchema(db);
-  await svc.bootstrapFromJson({ filePath: SEED });
+  await svc.bootstrapFromJson({ filePath: basesOnlySeed(SEED) });
 
   const prevDb = newDbService.db;
   newDbService.db = db;

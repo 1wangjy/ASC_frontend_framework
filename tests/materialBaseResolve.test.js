@@ -28,9 +28,17 @@ function close(db) {
 const SEED_PATH = path.join(here, '..', 'data', 'material_base_map.json')
 
 /** 从真实种子快照灌入（导出仍写临时路径，避免污染仓库 data/）。 */
+// 测试隔离：只用种子 bases，不带运行期规则（线上新增的规则会写回 data/material_base_map.json）
+function basesOnlySeedFile() {
+  const snapshot = JSON.parse(fs.readFileSync(SEED_PATH, 'utf8'))
+  const target = path.join(path.dirname(SEED_PATH), `seed-bases-${Date.now()}-${Math.random().toString(36).slice(2)}.json`)
+  fs.writeFileSync(target, JSON.stringify({ version: snapshot.version, bases: snapshot.bases, rules: [] }), 'utf8')
+  return target
+}
+
 async function seedAll() {
   await svc.ensureMaterialBaseSchema(svc.requireDb())
-  const boot = await svc.bootstrapFromJson({ filePath: SEED_PATH })
+  const boot = await svc.bootstrapFromJson({ filePath: basesOnlySeedFile() })
   return boot
 }
 

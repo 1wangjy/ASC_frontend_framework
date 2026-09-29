@@ -13,7 +13,8 @@
     "test:chat-markdown": "node --test tests/chatMarkdown.test.js",
     "test:model-sources": "node --test tests/modelSources.test.js",
     "test:landing": "node --test tests/landingCapabilities.test.js",
-    "test:model4-demo": "node --test tests/model4DemoContract.test.js"
+    "test:model4-demo": "node --test tests/model4DemoContract.test.js",
+    "test:material-base": "node --test tests/materialBaseUi.test.js tests/materialBaseResolve.test.js"
   },
   "dependencies": {
     "axios": "^1.13.2",

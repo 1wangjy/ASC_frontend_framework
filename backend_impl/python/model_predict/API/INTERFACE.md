@@ -435,3 +435,14 @@ sys.modules["__main__"].TrainOnlyFeatureFilter = model_utils.TrainOnlyFeatureFil
 ```
 
 后续重新训练时，建议把 `TrainOnlyFeatureFilter` 放到稳定模块里再训练，避免模型文件依赖脚本入口名。
+
+## 15. one-hot 词表与原料覆盖（重要）
+
+- 类别特征 `material_id` 在模型输入里展开为 `material_id__<id>_frac`，**词表随变体不同**（实测：
+  `yangquan` 26 位、`zibo` 48、`batch183` 60、`base`/`fill`/`processed` 89）。词表可从任一 bundle 的
+  `input_feature_columns` 解析（`backend_impl/scripts/dump_vocab.py`）。
+- 传入的 `material_id` 若不在**该变体**词表内，对应 one-hot 列不存在，模型看到的是"未知原料"（该位全 0）——
+  结果仍会返回，但请结合覆盖率报告判断可信度。
+- 覆盖率与指标质量是两个维度：`base`/`processed`/`fill` 词表最全，但它们的 `bulk_density` 量纲异常
+  （metrics RMSE≈130–180，预测值可达数百 g/cm3）；`yangquan` 指标最好但只认识 26 种原料。
+  因此平台侧**默认不自动切换变体**，只在覆盖不足时给出建议。
