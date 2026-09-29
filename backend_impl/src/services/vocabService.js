@@ -86,10 +86,13 @@ async function coverageFor(variant, materialIds = []) {
  * 覆盖报告：给出所选变体的覆盖情况，并在其它变体覆盖更好时给出建议。
  * @returns {{variant: string, coverage: object, perVariant: object[], recommendedVariant: string|null}}
  */
-async function coverageReport({ variant, materialIds = [] } = {}) {
+async function coverageReport({ variant, materialIds = [], defaultVariant } = {}) {
   const variants = (await listVocab()).map((v) => v.variant);
   if (!variants.length) return { variant: variant || null, coverage: null, perVariant: [], recommendedVariant: null, vocabMissing: true };
-  const target = variant && variants.includes(variant) ? variant : variants[0];
+  // 评估对象：显式指定 > 服务默认变体 > 词表最大者（兜底，仅当默认变体没刷新过词表）
+  const target = (variant && variants.includes(variant)) ? variant
+    : (defaultVariant && variants.includes(defaultVariant)) ? defaultVariant
+      : variants[0];
   const perVariant = [];
   for (const v of variants) perVariant.push(await coverageFor(v, materialIds));
   perVariant.sort((a, b) => (b.hitRate ?? -1) - (a.hitRate ?? -1) || b.vocabSize - a.vocabSize);
