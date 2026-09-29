@@ -33,12 +33,6 @@
     <section class="landing__section">
       <div class="landing__section-head">
         <h2>平台能力</h2>
-        <p>对应平台真实模块 · 入口需登录后使用</p>
-        <ul class="landing__legend" aria-label="图标配色分组说明">
-          <li v-for="group in toneLegend" :key="group.tone" :class="`landing__legend--${group.tone}`">
-            <i aria-hidden="true" />{{ group.label }}
-          </li>
-        </ul>
       </div>
       <div class="landing__cards">
         <router-link
@@ -73,13 +67,6 @@
 import AscIcon from '../components/ui/AscIcon.vue'
 import LandingHeroArt from '../components/landing/LandingHeroArt.vue'
 import { landingCapabilities as capabilities } from '../config/landingCapabilities.js'
-
-// 图标配色图例：让"按类别取色"这件事自明，而非被读成装饰
-const toneLegend = [
-  { tone: 'blue', label: '数据与知识' },
-  { tone: 'indigo', label: 'AI 问答与预测' },
-  { tone: 'amber', label: '建模与仿真' },
-]
 
 // Hero 关键数据（平台实测规模）
 const heroStats = [
@@ -253,42 +240,25 @@ const heroStats = [
 .landing__section-head {
   flex: 0 0 auto;
   display: flex;
-  align-items: baseline;
-  gap: var(--asc-sp-2);
+  align-items: center;
+  gap: clamp(12px, 1.4vw, 22px);
   margin-bottom: clamp(6px, 1vh, 12px);
 }
 .landing__section-head h2 {
+  flex: 0 0 auto;
   margin: 0;
-  font-size: var(--asc-fs-h3);
+  color: #10243c;
+  font-size: var(--asc-fs-h2);
   font-weight: 800;
   letter-spacing: 0;
 }
-.landing__section-head p { margin: 0; color: #63798f; font-size: var(--asc-fs-micro); font-weight: 500; }
-
-/* 配色图例：与卡片图标同色，解释"颜色 = 能力类别" */
-.landing__legend {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 14px;
-  margin: 0 0 0 auto;
-  padding: 0;
-  list-style: none;
+/* 仅用一条发丝延长线收尾，不堆小字 */
+.landing__section-head::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, var(--asc-hairline), rgba(16, 42, 67, 0));
 }
-.landing__legend li {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: #5f7488;
-  font-size: var(--asc-fs-micro);
-  font-weight: 600;
-  white-space: nowrap;
-}
-.landing__legend i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-/* 需带 li 前缀：否则被 .landing__legend li 的后代选择器（同权重更高）覆盖 */
-.landing__legend li.landing__legend--blue { color: #0a6bad; }
-.landing__legend li.landing__legend--indigo { color: #4f46e5; }
-.landing__legend li.landing__legend--amber { color: #b7791f; }
 
 .landing__cards {
   flex: 1 1 auto;
