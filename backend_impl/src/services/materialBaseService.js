@@ -237,6 +237,145 @@ async function bootstrapFromJson({ filePath = jsonPath } = {}) {
   return { inserted, rulesInserted, skipped, missing: false }
 }
 
+// ───────────────────────────── 名称解析 ─────────────────────────────
+// 目标：把业务表里的自由文本原料名解析到 base（从而拿到模型 material_id → one-hot 位）。
+// 顺序：精确 → 别名 → 归一化 → 规则（priority）→ 拆解；**未命中只给建议，绝不臆造**。
+
+const FORM_WORDS = ['细粉', '微粉', '超微粉', '骨料', '颗粒', '粉料', '粉体', '细粒', '粗粒',
+  '纤维', '水泥', '浇注料', '捣打料', '炮泥', '球', '砂', '粉']
+const SPEC_RE = /(\d+(?:\.\d+)?)\s*(目|mm|厘米|um|µm|μm|mesh|MM)/gi
+const BRAND_RE = /^(\d{2,3}[A-Za-z]?|[A-Z]{1,3}\d{1,3})\s*/   // 97 / 600R / CA71 / 101E …
+
+/** 全角→半角、去空白/破折号/下划线、统一符号。 */
+function normalizeName(raw) {
+  return String(raw == null ? '' : raw)
+    .replace(/[\uFF01-\uFF5E]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/[\u3000\s]/g, '')
+    .replace(/[－—_·•・]/g, '')
+    .replace(/（/g, '(').replace(/）/g, ')')
+    .trim()
+}
+
+/** 结构拆解：品牌/含量、规格（目数/粒径）、形态（粉/骨料/水泥…）、基体名。 */
+function decomposeMaterialName(raw) {
+  const normalized = normalizeName(raw)
+  const specs = [...normalized.matchAll(SPEC_RE)].map((m) => `${m[1]}${m[2]}`)
+  let rest = normalized.replace(SPEC_RE, '')
+  const forms = []
+  for (const word of FORM_WORDS) {
+    if (rest.includes(word)) { forms.push(word); rest = rest.replace(word, '') }
+  }
+  const brandMatch = rest.match(BRAND_RE)
+  const brand = brandMatch ? brandMatch[1] : ''
+  if (brand) rest = rest.slice(brandMatch[0].length)
+  const matrix = rest.replace(/[()]/g, '')
+  return { raw: String(raw == null ? '' : raw), normalized, brand, spec: specs.join('/'), form: forms[0] || '', forms, matrix }
+}
+
+function similarity(a, b) {
+  const x = normalizeName(a).toLowerCase()
+  const y = normalizeName(b).toLowerCase()
+  if (!x || !y) return 0
+  if (x === y) return 1
+  const longer = x.length >= y.length ? x : y
+  const shorter = x.length >= y.length ? y : x
+  if (longer.includes(shorter)) return 0.8 + 0.2 * (shorter.length / longer.length)
+  // 字符集重合度（中文无序匹配的粗粒度近似）
+  const setA = new Set([...x]); const setB = new Set([...y])
+  let common = 0
+  for (const ch of setA) if (setB.has(ch)) common += 1
+  return (2 * common) / (setA.size + setB.size)
+}
+
+/** 按 priority 依次试规则；返回命中的 base_id 或 null。 */
+function ruleMatches(rule, raw, normalized) {
+  const pattern = rule.pattern == null ? '' : String(rule.pattern)
+  switch (rule.kind) {
+    case 'exact': return raw === pattern ? rule.target_base_id : null
+    case 'alias': return normalized === normalizeName(pattern) ? rule.target_base_id : null
+    case 'normalize': return normalized === normalizeName(pattern) ? rule.target_base_id : null
+    case 'keyword': return normalized.includes(normalizeName(pattern)) ? rule.target_base_id : null
+    case 'regex': {
+      try { return new RegExp(pattern).test(String(raw)) ? rule.target_base_id : null } catch { return null }
+    }
+    default: return null
+  }
+}
+
+function findBaseIn(bases, predicate) {
+  return bases.find(predicate) || null
+}
+
+/**
+ * 解析原料名 → base。
+ * @returns {{resolved: boolean, via: string, base: object|null, decomposed: object, suggestions: string[], suggestedRules: object[]}}
+ */
+async function resolveMaterialBase(raw) {
+  const handle = await ensureReady()
+  const bases = (await all(handle, 'SELECT * FROM material_base WHERE enabled = 1')).map(rowToBase)
+  const rules = await all(handle, 'SELECT * FROM material_base_rule WHERE enabled = 1 ORDER BY priority ASC, rule_id ASC')
+  const text = String(raw == null ? '' : raw).trim()
+  const normalized = normalizeName(text)
+  const decomposed = decomposeMaterialName(text)
+
+  const byId = (baseId) => bases.find((b) => b.base_id === baseId) || null
+  const done = (base, via) => ({ resolved: true, via, base, decomposed, suggestions: [], suggestedRules: [] })
+
+  // 1) 精确
+  const exact = findBaseIn(bases, (b) => b.base_name === text)
+  if (exact) return done(exact, 'exact')
+  // 2) 别名（原始或归一化相等）
+  const aliasHit = findBaseIn(bases, (b) => b.aliases.some((a) => a === text || normalizeName(a) === normalized))
+  if (aliasHit) return done(aliasHit, 'alias')
+  // 3) 归一化相等
+  const normHit = findBaseIn(bases, (b) => normalizeName(b.base_name) === normalized)
+  if (normHit) return done(normHit, 'normalize')
+  // 4) 规则
+  for (const rule of rules) {
+    const targetId = ruleMatches(rule, text, normalized)
+    if (!targetId) continue
+    const base = byId(targetId)
+    if (base) return { ...done(base, 'rule'), viaRule: rule.rule_id, viaKind: rule.kind }
+  }
+  // 5) 拆解：先看基体名是否**等于**某个 base（唯一），再退化为唯一子串命中
+  if (decomposed.matrix) {
+    const matrix = normalizeName(decomposed.matrix)
+    if (matrix) {
+      const equal = bases.filter((b) => normalizeName(b.base_name) === matrix)
+      if (equal.length === 1) return done(equal[0], 'decompose')
+      // 子串命中：base 名必须是 matrix 去掉「形态词」后能完整解释的部分，
+      // 例如「棕刚玉粉」→ 棕刚玉（剩下的「粉」是形态词）；
+      // 而「高铝铝土」不能归到「高铝」（剩余「铝土」无法解释）→ 留给人建规则。
+      const isExplained = (matrixText, name) => {
+        const leftover = matrixText.split(name).join('')
+        return leftover === '' || FORM_WORDS.includes(leftover)
+      }
+      const contains = bases.filter((b) => {
+        const name = normalizeName(b.base_name)
+        if (name === matrix || name.length < 2) return false
+        if (name.includes(matrix)) return false // 形如「一级白刚玉/棕刚玉」不应抢占「棕刚玉」
+        return matrix.includes(name) && isExplained(matrix, name)
+      })
+      if (!equal.length && contains.length === 1) return done(contains[0], 'decompose')
+    }
+  }
+
+  // 未命中：给出候选与可一键新建的规则模板（不写库）
+  const suggestions = bases
+    .map((b) => ({ name: b.base_name, score: similarity(decomposed.matrix || text, b.base_name) }))
+    .filter((c) => c.score > 0.2)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+    .map((c) => c.name)
+  const suggestedRules = [
+    { kind: 'alias', pattern: text, note: `把「${text}」直接指向某个 base`, priority: 50 },
+    decomposed.matrix && decomposed.matrix !== text
+      ? { kind: 'keyword', pattern: decomposed.matrix, note: `按基体名「${decomposed.matrix}」批量指向某个 base`, priority: 200 }
+      : null,
+  ].filter(Boolean)
+  return { resolved: false, via: 'none', base: null, decomposed, suggestions, suggestedRules }
+}
+
 /** 覆盖统计：总数 / 已映射（有 material_id）/ 未映射。 */
 async function stats() {
   const handle = await ensureReady()
@@ -254,4 +393,5 @@ module.exports = {
   listBases, getBaseById, getBaseByName, upsertBase, setBaseEnabled,
   listRules, addRule, setRuleEnabled, removeRule,
   exportJson, bootstrapFromJson, stats,
+  normalizeName, decomposeMaterialName, resolveMaterialBase,
 }
