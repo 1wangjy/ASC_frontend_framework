@@ -57,7 +57,19 @@ test('capability coverage matches the real modules', () => {
     '性能预测', '配方优化', '仿真重建', '服役预测',
   ])
   const LINE_ICONS = ['book', 'database', 'graph', 'chat', 'chart', 'flask', 'cube', 'thermometer']
+  const TONES = ['blue', 'teal', 'indigo', 'amber']
   for (const cap of landingCapabilities) {
     assert.ok(LINE_ICONS.includes(cap.icon), `${cap.title} 的 icon 应为 AscIcon 线性图标名，当前：${cap.icon}`)
+    assert.ok(TONES.includes(cap.tone), `${cap.title} 的 tone 非法：${cap.tone}`)
   }
+  // 配色是语义分组而非装饰：每组至少 2 张卡，避免出现单张"孤色"造成的视觉偏重
+  const counts = landingCapabilities.reduce((acc, cap) => ({ ...acc, [cap.tone]: (acc[cap.tone] || 0) + 1 }), {})
+  for (const [tone, count] of Object.entries(counts)) {
+    assert.ok(count >= 2, `tone ${tone} 只出现 ${count} 次，应至少 2 次`)
+  }
+  assert.deepEqual(
+    landingCapabilities.map((c) => c.tone),
+    ['blue', 'blue', 'blue', 'indigo', 'indigo', 'amber', 'amber', 'amber'],
+    '配色应按类别成组排列（数据资产 → AI 能力 → 建模仿真）',
+  )
 })

@@ -24,14 +24,8 @@
         </ul>
       </div>
       <div class="landing__visual">
-        <div class="landing__vis-grid" aria-hidden="true"></div>
-        <div class="landing__vis-orb" aria-hidden="true"></div>
         <p class="landing__vis-caption">研究链路 · 贯通式</p>
-        <ol class="landing__vis-steps">
-          <li v-for="(step, i) in pipelineSteps" :key="step">
-            <span>{{ String(i + 1).padStart(2, '0') }}</span>{{ step }}
-          </li>
-        </ol>
+        <LandingHeroArt class="landing__vis-art" />
       </div>
     </section>
 
@@ -40,13 +34,18 @@
       <div class="landing__section-head">
         <h2>平台能力</h2>
         <p>对应平台真实模块 · 入口需登录后使用</p>
+        <ul class="landing__legend" aria-label="图标配色分组说明">
+          <li v-for="group in toneLegend" :key="group.tone" :class="`landing__legend--${group.tone}`">
+            <i aria-hidden="true" />{{ group.label }}
+          </li>
+        </ul>
       </div>
       <div class="landing__cards">
         <router-link
           v-for="cap in capabilities"
           :key="cap.title"
           class="landing__card"
-          :class="{ 'landing__card--wip': cap.status !== '已上线' }"
+          :class="[{ 'landing__card--wip': cap.status !== '已上线' }, `landing__card--${cap.tone}`]"
           :to="cap.route"
         >
           <span class="landing__card-icon"><AscIcon :name="cap.icon" /></span>
@@ -72,10 +71,15 @@
 // 宣传首页：整页一屏（≥1180px 宽不滚动）。卡片数据在 config/landingCapabilities.js，
 // 与平台真实模块一一对应（状态取自各模块实现，入口由单测校验不产生死链）。
 import AscIcon from '../components/ui/AscIcon.vue'
+import LandingHeroArt from '../components/landing/LandingHeroArt.vue'
 import { landingCapabilities as capabilities } from '../config/landingCapabilities.js'
 
-// 主视觉里的真实研究链路（与平台模块一致）
-const pipelineSteps = ['文献入库', '图谱构建', '问题研究', '性能预测', '报告沉淀']
+// 图标配色图例：让"按类别取色"这件事自明，而非被读成装饰
+const toneLegend = [
+  { tone: 'blue', label: '数据与知识' },
+  { tone: 'indigo', label: 'AI 问答与预测' },
+  { tone: 'amber', label: '建模与仿真' },
+]
 
 // Hero 关键数据（平台实测规模）
 const heroStats = [
@@ -209,7 +213,7 @@ const heroStats = [
 }
 .landing__stats span { color: #5c7591; font-size: var(--asc-fs-caption); font-weight: 500; }
 
-/* 主视觉：品牌渐变面板 + 内部高光，承载真实研究链路 */
+/* 主视觉：品牌渐变面板 + 链路插画 */
 .landing__visual {
   position: relative;
   align-self: stretch;
@@ -224,38 +228,9 @@ const heroStats = [
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), var(--asc-shadow-lg);
   overflow: hidden;
 }
-.landing__vis-grid {
-  position: absolute; inset: 0;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-.landing__vis-orb {
-  position: absolute; top: 52%; left: 50%;
-  width: clamp(110px, 16vh, 200px); height: clamp(110px, 16vh, 200px);
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(150, 226, 252, 0.9), rgba(10, 105, 173, 0.12) 58%, transparent 72%);
-  box-shadow: 0 0 96px rgba(190, 240, 255, 0.32);
-}
-.landing__vis-caption {
-  position: absolute; top: clamp(12px, 2vh, 20px); left: clamp(14px, 1.4vw, 22px);
-  margin: 0; color: rgba(233, 245, 253, 0.78);
-  font-size: var(--asc-fs-micro); font-weight: 600; letter-spacing: 0.18em;
-}
-.landing__vis-steps {
-  position: absolute; left: clamp(14px, 1.4vw, 22px); right: clamp(14px, 1.4vw, 22px); bottom: clamp(12px, 2vh, 20px);
-  display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none;
-}
-.landing__vis-steps li {
-  display: inline-flex; align-items: center; gap: 6px;
-  color: rgba(240, 248, 254, 0.94);
-  font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em;
-}
-.landing__vis-steps span {
-  color: rgba(173, 222, 250, 0.9);
-  font-family: var(--asc-font-mono);
-  font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em;
+.landing__vis-art {
+  position: absolute;
+  inset: clamp(24px, 3.6vh, 40px) clamp(10px, 1vw, 18px) clamp(14px, 2vh, 22px);
 }
 
 /* ── 平台能力（1/4）：无框细栏 + 发丝分隔线界定区域 ── */
@@ -289,6 +264,31 @@ const heroStats = [
   letter-spacing: 0;
 }
 .landing__section-head p { margin: 0; color: #63798f; font-size: var(--asc-fs-micro); font-weight: 500; }
+
+/* 配色图例：与卡片图标同色，解释"颜色 = 能力类别" */
+.landing__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+}
+.landing__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #5f7488;
+  font-size: var(--asc-fs-micro);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.landing__legend i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+/* 需带 li 前缀：否则被 .landing__legend li 的后代选择器（同权重更高）覆盖 */
+.landing__legend li.landing__legend--blue { color: #0a6bad; }
+.landing__legend li.landing__legend--indigo { color: #4f46e5; }
+.landing__legend li.landing__legend--amber { color: #b7791f; }
 
 .landing__cards {
   flex: 1 1 auto;
@@ -324,11 +324,24 @@ const heroStats = [
   width: clamp(24px, 2.7vh, 30px);
   height: clamp(24px, 2.7vh, 30px);
   border-radius: 9px;
-  background: var(--asc-grad-brand-soft);
-  box-shadow: inset 0 0 0 1px rgba(8, 105, 173, 0.08);
-  color: #0a6bad;
+  background: var(--tile-bg, var(--asc-grad-brand-soft));
+  box-shadow: inset 0 0 0 1px var(--tile-ring, rgba(8, 105, 173, 0.08));
+  color: var(--tile-fg, #0a6bad);
+  transition: transform var(--asc-transition-base), box-shadow var(--asc-transition-base);
 }
-.landing__card-icon :deep(.asc-icon) { width: clamp(13px, 1.6vh, 16px); height: clamp(13px, 1.6vh, 16px); }
+.landing__card-icon :deep(.asc-icon) {
+  width: clamp(14px, 1.7vh, 17px);
+  height: clamp(14px, 1.7vh, 17px);
+  stroke-width: 2;
+}
+.landing__card:hover .landing__card-icon { transform: scale(1.06); box-shadow: inset 0 0 0 1px var(--tile-ring, rgba(8, 105, 173, 0.12)), 0 4px 12px var(--tile-glow, rgba(8, 105, 173, 0.16)); }
+
+/* 模块色彩分组（同一品牌内四个色相，避免杂色） */
+/* 色调提高到"一眼可辨"的强度：底色更实、描边更亮，缩略图下也能读出分组 */
+.landing__card--blue   { --tile-bg: linear-gradient(135deg, #d9eafb, #eef6ff); --tile-ring: rgba(8, 105, 173, 0.22);  --tile-fg: #0a6bad; --tile-glow: rgba(8, 105, 173, 0.2); }
+.landing__card--indigo { --tile-bg: linear-gradient(135deg, #d9ddfb, #ecefff); --tile-ring: rgba(79, 70, 229, 0.28);  --tile-fg: #4f46e5; --tile-glow: rgba(79, 70, 229, 0.22); }
+.landing__card--amber  { --tile-bg: linear-gradient(135deg, #fae6c8, #fff6e6); --tile-ring: rgba(183, 121, 31, 0.26); --tile-fg: #a86c12; --tile-glow: rgba(183, 121, 31, 0.2); }
+.landing__card--teal   { --tile-bg: linear-gradient(135deg, #d6f1ec, #eefaf7); --tile-ring: rgba(15, 118, 110, 0.22);  --tile-fg: #0f766e; --tile-glow: rgba(15, 118, 110, 0.2); }
 
 .landing__card-text { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .landing__card-title {
@@ -342,8 +355,8 @@ const heroStats = [
   white-space: nowrap;
 }
 .landing__card-hint {
-  color: #5d7288;
-  font-size: clamp(11px, 0.74vw, 11.5px);
+  color: #4a6076;
+  font-size: clamp(11.5px, 0.76vw, 12px);
   line-height: 1.5;
 }
 .landing__badge {
@@ -369,9 +382,10 @@ const heroStats = [
 .landing__card-arrow--muted { color: #cbd8e3; }
 .landing__card--wip:hover .landing__card-arrow { color: #cbd8e3; transform: rotate(-90deg); }
 
-.landing__card--wip { opacity: 0.72; }
+.landing__card--wip { opacity: 0.8; }
 .landing__card--wip .landing__card-icon { background: #f2f5f9; box-shadow: none; color: #8ea2b5; }
 .landing__card--wip .landing__card-title { color: #55708a; }
+.landing__card--wip .landing__card-hint { color: #7d8fa3; }
 .landing__card--wip:hover { background: rgba(10, 140, 200, 0.03); cursor: default; }
 
 /* 窄屏：列数递减；宽度不足时放宽"一屏不滚动"，优先保证可读 */
