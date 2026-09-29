@@ -2,6 +2,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const database = require('../config/database');
 const { PURE_MATERIAL_PROPERTIES, TEST_PROPERTIES, toFixedAndCustomProperties } = require('../config/properties-def');
+const { resolveComponentsForInsert, unresolvedBaseError } = require('../services/materialBaseService');
 
 class RecipeParserController {
   constructor() {
@@ -138,6 +139,18 @@ print(json.dumps(result, ensure_ascii=False))
       // 导入idGenerator
       const idGenerator = require('../utils/idGenerator');
       
+      // 原料 base 闸门：未映射到规范 base 的原料名不得入库（前端据此弹出「新建映射规则」）
+      const gate = await resolveComponentsForInsert(components.map((c) => ({ raw: c.original })));
+      if (gate.unresolved.length) {
+        const error = unresolvedBaseError(gate.unresolved);
+        return res.status(400).json({ code: 'UNRESOLVED_BASE', message: error.message, ...error.payload });
+      }
+      const resolvedByRaw = new Map(gate.resolved.map((r) => [r.raw, r]));
+      const baseMetaFor = (raw) => {
+        const hit = resolvedByRaw.get(String(raw == null ? '' : raw).trim());
+        return hit ? { base_id: hit.base_id, material_id: hit.material_id || '', base_name: hit.base_name, raw: hit.raw } : {};
+      };
+
       // 处理组件，确保所有原料都在数据库中存在
       const processedComponents = [];
       for (const comp of components) {
@@ -209,7 +222,7 @@ print(json.dumps(result, ensure_ascii=False))
                 materialId,
                 '', // 批次号置空
                 materialType, // 使用前端传递的类型
-                JSON.stringify([[comp.original || 'New Material', mpId, JSON.stringify({}), 100]]),
+                JSON.stringify([[comp.original || 'New Material', mpId, JSON.stringify(baseMetaFor(comp.original)), 100]]),
                 0,
                 new Date().toISOString(),
                 new Date().toISOString()
@@ -237,7 +250,7 @@ print(json.dumps(result, ensure_ascii=False))
         processedComponents.push([
           comp.original || '',
           materialId,
-          JSON.stringify({}),
+          JSON.stringify(baseMetaFor(comp.original)),
           parseFloat(comp.percentage) || 0
         ]);
       }

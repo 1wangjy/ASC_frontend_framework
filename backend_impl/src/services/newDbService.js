@@ -501,6 +501,16 @@ class NewDbService {
     for (const mpId of mpIds) {
       if (!await this.getMp(mpId)) throw new Error(`MP not found: ${mpId}`);
     }
+
+    // 原料 base 闸门：不合规的 base 名不得入表（由调用方转成 400 + 可一键建规则的载荷）
+    const { resolveComponentsForInsert, unresolvedBaseError, upgradeComponentMeta } = require('./materialBaseService');
+    const { resolved, unresolved } = await resolveComponentsForInsert(
+      componentList.map((tuple) => ({ raw: tuple && tuple[0], material_id: null })),
+      { db: this.db }
+    );
+    if (unresolved.length) throw unresolvedBaseError(unresolved);
+    componentList = upgradeComponentMeta(componentList, resolved);
+
     const mcId = idGenerator.generateMcId();
     const now = idGenerator.getCurrentTimestamp();
     const isMixed = componentList.length > 1;

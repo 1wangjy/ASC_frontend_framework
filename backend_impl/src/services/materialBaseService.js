@@ -40,8 +40,8 @@ function get(handle, sql, params = []) {
 }
 /** 惰性建表：按句柄缓存结果，避免依赖启动顺序（测试注入新库时自动重新建表）。 */
 const ensuredHandles = new WeakSet()
-async function ensureReady() {
-  const handle = requireDb()
+async function ensureReady(dbOverride) {
+  const handle = dbOverride || requireDb()
   if (!ensuredHandles.has(handle)) {
     await ensureMaterialBaseSchema(handle)
     ensuredHandles.add(handle)
@@ -237,6 +237,72 @@ async function bootstrapFromJson({ filePath = jsonPath } = {}) {
   return { inserted, rulesInserted, skipped, missing: false }
 }
 
+// ───────────────────── 入库闸门（业务表 → base/material_id） ─────────────────────
+
+/** 兼容旧元组里的 '{}' 字符串与新对象元数据。 */
+function parseComponentMeta(meta) {
+  if (meta && typeof meta === 'object') return meta
+  if (typeof meta === 'string' && meta.trim()) {
+    try {
+      const parsed = JSON.parse(meta)
+      if (parsed && typeof parsed === 'object') return parsed
+    } catch { /* 旧数据非 JSON */ }
+  }
+  return {}
+}
+
+function componentMeta(entry) {
+  return { base_id: entry.base_id, material_id: entry.material_id || '', base_name: entry.base_name, raw: entry.raw }
+}
+
+/**
+ * 闸门：把一批原料名解析成 base（写库前调用）。
+ * @param items [{ raw, material_id? }]
+ * @returns {{resolved: object[], unresolved: object[]}}
+ */
+async function resolveComponentsForInsert(items = [], { db } = {}) {
+  const handle = await ensureReady(db)
+  // 注册表为空（尚未 seed / 未初始化）时不硬拦：否则任何名称都无法入表，连引导都做不了
+  const active = await get(handle, 'SELECT COUNT(*) AS n FROM material_base WHERE enabled = 1')
+  if (!Number(active && active.n)) {
+    return { resolved: [], unresolved: [], skipped: true, reason: 'registry-empty' }
+  }
+  const resolved = []
+  const unresolved = []
+  for (const item of items) {
+    const raw = String(item && item.raw != null ? item.raw : '').trim()
+    if (!raw) { unresolved.push({ raw, suggestions: [], suggestedRules: [], message: '空原料名' }); continue }
+    const result = await resolveMaterialBase(raw, { db })
+    if (result.resolved) {
+      resolved.push({ raw, via: result.via, base_id: result.base.base_id, base_name: result.base.base_name, material_id: result.base.material_id })
+    } else {
+      unresolved.push({ raw, suggestions: result.suggestions, suggestedRules: result.suggestedRules, decomposed: result.decomposed })
+    }
+  }
+  return { resolved, unresolved, skipped: false }
+}
+
+/** 闸门失败时抛出，路由层据此返回 400 与可一键建规则的载荷。 */
+function unresolvedBaseError(unresolved) {
+  const first = unresolved[0] || {}
+  const error = new Error(`原料名未映射到规范 base：${unresolved.map((u) => u.raw).join('、')}`)
+  error.code = 'UNRESOLVED_BASE'
+  error.status = 400
+  error.payload = { unresolved, raw: first.raw || '', suggestions: first.suggestions || [], ruleTemplate: (first.suggestedRules || [])[0] || null }
+  return error
+}
+
+/** 把 mc/mr 的 component_list 元组第 3 位从 '{}' 升级为 {base_id, material_id, raw}。 */
+function upgradeComponentMeta(componentList = [], resolved = []) {
+  const byRaw = new Map(resolved.map((r) => [r.raw, r]))
+  return componentList.map((tuple) => {
+    const [name, refId, meta, ratio] = tuple
+    const hit = byRaw.get(String(name || '').trim()) || byRaw.get(String((parseComponentMeta(meta) || {}).raw || '').trim())
+    if (!hit) return tuple
+    return [name, refId, JSON.stringify(componentMeta(hit)), ratio]
+  })
+}
+
 // ───────────────────────────── 名称解析 ─────────────────────────────
 // 目标：把业务表里的自由文本原料名解析到 base（从而拿到模型 material_id → one-hot 位）。
 // 顺序：精确 → 别名 → 归一化 → 规则（priority）→ 拆解；**未命中只给建议，绝不臆造**。
@@ -310,8 +376,8 @@ function findBaseIn(bases, predicate) {
  * 解析原料名 → base。
  * @returns {{resolved: boolean, via: string, base: object|null, decomposed: object, suggestions: string[], suggestedRules: object[]}}
  */
-async function resolveMaterialBase(raw) {
-  const handle = await ensureReady()
+async function resolveMaterialBase(raw, { db } = {}) {
+  const handle = await ensureReady(db)
   const bases = (await all(handle, 'SELECT * FROM material_base WHERE enabled = 1')).map(rowToBase)
   const rules = await all(handle, 'SELECT * FROM material_base_rule WHERE enabled = 1 ORDER BY priority ASC, rule_id ASC')
   const text = String(raw == null ? '' : raw).trim()
@@ -394,4 +460,5 @@ module.exports = {
   listRules, addRule, setRuleEnabled, removeRule,
   exportJson, bootstrapFromJson, stats,
   normalizeName, decomposeMaterialName, resolveMaterialBase,
+  parseComponentMeta, componentMeta, resolveComponentsForInsert, unresolvedBaseError, upgradeComponentMeta,
 }

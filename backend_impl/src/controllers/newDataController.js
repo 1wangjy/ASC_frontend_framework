@@ -139,6 +139,13 @@ exports.createMc = async (req, res) => {
     const result = await newDbService.createMc(batch_no, type, component_list);
     res.json({ success: true, data: result });
   } catch (error) {
+    if (error && error.code === 'UNRESOLVED_BASE') {
+      return res.status(error.status || 400).json({
+        code: 'UNRESOLVED_BASE',
+        message: error.message,
+        ...(error.payload || {}),
+      });
+    }
     console.error('Error creating MC:', error);
     res.status(500).json({ success: false, error: error.message });
   }
