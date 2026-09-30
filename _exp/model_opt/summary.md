@@ -1,7 +1,7 @@
 # 性质预测模型优化实验（隔离环境 `_exp/model_opt`）
 
-- 组数：43（含失败 0）
-- 记录条数：172（属性 × 组）
+- 组数：46（含失败 0）
+- 记录条数：184（属性 × 组）
 - 协议：`make_long_property_frame`（交接脚本工况展开）→ `split_by_recipe(test 0.2, seed 42)` → `GroupKFold(3)`
 - 指标口径：`test_rmse` 为主（越小越好），附 `cv_rmse`、`test_r2`
 
