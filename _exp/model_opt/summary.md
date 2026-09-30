@@ -1,7 +1,7 @@
 # 性质预测模型优化实验（隔离环境 `_exp/model_opt`）
 
-- 组数：46（含失败 0）
-- 记录条数：184（属性 × 组）
+- 组数：41（含失败 0）
+- 记录条数：164（属性 × 组）
 - 协议：`make_long_property_frame`（交接脚本工况展开）→ `split_by_recipe(test 0.2, seed 42)` → `GroupKFold(3)`
 - 指标口径：`test_rmse` 为主（越小越好），附 `cv_rmse`、`test_r2`
 
@@ -65,8 +65,8 @@
 - 1.7881 (R² 0.819, cv 3.1551) — R0G0 baseline(deployed: xgboost + extra_trees) @ yangquan
 - 1.7881 (R² 0.819, cv 3.1551) — R1G3 model:extra_trees @ yangquan
 - 1.8231 (R² -0.019, cv 1.7402) — R5G4 variant:zibo @ zibo
-- 1.8231 (R² -0.019, cv 1.7402) — R5G4 variant:zibo @ zibo
 - 1.8959 (R² 0.797, cv 3.1321) — R1G6 model:xgboost(default) @ yangquan
+- 1.9304 (R² 0.790, cv 3.2370) — R3G5 lgbm:{"n_estimators": 600, "learning_rate": 0.03, "num_leaves":  @ yangquan
 
 **常温耐压强度**
 - 6.2492 (R² 0.870, cv 7.9834) — R1G6 model:xgboost(default) @ yangquan
