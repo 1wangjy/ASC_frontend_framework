@@ -1,0 +1,64 @@
+{
+  "current_path": "/mnt/e/Users/shin/share/jbook/00-VIBE-Project/Report-ASC/ASC_frontend_framework/backend_impl/python",
+  "real_path": "/mnt/e/Users/shin/share/jbook/00-VIBE-Project/Report-ASC/ASC_frontend_framework/_code/python",
+  "cases": [
+    {
+      "content": "骨料 棕刚玉 5-3mm 30%\n细粉 97黑碳化硅 325目 20%\n结合剂 CA71水泥 10%\n微粉 95硅灰 40%",
+      "current": {
+        "returncode": 1,
+        "stderr_tail": "ModuleNotFoundError: No module named 'recipe_processor'",
+        "stdout": ""
+      },
+      "fixed": {
+        "returncode": 0,
+        "stderr_tail": "",
+        "keys": [
+          "components",
+          "embedding",
+          "embedding_shape",
+          "errors",
+          "matched_materials",
+          "success",
+          "warnings"
+        ],
+        "embedding_shape": [
+          0,
+          0
+        ],
+        "component_count": 0,
+        "component_sample": null,
+        "has_particle_size": false,
+        "has_base_id": false
+      }
+    },
+    {
+      "content": "骨料，棕刚玉，8-15mm，40%\n*体积密度: 3.05 g/cm3\n*常温耐压: 45 MPa",
+      "current": {
+        "returncode": 1,
+        "stderr_tail": "ModuleNotFoundError: No module named 'recipe_processor'",
+        "stdout": ""
+      },
+      "fixed": {
+        "returncode": 0,
+        "stderr_tail": "",
+        "keys": [
+          "components",
+          "embedding",
+          "embedding_shape",
+          "errors",
+          "matched_materials",
+          "success",
+          "warnings"
+        ],
+        "embedding_shape": [
+          0,
+          0
+        ],
+        "component_count": 0,
+        "component_sample": null,
+        "has_particle_size": false,
+        "has_base_id": false
+      }
+    }
+  ]
+}

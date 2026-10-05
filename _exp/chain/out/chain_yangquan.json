@@ -1,0 +1,277 @@
+{
+  "summary": {
+    "variant": "yangquan",
+    "samples": 20,
+    "samples_ok": 20,
+    "rows": 258,
+    "parsing": {
+      "material_id_accuracy": 1.0,
+      "ratio_accuracy": 1.0,
+      "particle_size_min_accuracy": 1.0,
+      "particle_size_max_accuracy": 1.0,
+      "particle_size_recall": 1.0,
+      "rows_truth_with_size": 225,
+      "size_lost_rows": 0,
+      "all_rows_parsed": 258
+    },
+    "prediction_rmse_by_path": {
+      "A": {
+        "bulk_density": {
+          "n": 45,
+          "rmse": 0.1729,
+          "mae": 0.1248
+        },
+        "cold_modulus": {
+          "n": 45,
+          "rmse": 1.9798,
+          "mae": 1.4446
+        },
+        "crushing_strength": {
+          "n": 44,
+          "rmse": 9.5843,
+          "mae": 7.9021
+        },
+        "linear_change": {
+          "n": 25,
+          "rmse": 0.1009,
+          "mae": 0.0788
+        }
+      },
+      "B": {
+        "bulk_density": {
+          "n": 45,
+          "rmse": 0.0187,
+          "mae": 0.0151
+        },
+        "cold_modulus": {
+          "n": 45,
+          "rmse": 0.1739,
+          "mae": 0.0664
+        },
+        "crushing_strength": {
+          "n": 44,
+          "rmse": 0.691,
+          "mae": 0.3415
+        },
+        "linear_change": {
+          "n": 25,
+          "rmse": 0.0261,
+          "mae": 0.0184
+        }
+      },
+      "C": {
+        "bulk_density": {
+          "n": 45,
+          "rmse": 0.1756,
+          "mae": 0.127
+        },
+        "cold_modulus": {
+          "n": 45,
+          "rmse": 2.2856,
+          "mae": 1.661
+        },
+        "crushing_strength": {
+          "n": 44,
+          "rmse": 10.7946,
+          "mae": 8.6263
+        },
+        "linear_change": {
+          "n": 25,
+          "rmse": 0.1055,
+          "mae": 0.0839
+        }
+      },
+      "D": {
+        "bulk_density": {
+          "n": 45,
+          "rmse": 0.0187,
+          "mae": 0.0151
+        },
+        "cold_modulus": {
+          "n": 45,
+          "rmse": 0.1739,
+          "mae": 0.0664
+        },
+        "crushing_strength": {
+          "n": 44,
+          "rmse": 0.691,
+          "mae": 0.3415
+        },
+        "linear_change": {
+          "n": 25,
+          "rmse": 0.0261,
+          "mae": 0.0184
+        }
+      }
+    },
+    "error_ratio_vs_D": {
+      "A": {
+        "bulk_density": 9.246,
+        "cold_modulus": 11.385,
+        "crushing_strength": 13.87,
+        "linear_change": 3.866
+      },
+      "B": {
+        "bulk_density": 1.0,
+        "cold_modulus": 1.0,
+        "crushing_strength": 1.0,
+        "linear_change": 1.0
+      },
+      "C": {
+        "bulk_density": 9.39,
+        "cold_modulus": 13.143,
+        "crushing_strength": 15.622,
+        "linear_change": 4.042
+      }
+    },
+    "n_predictions": {
+      "A": 159,
+      "B": 159,
+      "C": 159,
+      "D": 159
+    }
+  },
+  "samples": [
+    {
+      "recipe_id": "BZ20250421-004",
+      "mismatches": 0,
+      "rows": 26,
+      "components_parsed": 26,
+      "size_written": 21
+    },
+    {
+      "recipe_id": "BZ20251103-003",
+      "mismatches": 0,
+      "rows": 13,
+      "components_parsed": 13,
+      "size_written": 12
+    },
+    {
+      "recipe_id": "BZ20250804-003",
+      "mismatches": 0,
+      "rows": 13,
+      "components_parsed": 13,
+      "size_written": 12
+    },
+    {
+      "recipe_id": "BZ20250820-001",
+      "mismatches": 0,
+      "rows": 13,
+      "components_parsed": 13,
+      "size_written": 10
+    },
+    {
+      "recipe_id": "BZ20250709-001",
+      "mismatches": 0,
+      "rows": 10,
+      "components_parsed": 10,
+      "size_written": 9
+    },
+    {
+      "recipe_id": "BZ20250314-004",
+      "mismatches": 0,
+      "rows": 14,
+      "components_parsed": 14,
+      "size_written": 11
+    },
+    {
+      "recipe_id": "BZ20251028-005",
+      "mismatches": 0,
+      "rows": 13,
+      "components_parsed": 13,
+      "size_written": 11
+    },
+    {
+      "recipe_id": "BZ20250120-003",
+      "mismatches": 0,
+      "rows": 13,
+      "components_parsed": 13,
+      "size_written": 10
+    },
+    {
+      "recipe_id": "BZ20250628-003",
+      "mismatches": 0,
+      "rows": 11,
+      "components_parsed": 11,
+      "size_written": 11
+    },
+    {
+      "recipe_id": "BZ20250416-001",
+      "mismatches": 0,
+      "rows": 11,
+      "components_parsed": 11,
+      "size_written": 10
+    },
+    {
+      "recipe_id": "BZ20251219-003",
+      "mismatches": 0,
+      "rows": 11,
+      "components_parsed": 11,
+      "size_written": 11
+    },
+    {
+      "recipe_id": "BZ20251119-006",
+      "mismatches": 0,
+      "rows": 13,
+      "components_parsed": 13,
+      "size_written": 11
+    },
+    {
+      "recipe_id": "BZ20250219-008",
+      "mismatches": 0,
+      "rows": 10,
+      "components_parsed": 10,
+      "size_written": 9
+    },
+    {
+      "recipe_id": "BZ20250102-002",
+      "mismatches": 0,
+      "rows": 14,
+      "components_parsed": 14,
+      "size_written": 12
+    },
+    {
+      "recipe_id": "BZ20251030-005",
+      "mismatches": 0,
+      "rows": 14,
+      "components_parsed": 14,
+      "size_written": 11
+    },
+    {
+      "recipe_id": "BZ20251103-004",
+      "mismatches": 0,
+      "rows": 13,
+      "components_parsed": 13,
+      "size_written": 11
+    },
+    {
+      "recipe_id": "BZ20250724-007",
+      "mismatches": 0,
+      "rows": 11,
+      "components_parsed": 11,
+      "size_written": 11
+    },
+    {
+      "recipe_id": "BZ20251023-004",
+      "mismatches": 0,
+      "rows": 10,
+      "components_parsed": 10,
+      "size_written": 10
+    },
+    {
+      "recipe_id": "BZ20251015-001",
+      "mismatches": 0,
+      "rows": 11,
+      "components_parsed": 11,
+      "size_written": 11
+    },
+    {
+      "recipe_id": "BZ20250227-005",
+      "mismatches": 0,
+      "rows": 14,
+      "components_parsed": 14,
+      "size_written": 11
+    }
+  ],
+  "mismatches": []
+}
