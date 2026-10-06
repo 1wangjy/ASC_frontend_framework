@@ -610,8 +610,9 @@ watch(
   align-items: center;
   gap: 10px;
   min-height: 36px;
-  margin: 1px 0 1px 8px;
-  padding: 0 12px 0 16px;
+  /* 左右留白比原值缩小 1/3（8→5、16→11、12→8），使子项标题更贴近两侧 */
+  margin: 1px 0 1px 5px;
+  padding: 0 8px 0 11px;
   border-radius: 7px;
   border-left: 1px solid rgba(255, 255, 255, 0.14);
   color: #bcd3e6;
@@ -641,7 +642,7 @@ watch(
   box-shadow: 0 0 0 3px rgba(79, 183, 236, 0.18);
 }
 .nav-subitem--locked {
-  width: calc(100% - 8px);
+  width: calc(100% - 5px);
   border: 0;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
   background: transparent;
