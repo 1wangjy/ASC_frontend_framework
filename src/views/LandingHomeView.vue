@@ -25,7 +25,13 @@
       </div>
       <div class="landing__visual">
         <p class="landing__vis-caption">研究链路 · 贯通式</p>
-        <LandingHeroArt class="landing__vis-art" />
+        <img
+          class="landing__vis-art"
+          src="/landing-hero.png"
+          alt="研究链路示意：文献入库、图谱构建、问题研究、性能预测、报告沉淀"
+          loading="eager"
+          decoding="async"
+        />
       </div>
     </section>
 
@@ -65,7 +71,6 @@
 // 宣传首页：整页一屏（≥1180px 宽不滚动）。卡片数据在 config/landingCapabilities.js，
 // 与平台真实模块一一对应（状态取自各模块实现，入口由单测校验不产生死链）。
 import AscIcon from '../components/ui/AscIcon.vue'
-import LandingHeroArt from '../components/landing/LandingHeroArt.vue'
 import { landingCapabilities as capabilities } from '../config/landingCapabilities.js'
 
 // Hero 关键数据（平台实测规模）
@@ -215,9 +220,29 @@ const heroStats = [
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), var(--asc-shadow-lg);
   overflow: hidden;
 }
+.landing__vis-caption {
+  position: absolute;
+  z-index: 1;
+  inset: 0 0 auto;
+  margin: 0;
+  padding: var(--asc-sp-4) var(--asc-sp-4) var(--asc-sp-5);
+  color: #eaf6fe;
+  font-size: var(--asc-fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  /* 主视觉为不透明图片，图注改用顶部渐变蒙层保证可读性 */
+  background: linear-gradient(180deg, rgba(6, 41, 70, 0.72) 0%, rgba(6, 41, 70, 0) 100%);
+  pointer-events: none;
+}
+
 .landing__vis-art {
   position: absolute;
-  inset: clamp(24px, 3.6vh, 40px) clamp(10px, 1vw, 18px) clamp(14px, 2vh, 22px);
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 /* ── 平台能力（1/4）：无框细栏 + 发丝分隔线界定区域 ── */

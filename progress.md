@@ -24,3 +24,13 @@
   统一 hover/激活色、圆角、层级线与分隔线，删除重复声明；几何：子项水平留白 46→32px（−30.4%）。
 - 验证：服务端下发 CSS 核对通过；8 个测试套件 56 项全通过。浏览器工具 4 次超时 → 视觉确认待人工。
 - 环境：`/tmp/svc` 曾被系统清理导致前端启动失败（已重建）；WSL drvfs 上 vite 监听不生效，改动后需重启 dev server。
+
+## 会话 3 — 2026-10-06（首页主视觉替换）
+- 需求：首页主展示图片替换为 `/mnt/d/Download/show1.png`（1448×1086, 1.79MB PNG）。
+- 完成：复制为 `public/landing-hero.png`（md5 与源一致）；`LandingHomeView.vue` 用 `<img>` 替换 `<LandingHeroArt>` 组件，
+  图注改为顶部渐变蒙层叠字；删除已无引用的 `src/components/landing/LandingHeroArt.vue`（目录随之移除）。
+- 验证：`/landing-hero.png` 200 / image/png / 1789147B（md5 校验一致）；页面模块引用已更新且不再含 LandingHeroArt；
+  `test:landing` 通过。
+- 环境坑（重要）：**dev server 启动时会缓存 `public/` 的文件索引**——新增静态文件在重启前一律返回 SPA 兜底（text/html），
+  已用探针文件复现；重启 vite 后恢复正常。另 `/tmp/svc` 会被系统清理。
+- 待确认：1.79MB PNG 偏大，可选转 WebP/降采样（体积约可降 80%）——需用户确认后再动。
