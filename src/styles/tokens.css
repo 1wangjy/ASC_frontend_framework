@@ -59,6 +59,22 @@
   --asc-sp-5: 24px;
   --asc-sp-6: 32px;
   --asc-sp-7: 48px;
+
+  /* ── 侧边栏导航：集中定义，避免散落的魔法数字（一级/二级项同源节奏）── */
+  --asc-nav-item-h: 42px;              /* 一级项行高 */
+  --asc-nav-subitem-h: 36px;           /* 二级项行高 */
+  --asc-nav-pad-x: var(--asc-sp-3);    /* 一级项左右内边距 */
+  --asc-nav-gap: var(--asc-sp-3);      /* 一级项：图标与文字间距 */
+  --asc-nav-subitem-gap: var(--asc-sp-2);   /* 二级项：圆点与文字间距 */
+  --asc-nav-subitem-offset: var(--asc-sp-1); /* 二级项左缩进 */
+  --asc-nav-subitem-pad-l: var(--asc-sp-3);  /* 二级项左侧内边距 */
+  --asc-nav-subitem-pad-r: var(--asc-sp-2);  /* 二级项右侧内边距 */
+  --asc-nav-row-gap: 2px;              /* 同级项之间的垂直间隙 */
+  --asc-nav-dot: 6px;                  /* 二级项前导圆点直径 */
+  --asc-nav-icon: 18px;                /* 一级项图标尺寸 */
+  --asc-nav-surface-hover: rgba(255, 255, 255, 0.07);  /* 悬停底色（父/子项统一） */
+  --asc-nav-surface-active: rgba(255, 255, 255, 0.12); /* 激活底色（父/子项统一） */
+  --asc-nav-line: rgba(255, 255, 255, 0.14);           /* 层级竖线 */
   --asc-radius-lg: 12px;
   --asc-radius-xl: 20px;
   --asc-radius-pill: 999px;

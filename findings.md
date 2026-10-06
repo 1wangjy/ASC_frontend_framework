@@ -87,3 +87,25 @@ processed 另有 `cold_modulus__1450`、`cold_modulus__1500`、`cold_modulus__no
 
 **结论**：`trimmed`（标签聚合）× `center_by_condition`（工况中心化）是可叠加的两个正交杠杆，
 合计把 test R² 从 0.8195 提到 0.8920–0.8927（+7.3~7.6pp），OOF 从 0.376 提到 0.656（+28pp）。
+
+## F11 — 导航样式统一（UI，2026-10-06）
+**问题**：侧边栏导航存在离阶魔法数字与不一致状态色，导致"风格不统一"：
+- 离阶值：`min-height 42/36`、`gap 12/10`、`padding 20/11/8/5`、`margin 10/6/2/1`、`border-radius 7`、`font-size 13/14/15`
+- 状态色不一致：父项 hover `0.07`、锁定项 hover `0.06`、子项 hover `0.07`、激活 `0.12`、层级线 `0.14`、分隔线 `0.12`
+- 激活态不一致：父项有底色 + 左侧指示条，子项只有文字变白 + 圆点发光
+
+**做法**：在 `src/styles/tokens.css` 新增 14 个 `--asc-nav-*` 语义令牌（行高/左右内边距/缩进/间距/圆点/图标/hover 与激活底色/层级线），
+AscSidebar 全部改为引用令牌；离阶值落到 4px 阶（sp-1/2/3/4/5/6）；父项与子项共用同一 hover/激活底色令牌；
+子项激活态补齐与父项一致的底色；圆角统一到 `--asc-radius`(8px)；分隔线与层级线统一为 `--asc-nav-line`；删除 `.sidebar__toggle` 内被覆盖的重复 `font-size`。
+
+**几何结果**：子项水平留白合计 46px → 32px（**−30.4%**，对应"缩小 1/3"）；标签起点 51px → 42px；一级项标签起点保持 54px。
+
+**验证**：dev server 下发的编译后 CSS 含 27 处 `var(--asc-nav-*)`，无残留 `border-radius: 7px` 与字面量 hover 色；
+仓库测试 8 个套件 56 项全通过。浏览器截图验证 4 次 `open` 均超时（工具不可用），视觉确认待人工。
+
+## F12 — 平台其余离阶间距清单（后续统一下手点）
+`padding/margin/gap` 中出现频次最高的离阶值（`src/platform`、`src/features`、`src/components`、`src/views` 全量统计）：
+`12px×305`、`8px×293`、**`10px×256`**、`16px×177`、**`6px×158`**、**`14px×140`**、`4px×136`、`20px×99`、`24px×85`、
+`18px×59`、`7px×50`、`9px×45`、`5px×45`、`3px×42`、`22px×28`、`28px×15`。
+另有大量同类"列表项"样式各自为政：`.timeline-item`、`.step-card`、`.lit-row`、`.topic-item`、`.tool-item` 等。
+建议后续抽 `--asc-list-*` 令牌并逐页收敛（本次仅完成导航区）。
