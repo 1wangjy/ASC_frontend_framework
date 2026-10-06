@@ -88,6 +88,8 @@ const heroStats = [
   /* 外壳页脚固定高度；首页占满其余高度，桌面宽度下不产生滚动 */
   --landing-footer-h: var(--asc-footer-h);
   --landing-gutter: clamp(28px, 4.2vw, 76px);   /* hero 与能力区共用同一侧边距，保证左右对齐 */
+  --landing-hero-inset: clamp(10px, 1.5vh, 16px); /* 主视觉内缩留白（调大=画框更宽） */
+  --landing-hero-radius: var(--asc-radius-lg);    /* 主视觉自身圆角 */
   display: flex;
   flex-direction: column;
   height: calc(100vh - var(--landing-footer-h));
@@ -223,26 +225,31 @@ const heroStats = [
 .landing__vis-caption {
   position: absolute;
   z-index: 1;
-  inset: 0 0 auto;
+  /* 与图片内缩对齐，落在图片左上角内，避免压在图外的深色面板上 */
+  top: calc(var(--landing-hero-inset) + var(--asc-sp-3));
+  left: calc(var(--landing-hero-inset) + var(--asc-sp-3));
   margin: 0;
-  padding: var(--asc-sp-4) var(--asc-sp-4) var(--asc-sp-5);
+  padding: var(--asc-sp-1) var(--asc-sp-2);
+  border-radius: var(--asc-radius-pill);
+  /* 图片偏浅色，用深色半透明胶囊保证可读 */
+  background: rgba(6, 32, 54, 0.62);
   color: #eaf6fe;
-  font-size: var(--asc-fs-caption);
+  font-size: var(--asc-fs-micro);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  /* 主视觉为不透明图片，图注改用顶部渐变蒙层保证可读性 */
-  background: linear-gradient(180deg, rgba(6, 41, 70, 0.72) 0%, rgba(6, 41, 70, 0) 100%);
+  letter-spacing: 0.06em;
   pointer-events: none;
 }
 
 .landing__vis-art {
   position: absolute;
-  inset: 0;
+  /* 内缩成“画框”：深色面板成为留白，避免浅色图片与深色面板硬碰硬 */
+  inset: var(--landing-hero-inset);
   display: block;
-  width: 100%;
-  height: 100%;
   object-fit: cover;
   object-position: center;
+  border-radius: var(--landing-hero-radius);
+  /* 细亮边 + 投影：让边缘成为有意为之的收边，而不是被面板裁断 */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 10px 28px rgba(3, 24, 43, 0.42);
 }
 
 /* ── 平台能力（1/4）：无框细栏 + 发丝分隔线界定区域 ── */
