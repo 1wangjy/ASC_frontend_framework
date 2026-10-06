@@ -95,6 +95,10 @@ const heroStats = [
   --landing-hero-aspect: 5 / 3;                   /* 面板比例：比原 4:3 宽 25%，高度不变 */
   --landing-hero-mask-color: #f6fafd;             /* 前景蒙版边缘色 = 主页背景近似色 */
   --landing-hero-mask-clear: rgba(246, 250, 253, 0); /* 同色的全透明端（渐变另一端） */
+  --landing-hero-align-offset: 4px;               /* 补偿 eyebrow 行高(1.5)的半行距，使图片顶边贴齐文字视觉顶端 */
+  --landing-bg-glow: rgba(10, 163, 216, 0.18);    /* 背景主光斑强度（调大更明显） */
+  --landing-bg-glow-alt: rgba(8, 105, 173, 0.1);  /* 背景次光斑（左下） */
+  --landing-bg-grid: rgba(12, 52, 86, 0.055);     /* 背景网格线强度（0 = 关闭网格） */
   display: flex;
   flex-direction: column;
   height: calc(100vh - var(--landing-footer-h));
@@ -102,6 +106,38 @@ const heroStats = [
   overflow: hidden;
   color: var(--asc-heading);
   background: var(--asc-grad-page);
+  position: relative;
+  isolation: isolate;
+}
+
+/* 环境层：几处柔光斑 + 一层白色薄雾，给单色背景增加纵深，并与主视觉的冷调呼应 */
+.landing::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(58% 44% at 78% 4%, var(--landing-bg-glow), transparent 68%),
+    radial-gradient(38% 32% at 4% 84%, var(--landing-bg-glow-alt), transparent 72%),
+    radial-gradient(30% 26% at 100% 78%, rgba(19, 153, 104, 0.07), transparent 74%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 46%),
+    linear-gradient(180deg, rgba(6, 42, 74, 0.05) 100%, rgba(6, 42, 74, 0) 76%);
+}
+
+/* 极淡网格：提供"工程图纸"质感，向下渐隐，避免死板同时不抢内容 */
+.landing::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--landing-bg-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--landing-bg-grid) 1px, transparent 1px);
+  background-size: 36px 36px, 36px 36px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 46%, transparent 86%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 46%, transparent 86%);
 }
 
 /* ── Hero（3/4） ── */
@@ -112,7 +148,8 @@ const heroStats = [
   display: grid;
   /* 主视觉列由 0.88fr 加宽到 1fr（相对 +25%），文字列相应收窄，面板高度保持不变 */
   grid-template-columns: minmax(0, 0.82fr) minmax(0, 1fr);
-  align-items: center;
+  align-items: start;      /* 两列同顶线：主视觉与 eyebrow 行上对齐 */
+  align-content: center;   /* 整组内容在 hero 带内垂直居中，保持原有平衡感 */
   gap: clamp(24px, 4vw, 64px);
   padding: clamp(24px, 5vh, 64px) var(--landing-gutter) clamp(20px, 4vh, 44px);
   overflow: hidden;
@@ -216,18 +253,31 @@ const heroStats = [
 /* 主视觉：品牌渐变面板 + 链路插画 */
 .landing__visual {
   position: relative;
-  /* 面板比例 5:3：比原 4:3 宽 25%，高度不变 */
-  align-self: center;
+  /* 与左列首行（MATERIALS INTELLIGENCE · RESEARCH PLATFORM）顶部对齐 */
+  align-self: start;
   justify-self: stretch;
   aspect-ratio: var(--landing-hero-aspect, 5 / 3);
   height: auto;
   max-height: 100%;
-  margin: clamp(0px, 2vh, 22px) 0;
+  margin: var(--landing-hero-align-offset) 0 0;
   /* 不再使用深色面板底/描边/投影：边缘由前景蒙版按主页背景色过渡 */
   background: none;
   border: 0;
   border-radius: var(--asc-radius-xl);
   overflow: hidden;
+}
+
+/* 主视觉底衬：柔和浅色光晕，使前景蒙版的过渡色与周围背景自然衔接 */
+.landing__visual::before {
+  content: '';
+  position: absolute;
+  inset: -4% -3%;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(72% 72% at 50% 50%,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(246, 250, 253, 0.6) 58%,
+    var(--landing-hero-mask-clear) 100%);
 }
 .landing__vis-caption {
   position: absolute;

@@ -69,3 +69,12 @@
     边缘 `--landing-hero-mask-color`(#f6fafd，近似主页背景) 不透明，中间 `--landing-hero-mask-clear` 全透明；
     左右 22% / 上下 12% 过渡；图注 z-index 提到 3 保证在蒙版之上
 - 验证：服务端下发 CSS 含 ::after 蒙版规则、7 个旋钮；test:landing 4/4。浏览器截图仍不可用，视觉待人工确认。
+
+## 会话 6 — 2026-10-06（首页背景层次 + 主视觉上对齐）
+- 背景：`.landing` 增加两层装饰——`::before`（3 处柔光斑 + 顶部白雾 + 底部轻微压暗）与 `::after`（36px 极淡网格，向下渐隐；
+  用 mask 渐隐）。与主视觉冷调呼应，避免单色死板；强度全部走 `--landing-bg-glow / -glow-alt / -grid` 旋钮。
+- 主视觉底部增加 `::before` 浅色光晕底衬，使「前景蒙版色」与新的背景层次自然衔接。
+- 对齐：hero 网格 `align-items: center → start` + 新增 `align-content: center`（整组仍在 hero 带内垂直居中）；
+  `.landing__visual` `align-self: start`，并加 `--landing-hero-align-offset: 4px` 补偿 eyebrow 行高 1.5 的半行距，
+  使图片顶边与「MATERIALS INTELLIGENCE · RESEARCH PLATFORM」文字视觉顶端对齐。
+- 验证：服务端下发 CSS 含两层装饰与 11 个旋钮；test:landing 4/4。浏览器截图仍不可用，视觉待人工确认。
