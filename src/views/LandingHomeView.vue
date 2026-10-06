@@ -88,11 +88,13 @@ const heroStats = [
   /* 外壳页脚固定高度；首页占满其余高度，桌面宽度下不产生滚动 */
   --landing-footer-h: var(--asc-footer-h);
   --landing-gutter: clamp(28px, 4.2vw, 76px);   /* hero 与能力区共用同一侧边距，保证左右对齐 */
-  --landing-hero-inset: 0px;                      /* 主视觉内缩（0=贴满面板，>0 恢复画框效果） */
-  --landing-hero-fade-x: 16%;                     /* 左右边缘渐隐宽度（占面板宽度） */
-  --landing-hero-fade-y: 9%;                      /* 上下边缘渐隐高度（占面板高度） */
-  --landing-hero-zoom: 1;                         /* 画面缩放（>1 更充满，代价是轻微溢出裁切） */
-  --landing-hero-aspect: 4 / 3;                   /* 面板比例（与图片一致时 contain 零留白） */
+  --landing-hero-inset: 0px;                      /* 主视觉内缩（0=贴满面板） */
+  --landing-hero-fade-x: 22%;                     /* 左右边缘蒙版宽度（占面板宽度） */
+  --landing-hero-fade-y: 12%;                     /* 上下边缘蒙版高度（占面板高度） */
+  --landing-hero-fit: fill;                       /* 图片填充方式：fill=按面板拉伸 / contain / cover */
+  --landing-hero-aspect: 5 / 3;                   /* 面板比例：比原 4:3 宽 25%，高度不变 */
+  --landing-hero-mask-color: #f6fafd;             /* 前景蒙版边缘色 = 主页背景近似色 */
+  --landing-hero-mask-clear: rgba(246, 250, 253, 0); /* 同色的全透明端（渐变另一端） */
   display: flex;
   flex-direction: column;
   height: calc(100vh - var(--landing-footer-h));
@@ -108,7 +110,8 @@ const heroStats = [
   flex: 3 1 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+  /* 主视觉列由 0.88fr 加宽到 1fr（相对 +25%），文字列相应收窄，面板高度保持不变 */
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1fr);
   align-items: center;
   gap: clamp(24px, 4vw, 64px);
   padding: clamp(24px, 5vh, 64px) var(--landing-gutter) clamp(20px, 4vh, 44px);
@@ -213,23 +216,23 @@ const heroStats = [
 /* 主视觉：品牌渐变面板 + 链路插画 */
 .landing__visual {
   position: relative;
-  /* 面板比例对齐图片(1448×1086≈4:3)：contain 正好铺满 → 既完整显示又无多余留白 */
+  /* 面板比例 5:3：比原 4:3 宽 25%，高度不变 */
   align-self: center;
   justify-self: stretch;
-  aspect-ratio: var(--landing-hero-aspect, 4 / 3);
+  aspect-ratio: var(--landing-hero-aspect, 5 / 3);
   height: auto;
   max-height: 100%;
   margin: clamp(0px, 2vh, 22px) 0;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  /* 不再使用深色面板底/描边/投影：边缘由前景蒙版按主页背景色过渡 */
+  background: none;
+  border: 0;
   border-radius: var(--asc-radius-xl);
-  background: var(--asc-grad-panel);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), var(--asc-shadow-lg);
   overflow: hidden;
 }
 .landing__vis-caption {
   position: absolute;
-  z-index: 1;
-  /* 与图片内缩对齐，落在图片左上角内，避免压在图外的深色面板上 */
+  z-index: 3;   /* 位于前景蒙版之上，保证可读 */
+  /* 与图片内缩对齐，落在图片左上角内；z-index 高于前景蒙版 */
   top: calc(var(--landing-hero-inset) + var(--asc-sp-3));
   left: calc(var(--landing-hero-inset) + var(--asc-sp-3));
   margin: 0;
@@ -246,27 +249,33 @@ const heroStats = [
 
 .landing__vis-art {
   position: absolute;
-  /* 完整显示整张图（contain，不裁切），四周用渐变蒙版融入面板：左右淡出为主，上下轻羽化 */
+  /* 图片按面板铺满（fill=水平拉伸到 5:3，高度不变）；边缘过渡由 .landing__visual::after 前景蒙版负责 */
   inset: var(--landing-hero-inset);
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: var(--landing-hero-fit, fill);
   object-position: center;
-  transform: scale(var(--landing-hero-zoom));
-  transform-origin: center;
-  -webkit-mask-image:
-    linear-gradient(90deg, transparent 0%, #000 var(--landing-hero-fade-x),
-                    #000 calc(100% - var(--landing-hero-fade-x)), transparent 100%),
-    linear-gradient(180deg, transparent 0%, #000 var(--landing-hero-fade-y),
-                    #000 calc(100% - var(--landing-hero-fade-y)), transparent 100%);
-  mask-image:
-    linear-gradient(90deg, transparent 0%, #000 var(--landing-hero-fade-x),
-                    #000 calc(100% - var(--landing-hero-fade-x)), transparent 100%),
-    linear-gradient(180deg, transparent 0%, #000 var(--landing-hero-fade-y),
-                    #000 calc(100% - var(--landing-hero-fade-y)), transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-composite: intersect;
+}
+
+/* 前景蒙版：边缘 = 主页背景色，中间透明 —— 让主视觉四周平滑融入页面背景（而非透出深色） */
+.landing__visual::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg,
+      var(--landing-hero-mask-color) 0%,
+      var(--landing-hero-mask-clear) var(--landing-hero-fade-x),
+      var(--landing-hero-mask-clear) calc(100% - var(--landing-hero-fade-x)),
+      var(--landing-hero-mask-color) 100%),
+    linear-gradient(180deg,
+      var(--landing-hero-mask-color) 0%,
+      var(--landing-hero-mask-clear) var(--landing-hero-fade-y),
+      var(--landing-hero-mask-clear) calc(100% - var(--landing-hero-fade-y)),
+      var(--landing-hero-mask-color) 100%);
 }
 
 /* ── 平台能力（1/4）：无框细栏 + 发丝分隔线界定区域 ── */
