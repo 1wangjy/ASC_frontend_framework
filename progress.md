@@ -47,3 +47,14 @@
   `node node_modules/.bin/vite --host`。
 - 待办（用户可选）：图片 1.79MB 可转 WebP（约省 80%）；`server.open:true` 在 WSL 触发 powershell EACCES 噪声；
   `optimizeDeps.entries` 扫描整个 src 导致冷启动慢，可只保留 index.html。
+
+## 会话 4 — 2026-10-06（主视觉：完整显示 + 渐隐 + 尺寸贴合）
+- 需求：图片显示不完整；要左右边缘渐变蒙版淡化；尺寸更贴合面板留白。
+- 完成：
+  * `object-fit: cover` → **`contain`**（完整显示整图，不再裁切）
+  * 新增**渐变蒙版**：`mask-image` 双向叠加（90deg 左右各淡出 16% + 180deg 上下各羽化 9%），
+    `mask-composite: intersect` / `-webkit-mask-composite: source-in`
+  * 面板 `align-self: stretch` + min/max-height → **`aspect-ratio: 4/3`（与图片 1448×1086 同比例）+ `align-self: center`**：
+    contain 正好铺满面板 → 零留白、零裁切，蒙版边界正好落在图片真实边缘
+  * 全部走令牌：`--landing-hero-fade-x/-fade-y/-zoom/-aspect/-inset`
+- 验证：服务端下发 CSS 含新规则与 5 个旋钮；test:landing 4/4；首页 200。浏览器截图工具仍不可用，视觉待人工。
