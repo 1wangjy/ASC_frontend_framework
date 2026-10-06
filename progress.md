@@ -34,3 +34,16 @@
 - 环境坑（重要）：**dev server 启动时会缓存 `public/` 的文件索引**——新增静态文件在重启前一律返回 SPA 兜底（text/html），
   已用探针文件复现；重启 vite 后恢复正常。另 `/tmp/svc` 会被系统清理。
 - 待确认：1.79MB PNG 偏大，可选转 WebP/降采样（体积约可降 80%）——需用户确认后再动。
+
+## 会话 3（续）— 主视觉收边 + 环境恢复
+- 收边改动：`--landing-hero-inset`(clamp 10–16px) 内缩画框 + 同心圆角 `--landing-hero-radius` + 1px 亮边与投影；
+  图注改为图片左上角深色胶囊标签。提交 f42359e。
+- 最终验证：首页 200（**3.8ms**，此前多次 000 为冷启动/dep 优化器扫描 drvfs 的假象）；
+  `/landing-hero.png` 200 / image/png / 1789147B；`/api/simulation/history` 200（代理链路恢复）。
+- 环境恢复：本机四个服务此前全部退出，已重启并验证健康 —— 3001(beimpl) / 5001(ai4sci) / 8100(modelapi) / 3005(vite)。
+  启动命令（供后续复用）：
+  `cd backend_impl && node src/index.js`；`cd AI4Sci-NEXUS-ASC-Development-Domain/backend && .venv/bin/python run.py`；
+  `cd backend_impl/python/model_predict && .venv/bin/python -m uvicorn API.app:app --host 127.0.0.1 --port 8100`；
+  `node node_modules/.bin/vite --host`。
+- 待办（用户可选）：图片 1.79MB 可转 WebP（约省 80%）；`server.open:true` 在 WSL 触发 powershell EACCES 噪声；
+  `optimizeDeps.entries` 扫描整个 src 导致冷启动慢，可只保留 index.html。
