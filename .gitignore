@@ -50,7 +50,9 @@ backend_impl/python/model_predict/MODEL/outputs_selective_selector/
 backend_impl/python/model_predict/FEATURE/outputs/
 
 # 本地文献资源（bib 源，不入库）
-data/
+data/*
+!data/material_vocab.json
+!data/material_vocab_queue.csv
 
 # === planning-with-files 工作目录 ===
 .planning/

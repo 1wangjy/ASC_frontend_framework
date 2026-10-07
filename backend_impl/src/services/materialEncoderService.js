@@ -16,6 +16,7 @@
  */
 
 const { createProvider } = require('../agent/provider');
+const materialVocabService = require('./materialVocabService');
 
 const MATERIALS_TIMEOUT_MS = Number(process.env.MATERIAL_ENCODER_TIMEOUT_MS || 20000);
 const PREDICT_BASE_URL = (process.env.PREDICT_BASE_URL || 'http://127.0.0.1:8100').replace(/\/+$/, '');
@@ -33,6 +34,27 @@ function normalizeText(value) {
 
 async function loadMaterials(fetchImpl = fetch) {
   if (materialsCache) return materialsCache;
+  // 首选：归束后的 canonical 词表（data/material_vocab.json，含别名，单一权威）
+  try {
+    const canonical = materialVocabService.listMaterials();
+    const list = Array.isArray(canonical?.materials) ? canonical.materials : [];
+    const normalized = [];
+    for (const item of list) {
+      const materialId = String(item?.material_id ?? '').trim();
+      if (!materialId || !item?.name) continue;
+      for (const name of [item.name, ...(item.aliases || [])]) {
+        const text = String(name || '').trim();
+        if (text) normalized.push({ materialId, name: text });
+      }
+    }
+    if (normalized.length) {
+      materialsCache = normalized;
+      return materialsCache;
+    }
+  } catch (error) {
+    console.warn('[material-encoder] canonical 词表不可用，回退预测服务清单：', error.message);
+  }
+  // 回退：预测服务的 material_map（89 条，无别名）
   const response = await fetchImpl(`${PREDICT_BASE_URL}/api/v1/model/materials`, {
     headers: { accept: 'application/json' },
     signal: AbortSignal.timeout(MATERIALS_TIMEOUT_MS),

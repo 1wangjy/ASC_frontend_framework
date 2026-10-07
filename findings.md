@@ -135,3 +135,13 @@ AscSidebar 全部改为引用令牌；离阶值落到 4px 阶（sp-1/2/3/4/5/6�
 - 34 个"L5 无对应"的 base 中，**30 个在 L6 有线索**，仅 4 个无：`CA68水泥`、`CA71F水泥`、`磨料`、`除尘料` → 人工队列的硬骨头就这几条。
 - 结论：以 L3 为基准 + L6 主桥 + L4 校验，**自动覆盖可达 ≈80/89**，符合"零猜测 + 少量人工裁决"的落地条件。
 - 方案文档：`docs/material-vocabulary-unification-plan.md`（S1–S9 + 数据模型 + 验收 + 风险）。
+
+## F15 — 词表归束执行结果（2026-10-07）
+- canonical 快照 `data/material_vocab.json`（脚本 `backend_impl/scripts/build_material_vocab.py` 生成，**不落 SQLite**）：
+  89 物料 / 222 别名 / 96 external_ref（material 75、process_param 2、unresolved 19）/ 粒级表 / 属性表 / 队列 84。
+- 覆盖：`unique 45 + multiple 9` 可绑定（原"精确同名"仅 40），`none 35`（多为优化器空间确实没有的品类，如刚玉类）。
+- S7 新发现：入库副本粒径 `mean/std` 约定 = `mean=(min+max)/2`、`std=(max-min)/2`，单值 `std=值`（batch183/yangquan 全吻合，0 不符）；
+  但**不可逆**：`min=0` 的行（batch183 402 / yangquan 302）与单值编码冲突，下界 0 已丢失。
+  **zibo 2424 条 100% 不符**：该来源副本粒径几乎全为 `0.0/None` → 入库缺陷（非表示差异）。
+- S8：`_code/output` 归档 17 份非权威 map（`_archive/` + `DEPRECATED.md`）；`_code` 是符号链接，归档不入库。
+- 修复 B1 另一半：解析器路径回落 `_code/python/recipe_processor.py` → `/api/recipe-parser/parse` 恢复 200。

@@ -1,8 +1,10 @@
 const { spawn } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 const database = require('../config/database');
 const { PURE_MATERIAL_PROPERTIES, TEST_PROPERTIES, toFixedAndCustomProperties } = require('../config/properties-def');
 const { resolveComponentsForInsert, unresolvedBaseError } = require('../services/materialBaseService');
+const materialVocabService = require('../services/materialVocabService');
 
 class RecipeParserController {
   constructor() {
@@ -21,12 +23,30 @@ class RecipeParserController {
         });
       }
       
-      // 获取所有原材料数据
+      // 原料清单：优先用归束后的 canonical 词表快照（data/material_vocab.json），
+      // 不再依赖可能缺失的 raw_material 表；DB 仅作最后回退。
       let materials = [];
       try {
-        materials = await database.query('SELECT * FROM raw_material WHERE is_delete = 0');
+        const canonical = materialVocabService.listMaterials();
+        materials = (canonical.materials || []).map((item) => ({
+          id: String(item.material_id),
+          name: item.name,
+          aliases: item.aliases || [],
+          category: item.category || '',
+        }));
+        if (!materials.length && canonical.error) {
+          console.warn('[recipe-parser] canonical 词表不可用：', canonical.error);
+        }
       } catch (error) {
-        console.error('Error loading materials:', error);
+        console.error('Error loading canonical materials:', error);
+      }
+      if (!materials.length) {
+        try {
+          materials = await database.query('SELECT * FROM raw_material WHERE is_delete = 0');
+        } catch (error) {
+          // raw_material 表不存在属已知历史问题（见 docs/material-vocabulary-audit.md B1）
+          console.warn('[recipe-parser] raw_material 回退不可用：', error.message);
+        }
       }
       
       // 调用Python后端进行解析
@@ -62,7 +82,18 @@ class RecipeParserController {
 
   callPythonParser(content, materials) {
     return new Promise((resolve, reject) => {
-      const pythonScript = path.join(__dirname, '../../python/recipe_processor.py');
+      // recipe_processor.py 的历史位置在 _code/python/（见 docs/material-vocabulary-audit.md B1）：
+      // 优先本仓 python/，其次回落到 _code/python/，避免因路径写死而必然失败。
+      const candidates = [
+        process.env.RECIPE_PROCESSOR_PATH,
+        path.join(__dirname, '../../python/recipe_processor.py'),
+        path.join(__dirname, '../../../_code/python/recipe_processor.py'),
+      ].filter(Boolean);
+      const pythonScript = candidates.find((candidate) => fs.existsSync(candidate));
+      if (!pythonScript) {
+        reject(new Error(`未找到配方解析脚本 recipe_processor.py（已尝试：${candidates.join('、')}）`));
+        return;
+      }
       // Windows 路径转为正斜杠，避免 Python 将反斜杠序列误解析为 Unicode 转义
       const pythonDir = path.dirname(pythonScript).replace(/\\/g, '/');
       

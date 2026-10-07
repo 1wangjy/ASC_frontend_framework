@@ -169,7 +169,8 @@
                 <template v-if="baseSummary">
                   （{{ baseSummary.unique }} 个可直接约束、
                   {{ baseSummary.multiple }} 个需指定具体原料、
-                  {{ baseSummary.none }} 个优化器无对应原料）
+                  {{ baseSummary.none }} 个优化器无对应原料<template v-if="baseSummary.queue">；
+                  {{ baseSummary.queue }} 条待人工裁定</template>）
                 </template>
               </p>
             </div>

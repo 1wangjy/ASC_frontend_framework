@@ -113,3 +113,11 @@
   findings.md 记 F14（可行性量化）；task_plan.md 新增 Phase 6（S1–S9 全部 pending，标注"获批前不动代码/数据"）。
 - 关键量化：L6(197) 名称部分覆盖 L3 base **67/89**、覆盖优化器 **79/96**；L4 弱桥（∩L3 仅 17）；
   仍需人工裁决的硬骨头仅 **4 条**（CA68水泥/CA71F水泥/磨料/除尘料）。
+
+## 会话 10 — 2026-10-07（词表归束：执行 S1–S9）
+- 先提交当前状态（403e978：.gitignore 的 _patent + .planning/）。
+- 交付：`backend_impl/scripts/build_material_vocab.py`（生成器）→ `data/material_vocab.json` + `data/material_vocab_queue.csv`；
+  `backend_impl/src/services/materialVocabService.js`（Node 侧唯一权威访问层）；`backend_impl/python/material_units.py`（S7 转换 + 自检）；
+  桥接/解析控制器/编码器/Model2 UI 接线；`tests/materialVocab.test.js`（9 项）。
+- 验证：90 项测试全绿；4 例真实优化调用符合预期；`/api/recipe-parser/parse` 恢复 200。
+- 未解决：W1（优化器空间缺料需重训）；人工队列 84 条待裁定。

@@ -130,3 +130,25 @@ property_vocab                # 属性轴
 2. 不改预测模型的输入契约（`material_id` 语义冻结，`X_comp` 48 列不变）。
 3. 不删除历史产物，只归档。
 4. 不在本方案内改 UI 交互范式（仅替换数据源与加覆盖率提示）。
+
+---
+
+# 执行结果（2026-10-07）
+
+已按本方案执行 S1–S9；按用户要求 **canonical 不落 SQLite**，改为脚本流生成 `data/material_vocab.json` 快照。
+
+| 步骤 | 状态 | 产出 / 证据 |
+| --- | --- | --- |
+| S1 冻结基准 | ✅ | 快照 `materials` 89 条，`material_id` 与 L3 **逐条一致**（测试断言）；`material_base` 与 `ml_formula_component` 两项交叉校验 PASS |
+| S2 L6 主桥 | ✅ | L6 197 条 → 命中 167 条；别名表 222 条（L3 88 / L6 63+ / L4 20+ / 业务规则 2），保留**全部原始名**（含牌号/厂家） |
+| S3 L5 全量处置 | ✅ | 96 个优化器名 100% 有处置：material 75 / process_param 2（加水量·加胶量）/ unresolved 19 |
+| S4 L4 辅桥校验 | ✅ | L4 有值映射全部交叉校验；冲突 0（L4 弱桥已有一致） |
+| S5 业务侧 | ✅（按新约束改造） | 新增 `materialVocabService`（Node 读快照）；解析控制器改用 canonical（不再依赖缺失的 `raw_material`）；**修复 B1 的另一半**：解析器路径回落 `_code/python/recipe_processor.py` → `/api/recipe-parser/parse` **恢复 200**（4 组件 / embedding [4,385]） |
+| S6 属性轴 | ✅ | 快照内 `property_vocab`：优化器 19 条 → 归一到 (property, condition)，附预测侧 4 属性 |
+| S7 粒径轴 | ✅（并发现新问题） | `backend_impl/python/material_units.py --selftest`：batch183 1971 条 **mean 0 不符 / std 0 不符**；yangquan 1604 条同样全吻合；约定 = `mean=(min+max)/2`、`std=(max-min)/2`，**单值时 std=值**。⚠️ 该编码**并非处处可逆**：`min=0` 的行（batch183 402 / yangquan 302）与单值冲突，**下界 0 已丢失**。⚠️ **zibo 2424 条 100% 不符**：该来源入库副本粒径几乎全为 `0.0/None`，属**入库缺陷**而非表示差异 |
+| S8 版本收敛 | ✅ | `_code/output` 归档 17 份非权威 map（→ `_archive/` + `DEPRECATED.md`）；保留 `map_merged.json`（运行时）+ `material_mapping`/`material_name_mapping`（生成器种子）；运行时代码无引用（已检查）。注意：`_code` 是符号链接，归档为本地操作、不入库 |
+| S9 接线与回归 | ✅ | 桥接读快照（保留启发式回退）→ `/api/model2/materials` 返回 canonical 覆盖（unique 45 / multiple 9 / none 35 / queue 84）；UI 显示"待人工裁定"数；`tests/materialVocab.test.js` 9 项 + 既有套件共 **90 项全绿**；4 个真实优化调用验证：`60均质≥20` ✓、牌号别名+指定 material ✓、`加水量` 明确拒绝 ✓、`棕刚玉` 明确报错 ✓ |
+
+**未解决（本方案外）**：W1 —— 让 `棕刚玉` 等 35 个 base 真正可约束，需把缺失原料并入优化器搜索空间并重训代理模型。
+
+**人工队列**：84 条，分类与候选见 `data/material_vocab_queue.csv`（详见文末"待裁定问题"）。

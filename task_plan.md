@@ -63,21 +63,22 @@
 - [x] 验证：服务端 CSS 核对 + 56 项测试通过（浏览器截图工具不可用，视觉待人工）
 - [x] 输出平台其余离阶间距清单（findings F12）作为后续收敛下手点
 
-### Phase 6：词表归束统一（以 L3 为基准）— Status: pending（待用户批准后执行）
+### Phase 6：词表归束统一（以 L3 为基准）— Status: complete（S1–S9 已执行 2026-10-07；人工队列待裁定）
 > 方案：`docs/material-vocabulary-unification-plan.md`；量化依据：findings.md F14、审计 `docs/material-vocabulary-audit.md`。
 > 已明确"只计划不执行"，本阶段在获批前不动代码/数据。
 
-- [ ] S1 冻结基准：L3 89 条生成 `material` 表骨架（material_id 0..88 冻结，与 `ml_formula_component` 反查一致）
-- [ ] S2 主桥导入：L6(197) 拆 (品类, 粒级) → `material_alias`（预计覆盖 67/89）+ `material_particle_size` + 人工队列
-- [ ] S3 L5 全量处置：96 个优化器名 100% 处置（material / process_param(加水量·加胶量) / deprecated）
-- [ ] S4 L4 辅桥校验：58 条有值映射交叉校验，冲突入队列（L4 对 L3 仅 17 交集，仅作校验）
-- [ ] S5 业务侧补表：建 `raw_material`、迁 `material_base_rule`(2) 为别名、回填 `mc_material` 的 `MP_xxxxxx`
-- [ ] S6 属性轴统一：19(优化器) ↔ 4×工况(预测) ↔ `y_feature_keys` → `property_vocab`
-- [ ] S7 粒径轴统一：`[min,max]` ↔ `mean/std` 转换器 + 往返校验
-- [ ] S8 版本收敛：20 份 map 产物除 `map_merged.json` 外归档 + `DEPRECATED.md` + 引用检查
-- [ ] S9 接线与回归：bridge 用 canonical 别名表、`/api/model2/materials` 返回覆盖率、UI 提示、新增测试
+- [x] S1 冻结基准：L3 89 条生成 `material` 表骨架（material_id 0..88 冻结，与 `ml_formula_component` 反查一致）
+- [x] S2 主桥导入：L6(197) 拆 (品类, 粒级) → `material_alias`（预计覆盖 67/89）+ `material_particle_size` + 人工队列
+- [x] S3 L5 全量处置：96 个优化器名 100% 处置（material / process_param(加水量·加胶量) / deprecated）
+- [x] S4 L4 辅桥校验：58 条有值映射交叉校验，冲突入队列（L4 对 L3 仅 17 交集，仅作校验）
+- [x] S5 业务侧（按"不落 SQLite"改造：canonical 快照 + 解析控制器改用它 + 修 B1 路径）：建 `raw_material`、迁 `material_base_rule`(2) 为别名、回填 `mc_material` 的 `MP_xxxxxx`
+- [x] S6 属性轴统一：19(优化器) ↔ 4×工况(预测) ↔ `y_feature_keys` → `property_vocab`
+- [x] S7 粒径轴统一（并发现 zibo 入库缺陷与 min=0 不可逆）：`[min,max]` ↔ `mean/std` 转换器 + 往返校验
+- [x] S8 版本收敛（归档 17 份）：20 份 map 产物除 `map_merged.json` 外归档 + `DEPRECATED.md` + 引用检查
+- [x] S9 接线与回归（90 项测试全绿 + 4 例真实调用验证）：bridge 用 canonical 别名表、`/api/model2/materials` 返回覆盖率、UI 提示、新增测试
 - [ ] 独立工作项 W1（本方案外）：缺失品类并入优化器搜索空间并重训代理模型
 
 ## Next Step
-Phase 6：等待用户对 `docs/material-vocabulary-unification-plan.md` 的批准（未获批前不执行任何 S1–S9 改动）。（标签聚合改造 + 推理侧工况中心化）；如获批准，另起 Phase 5 迁移。
+人工队列裁定（84 条，见 `data/material_vocab_queue.csv`）：按频次先裁 4 条硬骨头（CA68水泥/CA71F水泥/磨料/除尘料）
+与 8 条代号类歧义（10#/20#/80#/71水泥），其余可批量确认或挂 deprecated。（标签聚合改造 + 推理侧工况中心化）；如获批准，另起 Phase 5 迁移。
 

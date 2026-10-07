@@ -301,6 +301,44 @@ def _effective_targets(targets):
 _GREEK_ALIASES = {"α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta"}
 _MATERIAL_CLASS_WORDS = ("超微粉", "微粉", "细粉", "粉料", "粉体", "粉末", "颗粒", "粒料", "骨料", "细料", "粉")
 _BASE_MAP_PATH = Path(__file__).resolve().parent / "model_predict" / "FEATURE" / "outputs" / "material_map.json"
+# 归束后的唯一权威词表快照（由 backend_impl/scripts/build_material_vocab.py 生成，不入 SQLite）
+_VOCAB_PATH = Path(__file__).resolve().parents[2] / "data" / "material_vocab.json"
+_vocab_cache: dict = {"mtime": None, "data": None}
+
+
+def _load_vocab():
+    """读取 canonical 快照（带 mtime 缓存）；缺失或损坏时返回 None，由调用方回退老逻辑。"""
+    try:
+        stat = _VOCAB_PATH.stat()
+    except OSError:
+        return None
+    if _vocab_cache["mtime"] == stat.st_mtime:
+        return _vocab_cache["data"]
+    try:
+        data = json.loads(_VOCAB_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    _vocab_cache.update(mtime=stat.st_mtime, data=data)
+    return data
+
+
+def _vocab_index(vocab):
+    """把快照转成解析所需索引：基准名归一 → id；别名归一 → {id}；优化器名 → ref；id → 优化器名列表。"""
+    base_by_norm, alias_by_norm, refs_by_name, targets_by_material = {}, {}, {}, {}
+    for material in vocab.get("materials", []):
+        key = _norm_material_name(material.get("name"))
+        if key:
+            base_by_norm[key] = material["material_id"]
+    for alias in vocab.get("aliases", []):
+        key = alias.get("alias_norm") or _norm_material_name(alias.get("alias"))
+        if not key:
+            continue
+        alias_by_norm.setdefault(key, set()).add(alias["material_id"])
+    for ref in vocab.get("external_refs", []):
+        refs_by_name[str(ref.get("external_name"))] = ref
+        if ref.get("kind") == "material" and ref.get("material_id") is not None:
+            targets_by_material.setdefault(ref["material_id"], []).append(str(ref["external_name"]))
+    return base_by_norm, alias_by_norm, refs_by_name, targets_by_material
 
 
 def _norm_material_name(value):
@@ -316,13 +354,37 @@ def _norm_material_name(value):
 
 
 def _resolve_optimizer_materials(name, material_names):
-    """把（预测模型的）base 名解析到优化器原料名。
+    """把用户输入（base 名 / 别名 / 优化器原料名 / 工艺参数）解析到优化器原料名。
 
-    返回 (targets, match)：targets 为空表示优化器没有对应原料；多于一个表示存在歧义，
-    必须由调用方用 `material` 字段指定，绝不猜测。
+    优先使用 canonical 快照（归束后的唯一权威）；快照缺失时回退到启发式归一化。
+    返回 (targets, match)：targets 为空且 match 为 'ambiguous'/'process_param'/'none' 表示无法直接绑定。
     """
     label = str(name or "").strip()
     if not label:
+        return [], "none"
+    vocab = _load_vocab()
+    if vocab:
+        base_by_norm, alias_by_norm, refs_by_name, targets_by_material = _vocab_index(vocab)
+        ref = refs_by_name.get(label)
+        if ref and ref.get("kind") == "process_param":
+            return [], "process_param"
+        key = _norm_material_name(label)
+        material_id, how = None, None
+        if key and key in base_by_norm:
+            material_id, how = base_by_norm[key], "base"
+        elif key and key in alias_by_norm:
+            owners = alias_by_norm[key]
+            if len(owners) == 1:
+                material_id, how = next(iter(owners)), "alias"
+            else:
+                return [], "ambiguous"
+        if material_id is not None:
+            targets = sorted(targets_by_material.get(material_id, []))
+            return targets, how
+        if ref and ref.get("kind") == "material":
+            return [label], "optimizer-name"
+        if ref and ref.get("kind") == "unresolved":
+            return [], "unresolved"
         return [], "none"
     if label in material_names:
         return [label], "exact"
@@ -356,7 +418,29 @@ def load_model_bases():
 
 
 def list_bases():
-    """输出预测模型 base 列表 + 每个 base 能否被优化器约束（供前端下拉分组/置灰）。"""
+    """输出 base 列表 + 每个 base 能否被优化器约束（供前端下拉分组/置灰）。
+
+    优先返回 canonical 快照（归束后的权威结论，含人工队列规模）；快照缺失时回退到启发式匹配。
+    """
+    vocab = _load_vocab()
+    if vocab:
+        search_space = SearchSpace(map_path=str(MAP_PATH))
+        return {
+            "ok": True,
+            "source": "canonical",
+            "vocab_version": vocab.get("version"),
+            "generated_at": vocab.get("generated_at"),
+            "materials": list(search_space.material_names),
+            "bases": [{
+                "name": item.get("name"),
+                "material_id": str(item.get("material_id")),
+                "category": item.get("category") or "",
+                "targets": item.get("targets") or [],
+                "match": item.get("status"),
+                "status": item.get("status"),
+            } for item in vocab.get("base_coverage", [])],
+            "summary": {**(vocab.get("stats") or {}).get("base_status", {}), "queue": (vocab.get("stats") or {}).get("queue")},
+        }
     search_space = SearchSpace(map_path=str(MAP_PATH))
     material_names = list(search_space.material_names)
     bases = []
@@ -402,6 +486,19 @@ def _parse_ingredient_constraints(raw, material_names):
         requested = name
         targets, match = _resolve_optimizer_materials(name, material_names)
         if not targets:
+            if match == "process_param":
+                raise ValueError(
+                    f"成分 {name!r} 是工艺参数（对应 X_global 的加水量/加胶量），不属于原料约束"
+                )
+            if match == "ambiguous":
+                raise ValueError(
+                    f"成分 {name!r} 对应多个候选，无法唯一确定；请改用具体优化器原料名（可用 --list-bases 查看）"
+                )
+            if match == "unresolved":
+                raise ValueError(
+                    f"成分 {name!r} 尚未归入基准词表（在人工待定队列中）；"
+                    "可用 --list-bases 查看已对齐的 base，或改用优化器原料名"
+                )
             raise ValueError(
                 f"成分 {name!r} 在优化器原料表里没有对应原料（优化器只认识它自己的 %d 种原料，"
                 "可用 --list-bases 查看哪些 base 可约束）" % len(material_names)
