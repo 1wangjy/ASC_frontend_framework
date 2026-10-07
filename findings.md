@@ -109,3 +109,15 @@ AscSidebar 全部改为引用令牌；离阶值落到 4px 阶（sp-1/2/3/4/5/6�
 `18px×59`、`7px×50`、`9px×45`、`5px×45`、`3px×42`、`22px×28`、`28px×15`。
 另有大量同类"列表项"样式各自为政：`.timeline-item`、`.step-card`、`.lit-row`、`.topic-item`、`.tool-item` 等。
 建议后续抽 `--asc-list-*` 令牌并逐页收敛（本次仅完成导航区）。
+
+## F13 — 原料词表端到端审计（2026-10-06，只读）
+**结论**：不是"某张词表没建完"，而是**跨层对应关系从未落库**。系统并存 6 层原料词表，2 层自洽可用、2 层是半成品孤儿产物、2 层不存在。
+详见 `docs/material-vocabulary-audit.md`（含全部证据与复现命令）。要点：
+- L3 预测 base（89，`material_map.json` + SQLite `material_base`/`material_vocab`/`ml_formula_component`）：**自洽**（89 对 1:1，DB 副本甚至存了 `material_id↔base`）。
+- L5 优化器原料（96，`_code/output/map_merged.json`，数据=`dataset_merged.npy` = 183 批次单来源 `X(183,96,3)`）：**在用但脏**（混入 `加水量/加胶量`，名称含牌号/厂家/粒级）。
+- L4 归并对应表 `material_name_mapping_20260728.json`（96→121→71，**63/121 为 null**）：建过一版，**无任何运行时引用**。
+- L6 材料知识表 `material_mapping_20260728.json`（197 条，粒径 197 / 化学式 134，含 category/text_prompt）：**孤儿产物**。
+- L2 业务原料主表 `raw_material`：**表不存在**，而 `recipeParserController` 在查它（异常被吞）→ 解析无原料清单；`mc_material` 的 `MP_xxxxxx` 悬空。
+- 只有 2 条手工别名（`material_base_rule`），恰好覆盖 `mc_material` 出现的那两个名字 → 补丁式建设。
+- `_code/output` 共 20 份 map/mapping 产物，运行时只读 `map_merged.json`；`mapping_audit_20260728.json` 三个来源内容雷同（审计本身失真）。
+- 属性轴（31/19 vs 4×工况 vs 4 键）与粒径轴（min/max vs mean/std vs [min,max]）均无对应表。
