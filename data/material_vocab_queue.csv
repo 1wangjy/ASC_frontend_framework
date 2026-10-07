@@ -1,69 +1,24 @@
 level,external_name,source,candidates,suggestion
-alias_unmatched,SECAR71水泥（凯诺斯）,L6,,类别=铝酸盐水泥；无同名 base
-alias_unmatched,Vical71水泥,L6,,类别=铝酸盐水泥；无同名 base
 alias_ambiguous,煅烧氧化铝1um,L6,氧化铝|煅烧氧化铝,人工选择命中 base
-alias_ambiguous,10#,L6,101E|102E|SP610|TC10结合剂,人工选择命中 base
-alias_ambiguous,20#,L6,97黑碳化硅|98黑碳化硅|FS20|一级白刚玉|回转窑88矾土|棕刚玉,人工选择命中 base
-alias_unmatched,30#（六偏磷酸钠）,L6,,类别=添加剂；无同名 base
-alias_unmatched,31线除尘粉,L6,,类别=其他；无同名 base
-alias_unmatched,33线除尘粉,L6,,类别=其他；无同名 base
-alias_ambiguous,80#,L6,80L-A2|80L-B2|80P-A2|80P-B2|80均质料|80均质矾土|80矾土|zc80均质|回转窑80矾土,人工选择命中 base
-alias_unmatched,Vical68水泥,L6,,类别=铝酸盐水泥；无同名 base
-alias_unmatched,电卡68水泥,L6,,类别=铝酸盐水泥；无同名 base
 alias_unmatched,白包装袋（6个月）带内衬45×70cm40kg,L6,,类别=其他；无同名 base
-alias_unmatched,30#,L6,,类别=其他；无同名 base
-alias_ambiguous,71水泥,L6,A71水泥|CA71水泥,人工选择命中 base
 alias_unmatched,97碳化硅,L6,,类别=碳化硅类；无同名 base
 alias_unmatched,97黑SiC,L6,,类别=碳化硅类；无同名 base
-alias_unmatched,La2O3,L6,,类别=其他；无同名 base
-alias_unmatched,TiN,L6,,类别=其他；无同名 base
-alias_unmatched,VICAL71F水泥,L6,,类别=铝酸盐水泥；无同名 base
-alias_unmatched,VICAL71水泥,L6,,类别=铝酸盐水泥；无同名 base
-alias_unmatched,Vical71,L6,,类别=铝酸盐水泥；无同名 base
-alias_unmatched,YGZ,L6,,类别=其他；无同名 base
-alias_unmatched,YGZ粉,L6,,类别=其他；无同名 base
-alias_unmatched,一级YGB,L6,,类别=其他；无同名 base
-alias_unmatched,一级YGB/YGZ,L6,,类别=其他；无同名 base
-alias_unmatched,一级YGB325/YGZ粉,L6,,类别=其他；无同名 base
-alias_unmatched,一级YGB粉,L6,,类别=其他；无同名 base
-alias_unmatched,一级YGB粉/YGZ,L6,,类别=其他；无同名 base
 alias_unmatched,加水量,L6,,类别=其他；无同名 base
 alias_unmatched,加胶量,L6,,类别=其他；无同名 base
-optimizer_ambiguous,10#,L5,101E|102E|SP610|TC10结合剂,人工选择命中 base
-optimizer_ambiguous,20#,L5,97黑碳化硅|98黑碳化硅|FS20|一级白刚玉|回转窑88矾土|棕刚玉,人工选择命中 base
-optimizer_unmatched,30#,L5,（无相似 base）,无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_ambiguous,71水泥,L5,A71水泥|CA71水泥,人工选择命中 base
 optimizer_unmatched,97碳化硅,L5,97黑碳化硅(0.5)|氮化硅碳化硅(0.333)|90黑碳化硅(0.286),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
 optimizer_unmatched,97黑SiC,L5,97黑碳化硅(0.25),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,La2O3,L5,80L-A2(0.333)|Al2O3(0.333)|α-Al2O3(0.2),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,TiN,L5,（无相似 base）,无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,VICAL71F水泥,L5,CA71F水泥(0.5)|CA71水泥(0.273)|A71水泥(0.182),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,VICAL71水泥,L5,CA71水泥(0.444)|A71水泥(0.333)|CA71F水泥(0.273),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,Vical71,L5,CA71水泥(0.222)|CA71F水泥(0.2)|A71水泥(0.111),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,Vical71水泥,L5,CA71水泥(0.444)|A71水泥(0.333)|CA71F水泥(0.273),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,YGZ,L5,YGMZ(0.25),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,YGZ粉,L5,YGMZ(0.25),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,一级YGB,L5,YGMZ(0.167)|一级白刚玉(0.143)|一级白刚玉/棕刚玉(0.111),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,一级YGB/YGZ,L5,YGMZ(0.125)|一级白刚玉(0.111)|一级白刚玉/棕刚玉(0.091),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,一级YGB325/YGZ粉,L5,YGMZ(0.091)|一级白刚玉(0.083)|一级白刚玉/棕刚玉(0.071),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,一级YGB粉,L5,YGMZ(0.167)|一级白刚玉(0.143)|一级白刚玉/棕刚玉(0.111),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
-optimizer_unmatched,一级YGB粉/YGZ,L5,YGMZ(0.125)|一级白刚玉(0.111)|一级白刚玉/棕刚玉(0.091),无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）
 base_without_optimizer,80均质矾土,L3,80均质料(0.5)|88均质矾土(0.429)|zc80均质(0.429),类别=刚玉类；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,88均质矾土,L3,80均质矾土(0.429)|倒焰88矾土(0.25)|回转窑88矾土(0.222),类别=刚玉类；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,98黑碳化硅,L3,90黑碳化硅(0.429)|97黑碳化硅(0.429)|氮化硅碳化硅(0.286),类别=碳化硅类；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,A600水泥,L3,600R(0.333)|CA68水泥(0.25)|CA70水泥(0.25),类别=铝酸盐水泥；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,BGLT锥混粉,L3,TGLT锥混粉(0.667)|ZXLT锥混粉(0.429)|JNTC锥混粉(0.111),类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
-base_without_optimizer,CA68水泥,L3,A600水泥(0.25)|CA70水泥(0.25)|CA71水泥(0.25),类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
-base_without_optimizer,CA71F水泥,L3,CA71水泥(0.571)|A71水泥(0.429)|CA70水泥(0.375),类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
-base_without_optimizer,CA71水泥,L3,A71水泥(0.8)|CA71F水泥(0.571)|CA70水泥(0.429),类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
+base_without_optimizer,CA68水泥,L3,A600水泥(0.25)|CA70水泥(0.25)|CA71水泥(0.25),类别=铝酸盐水泥；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,JNTC锥混粉,L3,PGTC锥混粉(0.429)|BGLT锥混粉(0.111)|LNSA锥混粉(0.111),类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,LNSA锥混粉,L3,BGLT锥混粉(0.111)|JNTC锥混粉(0.111)|PGTC锥混粉(0.111),类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,PGTC锥混粉,L3,JNTC锥混粉(0.429)|BGLT锥混粉(0.111)|LNSA锥混粉(0.111),类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,TGLT锥混粉,L3,BGLT锥混粉(0.667)|ZXLT锥混粉(0.429)|JNTC锥混粉(0.111),类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,ZXLT锥混粉,L3,BGLT锥混粉(0.429)|TGLT锥混粉(0.429)|JNTC锥混粉(0.111),类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,zc80均质,L3,80均质料(0.5)|80均质矾土(0.429)|60均质(0.333),类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
-base_without_optimizer,一级白刚玉,L3,一级白刚玉/棕刚玉(0.667)|棕刚玉(0.2)|黑刚玉(0.2),类别=刚玉类；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
-base_without_optimizer,一级白刚玉/棕刚玉,L3,一级白刚玉(0.667)|棕刚玉(0.333)|黑刚玉(0.143),类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,七水硫酸镁,L3,固体硫酸铝(0.143),类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,刚玉碳化硅提纯料,L3,氮化硅碳化硅(0.222)|90黑碳化硅(0.2)|97黑碳化硅(0.2),类别=刚玉类；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,卫生瓷块料,L3,,类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
@@ -74,12 +29,10 @@ base_without_optimizer,回转窑90矾土,L3,90矾土(0.5)|回转窑80矾土(0.5)
 base_without_optimizer,回转窑二级矾土,L3,回转窑80矾土(0.333)|回转窑82矾土(0.333)|回转窑85矾土(0.333),类别=刚玉类；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,固体硫酸铝,L3,七水硫酸镁(0.143),类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,广西泥,L3,,类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
-base_without_optimizer,棕刚玉,L3,一级白刚玉/棕刚玉(0.333)|黑刚玉(0.333)|回收刚玉(0.25),类别=刚玉类；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,煅烧氧化铝,L3,氧化铝(0.5)|活性氧化铝(0.333)|氧化镧(0.2),类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,硅溶胶,L3,,类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,硅砖粉,L3,,类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,碳质添加剂,L3,,类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
-base_without_optimizer,磨料,L3,,类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,致密刚玉,L3,棕刚玉(0.25)|黑刚玉(0.25)|回收刚玉(0.2),类别=刚玉类；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
-base_without_optimizer,除尘料,L3,,类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
+base_without_optimizer,除尘料,L3,,类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）
 base_without_optimizer,黑刚玉,L3,棕刚玉(0.333)|回收刚玉(0.25)|致密刚玉(0.25),类别=刚玉类；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）

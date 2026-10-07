@@ -72,3 +72,19 @@ python3 -c "import sqlite3;c=sqlite3.connect('backend_impl/data/sqlite/database.
 # 覆盖对照
 python3 -c "import json;b={m['name'] for m in json.load(open('backend_impl/python/model_predict/FEATURE/outputs/material_map.json'))['materials']};o=json.load(open('_code/output/map_merged.json'))['metadata']['material_names'];print('交集', len(b&set(o)), '/ base', len(b), '/ 优化器', len(o))"
 ```
+
+
+---
+
+## 更正说明（2026-10-07）
+
+本审计的 B3/B4 断言"原始条目 → base 的归并关系没有随交付物交出来"**不完全成立**：
+交接包 `_ref/交接工作代码以及说明.zip → data.zip` 内含 **`data/V1_base_mapping.json`**（142 条
+`{new_id,new_name,base_id,base_name}`，`match_method="mapping_json"`）与 **`data/base_list.json`**（89 名，与 L3 逐名一致），
+由 `运行顺序.txt` 第 2 步 `map_material_ids_to_base.py` 使用 —— 这就是"原始材料名/代号 → base"的权威对应关系。
+真正的问题是**它没有被接进后端/前端运行时**（Node/Python 服务此前只读 L3 与优化器 `map_merged.json`），
+因此呈现出"词表不对应"的现象。已按 `docs/material-vocabulary-unification-plan.md` 的 S1–S9 将其接入 canonical 快照。
+
+其余断点仍然成立：B1（缺 `raw_material`；已在 S5 用 canonical 快照替代并修复解析器路径）、
+B5（`加水量/加胶量` 混入原料表，现已标 `process_param`）、B6（按来源 map 产物为空）、B7（属性轴无对应，已在快照内建 `property_vocab`）、
+B8（粒径三套表示；S7 已量化，`min=0` 不可逆、zibo 入库丢失）、B9（20 份 map 无权威，已归档 17 份）。

@@ -37,6 +37,10 @@ L3_PATH = REPO / "backend_impl/python/model_predict/FEATURE/outputs/material_map
 L5_PATH = REPO / "_code/output/map_merged.json"
 L6_PATH = REPO / "_code/output/material_mapping_20260728.json"
 L4_PATH = REPO / "_code/output/material_name_mapping_20260728.json"
+# 交接包中的权威映射：原始材料名/代号 → base（142 条，match_method=mapping_json，confidence=1.0）
+# 来源：_ref/交接工作代码以及说明.zip → data.zip（data/V1_base_mapping.json、data/base_list.json）
+V1_MAP_PATH = REPO / "data/handover/V1_base_mapping.json"
+V1_BASE_LIST_PATH = REPO / "data/handover/base_list.json"
 DB_PATH = REPO / "backend_impl/data/sqlite/database.db"
 OUT_PATH = REPO / "data/material_vocab.json"
 QUEUE_PATH = REPO / "data/material_vocab_queue.csv"
@@ -115,6 +119,8 @@ def sha1(path: Path) -> str:
 
 def load_inputs():
     l3 = json.loads(L3_PATH.read_text(encoding="utf-8"))["materials"]
+    v1 = json.loads(V1_MAP_PATH.read_text(encoding="utf-8")) if V1_MAP_PATH.exists() else []
+    v1_bases = json.loads(V1_BASE_LIST_PATH.read_text(encoding="utf-8")) if V1_BASE_LIST_PATH.exists() else []
     l5 = json.loads(L5_PATH.read_text(encoding="utf-8"))
     l6 = json.loads(L6_PATH.read_text(encoding="utf-8"))
     l4 = json.loads(L4_PATH.read_text(encoding="utf-8"))
@@ -135,13 +141,13 @@ def load_inputs():
             business["error"] = str(exc)
         finally:
             con.close()
-    return l3, l5, l6, l4, business
+    return l3, l5, l6, l4, business, v1, v1_bases
 
 
 # ───────────────────────── 生成 ─────────────────────────
 
 def build():
-    l3, l5, l6, l4, business = load_inputs()
+    l3, l5, l6, l4, business, v1, v1_bases = load_inputs()
     optimizer_names = list(l5["metadata"]["material_names"]) if l5.get("metadata") else \
         list(l5.get("material_map", {}).keys())
     optimizer_index = {name: idx for idx, name in enumerate(optimizer_names)}
@@ -172,6 +178,9 @@ def build():
     ml_mismatch = [(mid, base, name_by_id.get(mid)) for mid, base in ml_pairs if name_by_id.get(mid) != base]
     checks.append({"name": "ml_formula_component.material_id↔base 与 L3 一致", "passed": not ml_mismatch,
                    "detail": ml_mismatch[:5], "pairs": len(ml_pairs)})
+    if v1_bases:
+        base_gap = sorted(set(v1_bases) ^ set(name_by_id.values()))
+        checks.append({"name": "交接 base_list.json 与 L3 基准一致", "passed": not base_gap, "detail": base_gap[:5]})
 
     aliases: list[dict] = []
     queue: list[dict] = []
@@ -206,6 +215,8 @@ def build():
         key = norm_name(name)
         if not key:
             return None, None
+        if key in v1_owner:
+            return v1_owner[key], "handover-v1"
         if key in by_norm:
             return by_norm[key], "exact-norm"
         if key in alias_owner:
@@ -222,6 +233,28 @@ def build():
         if len(hits) > 1:
             return None, ("ambiguous", sorted(name_by_id[h] for h in hits))
         return None, None
+
+    # 交接权威映射（data/handover/V1_base_mapping.json，142 条，match_method=mapping_json，confidence=1.0）
+    # 作为**最高优先级桥**：它直接给出"原始材料名/代号 → base"，例如
+    #   YGZ/YGZ粉/棕刚玉粉 → 棕刚玉；一级YGB/一级YGB粉 → 一级白刚玉；一级YGB/YGZ → 一级白刚玉/棕刚玉；
+    #   10#/20#/30#/80# → 磨料；31/33线除尘粉 → 除尘料；Vical 71/VICAL71水泥 → CA71水泥；FDN → FDN减水剂 …
+    # 来源：_ref/交接工作代码以及说明.zip → data.zip 的 data/V1_base_mapping.json（运行顺序.txt 第 2 步所用）。
+    v1_owner: dict[str, int] = {}
+    id_by_name = {m["name"]: m["material_id"] for m in materials}
+    v1_rows = 0
+    for row in v1:
+        base_name = str(row.get("base_name") or "")
+        material_id = id_by_name.get(base_name)
+        if material_id is None:
+            queue.append({"level": "v1_base_unknown", "external_name": str(row.get("new_name")),
+                          "source": "handover_v1", "candidates": base_name,
+                          "suggestion": "V1 映射的 base_name 不在 L3 基准内"})
+            continue
+        v1_rows += 1
+        key = norm_name(row.get("new_name"))
+        if key:
+            v1_owner.setdefault(key, material_id)
+        add_alias(row.get("new_name"), material_id, "handover", "handover_v1", 1.0)
 
     # 基准名自身作为 canonical 别名
     for m in materials:

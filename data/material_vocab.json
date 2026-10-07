@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-10-07T20:36:47+0800",
+  "generated_at": "2026-10-07T21:11:30+0800",
   "generated_by": "backend_impl/scripts/build_material_vocab.py",
   "policy": "以 L3（material_id 冻结 0..88）为基准；别名多对一；粒级独立字段；工艺参数不进原料轴；零猜测",
   "sources": {
@@ -40,6 +40,11 @@
       "passed": true,
       "detail": [],
       "pairs": 89
+    },
+    {
+      "name": "交接 base_list.json 与 L3 基准一致",
+      "passed": true,
+      "detail": []
     }
   ],
   "materials": [
@@ -344,7 +349,7 @@
       "material_id": 24,
       "base_id": "BASE_000025",
       "name": "CA68水泥",
-      "category": "",
+      "category": "铝酸盐水泥",
       "formula": "",
       "elements": {},
       "status": "active",
@@ -368,9 +373,13 @@
       "material_id": 26,
       "base_id": "BASE_000027",
       "name": "CA71F水泥",
-      "category": "",
-      "formula": "",
-      "elements": {},
+      "category": "铝酸盐水泥",
+      "formula": "CaO·Al2O3",
+      "elements": {
+        "Ca": 0.14285714285714285,
+        "O": 0.5714285714285714,
+        "Al": 0.2857142857142857
+      },
       "status": "active",
       "samples": 2
     },
@@ -378,9 +387,13 @@
       "material_id": 27,
       "base_id": "BASE_000028",
       "name": "CA71水泥",
-      "category": "",
-      "formula": "",
-      "elements": {},
+      "category": "铝酸盐水泥",
+      "formula": "CaO·Al2O3",
+      "elements": {
+        "Ca": 0.14285714285714285,
+        "O": 0.5714285714285714,
+        "Al": 0.2857142857142857
+      },
       "status": "active",
       "samples": 617
     },
@@ -538,8 +551,11 @@
       "base_id": "BASE_000043",
       "name": "一级白刚玉",
       "category": "刚玉类",
-      "formula": "",
-      "elements": {},
+      "formula": "Al2O3",
+      "elements": {
+        "Al": 0.4,
+        "O": 0.6
+      },
       "status": "active",
       "samples": 586
     },
@@ -547,9 +563,12 @@
       "material_id": 43,
       "base_id": "BASE_000044",
       "name": "一级白刚玉/棕刚玉",
-      "category": "",
-      "formula": "",
-      "elements": {},
+      "category": "其他",
+      "formula": "Al2O3",
+      "elements": {
+        "Al": 0.4,
+        "O": 0.6
+      },
       "status": "active",
       "samples": 21
     },
@@ -758,8 +777,12 @@
       "base_id": "BASE_000062",
       "name": "棕刚玉",
       "category": "刚玉类",
-      "formula": "",
-      "elements": {},
+      "formula": "Al2O3·SiO2",
+      "elements": {
+        "Al": 0.25,
+        "O": 0.625,
+        "Si": 0.125
+      },
       "status": "active",
       "samples": 2021
     },
@@ -973,9 +996,13 @@
       "material_id": 79,
       "base_id": "BASE_000080",
       "name": "磨料",
-      "category": "",
-      "formula": "",
-      "elements": {},
+      "category": "其他",
+      "formula": "Al2O3·SiO2",
+      "elements": {
+        "Al": 0.25,
+        "O": 0.625,
+        "Si": 0.125
+      },
       "status": "active",
       "samples": 82
     },
@@ -1041,7 +1068,7 @@
       "material_id": 85,
       "base_id": "BASE_000086",
       "name": "除尘料",
-      "category": "",
+      "category": "其他",
       "formula": "",
       "elements": {},
       "status": "active",
@@ -1085,99 +1112,1429 @@
   ],
   "aliases": [
     {
-      "alias": "101E",
-      "alias_norm": "101e",
-      "material_id": 0,
-      "kind": "canonical",
+      "alias": "YGZ",
+      "alias_norm": "ygz",
+      "material_id": 61,
+      "kind": "handover",
       "particle_min": null,
       "particle_max": null,
-      "source": "L3",
+      "source": "handover_v1",
       "confidence": 1.0
     },
     {
-      "alias": "102E",
-      "alias_norm": "102e",
-      "material_id": 1,
-      "kind": "canonical",
+      "alias": "YGMZ",
+      "alias_norm": "ygmz",
+      "material_id": 38,
+      "kind": "handover",
       "particle_min": null,
       "particle_max": null,
-      "source": "L3",
+      "source": "handover_v1",
       "confidence": 1.0
     },
     {
-      "alias": "600R",
-      "alias_norm": "600r",
-      "material_id": 2,
-      "kind": "canonical",
+      "alias": "YGZ粉",
+      "alias_norm": "ygz",
+      "material_id": 61,
+      "kind": "handover",
       "particle_min": null,
       "particle_max": null,
-      "source": "L3",
+      "source": "handover_v1",
       "confidence": 1.0
     },
     {
-      "alias": "60均质",
+      "alias": "Vical 71",
+      "alias_norm": "vical71",
+      "material_id": 27,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "球状沥青",
+      "alias_norm": "球状沥青",
+      "material_id": 71,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "Al2O3微粉",
+      "alias_norm": "al2o3",
+      "material_id": 21,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "FS20",
+      "alias_norm": "fs20",
+      "material_id": 30,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "95硅灰（ELKEM）",
+      "alias_norm": "95硅灰",
+      "material_id": 15,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "金属铝粉",
+      "alias_norm": "金属铝",
+      "material_id": 83,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "碳化硼",
+      "alias_norm": "碳化硼",
+      "material_id": 77,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "金属硅粉",
+      "alias_norm": "金属硅",
+      "material_id": 82,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "倒焰90矾土",
+      "alias_norm": "倒焰90矾土",
+      "material_id": 46,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "一级YGB粉",
+      "alias_norm": "一级ygb",
+      "material_id": 42,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "97黑碳化硅（铁沟组专用）",
+      "alias_norm": "97黑碳化硅",
+      "material_id": 17,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "Vical71水泥",
+      "alias_norm": "vical71水泥",
+      "material_id": 27,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "防爆纤维（jx-16）",
+      "alias_norm": "防爆纤维",
+      "material_id": 84,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "高铝微粉（登峰熔料）",
+      "alias_norm": "高铝",
+      "material_id": 86,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "95硅灰",
+      "alias_norm": "95硅灰",
+      "material_id": 15,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "活性氧化铝",
+      "alias_norm": "活性氧化铝",
+      "material_id": 68,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "97黑碳化硅",
+      "alias_norm": "97黑碳化硅",
+      "material_id": 17,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "90矾土",
+      "alias_norm": "90矾土",
+      "material_id": 12,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "TFJE",
+      "alias_norm": "tfje",
+      "material_id": 36,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "80矾土粉",
+      "alias_norm": "80矾土",
+      "material_id": 10,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "92硅灰",
+      "alias_norm": "92硅灰",
+      "material_id": 14,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "60均质粉",
       "alias_norm": "60均质",
       "material_id": 3,
-      "kind": "canonical",
+      "kind": "handover",
       "particle_min": null,
       "particle_max": null,
-      "source": "L3",
+      "source": "handover_v1",
       "confidence": 1.0
     },
     {
-      "alias": "80L-A2",
-      "alias_norm": "80la2",
-      "material_id": 4,
-      "kind": "canonical",
+      "alias": "C11水泥",
+      "alias_norm": "c11水泥",
+      "material_id": 23,
+      "kind": "handover",
       "particle_min": null,
       "particle_max": null,
-      "source": "L3",
+      "source": "handover_v1",
       "confidence": 1.0
     },
     {
-      "alias": "80L-B2",
-      "alias_norm": "80lb2",
-      "material_id": 5,
-      "kind": "canonical",
+      "alias": "防爆纤维",
+      "alias_norm": "防爆纤维",
+      "material_id": 84,
+      "kind": "handover",
       "particle_min": null,
       "particle_max": null,
-      "source": "L3",
+      "source": "handover_v1",
       "confidence": 1.0
     },
     {
-      "alias": "80P-A2",
-      "alias_norm": "80pa2",
-      "material_id": 6,
-      "kind": "canonical",
+      "alias": "10#",
+      "alias_norm": "10",
+      "material_id": 79,
+      "kind": "handover",
       "particle_min": null,
       "particle_max": null,
-      "source": "L3",
+      "source": "handover_v1",
       "confidence": 1.0
     },
     {
-      "alias": "80P-B2",
-      "alias_norm": "80pb2",
-      "material_id": 7,
-      "kind": "canonical",
+      "alias": "20#",
+      "alias_norm": "20",
+      "material_id": 79,
+      "kind": "handover",
       "particle_min": null,
       "particle_max": null,
-      "source": "L3",
+      "source": "handover_v1",
       "confidence": 1.0
     },
     {
       "alias": "80均质料",
       "alias_norm": "80均质料",
       "material_id": 8,
-      "kind": "canonical",
+      "kind": "handover",
       "particle_min": null,
       "particle_max": null,
-      "source": "L3",
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "90黑碳化硅",
+      "alias_norm": "90黑碳化硅",
+      "material_id": 13,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "回转窑88矾土",
+      "alias_norm": "回转窑88矾土",
+      "material_id": 54,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "96A硅灰",
+      "alias_norm": "96a硅灰",
+      "material_id": 16,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "微粉",
+      "alias_norm": "微粉",
+      "material_id": 59,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "30#",
+      "alias_norm": "30",
+      "material_id": 79,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "回转窑85矾土",
+      "alias_norm": "回转窑85矾土",
+      "material_id": 53,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "一级YGB",
+      "alias_norm": "一级ygb",
+      "material_id": 42,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "71水泥",
+      "alias_norm": "71水泥",
+      "material_id": 27,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "倒焰91矾土",
+      "alias_norm": "倒焰91矾土",
+      "material_id": 47,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "VICAL71F水泥",
+      "alias_norm": "vical71f水泥",
+      "material_id": 26,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "炭黑",
+      "alias_norm": "炭黑",
+      "material_id": 69,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "VICAL71水泥",
+      "alias_norm": "vical71水泥",
+      "material_id": 27,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "高铝微粉",
+      "alias_norm": "高铝",
+      "material_id": 86,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "鳞片石墨",
+      "alias_norm": "鳞片石墨",
+      "material_id": 87,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "a-Al2O3",
+      "alias_norm": "alphaal2o3",
+      "material_id": 41,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "A71水泥",
+      "alias_norm": "a71水泥",
+      "material_id": 20,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "倒焰88矾土",
+      "alias_norm": "倒焰88矾土",
+      "material_id": 45,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "倒焰窑90矾土",
+      "alias_norm": "倒焰窑90矾土",
+      "material_id": 46,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "氧化铝微粉",
+      "alias_norm": "氧化铝",
+      "material_id": 62,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "一级YGB/YGZ",
+      "alias_norm": "一级ygbygz",
+      "material_id": 43,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "一级YGB325/YGZ粉",
+      "alias_norm": "一级ygb325ygz",
+      "material_id": 43,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "思本硅灰",
+      "alias_norm": "思本硅灰",
+      "material_id": 60,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "Al2O3微粉（AW-06L）",
+      "alias_norm": "al2o3",
+      "material_id": 21,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "Al2O3微粉（高达）",
+      "alias_norm": "al2o3",
+      "material_id": 21,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "SP610",
+      "alias_norm": "sp610",
+      "material_id": 34,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "金属硅粉（河南安阳中豫锦明）",
+      "alias_norm": "金属硅",
+      "material_id": 82,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "金属硅粉（营口仙人岛泰和硅业）",
+      "alias_norm": "金属硅",
+      "material_id": 82,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "氮化硅粉",
+      "alias_norm": "氮化硅",
+      "material_id": 64,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "硅氮氧粉",
+      "alias_norm": "硅氮氧",
+      "material_id": 73,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "氮化钛-高",
+      "alias_norm": "氮化钛高",
+      "material_id": 66,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "一级YGB粉/YGZ",
+      "alias_norm": "一级ygbygz",
+      "material_id": 43,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "高铝微粉（登封）",
+      "alias_norm": "高铝",
+      "material_id": 86,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "80P-A2",
+      "alias_norm": "80pa2",
+      "material_id": 6,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "80L-A2",
+      "alias_norm": "80la2",
+      "material_id": 4,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "80P-B2",
+      "alias_norm": "80pb2",
+      "material_id": 7,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "80L-B2",
+      "alias_norm": "80lb2",
+      "material_id": 5,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "600R",
+      "alias_norm": "600r",
+      "material_id": 2,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "FS-20",
+      "alias_norm": "fs20",
+      "material_id": 30,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "97黑碳化硅粉",
+      "alias_norm": "97黑碳化硅",
+      "material_id": 17,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "TiN",
+      "alias_norm": "tin",
+      "material_id": 66,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "101E",
+      "alias_norm": "101e",
+      "material_id": 0,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "102E",
+      "alias_norm": "102e",
+      "material_id": 1,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "C纤维",
+      "alias_norm": "c纤维",
+      "material_id": 28,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "石墨烯",
+      "alias_norm": "石墨烯",
+      "material_id": 72,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "CA70水泥",
+      "alias_norm": "ca70水泥",
+      "material_id": 25,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "97黑碳化硅（自家）",
+      "alias_norm": "97黑碳化硅",
+      "material_id": 17,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "97黑碳化硅粉（自家）",
+      "alias_norm": "97黑碳化硅",
+      "material_id": 17,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "97黑碳化硅（东祥97）",
+      "alias_norm": "97黑碳化硅",
+      "material_id": 17,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "97黑碳化硅粉（东祥97）",
+      "alias_norm": "97黑碳化硅",
+      "material_id": 17,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "97黑碳化硅粉（平罗98）",
+      "alias_norm": "97黑碳化硅",
+      "material_id": 17,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "金属硅粉（寄样）",
+      "alias_norm": "金属硅",
+      "material_id": 82,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "硅质结合剂（TC-10)",
+      "alias_norm": "硅质结合剂",
+      "material_id": 76,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "氮氧化硅",
+      "alias_norm": "氮氧化硅",
+      "material_id": 67,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "结合料",
+      "alias_norm": "结合料",
+      "material_id": 80,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "氧化铝纤维",
+      "alias_norm": "氧化铝纤维",
+      "material_id": 62,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "FDN",
+      "alias_norm": "fdn",
+      "material_id": 29,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "La2O3",
+      "alias_norm": "la2o3",
+      "material_id": 63,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "氧化镧",
+      "alias_norm": "氧化镧",
+      "material_id": 63,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "TC 10",
+      "alias_norm": "tc10",
+      "material_id": 35,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "氮化硅碳化硅",
+      "alias_norm": "氮化硅碳化硅",
+      "material_id": 65,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
       "confidence": 1.0
     },
     {
       "alias": "80均质矾土",
       "alias_norm": "80均质矾土",
       "material_id": 9,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "97黑碳化硅粉（铁沟组专用）",
+      "alias_norm": "97黑碳化硅",
+      "material_id": 17,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "98黑碳化硅",
+      "alias_norm": "98黑碳化硅",
+      "material_id": 18,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "98黑碳化硅（铁沟组专用）",
+      "alias_norm": "98黑碳化硅",
+      "material_id": 18,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "98黑碳化硅粉",
+      "alias_norm": "98黑碳化硅",
+      "material_id": 18,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "98黑碳化硅粉（铁沟组专用）",
+      "alias_norm": "98黑碳化硅",
+      "material_id": 18,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "BGLT锥混粉",
+      "alias_norm": "bglt锥混",
+      "material_id": 22,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "JNTC锥混粉",
+      "alias_norm": "jntc锥混",
+      "material_id": 31,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "LNSA锥混粉",
+      "alias_norm": "lnsa锥混",
+      "material_id": 32,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "SECAR71水泥（凯诺斯）",
+      "alias_norm": "secar71水泥",
+      "material_id": 27,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "TGLT锥混粉",
+      "alias_norm": "tglt锥混",
+      "material_id": 37,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "ZXLT锥混粉",
+      "alias_norm": "zxlt锥混",
+      "material_id": 39,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "zc80均质骨料",
+      "alias_norm": "zc80均质",
+      "material_id": 40,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "一级白刚玉",
+      "alias_norm": "一级白刚玉",
+      "material_id": 42,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "一级白刚玉粉",
+      "alias_norm": "一级白刚玉",
+      "material_id": 42,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "低温防爆纤维",
+      "alias_norm": "低温防爆纤维",
+      "material_id": 84,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "回收刚玉",
+      "alias_norm": "回收刚玉",
+      "material_id": 50,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "棕刚玉",
+      "alias_norm": "棕刚玉",
+      "material_id": 61,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "棕刚玉粉",
+      "alias_norm": "棕刚玉",
+      "material_id": 61,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "氧化铝微粉AW-06L",
+      "alias_norm": "氧化铝aw06l",
+      "material_id": 62,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "煅烧氧化铝",
+      "alias_norm": "煅烧氧化铝",
+      "material_id": 70,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "致密刚玉",
+      "alias_norm": "致密刚玉",
+      "material_id": 81,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "30#（六偏磷酸钠）",
+      "alias_norm": "30",
+      "material_id": 79,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "31线除尘粉",
+      "alias_norm": "31线除尘",
+      "material_id": 85,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "33线除尘粉",
+      "alias_norm": "33线除尘",
+      "material_id": 85,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "60均质微粉",
+      "alias_norm": "60均质",
+      "material_id": 3,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "80#",
+      "alias_norm": "80",
+      "material_id": 79,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "88均质矾土",
+      "alias_norm": "88均质矾土",
+      "material_id": 11,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "92硅灰（龙城）",
+      "alias_norm": "92硅灰",
+      "material_id": 14,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "A600水泥",
+      "alias_norm": "a600水泥",
+      "material_id": 19,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "PGTC锥混粉",
+      "alias_norm": "pgtc锥混",
+      "material_id": 33,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "SP610外加剂",
+      "alias_norm": "sp610外加剂",
+      "material_id": 34,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "Vical68水泥",
+      "alias_norm": "vical68水泥",
+      "material_id": 24,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "α-Al2O3微粉",
+      "alias_norm": "alphaal2o3",
+      "material_id": 41,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "七水硫酸镁",
+      "alias_norm": "七水硫酸镁",
+      "material_id": 44,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "刚玉碳化硅提纯料",
+      "alias_norm": "刚玉碳化硅提纯料",
+      "material_id": 48,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "卫生瓷块料",
+      "alias_norm": "卫生瓷块料",
+      "material_id": 49,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "卫生瓷块料除尘",
+      "alias_norm": "卫生瓷块料除尘",
+      "material_id": 49,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "回转窑80矾土",
+      "alias_norm": "回转窑80矾土",
+      "material_id": 51,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "回转窑82矾土",
+      "alias_norm": "回转窑82矾土",
+      "material_id": 52,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "回转窑90矾土",
+      "alias_norm": "回转窑90矾土",
+      "material_id": 55,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "回转窑二级矾土",
+      "alias_norm": "回转窑二级矾土",
+      "material_id": 56,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "固体硫酸铝",
+      "alias_norm": "固体硫酸铝",
+      "material_id": 57,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "广西泥",
+      "alias_norm": "广西泥",
+      "material_id": 58,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "氮化钛",
+      "alias_norm": "氮化钛",
+      "material_id": 66,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "氮化钛-高品位",
+      "alias_norm": "氮化钛高品位",
+      "material_id": 66,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "活性氧化铝粉",
+      "alias_norm": "活性氧化铝",
+      "material_id": 68,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "电卡68水泥",
+      "alias_norm": "电卡68水泥",
+      "material_id": 24,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "硅溶胶",
+      "alias_norm": "硅溶胶",
+      "material_id": 74,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "硅砖粉",
+      "alias_norm": "硅砖",
+      "material_id": 75,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "碳质添加剂",
+      "alias_norm": "碳质添加剂",
+      "material_id": 78,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "黑刚玉除尘",
+      "alias_norm": "黑刚玉除尘",
+      "material_id": 88,
+      "kind": "handover",
+      "particle_min": null,
+      "particle_max": null,
+      "source": "handover_v1",
+      "confidence": 1.0
+    },
+    {
+      "alias": "60均质",
+      "alias_norm": "60均质",
+      "material_id": 3,
       "kind": "canonical",
       "particle_min": null,
       "particle_max": null,
@@ -1195,106 +2552,6 @@
       "confidence": 1.0
     },
     {
-      "alias": "88均质矾土",
-      "alias_norm": "88均质矾土",
-      "material_id": 11,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "90矾土",
-      "alias_norm": "90矾土",
-      "material_id": 12,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "90黑碳化硅",
-      "alias_norm": "90黑碳化硅",
-      "material_id": 13,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "92硅灰",
-      "alias_norm": "92硅灰",
-      "material_id": 14,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "95硅灰",
-      "alias_norm": "95硅灰",
-      "material_id": 15,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "96A硅灰",
-      "alias_norm": "96a硅灰",
-      "material_id": 16,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "97黑碳化硅",
-      "alias_norm": "97黑碳化硅",
-      "material_id": 17,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "98黑碳化硅",
-      "alias_norm": "98黑碳化硅",
-      "material_id": 18,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "A600水泥",
-      "alias_norm": "a600水泥",
-      "material_id": 19,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "A71水泥",
-      "alias_norm": "a71水泥",
-      "material_id": 20,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
       "alias": "Al2O3",
       "alias_norm": "al2o3",
       "material_id": 21,
@@ -1305,39 +2562,9 @@
       "confidence": 1.0
     },
     {
-      "alias": "BGLT锥混粉",
-      "alias_norm": "bglt锥混",
-      "material_id": 22,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "C11水泥",
-      "alias_norm": "c11水泥",
-      "material_id": 23,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
       "alias": "CA68水泥",
       "alias_norm": "ca68水泥",
       "material_id": 24,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "CA70水泥",
-      "alias_norm": "ca70水泥",
-      "material_id": 25,
       "kind": "canonical",
       "particle_min": null,
       "particle_max": null,
@@ -1365,16 +2592,6 @@
       "confidence": 1.0
     },
     {
-      "alias": "C纤维",
-      "alias_norm": "c纤维",
-      "material_id": 28,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
       "alias": "FDN减水剂",
       "alias_norm": "fdn减水剂",
       "material_id": 29,
@@ -1385,99 +2602,9 @@
       "confidence": 1.0
     },
     {
-      "alias": "FS20",
-      "alias_norm": "fs20",
-      "material_id": 30,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "JNTC锥混粉",
-      "alias_norm": "jntc锥混",
-      "material_id": 31,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "LNSA锥混粉",
-      "alias_norm": "lnsa锥混",
-      "material_id": 32,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "PGTC锥混粉",
-      "alias_norm": "pgtc锥混",
-      "material_id": 33,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "SP610",
-      "alias_norm": "sp610",
-      "material_id": 34,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
       "alias": "TC10结合剂",
       "alias_norm": "tc10结合剂",
       "material_id": 35,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "TFJE",
-      "alias_norm": "tfje",
-      "material_id": 36,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "TGLT锥混粉",
-      "alias_norm": "tglt锥混",
-      "material_id": 37,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "YGMZ",
-      "alias_norm": "ygmz",
-      "material_id": 38,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "ZXLT锥混粉",
-      "alias_norm": "zxlt锥混",
-      "material_id": 39,
       "kind": "canonical",
       "particle_min": null,
       "particle_max": null,
@@ -1505,199 +2632,9 @@
       "confidence": 1.0
     },
     {
-      "alias": "一级白刚玉",
-      "alias_norm": "一级白刚玉",
-      "material_id": 42,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
       "alias": "一级白刚玉/棕刚玉",
       "alias_norm": "一级白刚玉棕刚玉",
       "material_id": 43,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "七水硫酸镁",
-      "alias_norm": "七水硫酸镁",
-      "material_id": 44,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "倒焰88矾土",
-      "alias_norm": "倒焰88矾土",
-      "material_id": 45,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "倒焰90矾土",
-      "alias_norm": "倒焰90矾土",
-      "material_id": 46,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "倒焰91矾土",
-      "alias_norm": "倒焰91矾土",
-      "material_id": 47,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "刚玉碳化硅提纯料",
-      "alias_norm": "刚玉碳化硅提纯料",
-      "material_id": 48,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "卫生瓷块料",
-      "alias_norm": "卫生瓷块料",
-      "material_id": 49,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "回收刚玉",
-      "alias_norm": "回收刚玉",
-      "material_id": 50,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "回转窑80矾土",
-      "alias_norm": "回转窑80矾土",
-      "material_id": 51,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "回转窑82矾土",
-      "alias_norm": "回转窑82矾土",
-      "material_id": 52,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "回转窑85矾土",
-      "alias_norm": "回转窑85矾土",
-      "material_id": 53,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "回转窑88矾土",
-      "alias_norm": "回转窑88矾土",
-      "material_id": 54,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "回转窑90矾土",
-      "alias_norm": "回转窑90矾土",
-      "material_id": 55,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "回转窑二级矾土",
-      "alias_norm": "回转窑二级矾土",
-      "material_id": 56,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "固体硫酸铝",
-      "alias_norm": "固体硫酸铝",
-      "material_id": 57,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "广西泥",
-      "alias_norm": "广西泥",
-      "material_id": 58,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "微粉",
-      "alias_norm": "微粉",
-      "material_id": 59,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "思本硅灰",
-      "alias_norm": "思本硅灰",
-      "material_id": 60,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "棕刚玉",
-      "alias_norm": "棕刚玉",
-      "material_id": 61,
       "kind": "canonical",
       "particle_min": null,
       "particle_max": null,
@@ -1715,99 +2652,9 @@
       "confidence": 1.0
     },
     {
-      "alias": "氧化镧",
-      "alias_norm": "氧化镧",
-      "material_id": 63,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
       "alias": "氮化硅",
       "alias_norm": "氮化硅",
       "material_id": 64,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "氮化硅碳化硅",
-      "alias_norm": "氮化硅碳化硅",
-      "material_id": 65,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "氮化钛",
-      "alias_norm": "氮化钛",
-      "material_id": 66,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "氮氧化硅",
-      "alias_norm": "氮氧化硅",
-      "material_id": 67,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "活性氧化铝",
-      "alias_norm": "活性氧化铝",
-      "material_id": 68,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "炭黑",
-      "alias_norm": "炭黑",
-      "material_id": 69,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "煅烧氧化铝",
-      "alias_norm": "煅烧氧化铝",
-      "material_id": 70,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "球状沥青",
-      "alias_norm": "球状沥青",
-      "material_id": 71,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "石墨烯",
-      "alias_norm": "石墨烯",
-      "material_id": 72,
       "kind": "canonical",
       "particle_min": null,
       "particle_max": null,
@@ -1825,26 +2672,6 @@
       "confidence": 1.0
     },
     {
-      "alias": "硅溶胶",
-      "alias_norm": "硅溶胶",
-      "material_id": 74,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "硅砖粉",
-      "alias_norm": "硅砖",
-      "material_id": 75,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
       "alias": "硅质结合剂",
       "alias_norm": "硅质结合剂",
       "material_id": 76,
@@ -1855,49 +2682,9 @@
       "confidence": 1.0
     },
     {
-      "alias": "碳化硼",
-      "alias_norm": "碳化硼",
-      "material_id": 77,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "碳质添加剂",
-      "alias_norm": "碳质添加剂",
-      "material_id": 78,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
       "alias": "磨料",
       "alias_norm": "磨料",
       "material_id": 79,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "结合料",
-      "alias_norm": "结合料",
-      "material_id": 80,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "致密刚玉",
-      "alias_norm": "致密刚玉",
-      "material_id": 81,
       "kind": "canonical",
       "particle_min": null,
       "particle_max": null,
@@ -1925,16 +2712,6 @@
       "confidence": 1.0
     },
     {
-      "alias": "防爆纤维",
-      "alias_norm": "防爆纤维",
-      "material_id": 84,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
       "alias": "除尘料",
       "alias_norm": "除尘料",
       "material_id": 85,
@@ -1948,16 +2725,6 @@
       "alias": "高铝",
       "alias_norm": "高铝",
       "material_id": 86,
-      "kind": "canonical",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L3",
-      "confidence": 1.0
-    },
-    {
-      "alias": "鳞片石墨",
-      "alias_norm": "鳞片石墨",
-      "material_id": 87,
       "kind": "canonical",
       "particle_min": null,
       "particle_max": null,
@@ -2013,16 +2780,6 @@
       "particle_max": 1.0,
       "source": "L6",
       "confidence": 0.95
-    },
-    {
-      "alias": "95硅灰（ELKEM）",
-      "alias_norm": "95硅灰",
-      "material_id": 15,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
     },
     {
       "alias": "97黑碳化硅0-1mm",
@@ -2083,16 +2840,6 @@
       "particle_max": 0.00075,
       "source": "L6",
       "confidence": 0.95
-    },
-    {
-      "alias": "97黑碳化硅粉",
-      "alias_norm": "97黑碳化硅",
-      "material_id": 17,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
     },
     {
       "alias": "97黑碳化硅粉200目（铁沟组专用）",
@@ -2185,16 +2932,6 @@
       "confidence": 0.95
     },
     {
-      "alias": "98黑碳化硅粉",
-      "alias_norm": "98黑碳化硅",
-      "material_id": 18,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
       "alias": "98黑碳化硅粉200目（铁沟组专用）",
       "alias_norm": "98黑碳化硅200目",
       "material_id": 18,
@@ -2263,16 +3000,6 @@
       "particle_max": 0.00046153846153846153,
       "source": "L6",
       "confidence": 0.95
-    },
-    {
-      "alias": "一级白刚玉粉",
-      "alias_norm": "一级白刚玉",
-      "material_id": 42,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
     },
     {
       "alias": "低温防爆纤维3mm",
@@ -2485,26 +3212,6 @@
       "confidence": 0.95
     },
     {
-      "alias": "棕刚玉粉",
-      "alias_norm": "棕刚玉",
-      "material_id": 61,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "氧化铝微粉AW-06L",
-      "alias_norm": "氧化铝aw06l",
-      "material_id": 62,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
       "alias": "球状沥青0-1mm",
       "alias_norm": "球状沥青01mm",
       "material_id": 71,
@@ -2575,26 +3282,6 @@
       "confidence": 1.0
     },
     {
-      "alias": "60均质微粉",
-      "alias_norm": "60均质",
-      "material_id": 3,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "92硅灰（龙城）",
-      "alias_norm": "92硅灰",
-      "material_id": 14,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
       "alias": "98黑碳化硅1-3mm",
       "alias_norm": "98黑碳化硅13mm",
       "material_id": 18,
@@ -2603,26 +3290,6 @@
       "particle_max": 3.0,
       "source": "L6",
       "confidence": 0.95
-    },
-    {
-      "alias": "SP610外加剂",
-      "alias_norm": "sp610外加剂",
-      "material_id": 34,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "α-Al2O3微粉",
-      "alias_norm": "alphaal2o3",
-      "material_id": 41,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
     },
     {
       "alias": "刚玉碳化硅提纯料1-3mm",
@@ -2655,16 +3322,6 @@
       "confidence": 0.95
     },
     {
-      "alias": "卫生瓷块料除尘",
-      "alias_norm": "卫生瓷块料除尘",
-      "material_id": 49,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
       "alias": "棕刚玉粉325目",
       "alias_norm": "棕刚玉325目",
       "material_id": 61,
@@ -2673,26 +3330,6 @@
       "particle_max": 0.00046153846153846153,
       "source": "L6",
       "confidence": 0.95
-    },
-    {
-      "alias": "氮化钛-高品位",
-      "alias_norm": "氮化钛高品位",
-      "material_id": 66,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "活性氧化铝粉",
-      "alias_norm": "活性氧化铝",
-      "material_id": 68,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
     },
     {
       "alias": "碳化硼325目",
@@ -2705,16 +3342,6 @@
       "confidence": 0.95
     },
     {
-      "alias": "金属硅粉",
-      "alias_norm": "金属硅",
-      "material_id": 82,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
       "alias": "金属硅粉400目",
       "alias_norm": "金属硅400目",
       "material_id": 82,
@@ -2725,169 +3352,9 @@
       "confidence": 0.95
     },
     {
-      "alias": "金属铝粉",
-      "alias_norm": "金属铝",
-      "material_id": 83,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "高铝微粉",
-      "alias_norm": "高铝",
-      "material_id": 86,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "黑刚玉除尘",
-      "alias_norm": "黑刚玉除尘",
-      "material_id": 88,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "60均质粉",
-      "alias_norm": "60均质",
-      "material_id": 3,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "80矾土粉",
-      "alias_norm": "80矾土",
-      "material_id": 10,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "97黑碳化硅粉（东祥97）",
-      "alias_norm": "97黑碳化硅",
-      "material_id": 17,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "97黑碳化硅粉（平罗98）",
-      "alias_norm": "97黑碳化硅",
-      "material_id": 17,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "97黑碳化硅粉（自家）",
-      "alias_norm": "97黑碳化硅",
-      "material_id": 17,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "97黑碳化硅（东祥97）",
-      "alias_norm": "97黑碳化硅",
-      "material_id": 17,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "97黑碳化硅（自家）",
-      "alias_norm": "97黑碳化硅",
-      "material_id": 17,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "97黑碳化硅（铁沟组专用）",
-      "alias_norm": "97黑碳化硅",
-      "material_id": 17,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
       "alias": "97黑碳化硅（铁钩组专用）",
       "alias_norm": "97黑碳化硅",
       "material_id": 17,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "Al2O3微粉",
-      "alias_norm": "al2o3",
-      "material_id": 21,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "Al2O3微粉（AW-06L）",
-      "alias_norm": "al2o3",
-      "material_id": 21,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "Al2O3微粉（高达）",
-      "alias_norm": "al2o3",
-      "material_id": 21,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "FDN",
-      "alias_norm": "fdn",
-      "material_id": 29,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "FS-20",
-      "alias_norm": "fs20",
-      "material_id": 30,
       "kind": "synonym",
       "particle_min": null,
       "particle_max": null,
@@ -2905,139 +3372,9 @@
       "confidence": 1.0
     },
     {
-      "alias": "a-Al2O3",
-      "alias_norm": "alphaal2o3",
-      "material_id": 41,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "倒焰窑90矾土",
-      "alias_norm": "倒焰窑90矾土",
-      "material_id": 12,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "氧化铝微粉",
-      "alias_norm": "氧化铝",
-      "material_id": 62,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "氧化铝纤维",
-      "alias_norm": "氧化铝纤维",
-      "material_id": 62,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "氮化硅粉",
-      "alias_norm": "氮化硅",
-      "material_id": 64,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "氮化钛-高",
-      "alias_norm": "氮化钛高",
-      "material_id": 66,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "硅氮氧粉",
-      "alias_norm": "硅氮氧",
-      "material_id": 73,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "硅质结合剂（TC-10)",
-      "alias_norm": "硅质结合剂",
-      "material_id": 76,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "金属硅粉（寄样）",
-      "alias_norm": "金属硅",
-      "material_id": 82,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "金属硅粉（河南安阳中豫锦明）",
-      "alias_norm": "金属硅",
-      "material_id": 82,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "金属硅粉（营口仙人岛泰和硅业）",
-      "alias_norm": "金属硅",
-      "material_id": 82,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "防爆纤维（jx-16）",
-      "alias_norm": "防爆纤维",
-      "material_id": 84,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "高铝微粉（登封）",
-      "alias_norm": "高铝",
-      "material_id": 86,
-      "kind": "synonym",
-      "particle_min": null,
-      "particle_max": null,
-      "source": "L6",
-      "confidence": 1.0
-    },
-    {
-      "alias": "高铝微粉（登峰熔料）",
-      "alias_norm": "高铝",
-      "material_id": 86,
+      "alias": "Vical71",
+      "alias_norm": "vical71",
+      "material_id": 27,
       "kind": "synonym",
       "particle_min": null,
       "particle_max": null,
@@ -3310,9 +3647,9 @@
       "system": "optimizer",
       "external_name": "10#",
       "external_index": 0,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "ambiguous"
+      "material_id": 79,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3320,7 +3657,7 @@
       "external_index": 1,
       "material_id": 0,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3328,23 +3665,23 @@
       "external_index": 2,
       "material_id": 1,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "20#",
       "external_index": 3,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "ambiguous"
+      "material_id": 79,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "30#",
       "external_index": 4,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 79,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3352,7 +3689,7 @@
       "external_index": 5,
       "material_id": 2,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3360,15 +3697,15 @@
       "external_index": 6,
       "material_id": 3,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "71水泥",
       "external_index": 7,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "ambiguous"
+      "material_id": 27,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3376,7 +3713,7 @@
       "external_index": 8,
       "material_id": 4,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3384,7 +3721,7 @@
       "external_index": 9,
       "material_id": 5,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3392,7 +3729,7 @@
       "external_index": 10,
       "material_id": 6,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3400,7 +3737,7 @@
       "external_index": 11,
       "material_id": 7,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3408,7 +3745,7 @@
       "external_index": 12,
       "material_id": 8,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3416,7 +3753,7 @@
       "external_index": 13,
       "material_id": 10,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3424,7 +3761,7 @@
       "external_index": 14,
       "material_id": 12,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3432,7 +3769,7 @@
       "external_index": 15,
       "material_id": 13,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3440,7 +3777,7 @@
       "external_index": 16,
       "material_id": 14,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3448,7 +3785,7 @@
       "external_index": 17,
       "material_id": 15,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3456,7 +3793,7 @@
       "external_index": 18,
       "material_id": 15,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3464,7 +3801,7 @@
       "external_index": 19,
       "material_id": 16,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3488,7 +3825,7 @@
       "external_index": 22,
       "material_id": 17,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3496,7 +3833,7 @@
       "external_index": 23,
       "material_id": 17,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3504,7 +3841,7 @@
       "external_index": 24,
       "material_id": 17,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3512,7 +3849,7 @@
       "external_index": 25,
       "material_id": 17,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3520,7 +3857,7 @@
       "external_index": 26,
       "material_id": 17,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3528,7 +3865,7 @@
       "external_index": 27,
       "material_id": 17,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3536,7 +3873,7 @@
       "external_index": 28,
       "material_id": 17,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3544,7 +3881,7 @@
       "external_index": 29,
       "material_id": 17,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3552,7 +3889,7 @@
       "external_index": 30,
       "material_id": 17,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3560,7 +3897,7 @@
       "external_index": 31,
       "material_id": 20,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3568,7 +3905,7 @@
       "external_index": 32,
       "material_id": 21,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3576,7 +3913,7 @@
       "external_index": 33,
       "material_id": 21,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3584,7 +3921,7 @@
       "external_index": 34,
       "material_id": 21,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3592,7 +3929,7 @@
       "external_index": 35,
       "material_id": 23,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3600,7 +3937,7 @@
       "external_index": 36,
       "material_id": 25,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3608,7 +3945,7 @@
       "external_index": 37,
       "material_id": 28,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3616,7 +3953,7 @@
       "external_index": 38,
       "material_id": 29,
       "kind": "material",
-      "match": "alias-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3624,7 +3961,7 @@
       "external_index": 39,
       "material_id": 30,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3632,15 +3969,15 @@
       "external_index": 40,
       "material_id": 30,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "La2O3",
       "external_index": 41,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 63,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3648,7 +3985,7 @@
       "external_index": 42,
       "material_id": 34,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3656,7 +3993,7 @@
       "external_index": 43,
       "material_id": 35,
       "kind": "material",
-      "match": "alias-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3664,47 +4001,47 @@
       "external_index": 44,
       "material_id": 36,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "TiN",
       "external_index": 45,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 66,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "VICAL71F水泥",
       "external_index": 46,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 26,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "VICAL71水泥",
       "external_index": 47,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 27,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "Vical71",
       "external_index": 48,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 27,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "Vical71水泥",
       "external_index": 49,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 27,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3712,23 +4049,23 @@
       "external_index": 50,
       "material_id": 38,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "YGZ",
       "external_index": 51,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 61,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "YGZ粉",
       "external_index": 52,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 61,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3736,47 +4073,47 @@
       "external_index": 53,
       "material_id": 41,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "一级YGB",
       "external_index": 54,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 42,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "一级YGB/YGZ",
       "external_index": 55,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 43,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "一级YGB325/YGZ粉",
       "external_index": 56,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 43,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "一级YGB粉",
       "external_index": 57,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 42,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "一级YGB粉/YGZ",
       "external_index": 58,
-      "material_id": null,
-      "kind": "unresolved",
-      "match": "none"
+      "material_id": 43,
+      "kind": "material",
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3784,7 +4121,7 @@
       "external_index": 59,
       "material_id": 45,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3792,7 +4129,7 @@
       "external_index": 60,
       "material_id": 46,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3800,15 +4137,15 @@
       "external_index": 61,
       "material_id": 47,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
       "external_name": "倒焰窑90矾土",
       "external_index": 62,
-      "material_id": 12,
+      "material_id": 46,
       "kind": "material",
-      "match": "alias-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3832,7 +4169,7 @@
       "external_index": 65,
       "material_id": 53,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3840,7 +4177,7 @@
       "external_index": 66,
       "material_id": 54,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3848,7 +4185,7 @@
       "external_index": 67,
       "material_id": 59,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3856,7 +4193,7 @@
       "external_index": 68,
       "material_id": 60,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3864,7 +4201,7 @@
       "external_index": 69,
       "material_id": 62,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3872,7 +4209,7 @@
       "external_index": 70,
       "material_id": 62,
       "kind": "material",
-      "match": "alias-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3880,7 +4217,7 @@
       "external_index": 71,
       "material_id": 63,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3888,7 +4225,7 @@
       "external_index": 72,
       "material_id": 65,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3896,7 +4233,7 @@
       "external_index": 73,
       "material_id": 64,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3904,7 +4241,7 @@
       "external_index": 74,
       "material_id": 66,
       "kind": "material",
-      "match": "alias-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3912,7 +4249,7 @@
       "external_index": 75,
       "material_id": 67,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3920,7 +4257,7 @@
       "external_index": 76,
       "material_id": 68,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3928,7 +4265,7 @@
       "external_index": 77,
       "material_id": 69,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3936,7 +4273,7 @@
       "external_index": 78,
       "material_id": 71,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3944,7 +4281,7 @@
       "external_index": 79,
       "material_id": 72,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3952,7 +4289,7 @@
       "external_index": 80,
       "material_id": 73,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3960,7 +4297,7 @@
       "external_index": 81,
       "material_id": 76,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3968,7 +4305,7 @@
       "external_index": 82,
       "material_id": 77,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3976,7 +4313,7 @@
       "external_index": 83,
       "material_id": 80,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3984,7 +4321,7 @@
       "external_index": 84,
       "material_id": 82,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -3992,7 +4329,7 @@
       "external_index": 85,
       "material_id": 82,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -4000,7 +4337,7 @@
       "external_index": 86,
       "material_id": 82,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -4008,7 +4345,7 @@
       "external_index": 87,
       "material_id": 82,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -4016,7 +4353,7 @@
       "external_index": 88,
       "material_id": 83,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -4024,7 +4361,7 @@
       "external_index": 89,
       "material_id": 84,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -4040,7 +4377,7 @@
       "external_index": 91,
       "material_id": 84,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -4048,7 +4385,7 @@
       "external_index": 92,
       "material_id": 86,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -4056,7 +4393,7 @@
       "external_index": 93,
       "material_id": 86,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -4064,7 +4401,7 @@
       "external_index": 94,
       "material_id": 86,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     },
     {
       "system": "optimizer",
@@ -4072,7 +4409,7 @@
       "external_index": 95,
       "material_id": 87,
       "kind": "material",
-      "match": "exact-norm"
+      "match": "handover-v1"
     }
   ],
   "particle_sizes": [
@@ -4629,10 +4966,9 @@
     {
       "material_id": 12,
       "name": "90矾土",
-      "status": "multiple",
+      "status": "unique",
       "targets": [
-        "90矾土",
-        "倒焰窑90矾土"
+        "90矾土"
       ]
     },
     {
@@ -4745,14 +5081,21 @@
     {
       "material_id": 26,
       "name": "CA71F水泥",
-      "status": "none",
-      "targets": []
+      "status": "unique",
+      "targets": [
+        "VICAL71F水泥"
+      ]
     },
     {
       "material_id": 27,
       "name": "CA71水泥",
-      "status": "none",
-      "targets": []
+      "status": "multiple",
+      "targets": [
+        "71水泥",
+        "VICAL71水泥",
+        "Vical71",
+        "Vical71水泥"
+      ]
     },
     {
       "material_id": 28,
@@ -4858,14 +5201,21 @@
     {
       "material_id": 42,
       "name": "一级白刚玉",
-      "status": "none",
-      "targets": []
+      "status": "multiple",
+      "targets": [
+        "一级YGB",
+        "一级YGB粉"
+      ]
     },
     {
       "material_id": 43,
       "name": "一级白刚玉/棕刚玉",
-      "status": "none",
-      "targets": []
+      "status": "multiple",
+      "targets": [
+        "一级YGB/YGZ",
+        "一级YGB325/YGZ粉",
+        "一级YGB粉/YGZ"
+      ]
     },
     {
       "material_id": 44,
@@ -4884,9 +5234,10 @@
     {
       "material_id": 46,
       "name": "倒焰90矾土",
-      "status": "unique",
+      "status": "multiple",
       "targets": [
-        "倒焰90矾土"
+        "倒焰90矾土",
+        "倒焰窑90矾土"
       ]
     },
     {
@@ -4986,8 +5337,11 @@
     {
       "material_id": 61,
       "name": "棕刚玉",
-      "status": "none",
-      "targets": []
+      "status": "multiple",
+      "targets": [
+        "YGZ",
+        "YGZ粉"
+      ]
     },
     {
       "material_id": 62,
@@ -5001,8 +5355,9 @@
     {
       "material_id": 63,
       "name": "氧化镧",
-      "status": "unique",
+      "status": "multiple",
       "targets": [
+        "La2O3",
         "氧化镧"
       ]
     },
@@ -5025,8 +5380,9 @@
     {
       "material_id": 66,
       "name": "氮化钛",
-      "status": "unique",
+      "status": "multiple",
       "targets": [
+        "TiN",
         "氮化钛-高"
       ]
     },
@@ -5121,8 +5477,12 @@
     {
       "material_id": 79,
       "name": "磨料",
-      "status": "none",
-      "targets": []
+      "status": "multiple",
+      "targets": [
+        "10#",
+        "20#",
+        "30#"
+      ]
     },
     {
       "material_id": 80,
@@ -5200,20 +5560,6 @@
   ],
   "queue": [
     {
-      "level": "alias_unmatched",
-      "external_name": "SECAR71水泥（凯诺斯）",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=铝酸盐水泥；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "Vical71水泥",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=铝酸盐水泥；无同名 base"
-    },
-    {
       "level": "alias_ambiguous",
       "external_name": "煅烧氧化铝1um",
       "source": "L6",
@@ -5221,81 +5567,11 @@
       "suggestion": "人工选择命中 base"
     },
     {
-      "level": "alias_ambiguous",
-      "external_name": "10#",
-      "source": "L6",
-      "candidates": "101E|102E|SP610|TC10结合剂",
-      "suggestion": "人工选择命中 base"
-    },
-    {
-      "level": "alias_ambiguous",
-      "external_name": "20#",
-      "source": "L6",
-      "candidates": "97黑碳化硅|98黑碳化硅|FS20|一级白刚玉|回转窑88矾土|棕刚玉",
-      "suggestion": "人工选择命中 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "30#（六偏磷酸钠）",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=添加剂；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "31线除尘粉",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=其他；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "33线除尘粉",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=其他；无同名 base"
-    },
-    {
-      "level": "alias_ambiguous",
-      "external_name": "80#",
-      "source": "L6",
-      "candidates": "80L-A2|80L-B2|80P-A2|80P-B2|80均质料|80均质矾土|80矾土|zc80均质|回转窑80矾土",
-      "suggestion": "人工选择命中 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "Vical68水泥",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=铝酸盐水泥；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "电卡68水泥",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=铝酸盐水泥；无同名 base"
-    },
-    {
       "level": "alias_unmatched",
       "external_name": "白包装袋（6个月）带内衬45×70cm40kg",
       "source": "L6",
       "candidates": "",
       "suggestion": "类别=其他；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "30#",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=其他；无同名 base"
-    },
-    {
-      "level": "alias_ambiguous",
-      "external_name": "71水泥",
-      "source": "L6",
-      "candidates": "A71水泥|CA71水泥",
-      "suggestion": "人工选择命中 base"
     },
     {
       "level": "alias_unmatched",
@@ -5310,90 +5586,6 @@
       "source": "L6",
       "candidates": "",
       "suggestion": "类别=碳化硅类；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "La2O3",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=其他；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "TiN",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=其他；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "VICAL71F水泥",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=铝酸盐水泥；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "VICAL71水泥",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=铝酸盐水泥；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "Vical71",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=铝酸盐水泥；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "YGZ",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=其他；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "YGZ粉",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=其他；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "一级YGB",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=其他；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "一级YGB/YGZ",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=其他；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "一级YGB325/YGZ粉",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=其他；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "一级YGB粉",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=其他；无同名 base"
-    },
-    {
-      "level": "alias_unmatched",
-      "external_name": "一级YGB粉/YGZ",
-      "source": "L6",
-      "candidates": "",
-      "suggestion": "类别=其他；无同名 base"
     },
     {
       "level": "alias_unmatched",
@@ -5410,34 +5602,6 @@
       "suggestion": "类别=其他；无同名 base"
     },
     {
-      "level": "optimizer_ambiguous",
-      "external_name": "10#",
-      "source": "L5",
-      "candidates": "101E|102E|SP610|TC10结合剂",
-      "suggestion": "人工选择命中 base"
-    },
-    {
-      "level": "optimizer_ambiguous",
-      "external_name": "20#",
-      "source": "L5",
-      "candidates": "97黑碳化硅|98黑碳化硅|FS20|一级白刚玉|回转窑88矾土|棕刚玉",
-      "suggestion": "人工选择命中 base"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "30#",
-      "source": "L5",
-      "candidates": "（无相似 base）",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_ambiguous",
-      "external_name": "71水泥",
-      "source": "L5",
-      "candidates": "A71水泥|CA71水泥",
-      "suggestion": "人工选择命中 base"
-    },
-    {
       "level": "optimizer_unmatched",
       "external_name": "97碳化硅",
       "source": "L5",
@@ -5449,97 +5613,6 @@
       "external_name": "97黑SiC",
       "source": "L5",
       "candidates": "97黑碳化硅(0.25)",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "La2O3",
-      "source": "L5",
-      "candidates": "80L-A2(0.333)|Al2O3(0.333)|α-Al2O3(0.2)",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "TiN",
-      "source": "L5",
-      "candidates": "（无相似 base）",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "VICAL71F水泥",
-      "source": "L5",
-      "candidates": "CA71F水泥(0.5)|CA71水泥(0.273)|A71水泥(0.182)",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "VICAL71水泥",
-      "source": "L5",
-      "candidates": "CA71水泥(0.444)|A71水泥(0.333)|CA71F水泥(0.273)",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "Vical71",
-      "source": "L5",
-      "candidates": "CA71水泥(0.222)|CA71F水泥(0.2)|A71水泥(0.111)",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "Vical71水泥",
-      "source": "L5",
-      "candidates": "CA71水泥(0.444)|A71水泥(0.333)|CA71F水泥(0.273)",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "YGZ",
-      "source": "L5",
-      "candidates": "YGMZ(0.25)",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "YGZ粉",
-      "source": "L5",
-      "candidates": "YGMZ(0.25)",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "一级YGB",
-      "source": "L5",
-      "candidates": "YGMZ(0.167)|一级白刚玉(0.143)|一级白刚玉/棕刚玉(0.111)",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "一级YGB/YGZ",
-      "source": "L5",
-      "candidates": "YGMZ(0.125)|一级白刚玉(0.111)|一级白刚玉/棕刚玉(0.091)",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "一级YGB325/YGZ粉",
-      "source": "L5",
-      "candidates": "YGMZ(0.091)|一级白刚玉(0.083)|一级白刚玉/棕刚玉(0.071)",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "一级YGB粉",
-      "source": "L5",
-      "candidates": "YGMZ(0.167)|一级白刚玉(0.143)|一级白刚玉/棕刚玉(0.111)",
-      "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
-    },
-    {
-      "level": "optimizer_unmatched",
-      "external_name": "一级YGB粉/YGZ",
-      "source": "L5",
-      "candidates": "YGMZ(0.125)|一级白刚玉(0.111)|一级白刚玉/棕刚玉(0.091)",
       "suggestion": "无对应 base：需人工判定；或该原料确实不在 L3 基准内（如需优化则须扩优化器原料空间）"
     },
     {
@@ -5582,21 +5655,7 @@
       "external_name": "CA68水泥",
       "source": "L3",
       "candidates": "A600水泥(0.25)|CA70水泥(0.25)|CA71水泥(0.25)",
-      "suggestion": "类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）"
-    },
-    {
-      "level": "base_without_optimizer",
-      "external_name": "CA71F水泥",
-      "source": "L3",
-      "candidates": "CA71水泥(0.571)|A71水泥(0.429)|CA70水泥(0.375)",
-      "suggestion": "类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）"
-    },
-    {
-      "level": "base_without_optimizer",
-      "external_name": "CA71水泥",
-      "source": "L3",
-      "candidates": "A71水泥(0.8)|CA71F水泥(0.571)|CA70水泥(0.429)",
-      "suggestion": "类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）"
+      "suggestion": "类别=铝酸盐水泥；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）"
     },
     {
       "level": "base_without_optimizer",
@@ -5638,20 +5697,6 @@
       "external_name": "zc80均质",
       "source": "L3",
       "candidates": "80均质料(0.5)|80均质矾土(0.429)|60均质(0.333)",
-      "suggestion": "类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）"
-    },
-    {
-      "level": "base_without_optimizer",
-      "external_name": "一级白刚玉",
-      "source": "L3",
-      "candidates": "一级白刚玉/棕刚玉(0.667)|棕刚玉(0.2)|黑刚玉(0.2)",
-      "suggestion": "类别=刚玉类；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）"
-    },
-    {
-      "level": "base_without_optimizer",
-      "external_name": "一级白刚玉/棕刚玉",
-      "source": "L3",
-      "candidates": "一级白刚玉(0.667)|棕刚玉(0.333)|黑刚玉(0.143)",
       "suggestion": "类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）"
     },
     {
@@ -5726,13 +5771,6 @@
     },
     {
       "level": "base_without_optimizer",
-      "external_name": "棕刚玉",
-      "source": "L3",
-      "candidates": "一级白刚玉/棕刚玉(0.333)|黑刚玉(0.333)|回收刚玉(0.25)",
-      "suggestion": "类别=刚玉类；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）"
-    },
-    {
-      "level": "base_without_optimizer",
       "external_name": "煅烧氧化铝",
       "source": "L3",
       "candidates": "氧化铝(0.5)|活性氧化铝(0.333)|氧化镧(0.2)",
@@ -5761,13 +5799,6 @@
     },
     {
       "level": "base_without_optimizer",
-      "external_name": "磨料",
-      "source": "L3",
-      "candidates": "",
-      "suggestion": "类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）"
-    },
-    {
-      "level": "base_without_optimizer",
       "external_name": "致密刚玉",
       "source": "L3",
       "candidates": "棕刚玉(0.25)|黑刚玉(0.25)|回收刚玉(0.2)",
@@ -5778,7 +5809,7 @@
       "external_name": "除尘料",
       "source": "L3",
       "candidates": "",
-      "suggestion": "类别=未知；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）"
+      "suggestion": "类别=其他；优化器原料空间无对应（若需约束须扩空间/重训，见 W1）"
     },
     {
       "level": "base_without_optimizer",
@@ -5790,27 +5821,26 @@
   ],
   "stats": {
     "materials": 89,
-    "aliases": 222,
+    "aliases": 253,
     "external_refs": 96,
     "external_ref_kinds": {
-      "unresolved": 19,
-      "material": 75,
+      "material": 92,
+      "unresolved": 2,
       "process_param": 2
     },
     "optimizer_names": 96,
     "base_status": {
-      "unique": 45,
-      "multiple": 9,
-      "none": 35
+      "unique": 44,
+      "multiple": 16,
+      "none": 29
     },
-    "l6_matched": 167,
-    "queue": 84,
+    "l6_matched": 191,
+    "queue": 37,
     "queue_by_level": {
-      "alias_ambiguous": 5,
-      "alias_unmatched": 25,
-      "base_without_optimizer": 35,
-      "optimizer_ambiguous": 3,
-      "optimizer_unmatched": 16
+      "alias_ambiguous": 1,
+      "alias_unmatched": 5,
+      "base_without_optimizer": 29,
+      "optimizer_unmatched": 2
     }
   }
 }

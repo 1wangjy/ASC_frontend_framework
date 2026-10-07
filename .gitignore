@@ -53,6 +53,7 @@ backend_impl/python/model_predict/FEATURE/outputs/
 data/*
 !data/material_vocab.json
 !data/material_vocab_queue.csv
+!data/handover/
 
 # === planning-with-files 工作目录 ===
 .planning/

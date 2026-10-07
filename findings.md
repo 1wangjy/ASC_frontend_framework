@@ -145,3 +145,15 @@ AscSidebar 全部改为引用令牌；离阶值落到 4px 阶（sp-1/2/3/4/5/6�
   **zibo 2424 条 100% 不符**：该来源副本粒径几乎全为 `0.0/None` → 入库缺陷（非表示差异）。
 - S8：`_code/output` 归档 17 份非权威 map（`_archive/` + `DEPRECATED.md`）；`_code` 是符号链接，归档不入库。
 - 修复 B1 另一半：解析器路径回落 `_code/python/recipe_processor.py` → `/api/recipe-parser/parse` 恢复 200。
+
+## F16 — 交接包中找到了权威映射表（2026-10-07，重要更正）
+- 位置：`_ref/交接工作代码以及说明.zip → data.zip → data/V1_base_mapping.json`（142 条）与 `data/base_list.json`（89 名）。
+- 结构：`{new_id, new_name, base_id, base_name, match_method:"mapping_json", confidence:1.0}`；由 `运行顺序.txt` 第 2 步
+  `map_material_ids_to_base.py` 使用 —— 即"原始材料名/代号 → base"的权威对应关系（此前审计断言"归并关系未交付"**不成立**，
+  见 docs/material-vocabulary-audit.md 更正说明）。
+- **`base_list.json` 与 L3 基准逐名一致**（已加为生成器校验项）。
+- 接入生成器后：优化器名处置 material 92 / process_param 2 / unresolved **2**；可绑定 base **60**；队列 **84 → 37**。
+- 该表覆盖：`YGZ/YGZ粉→棕刚玉`、`一级YGB/一级YGB粉→一级白刚玉`、`一级YGB/YGZ(325)/粉→一级白刚玉/棕刚玉`、
+  `10#/20#/30#/80#→磨料`、`31/33线除尘粉→除尘料`、`Vical 71/VICAL71水泥→CA71水泥`、`FDN→FDN减水剂`、`FS-20→FS20`、
+  `La2O3→氧化镧`、`TiN→氮化钛`、`60均质粉/微粉→60均质`、`Al2O3微粉*→Al2O3`、`a-Al2O3/α-Al2O3微粉→α-Al2O3` 等。
+- 残余 2 项（`97碳化硅`、`97黑SiC`→`97黑碳化硅`）与 W1 清单见方案文档。
