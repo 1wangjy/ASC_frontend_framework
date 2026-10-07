@@ -21,6 +21,22 @@ function parsePositiveNumber(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+/**
+ * 从 bridge 的 stderr 日志里取出真正有意义的一行。
+ * bridge 会把进度日志与错误都写到 stderr（末尾加上 `[recipe_opt_bridge] ERROR: …`），
+ * 整段回传给前端只会看到一屏日志，这里只保留错误行。
+ */
+function pickBridgeError(stderr) {
+  const lines = String(stderr || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!lines.length) return '';
+  const flagged = [...lines].reverse().find((line) => /ERROR:|错误|失败/.test(line));
+  const chosen = flagged || lines[lines.length - 1];
+  return chosen.replace(/^\[recipe_opt_bridge\]\s*(ERROR:)?\s*/i, '').trim();
+}
+
 function optimizationError(message, code = 'MODEL2_OPTIMIZE_FAILED') {
   const error = new Error(message);
   error.code = code;
@@ -89,12 +105,12 @@ function runOptimizer({ payload, command, timeoutMs }) {
         try {
           result = JSON.parse(stdout.trim());
         } catch {
-          reject(optimizationError(stderr.trim() || '配方优化脚本未返回有效 JSON'));
+          reject(optimizationError(pickBridgeError(stderr) || '配方优化脚本未返回有效 JSON'));
           return;
         }
         if (exitCode !== 0 || result?.ok !== true) {
           reject(optimizationError(
-            result?.message || result?.error || stderr.trim() || `配方优化脚本退出码: ${exitCode}`,
+            result?.message || result?.error || pickBridgeError(stderr) || `配方优化脚本退出码: ${exitCode}`,
           ));
           return;
         }
@@ -244,7 +260,7 @@ function streamingOptimize({ request, onProgress, onDone, onError }) {
     if (settled) return;
     settle();
     onError(optimizationError(
-      stderr.trim() || `配方优化脚本异常退出 (exit ${exitCode})，未返回结果`,
+      pickBridgeError(stderr) || `配方优化脚本异常退出 (exit ${exitCode})，未返回结果`,
     ));
   });
 

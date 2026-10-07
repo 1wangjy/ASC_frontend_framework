@@ -78,3 +78,24 @@
   `.landing__visual` `align-self: start`，并加 `--landing-hero-align-offset: 4px` 补偿 eyebrow 行高 1.5 的半行距，
   使图片顶边与「MATERIALS INTELLIGENCE · RESEARCH PLATFORM」文字视觉顶端对齐。
 - 验证：服务端下发 CSS 含两层装饰与 11 个旋钮；test:landing 4/4。浏览器截图仍不可用，视觉待人工确认。
+
+## 会话 7 — 2026-10-06（配方优化：按预测模型 base 约束组分）
+- 需求：在「配方优化」里能按**预测模型 base 列表**下拉选择某组分，约束"不少于/不多于"。
+- 侦察结论（关键）：
+  * 该能力**机制上早已存在**：左侧「成分约束」区块支持 区间/固定/禁用，区间**只填一侧即 ≥ / ≤**；
+    实测 `{mode:'range',min:15}` → 最优配方 90矾土 25.49%、`material_rules_met: true`。
+  * 但下拉用的是**优化器自己的 96 原料词表**（其代理模型 `predictor_model.pkl` 的 material_names），
+    与预测模型 89 base **不同源**：仅 40 个同名、12 个可归一化/唯一包含对应、**31 个（含棕刚玉）优化器里根本没有**。
+- 交付（按 base 列表选择）：
+  * 桥接 `recipe_opt_bridge.py`：新增 `_norm_material_name` / `_resolve_optimizer_materials`（exact→normalized→唯一包含，绝不猜测）、
+    `list_bases()` 与 `--list-bases`；`_parse_ingredient_constraints` 接受 base 名（多候选必须用 `material` 指定具体原料），
+    规则回显新增 `requested_name` / `material` / `match`。
+  * 控制器 `model2Controller.js`：`/api/model2/materials` 一并返回 `bases`（含 `targets`/`match`/`status`）与 `summary`；
+    约束白名单新增 `material` 字段；错误回传改为**只取 bridge 的 ERROR 行**（原先会把整段 stderr 日志塞给前端）。
+  * 前端：`ingredientConstraints.js` 新增 `material`/`materialOptions` 字段、`buildConstraintOptions()` 分组、
+    校验"多候选必须选定具体原料"；`Model2View.vue` 下拉改为四组 optgroup
+    （可直接约束 / 需指定具体原料 / 优化器无对应（禁用）/ 优化器原料其他）+ 多候选时出现二级选择。
+- 实测：`60均质 → 60均质粉`（normalized，≥20 生效）；`Al2O3 + material=Al2O3微粉`（explicit，≥10 生效）；
+  多候选未指定 → 单行错误列出候选；`棕刚玉` → 单行错误说明优化器无对应原料。
+- 测试：`tests/ingredientConstraints.test.js` 扩到 12 项全通过；仓库既有 8 个 npm 测试套件 56 项全通过。
+- 覆盖：89 base → 52 可直接约束 / 6 需指定具体原料 / **31 无对应**（要全覆盖需扩优化器原料并重训代理模型）。

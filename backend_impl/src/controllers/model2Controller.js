@@ -19,6 +19,10 @@ function sanitizeIngredientConstraints(raw) {
     const mode = typeof item.mode === 'string' ? item.mode.trim().toLowerCase() : '';
     if (!name || !INGREDIENT_MODES.has(mode)) continue;
     const entry = { name, mode };
+    // 当 name 是预测模型的 base 且对应多个优化器原料时，用 material 指定具体原料
+    if (typeof item.material === 'string' && item.material.trim()) {
+      entry.material = item.material.trim();
+    }
     for (const key of ['min', 'max', 'value']) {
       const value = item[key];
       if (typeof value === 'number' && Number.isFinite(value)) entry[key] = value;
@@ -121,14 +125,15 @@ class Model2Controller {
   }
 
   // 可优化原料清单 (GET /api/model2/materials)
-  // 走 recipe_opt_bridge.py --list-materials —— 与优化器共用同一份映射，Node 侧不重复解析路径；
-  // 结果在进程内缓存（映射随模型产物更新，需重启后端进程刷新）。
+  // 走 recipe_opt_bridge.py --list-bases —— 与优化器共用同一份映射，Node 侧不重复解析路径；
+  // 同时返回预测模型的 base 列表及其"能否被优化器约束"的状态（unique/multiple/none），
+  // 供前端用 base 名做下拉选择。结果在进程内缓存（映射随模型产物更新，需重启后端进程刷新）。
   async listMaterials(req, res) {
     try {
       if (!materialsCache) {
         const command = process.env.PYTHON_CMD || 'python3';
         const output = await new Promise((resolve, reject) => {
-          const child = spawn(command, [BRIDGE_SCRIPT, '--list-materials'], { env: process.env });
+          const child = spawn(command, [BRIDGE_SCRIPT, '--list-bases'], { env: process.env });
           let stdout = '';
           let stderr = '';
           child.stdout.on('data', (chunk) => { stdout += chunk; });
@@ -143,9 +148,13 @@ class Model2Controller {
           });
         });
         const parsed = JSON.parse(output);
-        materialsCache = Array.isArray(parsed.materials) ? parsed.materials : [];
+        materialsCache = {
+          materials: Array.isArray(parsed.materials) ? parsed.materials : [],
+          bases: Array.isArray(parsed.bases) ? parsed.bases : [],
+          summary: parsed.summary || null,
+        };
       }
-      res.json({ code: 200, data: { materials: materialsCache } });
+      res.json({ code: 200, data: materialsCache });
     } catch (error) {
       console.error('Error listing model2 materials:', error);
       res.status(500).json({ code: 500, message: error.message || '原料清单获取失败' });

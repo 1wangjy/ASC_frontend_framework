@@ -298,6 +298,93 @@ def _effective_targets(targets):
     return effective
 
 
+_GREEK_ALIASES = {"α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta"}
+_MATERIAL_CLASS_WORDS = ("超微粉", "微粉", "细粉", "粉料", "粉体", "粉末", "颗粒", "粒料", "骨料", "细料", "粉")
+_BASE_MAP_PATH = Path(__file__).resolve().parent / "model_predict" / "FEATURE" / "outputs" / "material_map.json"
+
+
+def _norm_material_name(value):
+    """原料名归一化：全角→半角、小写、去括号后缀(牌号/厂家)、去类别词与分隔符。"""
+    text = str(value or "").strip().replace("\u3000", " ")
+    text = re.sub(r"[\uFF01-\uFF5E]", lambda m: chr(ord(m.group(0)) - 0xFEE0), text).lower()
+    for greek, latin in _GREEK_ALIASES.items():
+        text = text.replace(greek, latin)
+    text = re.sub(r"[（(][^）)]*[）)]", "", text)
+    for word in _MATERIAL_CLASS_WORDS:
+        text = text.replace(word, "")
+    return re.sub(r"[\s_·・\-—－#/]", "", text)
+
+
+def _resolve_optimizer_materials(name, material_names):
+    """把（预测模型的）base 名解析到优化器原料名。
+
+    返回 (targets, match)：targets 为空表示优化器没有对应原料；多于一个表示存在歧义，
+    必须由调用方用 `material` 字段指定，绝不猜测。
+    """
+    label = str(name or "").strip()
+    if not label:
+        return [], "none"
+    if label in material_names:
+        return [label], "exact"
+    key = _norm_material_name(label)
+    if not key:
+        return [], "none"
+    same = [m for m in material_names if _norm_material_name(m) == key]
+    if same:
+        return same, "normalized"
+    partial = []
+    for material in material_names:
+        other = _norm_material_name(material)
+        if len(other) < 2:
+            continue
+        if key in other or (len(key) >= 2 and other in key):
+            partial.append(material)
+    if partial:
+        return partial, "containment"
+    return [], "none"
+
+
+def load_model_bases():
+    """预测模型的 base 列表（material_map.json）；缺失时返回空表而不是编造。"""
+    if not _BASE_MAP_PATH.exists():
+        return []
+    try:
+        payload = json.loads(_BASE_MAP_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    return [item for item in payload.get("materials", []) if item.get("name")]
+
+
+def list_bases():
+    """输出预测模型 base 列表 + 每个 base 能否被优化器约束（供前端下拉分组/置灰）。"""
+    search_space = SearchSpace(map_path=str(MAP_PATH))
+    material_names = list(search_space.material_names)
+    bases = []
+    for item in load_model_bases():
+        name = str(item.get("name"))
+        targets, match = _resolve_optimizer_materials(name, material_names)
+        status = "unique" if len(targets) == 1 else ("multiple" if targets else "none")
+        bases.append({
+            "name": name,
+            "material_id": str(item.get("material_id", "")),
+            "samples": item.get("samples"),
+            "targets": targets,
+            "match": match,
+            "status": status,
+        })
+    return {
+        "ok": True,
+        "materials": material_names,
+        "bases": bases,
+        "summary": {
+            "total": len(bases),
+            "unique": sum(1 for b in bases if b["status"] == "unique"),
+            "multiple": sum(1 for b in bases if b["status"] == "multiple"),
+            "none": sum(1 for b in bases if b["status"] == "none"),
+        },
+    }
+
+
 def _parse_ingredient_constraints(raw, material_names):
     """把请求里的逐成分约束解析成 RecipeConstraint 的 kwargs。
 
@@ -312,8 +399,23 @@ def _parse_ingredient_constraints(raw, material_names):
         mode = str(item.get("mode") or "").strip().lower()
         if not name:
             raise ValueError("ingredient_constraints 缺少 name")
-        if name not in material_names:
-            raise ValueError(f"成分 {name!r} 不在可优化原料范围内")
+        requested = name
+        targets, match = _resolve_optimizer_materials(name, material_names)
+        if not targets:
+            raise ValueError(
+                f"成分 {name!r} 在优化器原料表里没有对应原料（优化器只认识它自己的 %d 种原料，"
+                "可用 --list-bases 查看哪些 base 可约束）" % len(material_names)
+            )
+        if len(targets) > 1:
+            chosen = str(item.get("material") or "").strip()
+            if chosen not in targets:
+                raise ValueError(
+                    f"成分 {name!r} 对应多个优化器原料，请用 material 指定其一：{'、'.join(targets)}"
+                )
+            name = chosen
+            match = "explicit"
+        else:
+            name = targets[0]
         if mode in ("range", "interval", "bounds"):
             low = item.get("min")
             high = item.get("max")
@@ -336,6 +438,10 @@ def _parse_ingredient_constraints(raw, material_names):
             rules.append({"name": name, "mode": "disabled", "applied": True})
         else:
             raise ValueError(f"成分 {name} 的约束模式不支持: {mode!r}（可用 range/fixed/disabled）")
+        # 回显：让前端能说明"这条规则是怎么绑定的"（原始 base 名 / 实际原料 / 匹配方式）
+        rules[-1]["requested_name"] = requested
+        rules[-1]["material"] = name
+        rules[-1]["match"] = match
     kwargs = {}
     if bounds:
         kwargs["material_bounds"] = bounds
@@ -759,6 +865,10 @@ def list_materials():
 
 
 def main():
+    if "--list-bases" in sys.argv[1:]:
+        sys.stdout.write(json.dumps(list_bases(), ensure_ascii=False))
+        sys.stdout.flush()
+        return
     if "--list-materials" in sys.argv[1:]:
         sys.stdout.write(json.dumps(list_materials(), ensure_ascii=False))
         sys.stdout.flush()

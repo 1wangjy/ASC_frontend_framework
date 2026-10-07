@@ -163,7 +163,15 @@
           <header class="m2-sec__head">
             <div>
               <h3 class="m2-sec__title">成分约束</h3>
-              <p class="m2-sec__sub">对指定原料限定区间 / 固定含量 / 禁用</p>
+              <p class="m2-sec__sub">
+                对指定原料限定区间（只填一侧即"不少于/不多于"）/ 固定含量 / 禁用 ——
+                下拉优先列出预测模型 base
+                <template v-if="baseSummary">
+                  （{{ baseSummary.unique }} 个可直接约束、
+                  {{ baseSummary.multiple }} 个需指定具体原料、
+                  {{ baseSummary.none }} 个优化器无对应原料）
+                </template>
+              </p>
             </div>
             <span v-if="ingredientRules.length" class="m2-sec__badge">{{ ingredientRules.length }} 条</span>
           </header>
@@ -173,13 +181,44 @@
           <div v-if="ingredientRules.length" class="m2-constraints">
             <div v-for="(rule, index) in ingredientRules" :key="index" class="m2-constraint-row">
               <select
-                v-model="rule.name"
+                :value="rule.name"
                 class="m2-constraint__material"
                 :disabled="status === 'running'"
                 :aria-label="`第 ${index + 1} 条约束的原料`"
+                @change="onIngredientNameChange(rule, $event.target.value)"
               >
                 <option value="">选择原料…</option>
-                <option v-for="name in materialOptions" :key="name" :value="name">{{ name }}</option>
+                <optgroup v-if="constraintOptions.direct.length" label="预测模型 base · 可直接约束">
+                  <option v-for="opt in constraintOptions.direct" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}<template v-if="opt.value !== opt.material"> → {{ opt.material }}</template>
+                  </option>
+                </optgroup>
+                <optgroup v-if="constraintOptions.multiple.length" label="预测模型 base · 需指定具体原料">
+                  <option v-for="opt in constraintOptions.multiple" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}（{{ opt.targets.length }} 个候选）
+                  </option>
+                </optgroup>
+                <optgroup v-if="constraintOptions.unavailable.length" label="预测模型 base · 优化器无对应原料（不可约束）">
+                  <option v-for="opt in constraintOptions.unavailable" :key="opt.value" value="" disabled>
+                    {{ opt.label }}
+                  </option>
+                </optgroup>
+                <optgroup v-if="constraintOptions.optimizerOnly.length" label="优化器原料 · 其他">
+                  <option v-for="opt in constraintOptions.optimizerOnly" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
+                </optgroup>
+              </select>
+
+              <select
+                v-if="(rule.materialOptions || []).length > 1"
+                v-model="rule.material"
+                class="m2-constraint__material m2-constraint__material--sub"
+                :disabled="status === 'running'"
+                :aria-label="`第 ${index + 1} 条约束的具体原料`"
+              >
+                <option value="">选择具体原料…</option>
+                <option v-for="name in rule.materialOptions" :key="name" :value="name">{{ name }}</option>
               </select>
 
               <select
@@ -540,6 +579,7 @@ import { useRouter } from 'vue-router'
 import { getModel2Materials, streamOptimizeModel2 } from '../api/models'
 import {
   INGREDIENT_MODE_OPTIONS,
+  buildConstraintOptions,
   buildIngredientConstraints,
   createIngredientRule,
   describeIngredientRule,
@@ -606,16 +646,24 @@ const targets = ref(defaultTargets())
 const algorithm = ref('nsga2')
 const budget = ref(80)
 
-/* ── 逐成分约束（禁用 / 固定 / 区间） ── */
+/* ── 逐成分约束（禁用 / 固定 / 区间；下拉按预测模型 base 选择） ── */
 const materialOptions = ref([])
+const baseOptions = ref([])
+const baseSummary = ref(null)
 const materialsError = ref('')
 const ingredientRules = ref([])
 const ingredientRuleTexts = computed(() => ingredientRules.value.map(describeIngredientRule))
+const constraintOptions = computed(() => buildConstraintOptions({
+  bases: baseOptions.value,
+  materials: materialOptions.value,
+}))
 
 async function loadMaterials() {
   try {
     const res = await getModel2Materials()
     materialOptions.value = Array.isArray(res?.materials) ? res.materials : []
+    baseOptions.value = Array.isArray(res?.bases) ? res.bases : []
+    baseSummary.value = res?.summary || null
     materialsError.value = ''
   } catch (e) {
     materialsError.value = '原料清单加载失败：' + (e?.message || '请稍后重试')
@@ -624,6 +672,18 @@ async function loadMaterials() {
 function addIngredientRule() { ingredientRules.value.push(createIngredientRule()) }
 function removeIngredientRule(index) { ingredientRules.value.splice(index, 1) }
 function clearIngredientRules() { ingredientRules.value = [] }
+/**
+ * 选择 base 后同步"可绑定的优化器原料"：
+ *   1 个 → 直接绑定；多个 → 让用户再选；0 个 → 清空（后端会拒绝并给出原因）。
+ */
+function onIngredientNameChange(rule, value) {
+  rule.name = String(value || '')
+  const base = baseOptions.value.find((item) => item?.name === rule.name)
+  const targets = Array.isArray(base?.targets) ? base.targets : []
+  rule.materialOptions = targets
+  if (targets.length === 1) rule.material = targets[0]
+  else if (!targets.includes(rule.material)) rule.material = null
+}
 onMounted(loadMaterials)
 
 /* ── 运行 / 流式状态 ── */
@@ -1042,6 +1102,8 @@ function predVal(key) {
 .m2-constraints { display: flex; flex-direction: column; gap: 6px; }
 .m2-constraint-row { display: flex; align-items: center; gap: 6px; }
 .m2-constraint__material { flex: 1 1 auto; min-width: 0; height: 30px; padding: 0 6px; font-size: 12px; border: 1px solid #cbd9e6; border-radius: 7px; background: #fff; color: #1d3a5c; }
+/* base 对应多个优化器原料时出现的二级选择：与主选择区分但保持同一视觉语言 */
+.m2-constraint__material--sub { flex: 0 1 34%; border-style: dashed; color: #3f5d7d; }
 .m2-constraint__mode { flex: 0 0 64px; height: 30px; padding: 0 4px; font-size: 12px; border: 1px solid #cbd9e6; border-radius: 7px; background: #fff; color: #1d3a5c; }
 .m2-constraint__num { flex: 0 0 62px; height: 30px; padding: 0 6px; font-size: 12px; border: 1px solid #cbd9e6; border-radius: 7px; background: #fff; color: #1d3a5c; }
 .m2-constraint__num--wide { flex: 0 0 88px; }
