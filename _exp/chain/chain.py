@@ -30,7 +30,9 @@ REPO = Path(__file__).resolve().parents[2]
 CHAIN = Path(__file__).resolve().parent
 ML = REPO / "_ref/handover/ML"
 FEATURE_OUT = REPO / "backend_impl/python/model_predict/FEATURE/outputs"
-MODEL_DIR = REPO / "backend_impl/python/model_predict/MODEL/outputs_selective_selector"
+MODEL_DIR = next((p for p in [REPO / "backend_impl/python/model_predict/MODEL/outputs_exp_best",
+                               REPO / "backend_impl/python/model_predict/MODEL_old_sept_bak/outputs_selective_selector"] if p.exists()),
+                 REPO / "backend_impl/python/model_predict/MODEL/outputs_exp_best")
 API = os.environ.get("MODEL_API_URL", "http://127.0.0.1:8100")
 PROPERTIES = ["bulk_density", "cold_modulus", "crushing_strength", "linear_change"]
 

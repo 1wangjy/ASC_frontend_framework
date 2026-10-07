@@ -118,7 +118,10 @@ def main():
                    "仍有调参空间：Top3 配置差异 %.1f%%" % top3_gap)
         lines.append(f"- **{PROP_ZH[prop]}**：同变体内极差 {spread:.4f}（{rel:.1f}% of best，最差配置 {worst['label'][:26]}）；"
                      f"Top3 差异 {top3_gap:.1f}%；相对 R0 基线提升 {gain:+.1f}%；{verdict}")
-    deployed_path = REPO / "backend_impl/python/model_predict/MODEL/outputs_selective_selector/metrics_yangquan.csv"
+    deployed_path = next((p for p in [
+        REPO / "backend_impl/python/model_predict/MODEL_old_sept_bak/outputs_selective_selector/metrics_yangquan.csv",
+        REPO / "backend_impl/python/model_predict/MODEL/outputs_selective_selector/metrics_yangquan.csv",
+    ] if p.exists()), REPO / "backend_impl/python/model_predict/MODEL_old_sept_bak/outputs_selective_selector/metrics_yangquan.csv")
     if deployed_path.exists():
         import csv
         dep = {}

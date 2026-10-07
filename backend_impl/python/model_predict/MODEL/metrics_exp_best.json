@@ -1,0 +1,50 @@
+{
+  "version": "exp_best_2026-10-07",
+  "variant": "yangquan",
+  "models": [
+    {
+      "property": "bulk_density",
+      "model": "lgbm_sfm_1.5xmean",
+      "rows": 305,
+      "features": 266,
+      "trimmed": false,
+      "centered": false,
+      "cv_rmse": 0.0484,
+      "cv_r2": 0.9583,
+      "folds": 3
+    },
+    {
+      "property": "cold_modulus",
+      "model": "extra_trees_300",
+      "rows": 305,
+      "features": 266,
+      "trimmed": true,
+      "centered": true,
+      "cv_rmse": 1.6545,
+      "cv_r2": 0.7959,
+      "folds": 3
+    },
+    {
+      "property": "crushing_strength",
+      "model": "xgboost_default",
+      "rows": 296,
+      "features": 265,
+      "trimmed": false,
+      "centered": false,
+      "cv_rmse": 7.2069,
+      "cv_r2": 0.776,
+      "folds": 3
+    },
+    {
+      "property": "linear_change",
+      "model": "extra_trees_300",
+      "rows": 168,
+      "features": 265,
+      "trimmed": false,
+      "centered": false,
+      "cv_rmse": 0.0584,
+      "cv_r2": 0.9137,
+      "folds": 3
+    }
+  ]
+}

@@ -121,3 +121,9 @@
   桥接/解析控制器/编码器/Model2 UI 接线；`tests/materialVocab.test.js`（9 项）。
 - 验证：90 项测试全绿；4 例真实优化调用符合预期；`/api/recipe-parser/parse` 恢复 200。
 - 未解决：W1（优化器空间缺料需重训）；人工队列 84 条待裁定。
+
+## 会话 11 — 2026-10-07（_exp 最优模型接入 + 旧目录改名）
+- 交付：`scripts/train_exp_best_models.py` → `MODEL/outputs_exp_best/models/yangquan/*.joblib`（版本 exp_best_2026-10-07）；
+  `API/app.py` 新目录优先 + `condition_offsets`（按工况中心化推理）；旧 `MODEL/` → `MODEL_old_sept_bak/`（代码保留入库）；
+  同步修复 dump_vocab / _exp 脚本 / INTERFACE.md 的路径与描述。
+- 验证：API 版本切换成功、预测合理、测试全绿。

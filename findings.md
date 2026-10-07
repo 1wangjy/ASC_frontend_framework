@@ -157,3 +157,17 @@ AscSidebar 全部改为引用令牌；离阶值落到 4px 阶（sp-1/2/3/4/5/6�
   `10#/20#/30#/80#→磨料`、`31/33线除尘粉→除尘料`、`Vical 71/VICAL71水泥→CA71水泥`、`FDN→FDN减水剂`、`FS-20→FS20`、
   `La2O3→氧化镧`、`TiN→氮化钛`、`60均质粉/微粉→60均质`、`Al2O3微粉*→Al2O3`、`a-Al2O3/α-Al2O3微粉→α-Al2O3` 等。
 - 残余 2 项（`97碳化硅`、`97黑SiC`→`97黑碳化硅`）与 W1 清单见方案文档。
+
+## F17 — `_exp` 前沿最优模型接入平台 + 旧模型目录改名（2026-10-07）
+- 训练导出脚本：`backend_impl/python/model_predict/scripts/train_exp_best_models.py`（全量训练、3 折 GroupKFold 留档）；
+  产物：`MODEL/outputs_exp_best/models/yangquan/{bulk_density,cold_modulus,crushing_strength,linear_change}.joblib`
+  + `MODEL/metrics_exp_best.json`（版本 `exp_best_2026-10-07`）。
+- 每属性配置（来自 `_exp` 两轮实验）：bulk=LGBM+SelectFromModel(1.5×mean)；cold=ExtraTrees300 + **trimmed 标签** + **按工况中心化**；
+  crush=XGBoost(默认)；linear=ExtraTrees300。CV(3 折) R²：bulk 0.958 / cold 0.796 / crush 0.776 / linear 0.914。
+- API 改造（`API/app.py`）：`MODEL_OUTPUT_DIRS` 改为 **新目录优先 + 旧目录回退**；新增 `condition_offsets` 支持
+  （bundle 带偏移时，推理 = 模型预测 + 该工况偏移，未见工况退全局均值）。旧目录改名后为
+  `MODEL_old_sept_bak/`（代码入库、197MB 产物不入库）。
+- 引用同步修复：`scripts/dump_vocab.py`（新目录优先/回退）、`_exp/chain/chain.py`、`_exp/model_opt/analyze.py`、
+  `API/INTERFACE.md`、`app.py` 文档串。
+- 验证：`/api/v1/model/metadata.variant_models_dir` 指向 `MODEL/outputs_exp_best`；`/api/v1/predict/simple` 返回
+  `version=exp_best_2026-10-07`，四项预测值合理（含 cold 的偏移生效）；测试 21+13+4+9+6 全绿。

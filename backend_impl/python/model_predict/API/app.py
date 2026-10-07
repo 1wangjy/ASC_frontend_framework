@@ -18,15 +18,22 @@ from pydantic import BaseModel, Field
 ROOT = Path(__file__).resolve().parents[1]
 FEATURE_DIR = ROOT / "FEATURE"
 MODEL_DIR = ROOT / "MODEL"
+# 旧预测模型（9 月交接版）代码与产物目录已重命名为 *_old_sept_bak，仅作回退与追溯
+MODEL_BACKUP_DIR = ROOT / "MODEL_old_sept_bak"
 # 模型产物目录（按优先级解析变体）：
-#   outputs_selective_selector/ = 交接包的最新模型（特征选择 + stacking，推荐）
-#   outputs/                    = 早期基础版（minmax 等，保留兼容）
-MODEL_OUTPUT_DIRS = [MODEL_DIR / "outputs_selective_selector", MODEL_DIR / "outputs"]
+#   outputs_exp_best/           = `_exp` 实验的前沿最优配置（推荐，见 scripts/train_exp_best_models.py）
+#   outputs_selective_selector/ = 9 月交接版（特征选择 + stacking），回退用
+#   outputs/                    = 早期基础版（minmax 等），回退用
+MODEL_OUTPUT_DIRS = [
+    MODEL_DIR / "outputs_exp_best",
+    MODEL_BACKUP_DIR / "outputs_selective_selector",
+    MODEL_BACKUP_DIR / "outputs",
+]
 MODEL_OUTPUT_DIR = MODEL_OUTPUT_DIRS[0]
 # 默认变体：yangquan 在四项性能上指标最好且量纲一致（bulk_density RMSE 0.03 g/cm3）
 DEFAULT_VARIANT = "yangquan"
 
-for module_dir in (FEATURE_DIR, MODEL_DIR):
+for module_dir in (FEATURE_DIR, MODEL_DIR, MODEL_BACKUP_DIR):
     module_path = str(module_dir)
     if module_path not in sys.path:
         sys.path.insert(0, module_path)
@@ -340,7 +347,14 @@ def predict_one(request: PredictRequest) -> Dict[str, Any]:
                 )
 
             x = build_model_input(base_x, condition, bundle)
-            value = finite_or_none(bundle["model"].predict(x)[0])
+            raw = bundle["model"].predict(x)[0]
+            offsets = bundle.get("condition_offsets")
+            if isinstance(offsets, dict) and offsets:
+                # 训练时按工况中心化（_exp/cold 结论），这里加回该工况的偏移；
+                # 未见过的工况退回全局均值，保证不会静默给出偏差值。
+                offset = offsets.get(str(condition), offsets.get("__global__", 0.0))
+                raw = raw + float(offset)
+            value = finite_or_none(raw)
             predictions.append(
                 {
                     "property": property_name,
@@ -404,9 +418,10 @@ app = FastAPI(
     version="2.0.0",
     description=(
         "HTTP API wrapper for the refractory material property models. Models come from the ML "
-        "handover package (MODEL/outputs_selective_selector: feature selection + stacking, "
+        "current deployment (MODEL/outputs_exp_best, trained by scripts/train_exp_best_models.py); "
+        "legacy Sept handover (MODEL_old_sept_bak/outputs_selective_selector: feature selection + stacking) "
         "variants base/processed/fill/zibo/yangquan/batch183); the earlier basic models "
-        "(MODEL/outputs, e.g. minmax) stay available for comparison."
+        "and early baseline (MODEL_old_sept_bak/outputs, e.g. minmax) remain available for comparison."
     ),
 )
 

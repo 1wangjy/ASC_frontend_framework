@@ -57,3 +57,10 @@ data/*
 
 # === planning-with-files 工作目录 ===
 .planning/
+
+# === model_predict: 模型产物（D5 不入库；训练脚本已入库可复现） ===
+backend_impl/python/model_predict/MODEL/outputs_exp_best/
+# 旧模型（9 月交接版）只保留代码入库，产物（~197MB）不入库
+backend_impl/python/model_predict/MODEL_old_sept_bak/outputs/
+backend_impl/python/model_predict/MODEL_old_sept_bak/outputs_selective_selector/
+backend_impl/python/model_predict/MODEL_old_sept_bak/__pycache__/

@@ -2,7 +2,8 @@
 
 版本：2.0.0  
 日期：2026-09-28  
-模型数据源：ML 交接包（`MODEL/outputs_selective_selector`，特征选择 + stacking）  
+模型数据源：`_exp` 实验前沿最优配置（`MODEL/outputs_exp_best`，由 `scripts/train_exp_best_models.py` 生成）；
+旧 9 月交接版（`MODEL_old_sept_bak/outputs_selective_selector`，特征选择 + stacking）保留为回退  
 默认变体：`yangquan`（四项性能指标最好、量纲一致）  
 服务封装：特征工程 + 模型预测
 
@@ -18,7 +19,7 @@
 
 前端不需要生成 `features_*.csv`，也不需要直接调用或加载 `joblib`。
 
-模型资产（`MODEL/outputs_selective_selector/**`、`FEATURE/outputs/metadata_*.json`）体积较大且不入库，
+模型资产（`MODEL/outputs_exp_best/**`、`MODEL_old_sept_bak/**`、`FEATURE/outputs/metadata_*.json`）体积较大且不入库，
 部署时从 ML 交接包（`_ref/交接工作代码以及说明.zip` → `ML.zip`）拷贝到本目录即可；推理代码与特征工程
 `FEATURE/build_features.py` 保持一致，因此训练时落盘的特征表可作为推理特征的对齐基准。
 

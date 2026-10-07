@@ -21,8 +21,14 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 MODEL_DIR = REPO / "backend_impl/python/model_predict/MODEL"
-SELECTOR_DIR = MODEL_DIR / "outputs_selective_selector/models"
-LEGACY_DIR = MODEL_DIR / "outputs/models"
+# 旧预测模型（9 月交接版）已重命名为 *_old_sept_bak，仅作回退
+BACKUP_DIR = REPO / "backend_impl/python/model_predict/MODEL_old_sept_bak"
+# 优先读取当前部署产物（outputs_exp_best），其次回退旧版
+MODEL_DIRS = [
+    MODEL_DIR / "outputs_exp_best/models",
+    BACKUP_DIR / "outputs_selective_selector/models",
+    BACKUP_DIR / "outputs/models",
+]
 ONEHOT_RE = re.compile(r"^material_id__(.+)_frac$")
 
 
@@ -34,7 +40,8 @@ def load_bundle(path: Path):
 
 def install_shim():
     """bundles were pickled from a training script run as __main__."""
-    sys.path.insert(0, str(MODEL_DIR))
+    for directory in (MODEL_DIR, BACKUP_DIR):
+        sys.path.insert(0, str(directory))
     for module_name in ("model_selective_selector", "model_property_more"):
         try:
             module = __import__(module_name)
@@ -49,7 +56,7 @@ def install_shim():
 
 def variant_dirs():
     out = {}
-    for root in (SELECTOR_DIR, LEGACY_DIR):
+    for root in [d for d in MODEL_DIRS if d.exists()]:
         if not root.is_dir():
             continue
         for variant_dir in sorted(root.iterdir()):
