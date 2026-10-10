@@ -3,9 +3,10 @@
  * 仅依赖 vue 与 ./api.js —— 删除本目录即可完全移除该能力。
  */
 
-import { computed, ref, shallowRef } from 'vue'
-import { getAgentTools, streamAgent } from './api.js'
+import { computed, reactive, ref, shallowRef } from 'vue'
+import { getAgentTools, streamAgent, stopAgentSession } from './api.js'
 import { sessionMessagesToChat } from './sessions.js'
+import { resolveToolStatus } from './toolStatus.js'
 
 let sequence = 0
 function nextId(prefix) {
@@ -28,12 +29,14 @@ export function summarizeToolArgs(args, maxLength = 150) {
 
 export function toolStatusLabel(tool) {
   if (tool.status === 'running') return '执行中'
+  if (tool.status === 'stopped') return '已停止'
   if (tool.status === 'error') return '失败'
+  if (tool.status === 'budget_denied') return '预算拒绝'
   return '完成'
 }
 
 /** 断点续传（T11）提示文案：只描述契约保证的行为。 */
-export const RETRY_HINT = '连接中断或整轮超时：服务端重放断点之后的缓冲帧，再继续本轮。'
+export const RETRY_HINT = '服务端重放断点之后的缓冲帧；仍在运行时继续接收。整轮已超时则不会重新执行。'
 
 /**
  * @param {Object} [options]
@@ -56,6 +59,7 @@ export function useAgentChat(options = {}) {
   /** 可续传的断点：{ lastEventId, assistantId }；null 表示无可续传的失败。 */
   const resumePoint = ref(null)
   const requestController = shallowRef(null)
+  let activeCompletion = null
 
   const canSend = computed(() => !streaming.value)
   // 续传必须绑定会话（后端从会话环形缓冲重放），没有 sessionId 就没有断点可续。
@@ -78,6 +82,16 @@ export function useAgentChat(options = {}) {
       lastEventId.value = event.eventId
     }
     switch (event.type) {
+      case 'turn_started':
+        assistant.startedAt = event.startedAt
+        assistant.timeoutMs = event.timeoutMs
+        break
+      case 'model_status':
+        assistant.modelStatus = { status: event.status, startedAt: event.startedAt, ms: event.ms }
+        break
+      case 'model_selected':
+        assistant.model = { id: event.modelId, name: event.model }
+        break
       case 'message_delta':
         if (typeof event.text === 'string') assistant.content += event.text
         break
@@ -92,6 +106,7 @@ export function useAgentChat(options = {}) {
           args: event.args ?? {},
           summary: summarizeToolArgs(event.args),
           status: 'running',
+          startedAt: event.startedAt,
           ok: null,
           resultSummary: '',
           data: null
@@ -101,28 +116,40 @@ export function useAgentChat(options = {}) {
         const tool = assistant.toolCalls.find(item => item.id === event.id)
           || assistant.toolCalls.find(item => item.name === event.name && item.status === 'running')
         if (tool) {
-          tool.status = event.ok ? 'ok' : 'error'
+          tool.status = resolveToolStatus(event)
           tool.ok = Boolean(event.ok)
           tool.resultSummary = event.summary || ''
           tool.data = event.data ?? null
+          tool.ms = Number.isFinite(event.ms) ? event.ms : null
+          tool.finishedAt = event.finishedAt
         } else {
           assistant.toolCalls.push({
             id: event.id || nextId('call'),
             name: event.name || 'unknown',
             args: {},
             summary: '',
-            status: event.ok ? 'ok' : 'error',
+            status: resolveToolStatus(event),
             ok: Boolean(event.ok),
             resultSummary: event.summary || '',
-            data: event.data ?? null
+            data: event.data ?? null,
+            ms: Number.isFinite(event.ms) ? event.ms : null,
+            startedAt: event.startedAt,
+            finishedAt: event.finishedAt
           })
         }
         break
       }
       case 'final':
         if (typeof event.text === 'string' && event.text.trim()) assistant.content = event.text
+        assistant.answer_check = event.answer_check || null
+        assistant.citations = Array.isArray(event.citations) ? event.citations : []
+        assistant.evidence = assistant.toolCalls.flatMap((tool) =>
+          tool.name === 'read_evidence' && tool.ok && tool.data?.evidence_id ? [tool.data]
+            : (Array.isArray(tool.data?.evidence) ? tool.data.evidence : []))
+          .filter((item, index, all) => all.findIndex((other) => other.evidence_id === item.evidence_id && other.text) === index)
         break
       case 'error':
+        if (event.code === 'turn_stopped') assistant.stopped = true
         assistant.error = event.message || '智能体执行出错'
         error.value = assistant.error
         errorCode.value = typeof event.code === 'string' ? event.code : ''
@@ -130,11 +157,16 @@ export function useAgentChat(options = {}) {
         resumePoint.value = { lastEventId: lastEventId.value ?? 0, assistantId: assistant.id }
         break
       case 'done':
+        assistant.timing = event.timing || null
+        for (const tool of assistant.toolCalls) {
+          if (tool.status === 'running') tool.status = assistant.stopped ? 'stopped' : 'error'
+        }
         if (Number.isFinite(event.steps)) steps.value = event.steps
         if (typeof event.sessionId === 'string' && event.sessionId) sessionId.value = event.sessionId
         if (Number.isFinite(event.turnIndex)) turnIndex.value = event.turnIndex
         // 本轮正常收尾：断点作废（出错后到达的 done 会保留断点，见 error 分支）。
         if (!assistant.error) resumePoint.value = null
+        if (assistant.stopped) resumePoint.value = null
         break
       default:
         break
@@ -146,6 +178,9 @@ export function useAgentChat(options = {}) {
    * `send()` 与 `retry()` 共用。
    */
   async function runTurn({ assistant, request }) {
+    let complete
+    const completion = new Promise(resolve => { complete = resolve })
+    activeCompletion = completion
     const controller = new AbortController()
     requestController.value = controller
     streaming.value = true
@@ -181,9 +216,16 @@ export function useAgentChat(options = {}) {
         resumePoint.value = { lastEventId: lastEventId.value ?? 0, assistantId: assistant.id }
       }
     } finally {
+      for (const tool of assistant.toolCalls) {
+        // A dropped transport may be resumable while the server still runs.
+        // Only an explicit client stop is labelled stopped here.
+        if (assistant.stopped && tool.status === 'running') tool.status = 'stopped'
+      }
       assistant.streaming = false
       streaming.value = false
       requestController.value = null
+      if (activeCompletion === completion) activeCompletion = null
+      complete()
     }
   }
 
@@ -200,7 +242,9 @@ export function useAgentChat(options = {}) {
       .map(message => ({ role: message.role, content: message.content }))
 
     messages.value.push({ id: nextId('user'), role: 'user', content, toolCalls: [] })
-    const assistant = {
+    // SSE handlers must mutate a reactive object, not the raw object pushed into
+    // a reactive array. Otherwise the UI only redraws when unrelated state changes.
+    const assistant = reactive({
       id: nextId('assistant'),
       role: 'assistant',
       content: '',
@@ -209,7 +253,7 @@ export function useAgentChat(options = {}) {
       streaming: true,
       stopped: false,
       error: ''
-    }
+    })
     messages.value.push(assistant)
 
     await runTurn({
@@ -218,7 +262,8 @@ export function useAgentChat(options = {}) {
         messages: [...history, { role: 'user', content }],
         context: options.getContext?.(),
         options: options.getRequestOptions?.(),
-        sessionId: sessionId.value || undefined
+        sessionId: sessionId.value || undefined,
+        modelId: options.getModelId?.()
       }
     })
   }
@@ -238,6 +283,9 @@ export function useAgentChat(options = {}) {
       return false
     }
 
+    const previousError = assistant.error
+    const previousErrorCode = errorCode.value
+    const previousEventId = lastEventId.value
     resumePoint.value = null
     error.value = ''
     errorCode.value = ''
@@ -258,6 +306,12 @@ export function useAgentChat(options = {}) {
         resumeFromEventId
       }
     })
+    // Reconnecting a finished timeout does not restart its tool/model.
+    if (previousError && !assistant.error && lastEventId.value === previousEventId) {
+      assistant.error = previousError
+      error.value = previousError
+      errorCode.value = previousErrorCode
+    }
     return true
   }
 
@@ -277,6 +331,38 @@ export function useAgentChat(options = {}) {
     error.value = ''
     errorCode.value = ''
     steps.value = 0
+  }
+
+  async function restoreActiveTurn(detail) {
+    if (!detail?.activeTurn || streaming.value) return false
+    const active = detail.activeTurn
+    messages.value.push({ id: nextId('user'), role: 'user', content: active.question || '执行中的问题', toolCalls: [] })
+    const assistant = reactive({ id: nextId('assistant'), role: 'assistant', content: '', reasoning: '',
+      toolCalls: [], streaming: true, stopped: false, error: '' })
+    messages.value.push(assistant)
+    lastEventId.value = active.fromEventId ?? 0
+    await runTurn({ assistant, request: { messages: [], sessionId: detail.sessionId,
+      resumeFromEventId: active.fromEventId ?? 0, context: options.getContext?.() } })
+    return true
+  }
+
+  async function requestStop() {
+    if (!streaming.value) return
+    if (sessionId.value) {
+      try { await stopAgentSession(sessionId.value, { baseUrl: options.baseUrl || '' }) }
+      catch (err) { error.value = err.message; return }
+      // Let the server's terminal tool/error/done frames reach the UI before
+      // cutting transport. Bound the grace period if a connection is broken.
+      resumePoint.value = null
+      const completion = activeCompletion
+      if (completion) await new Promise(resolve => {
+        const timer = setTimeout(() => { stop(); resolve() }, 1000)
+        completion.then(() => { clearTimeout(timer); resolve() })
+      })
+      return
+    }
+    resumePoint.value = null
+    stop()
   }
 
   /** 开始一条（服务端已创建的）会话：清空本地消息，后续提问写入该会话。 */
@@ -324,6 +410,8 @@ export function useAgentChat(options = {}) {
     send,
     retry,
     stop,
+    requestStop,
+    restoreActiveTurn,
     reset,
     loadSession,
     startSession,

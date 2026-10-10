@@ -241,8 +241,10 @@ test('every SSE frame carries a monotonic `id:` and the stream ends with done', 
   assert.ok(frames.length >= 4);
   assert.deepEqual(frames.map((entry) => entry.id), frames.map((_, i) => i + 1), 'ids start at 1 and increment');
   assert.deepEqual(frames.map((entry) => entry.frame.type), [
+    'turn_started', 'model_status', 'model_status',
     'tool_call',
     'tool_result',
+    'model_status', 'model_status',
     'message_delta',
     'final',
     'done',
@@ -250,7 +252,8 @@ test('every SSE frame carries a monotonic `id:` and the stream ends with done', 
   assert.equal(frames.at(-1).frame.type, 'done');
   assert.equal(frames.at(-1).frame.sessionId, sessionId);
   assert.equal(frames.at(-1).frame.turnIndex, 0, 'turnIndex is the 0-based index of the turn');
-  assert.equal(typeof frames[1].frame.ms, 'number', 'tool_result reports its duration');
+  assert.equal(typeof frames.find(entry => entry.frame.type === 'tool_result').frame.ms, 'number', 'tool_result reports its duration');
+  assert.equal(frames.at(-1).frame.timing.schema, 'agent.timing.v1');
   assert.equal(HEARTBEAT_MS, 15000, 'the keep-alive contract is 15s');
   assert.equal(heartbeatMs({}), 15000);
 });
@@ -394,14 +397,17 @@ test('resume follows a still-running turn to its done frame without starting ano
   assert.equal(resumed.frames.at(-1).frame.type, 'done');
   assert.deepEqual(
     resumed.frames.map((entry) => entry.frame.type),
-    ['tool_call', 'tool_result', 'message_delta', 'final', 'done'],
+    ['turn_started', 'model_status', 'model_status', 'tool_call', 'tool_result',
+      'model_status', 'model_status', 'message_delta', 'final', 'done'],
     'replayed frames precede the live ones'
   );
-  assert.deepEqual(resumed.frames.map((entry) => entry.id), [1, 2, 3, 4, 5]);
+  assert.deepEqual(resumed.frames.map((entry) => entry.id), live.frames.map(entry => entry.id));
+  assert.deepEqual(resumed.frames.at(-1).frame.timing, live.frames.at(-1).frame.timing);
   assert.equal(provider.prompts.length, 2, 'the resume request started no second turn');
 
   const session = await (await fetch(`${base}/sessions/${sessionId}`)).json();
   assert.equal(session.messages.length, 2, 'the turn is appended exactly once');
+  assert.deepEqual(session.messages[1].timing, live.frames.at(-1).frame.timing);
 });
 
 test('a second concurrent turn on one session is refused with 409', async (t) => {

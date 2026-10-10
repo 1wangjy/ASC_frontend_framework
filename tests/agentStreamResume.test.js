@@ -100,7 +100,7 @@ test('a turn timeout exposes a resume point and continues the same bubble', asyn
     const assistant = chat.messages.value[1]
     assert.equal(assistant.content, '正在')
     assert.equal(assistant.error, '整轮超过 300000ms 上限')
-    assert.equal(assistant.toolCalls[0].status, 'running')
+    assert.equal(assistant.toolCalls[0].status, 'error', 'terminal done must not leave tools running')
 
     assert.equal(await chat.retry(), true)
     assert.equal(chat.canRetry.value, false)

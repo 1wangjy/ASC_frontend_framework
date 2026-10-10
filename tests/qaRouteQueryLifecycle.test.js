@@ -117,7 +117,7 @@ const reportApiProbeSource = `
   export async function listReports() {
     const probe = globalThis.${QA_PROBE_KEY}
     probe.reportLoads += 1
-    if (probe.reportError) throw probe.reportError
+    if (probe.projectError) throw probe.projectError
     const deferredLoad = probe.deferredReportLoads.shift()
     if (deferredLoad) await deferredLoad
     return {
@@ -150,9 +150,15 @@ function createProbe() {
     ]
   }
   probe.monitor = {
-    state: reactive({ completedRevision: 0, items: probe.projects }),
+    state: reactive({ completedRevision: 0, items: probe.projects, running: false }),
+    async start() {
+      probe.monitor.state.running = true
+      try { await probe.monitor.refresh() } catch (_) { /* The real monitor reports offline without rejecting start. */ }
+    },
+    stop() { probe.monitor.state.running = false },
     async refresh() {
       probe.projectLoads.push({ limit: 50 })
+      if (probe.projectError) throw probe.projectError
       const deferredLoad = probe.deferredProjectLoads.shift()
       if (deferredLoad) await deferredLoad
       probe.monitor.state.items = probe.projects.map(project => ({ ...project }))
@@ -171,11 +177,13 @@ async function mountQa(initialPath = '/?projectId=p1&reportId=r1', options = {})
     moduleOverrides['src/features/qa/multiDiscussion/api.js'] = multiDiscussionApiProbeSource
     moduleOverrides['src/features/qa/multiDiscussion/api'] = multiDiscussionApiProbeSource
   }
+  const queryUrl = new URL(initialPath, 'http://qa.test')
+  if (!queryUrl.searchParams.has('mode')) queryUrl.searchParams.set('mode', 'single')
   return mountWorkflowRoutes({
-    initialPath,
+    initialPath: queryUrl.pathname + queryUrl.search,
     moduleOverrides,
     routes: [
-      { path: '/', name: 'AscQa', component: '/src/views/AscQaView.vue' },
+      { path: '/', alias: '/research', name: 'AscQa', component: '/src/views/AscQaView.vue' },
       { path: '/documents', name: 'Documents', component: DocumentsView }
     ]
   })
@@ -195,6 +203,10 @@ async function waitFor(assertion, message) {
   throw new Error(message, { cause: lastError })
 }
 
+function projectContextText(root) {
+  return renderedText(findRenderedNode(root, node => hasRenderedClass(node, 'qa-project-context')))
+}
+
 function findTextarea(root) {
   return findRenderedNode(root, node => node?.type === 'textarea')
 }
@@ -205,10 +217,11 @@ test('switches between the single-turn home and the graph-scoped multi-turn page
   const fixture = await mountQa(undefined, { stubMultiDiscussion: true })
 
   try {
-    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'initial project list did not load')
     assert.match(renderedText(fixture.root), /今天想研究什么？/)
 
-    await clickButton(fixture.root, '多轮连续')
+    await clickButton(fixture.root, '智能会话')
+    await clickButton(fixture.root, '原知识对话（兼容入口）')
     await waitFor(
       () => assert.match(renderedText(fixture.root), /从一个图谱问题开始/),
       'multi-turn page did not replace the single-turn home'
@@ -219,8 +232,6 @@ test('switches between the single-turn home and the graph-scoped multi-turn page
     assert.match(renderedText(multiPage), /围绕当前图谱提出第一个问题，后续追问将自动继承上下文/)
     assert.doesNotMatch(renderedText(multiPage), /尚未开始会话|固定作用域/)
     assert.ok(findRenderedNode(multiPage, node => hasRenderedClass(node, 'qa-multi-page__workspace--empty')))
-    assert.match(renderedText(fixture.root), /新建讨论/)
-    assert.match(renderedText(fixture.root), /退出多轮/)
     assert.match(renderedText(multiPage), /为什么 SiC 含量会影响抗氧化性能？/)
     assert.match(renderedText(multiPage), /这些机制中，哪一种更可能主导损伤？/)
     assert.match(renderedText(multiPage), /这个结论有哪些关键依据和适用边界？/)
@@ -233,7 +244,7 @@ test('switches between the single-turn home and the graph-scoped multi-turn page
     await clickButton(fixture.root, '为什么 SiC 含量会影响抗氧化性能？')
     assert.equal(draftValue(fixture.root), '为什么 SiC 含量会影响抗氧化性能？')
 
-    await clickButton(fixture.root, '单轮深度')
+    await clickButton(fixture.root, '深度研究')
     await waitFor(
       () => assert.match(renderedText(fixture.root), /今天想研究什么？/),
       'single-turn home did not return'
@@ -267,12 +278,13 @@ test('restores a graph discussion into the bounded history workspace', async () 
   const fixture = await mountQa(undefined, { stubMultiDiscussion: true })
 
   try {
-    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'initial project list did not load')
     await waitFor(
-      () => assert.match(renderedText(fixture.root), /Project One/),
+      () => assert.match(projectContextText(fixture.root), /Project One/),
       'qualified graph project was not selected'
     )
-    await clickButton(fixture.root, '多轮连续')
+    await clickButton(fixture.root, '智能会话')
+    await clickButton(fixture.root, '原知识对话（兼容入口）')
     await waitFor(
       () => assert.match(renderedText(fixture.root), /与当前图谱持续讨论/),
       'saved multi-turn history did not select the history presentation'
@@ -285,7 +297,7 @@ test('restores a graph discussion into the bounded history workspace', async () 
     assert.ok(findRenderedNode(multiPage, node => hasRenderedClass(node, 'qa-multi-page__workspace--history')))
     assert.equal(findRenderedNodes(multiPage, node => hasRenderedClass(node, 'multi-discussion-guide')).length, 0)
 
-    await clickButton(fixture.root, '新建讨论')
+    await clickButton(fixture.root, '新建会话')
     await waitFor(
       () => assert.match(renderedText(fixture.root), /从一个图谱问题开始/),
       'new discussion did not return to the empty presentation'
@@ -343,7 +355,8 @@ async function submitComposer(root) {
 async function setDraft(root, value) {
   const textarea = findTextarea(root)
   assert.ok(textarea, 'expected the real QuestionComposer textarea')
-  await textarea.props.onInput({ target: { value } })
+  if (textarea.props['onUpdate:modelValue']) await textarea.props['onUpdate:modelValue'](value)
+  else await textarea.props.onInput({ target: { value } })
   await nextTick()
 }
 
@@ -353,39 +366,39 @@ function draftValue(root) {
   return textarea.props.value
 }
 
-test('selects a qualified project in the overlay and writes the matched project and report route pair', async () => {
+test('selects a qualified project in the overlay and writes the project route without requiring a report', async () => {
   const probe = createProbe()
   globalThis[QA_PROBE_KEY] = probe
   const fixture = await mountQa('/')
 
   try {
-    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial qualification did not load')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'initial qualification did not load')
     assert.equal(fixture.router.currentRoute.value.query.projectId, undefined)
     await clickButton(fixture.root, '选择图谱')
     await clickButton(fixture.root, 'Project One')
 
     await waitFor(() => {
       assert.equal(fixture.router.currentRoute.value.query.projectId, 'p1')
-      assert.equal(fixture.router.currentRoute.value.query.reportId, 'r1')
-    }, 'qualified selection did not update both route IDs')
-    assert.equal(probe.projectLoads.length, 1)
-    assert.equal(probe.reportLoads, 1)
+      assert.equal(fixture.router.currentRoute.value.query.reportId, undefined)
+    }, 'qualified selection did not update the project ID')
+    assert.equal(probe.projectLoads.length, 3)
+    assert.equal(probe.reportLoads, 0)
   } finally {
     await fixture.close()
     delete globalThis[QA_PROBE_KEY]
   }
 })
 
-test('keeps the composer disabled when no completed report qualifies', async () => {
+test('keeps the composer disabled when no completed graph qualifies', async () => {
   const probe = createProbe()
-  probe.reports = probe.reports.map(report => ({ ...report, status: 'generating' }))
+  probe.projects = probe.projects.map(project => ({ ...project, status: 'graph_building', stage: 'building' }))
   globalThis[QA_PROBE_KEY] = probe
   const fixture = await mountQa('/')
 
   try {
-    await waitFor(() => assert.equal(probe.reportLoads, 1), 'report qualification did not load')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'project qualification did not load')
     await waitFor(() => {
-      assert.match(renderedText(fixture.root), /已完成报告的图谱项目/)
+      assert.match(projectContextText(fixture.root), /未选择项目/)
       const sendButton = findRenderedNode(
         fixture.root,
         node => node?.type === 'button' && node.props?.class === 'send-button'
@@ -398,14 +411,14 @@ test('keeps the composer disabled when no completed report qualifies', async () 
   }
 })
 
-test('rejects a route whose project and report do not identify the same qualified record', async () => {
+test('rejects a route whose explicit project does not exist', async () => {
   const probe = createProbe()
   globalThis[QA_PROBE_KEY] = probe
-  const fixture = await mountQa('/?projectId=p1&reportId=r2')
+  const fixture = await mountQa('/?projectId=missing&reportId=r2')
 
   try {
-    await waitFor(() => assert.equal(probe.reportLoads, 1), 'report qualification did not load')
-    assert.doesNotMatch(renderedText(fixture.root), /Project One/)
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'project qualification did not load')
+    assert.doesNotMatch(projectContextText(fixture.root), /Project One/)
     const sendButton = findRenderedNode(
       fixture.root,
       node => node?.type === 'button' && node.props?.class === 'send-button'
@@ -418,7 +431,7 @@ test('rejects a route whose project and report do not identify the same qualifie
   }
 })
 
-test('keeps a mismatched route unselected when retry succeeds instead of falling back to storage', async () => {
+test('keeps an invalid project route unselected when retry succeeds instead of falling back to storage', async () => {
   const previousStorage = globalThis.localStorage
   const values = new Map([['nexus_active_project_id', 'p1']])
   globalThis.localStorage = {
@@ -427,19 +440,19 @@ test('keeps a mismatched route unselected when retry succeeds instead of falling
     removeItem: key => values.delete(key)
   }
   const probe = createProbe()
-  probe.reportError = new Error('report service unavailable')
+  probe.projectError = new Error('project service unavailable')
   globalThis[QA_PROBE_KEY] = probe
-  const fixture = await mountQa('/?projectId=p1&reportId=r2')
+  const fixture = await mountQa('/?projectId=missing&reportId=r2')
 
   try {
-    await waitFor(() => assert.match(renderedText(fixture.root), /report service unavailable/), 'initial error did not render')
-    probe.reportError = null
+    await waitFor(() => assert.ok(findRenderedNode(fixture.root, node => node?.type === 'button' && renderedText(node) === '重试')), 'initial retry control did not render')
+    probe.projectError = null
     await clickButton(fixture.root, '重试')
-    await waitFor(() => assert.equal(probe.reportLoads, 2), 'retry did not reload qualification')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 3), 'retry did not reload qualification')
 
-    assert.equal(fixture.router.currentRoute.value.query.projectId, 'p1')
+    assert.equal(fixture.router.currentRoute.value.query.projectId, 'missing')
     assert.equal(fixture.router.currentRoute.value.query.reportId, 'r2')
-    assert.doesNotMatch(renderedText(fixture.root), /Project One/)
+    assert.doesNotMatch(projectContextText(fixture.root), /Project One/)
     const sendButton = findRenderedNode(
       fixture.root,
       node => node?.type === 'button' && node.props?.class === 'send-button'
@@ -453,19 +466,19 @@ test('keeps a mismatched route unselected when retry succeeds instead of falling
   }
 })
 
-test('changing a qualified route into a mismatched pair clears its old QA context', async () => {
+test('changing a qualified route into an invalid project clears its old QA context', async () => {
   const probe = createProbe()
   globalThis[QA_PROBE_KEY] = probe
   const fixture = await mountQa('/?projectId=p1&reportId=r1&conversation=thermal-shock')
 
   try {
     await waitFor(() => assert.match(renderedText(fixture.root), /answer-for-post-1/), 'initial answer did not finish')
-    await fixture.router.push('/?projectId=p1&reportId=r2')
+    await fixture.router.push('/?projectId=missing&reportId=r2')
     await waitFor(() => {
-      assert.equal(probe.reportLoads, 2)
+      assert.equal(probe.projectLoads.length, 3)
       assert.doesNotMatch(renderedText(fixture.root), /answer-for-post-1/)
-      assert.doesNotMatch(renderedText(fixture.root), /Project One/)
-    }, 'mismatched scope did not clear its prior context')
+      assert.doesNotMatch(projectContextText(fixture.root), /Project One/)
+    }, 'invalid project scope did not clear its prior context')
   } finally {
     await fixture.close()
     delete globalThis[QA_PROBE_KEY]
@@ -480,13 +493,13 @@ test('changing the qualified route scope clears old QA and ignores its late answ
   const fixture = await mountQa('/?projectId=p1&reportId=r1')
 
   try {
-    await waitFor(() => assert.match(renderedText(fixture.root), /Project One/), 'initial scope did not qualify')
+    await waitFor(() => assert.match(projectContextText(fixture.root), /Project One/), 'initial scope did not qualify')
     await setDraft(fixture.root, 'old scoped question')
     await submitComposer(fixture.root)
     await waitFor(() => assert.equal(probe.qaPosts.length, 1), 'old question did not start')
 
     await fixture.router.push('/?projectId=p2&reportId=r2')
-    await waitFor(() => assert.match(renderedText(fixture.root), /Project Two/), 'new scope did not qualify')
+    await waitFor(() => assert.match(projectContextText(fixture.root), /Project Two/), 'new scope did not qualify')
     assert.doesNotMatch(renderedText(fixture.root), /old scoped question/)
 
     finishOldAnswer()
@@ -497,8 +510,8 @@ test('changing the qualified route scope clears old QA and ignores its late answ
     await settleWorkflowUpdates()
     await fixture.router.push('/?projectId=p2&reportId=r2')
     await settleWorkflowUpdates()
-    assert.match(renderedText(fixture.root), /Project Two/)
-    assert.equal(probe.projectLoads.length, 2)
+    assert.match(projectContextText(fixture.root), /Project Two/)
+    assert.equal(probe.projectLoads.length, 3)
   } finally {
     await fixture.close()
     delete globalThis[QA_PROBE_KEY]
@@ -514,7 +527,7 @@ test('project selector traps keyboard focus and restores the opener when closed'
   const fixture = await mountQa('/?projectId=p1&reportId=r1')
 
   try {
-    await waitFor(() => assert.match(renderedText(fixture.root), /Project One/), 'initial scope did not qualify')
+    await waitFor(() => assert.match(projectContextText(fixture.root), /Project One/), 'initial scope did not qualify')
     const opener = findRenderedNode(
       fixture.root,
       node => node?.type === 'button' && renderedText(node).includes('更换图谱')
@@ -603,7 +616,7 @@ test('deactivation keeps the QA project controller alive but real unmount stops 
     }
   `
   const fixture = await mountWorkflowRoutes({
-    initialPath: '/?projectId=p1&reportId=r1',
+    initialPath: '/?projectId=p1&reportId=r1&mode=single',
     moduleOverrides: {
       'src/api/graph.js': graphApiProbeSource,
       'src/api/report.js': reportApiProbeSource,
@@ -611,7 +624,7 @@ test('deactivation keeps the QA project controller alive but real unmount stops 
       'src/features/qa/qaProjectContextController.js': controllerProbeSource
     },
     routes: [
-      { path: '/', name: 'AscQa', component: '/src/views/AscQaView.vue' },
+      { path: '/', alias: '/research', name: 'AscQa', component: '/src/views/AscQaView.vue' },
       { path: '/documents', name: 'Documents', component: DocumentsView }
     ]
   })
@@ -633,7 +646,7 @@ test('cached AscQaView consumes a qualified single-turn query once and preserves
   const fixture = await mountQa()
 
   try {
-    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'initial project list did not load')
     const conversationUrl = '/?projectId=p1&reportId=r1&conversation=thermal-shock'
     await fixture.router.push(conversationUrl)
     await waitFor(() => {
@@ -647,7 +660,7 @@ test('cached AscQaView consumes a qualified single-turn query once and preserves
     await fixture.router.push(conversationUrl)
     await settleWorkflowUpdates()
 
-    assert.equal(probe.projectLoads.length, 1)
+    assert.equal(probe.projectLoads.length, 2)
     assert.equal(probe.qaPosts.length, 1)
     assert.equal(findTextarea(fixture.root), null)
     assert.match(renderedText(fixture.root), /answer-for-post-1/)
@@ -705,7 +718,7 @@ test('single-turn result connects the real answer and reasoning modules without 
   const fixture = await mountQa()
 
   try {
-    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'initial project list did not load')
     await fixture.router.push('/?projectId=p1&reportId=r1&conversation=thermal-shock')
     await waitFor(() => {
       assert.equal(probe.qaPosts.length, 1)
@@ -715,7 +728,7 @@ test('single-turn result connects the real answer and reasoning modules without 
     const pageText = renderedText(fixture.root)
     assert.match(pageText, /问题摘要/)
     assert.match(pageText, /当前问答模式/)
-    assert.match(pageText, /单轮深度/)
+    assert.match(pageText, /深度研究/)
     assert.match(pageText, /LLMs \+ CoD 主回答/)
     assert.doesNotMatch(pageText, /查看引用证据/)
     assert.match(pageText, /查看质量评估/)
@@ -739,7 +752,7 @@ test('single-turn result connects the real answer and reasoning modules without 
     await clickButton(fixture.root, '查看质量评估')
     const qualityText = renderedText(fixture.root)
     assert.match(qualityText, /回答质量/)
-    assert.match(qualityText, /证据强度82%/)
+    assert.match(qualityText, /证据强度82(?:\.00)?%/)
     assert.match(qualityText, /推理质量/)
     assert.match(qualityText, /机制覆盖度81%/)
     assert.match(qualityText, /最长推理路径4 跳/)
@@ -755,7 +768,7 @@ test('single-turn result hides answer detail modules when the backend returned n
   const fixture = await mountQa()
 
   try {
-    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'initial project list did not load')
     await fixture.router.push('/?projectId=p1&reportId=r1&conversation=thermal-shock')
     await waitFor(() => assert.match(renderedText(fixture.root), /answer-for-post-1/), 'answer did not finish')
 
@@ -774,7 +787,7 @@ test('single-turn loading reveals the established query stages without explanato
   const fixture = await mountQa()
 
   try {
-    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'initial project list did not load')
     await fixture.router.push('/?projectId=p1&reportId=r1&conversation=thermal-shock')
     await waitFor(() => assert.equal(probe.qaPosts.length, 1), 'single-turn query did not start')
 
@@ -803,7 +816,7 @@ test('single-turn loading reveals the established query stages without explanato
     assert.equal(summaryCard?.parent, session)
     assert.ok(session.children.indexOf(backAction) < session.children.indexOf(summaryCard))
     assert.match(renderedText(summaryQuestion), /分析 ASC Al₂O₃-SiC-C 材料体系的热震稳定性及主要影响因素/)
-    assert.equal(renderedText(modeBadge), '单轮深度')
+    assert.equal(renderedText(modeBadge), '深度研究')
     assert.match(renderedText(progressTitle), /正在执行全局查询/)
     assert.match(renderedText(elapsed), /\d+s/)
     assert.equal(steps.length, 9)
@@ -825,7 +838,7 @@ test('result page returns to the QA home while preserving the selected project a
   const fixture = await mountQa()
 
   try {
-    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'initial project list did not load')
     await fixture.router.push('/?projectId=p1&reportId=r1&conversation=thermal-shock')
     await waitFor(() => assert.match(renderedText(fixture.root), /answer-for-post-1/), 'answer did not finish')
 
@@ -834,12 +847,12 @@ test('result page returns to the QA home while preserving the selected project a
 
     assert.match(renderedText(fixture.root), /今天想研究什么？/)
     assert.doesNotMatch(renderedText(fixture.root), /answer-for-post-1/)
-    assert.equal(fixture.router.currentRoute.value.path, '/')
+    assert.equal(fixture.router.currentRoute.value.path, '/research')
     assert.equal(fixture.router.currentRoute.value.query.projectId, 'p1')
     assert.equal(fixture.router.currentRoute.value.query.reportId, 'r1')
     assert.equal(fixture.router.currentRoute.value.query.conversation, undefined)
     assert.equal(fixture.router.currentRoute.value.query.new, undefined)
-    assert.equal(probe.projectLoads.length, 1)
+    assert.equal(probe.projectLoads.length, 2)
   } finally {
     await fixture.close()
     delete globalThis[QA_PROBE_KEY]
@@ -852,24 +865,24 @@ test('cached AscQaView consumes each changed project and report pair once withou
   const fixture = await mountQa()
 
   try {
-    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'initial project list did not load')
     await fixture.router.push('/documents')
     await settleWorkflowUpdates()
     await fixture.router.push('/?projectId=p1&reportId=r1')
     await settleWorkflowUpdates()
-    assert.equal(probe.projectLoads.length, 1)
+    assert.equal(probe.projectLoads.length, 2)
 
     await fixture.router.push('/?projectId=p2&reportId=r2')
     await waitFor(() => {
-      assert.equal(probe.projectLoads.length, 2)
-      assert.match(renderedText(fixture.root), /Project Two/)
+      assert.equal(probe.projectLoads.length, 3)
+      assert.match(projectContextText(fixture.root), /Project Two/)
     }, 'changed project query was not consumed')
 
     await fixture.router.push('/documents')
     await settleWorkflowUpdates()
     await fixture.router.push('/?projectId=p2&reportId=r2')
     await settleWorkflowUpdates()
-    assert.equal(probe.projectLoads.length, 2)
+    assert.equal(probe.projectLoads.length, 3)
   } finally {
     await fixture.close()
     delete globalThis[QA_PROBE_KEY]
@@ -882,7 +895,7 @@ test('cached AscQaView consumes each changed new query once without resetting on
   const fixture = await mountQa()
 
   try {
-    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'initial project list did not load')
     await setDraft(fixture.root, 'draft before new token')
     await fixture.router.push('/?projectId=p1&reportId=r1&new=n1')
     await settleWorkflowUpdates()
@@ -894,7 +907,7 @@ test('cached AscQaView consumes each changed new query once without resetting on
     await fixture.router.push('/?projectId=p1&reportId=r1&new=n1')
     await settleWorkflowUpdates()
     assert.equal(draftValue(fixture.root), 'draft after n1')
-    assert.equal(probe.projectLoads.length, 1)
+    assert.equal(probe.projectLoads.length, 2)
 
     await fixture.router.push('/?projectId=p1&reportId=r1&new=n2')
     await settleWorkflowUpdates()
@@ -906,7 +919,7 @@ test('cached AscQaView consumes each changed new query once without resetting on
     await fixture.router.push('/?projectId=p1&reportId=r1&new=n2')
     await settleWorkflowUpdates()
     assert.equal(draftValue(fixture.root), 'draft after n2')
-    assert.equal(probe.projectLoads.length, 1)
+    assert.equal(probe.projectLoads.length, 2)
   } finally {
     await fixture.close()
     delete globalThis[QA_PROBE_KEY]
@@ -919,11 +932,11 @@ test('cached AscQaView waits for an in-flight monitor project refresh before con
   const fixture = await mountQa()
 
   try {
-    await waitFor(() => assert.equal(probe.projectLoads.length, 1), 'initial project list did not load')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'initial project list did not load')
     let finishProjectRefresh
     probe.deferredProjectLoads.push(new Promise(resolve => { finishProjectRefresh = resolve }))
     probe.monitor.state.completedRevision += 1
-    await waitFor(() => assert.equal(probe.projectLoads.length, 2), 'monitor refresh did not start')
+    await waitFor(() => assert.equal(probe.projectLoads.length, 3), 'monitor refresh did not start')
 
     const conversationUrl = '/?projectId=p1&reportId=r1&conversation=thermal-shock'
     await fixture.router.push(conversationUrl)
@@ -940,7 +953,7 @@ test('cached AscQaView waits for an in-flight monitor project refresh before con
     await settleWorkflowUpdates()
     await fixture.router.push(conversationUrl)
     await settleWorkflowUpdates()
-    assert.equal(probe.projectLoads.length, 2)
+    assert.equal(probe.projectLoads.length, 3)
     assert.equal(probe.qaPosts.length, 1)
   } finally {
     await fixture.close()

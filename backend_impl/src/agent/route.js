@@ -51,11 +51,15 @@
  */
 
 const express = require('express');
+const { prepareConversation } = require('./conversation');
+const { EvidenceStore } = require('./evidence');
 const toolRegistry = require('./tools');
 const policy = require('./policy');
 const { runAgent, normalizeMessages } = require('./loop');
 const sessions = require('./sessions');
+const activeTurns = new Map();
 const metrics = require('./metrics');
+const modelProfiles = require('./models');
 
 /** Keep-alive cadence for SSE streams (long tool calls included). */
 const HEARTBEAT_MS = 15000;
@@ -185,6 +189,7 @@ function noteFrame(log, frame) {
         argsSummary: policy.summarizeArgs(frame.name, frame.args),
         ok: false,
         ms: 0,
+        startedAt: frame.startedAt,
       };
       log.toolCalls.push(entry);
       if (frame.id !== undefined && frame.id !== null) log.pending.set(String(frame.id), entry);
@@ -194,16 +199,32 @@ function noteFrame(log, frame) {
       const entry = log.pending.get(String(frame.id));
       if (entry) {
         entry.ok = frame.ok === true;
+        if (frame.ok === false && (frame.data?.retrieval_budget_exhausted === true || frame.data?.quota_exceeded === true)) entry.budgetDenied = true;
         entry.ms = Number.isFinite(frame.ms) ? frame.ms : 0;
+        entry.finishedAt = frame.finishedAt;
+        if (frame.stopped) entry.stopped = true;
         log.pending.delete(String(frame.id));
       }
       break;
     }
     case 'final':
       log.finalText = typeof frame.text === 'string' ? frame.text : '';
+      log.answerCheck = frame.answer_check;
+      log.citations = frame.citations;
+      log.serviceReferences = frame.service_references;
+      log.citationBindings = frame.citation_bindings;
+      break;
+    case 'model_selected':
+      log.model = { id: frame.modelId, name: frame.model };
+      break;
+    case 'done':
+      log.timing = frame.timing;
       break;
     case 'error':
       log.error = frame.code ? { code: frame.code, message: frame.message } : { message: frame.message };
+      if (frame.code === 'turn_stopped') {
+        for (const entry of log.pending.values()) entry.stopped = true;
+      }
       break;
     default:
       break;
@@ -215,9 +236,19 @@ function assistantMessage(log) {
   const message = { role: 'assistant', content: log.finalText || log.deltaText || '' };
   if (log.reasoningText) message.reasoning = log.reasoningText;
   if (log.toolCalls.length) {
-    message.toolCalls = log.toolCalls.map(({ name, argsSummary, ok, ms }) => ({ name, argsSummary, ok, ms }));
+    message.toolCalls = log.toolCalls.map(({ name, argsSummary, ok, ms, budgetDenied, stopped, startedAt, finishedAt }) => ({ name, argsSummary, ok: ok === true, ms, startedAt, finishedAt,
+      ...(stopped ? { stopped: true } : {}),
+      ...(budgetDenied ? { budgetDenied: true } : {}) }));
   }
   if (log.error) message.error = log.error;
+  if (log.error?.code === 'turn_stopped') message.stopped = true;
+  if (log.answerCheck) message.answer_check = log.answerCheck;
+  if (log.model) message.model = log.model;
+  if (log.timing) message.timing = log.timing;
+  if (log.citations) message.citations = log.citations;
+  if (log.serviceReferences) message.service_references = log.serviceReferences;
+  if (log.citationBindings) message.citation_bindings = log.citationBindings;
+  if (log.evidenceStore && log.evidenceStore.records.size) message.evidence = log.evidenceStore.snapshot();
   return message;
 }
 
@@ -236,22 +267,28 @@ function lastUserMessage(messages) {
  * a client that reloads the session on `done` never races the file write.
  */
 async function runTurn({ stream, messages, context, options, sessionId, signal, provider }) {
+  context = { ...context, evidenceStore: new EvidenceStore(context),
+    answerMode: process.env.AGENT_ANSWER_MODE === 'evidence_draft' ? 'evidence_draft' : 'knowledge_service' };
   const emitter = attachEmitter({ stream, sessionId });
   const turnIndex = sessionId ? sessions.turnCount(sessionId) : undefined;
   const log = createTurnLog(lastUserMessage(messages));
+  log.evidenceStore = context.evidenceStore;
   const started = Date.now();
 
   const emit = (frame) => {
     if (frame.type === 'done') {
       const done = sessionId ? { ...frame, sessionId, turnIndex } : frame;
       noteFrame(log, done);
-      if (sessionId && log.user) sessions.appendTurn(sessionId, { user: log.user, assistant: assistantMessage(log) });
+      if (sessionId && log.user) sessions.appendTurn(sessionId, {
+        user: log.user, assistant: assistantMessage(log), researchState: context.researchState,
+      });
       emitter.emit(done);
       return;
     }
     noteFrame(log, frame);
     emitter.emit(frame);
   };
+  if (provider && provider.model) emit({ type: 'model_selected', modelId: provider.profileId || 'default', model: provider.model });
 
   let result;
   try {
@@ -302,7 +339,8 @@ async function streamHandler(req, res, deps = {}) {
     res.status(400).json({ code: 400, message: 'sessionId must match /^[A-Za-z0-9_-]{1,64}$/' });
     return;
   }
-  if (sessionId && !sessions.readSession(sessionId)) {
+  const record = sessionId ? sessions.readSession(sessionId) : null;
+  if (sessionId && !record) {
     res.status(404).json({ code: 404, message: `unknown sessionId "${sessionId}"` });
     return;
   }
@@ -312,8 +350,29 @@ async function streamHandler(req, res, deps = {}) {
     return;
   }
 
-  const context = body.context && typeof body.context === 'object' ? body.context : {};
+  let context = body.context && typeof body.context === 'object' ? body.context : {};
+  if (!isResume) {
+    try {
+      const prepared = prepareConversation(record, messages, context);
+      messages = prepared.messages;
+      context = prepared.context;
+    } catch (error) {
+      res.status(400).json({ code: 400, message: error.message });
+      return;
+    }
+  }
   const options = body.options && typeof body.options === 'object' ? body.options : {};
+  let provider;
+  if (!isResume) {
+    try {
+      if (['apiUrl', 'apiKey', 'provider', 'model'].some((key) => Object.hasOwn(body, key))) throw new Error('model_id_only');
+      provider = deps.provider || modelProfiles.resolve(body.modelId);
+    } catch (error) {
+      const known = ['invalid_model_id', 'unknown_model_id', 'model_not_configured', 'model_id_only'];
+      res.status(400).json({ code: known.includes(error.message) ? error.message : 'model_configuration_invalid', message: '模型选择无效或服务端配置不可用；只能选择已登记的模型 ID。' });
+      return;
+    }
+  }
   const requestedTools = Array.isArray(options.allowTools) ? options.allowTools.slice(0, 32) : undefined;
   const requestedWebHosts = Array.isArray(options.webAllowlist)
     ? options.webAllowlist.filter((entry) => typeof entry === 'string').slice(0, 16)
@@ -353,6 +412,10 @@ async function streamHandler(req, res, deps = {}) {
   }
 
   const claimed = sessionId ? sessions.beginTurn(sessionId) : true;
+  if (sessionId && claimed) activeTurns.set(sessionId, { controller,
+    question: lastUserMessage(messages)?.content || '',
+    fromEventId: sessions.lastEventId(sessionId),
+    scope: { projectId: context.projectId, graphId: context.graphId } });
   try {
     await runTurn({
       stream,
@@ -368,10 +431,10 @@ async function streamHandler(req, res, deps = {}) {
       },
       sessionId,
       signal: controller.signal,
-      provider: deps.provider,
+      provider,
     });
   } finally {
-    if (sessionId && claimed) sessions.endTurn(sessionId);
+    if (sessionId && claimed) { activeTurns.delete(sessionId); sessions.endTurn(sessionId); }
   }
 }
 
@@ -386,6 +449,10 @@ async function streamHandler(req, res, deps = {}) {
 function createRouter(config = {}) {
   const deps = { provider: config.provider };
   const instance = express.Router();
+  instance.get('/models', (_req, res) => {
+    try { res.json(modelProfiles.catalog()); }
+    catch { res.status(503).json({ code: 'model_configuration_invalid', message: '服务端模型名单配置无效，请检查本地配置。' }); }
+  });
 
   instance.get('/tools', (req, res) => {
     const registered = toolRegistry.registeredNames();
@@ -426,7 +493,19 @@ function createRouter(config = {}) {
       messages: record.messages,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
+      ...(activeTurns.has(id) ? { activeTurn: (({ question, fromEventId, scope }) =>
+        ({ question, fromEventId, scope }))(activeTurns.get(id)) } : {}),
+      ...(record.researchState ? { researchState: record.researchState } : {}),
     });
+  });
+
+  instance.post('/sessions/:id/stop', (req, res) => {
+    const { id } = req.params;
+    if (!sessions.isValidSessionId(id)) return res.status(400).json({ message: 'invalid sessionId' });
+    if (!sessions.readSession(id)) return res.status(404).json({ message: 'unknown sessionId' });
+    const active = activeTurns.get(id);
+    if (active) active.controller.abort();
+    res.json({ ok: true, stopping: Boolean(active) });
   });
 
   instance.delete('/sessions/:id', (req, res) => {

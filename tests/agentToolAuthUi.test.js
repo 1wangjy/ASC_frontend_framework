@@ -80,8 +80,9 @@ test('tool authorization chips default to all-on, then narrow and persist', asyn
       () => assert.match(renderedText(root), /已启用 7\/7/),
       'the header hint never reflected the loaded catalog'
     )
-    assert.equal(calls.length, 1)
-    assert.ok(calls[0].url.endsWith('/api/agent/tools'))
+    const toolCalls = calls.filter(call => call.url.endsWith('/api/agent/tools'))
+    assert.equal(toolCalls.length, 1)
+    assert.ok(calls.some(call => call.url.endsWith('/api/agent/models')))
 
     const toggle = findButton(root, '工具权限')
     assert.equal(toggle.props['aria-expanded'], false)

@@ -2,12 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
 
 // 加载环境变量
-dotenv.config();
+require('./agent/env').loadAgentEnv();
 
 // 确保 data/uploads 目录存在（embedding 上传需要）
 const uploadsDir = path.join(__dirname, '../data/uploads');
@@ -133,6 +132,7 @@ app.use((err, req, res, next) => {
 
 // 启动服务
 const port = process.env.PORT || 3001;
-app.listen(port, () => {
+const host = process.env.HOST || '127.0.0.1';
+app.listen(port, host, () => {
   console.log(`Server running on port ${port}`);
 });

@@ -38,6 +38,8 @@ export function createMemoryVueRenderer() {
       children: [],
       parent: null,
       props: {},
+      // v-show reads/writes style.display even in component-only tests.
+      style: {},
       text: '',
       ownerDocument: document,
       addEventListener() {},

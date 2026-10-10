@@ -261,6 +261,50 @@ async function runQuery({ params, ctx, retrievalOnly }) {
   }
 
   const projected = projectResult(outcome.data, { topK, includeAnswer: !retrievalOnly });
+  // Separate publication payload from the compact model projection. Never
+  // truncate the service's answer or alter its reference bindings silently.
+  if (!retrievalOnly && ctx && ctx.answerMode === 'knowledge_service') {
+    const text = outcome.data.final_answer;
+    const references = Array.isArray(outcome.data.references) ? outcome.data.references : [];
+    const bindings = Array.isArray(outcome.data.citation_bindings) ? outcome.data.citation_bindings : [];
+    if (typeof text === 'string' && text.trim()) {
+      const publication = { text, references, citation_bindings: bindings,
+        qa_run_id: outcome.data.qa_run_id, scope: resolved.scope };
+      if (text.length > 64000 || JSON.stringify(publication).length > 256000) {
+        return { ok: false, summary: '知识服务回答超过传输上限，未截断或改写答案。',
+          data: { code: 'service_answer_too_large', scope: resolved.scope } };
+      }
+      projected.data.service_answer = publication;
+    }
+  }
+  if (ctx && ctx.evidenceStore) {
+    const records = ctx.evidenceStore.register(top(outcome.data.references, topK), resolved.scope,
+      { url: outcome.url, qa_run_id: outcome.data.qa_run_id });
+    projected.data.evidence = records.slice(0, 5).map((item) => ({
+      evidence_id: item.evidence_id, title: item.title && item.title.slice(0, 150), source_id: item.source_id,
+      quote: item.text.slice(0, 150), locator: item.locator,
+      citation_eligible: item.citation_eligible, exclusion_reason: item.exclusion_reason,
+      support_status: item.support_status, limitations: item.limitations,
+    }));
+    projected.data.evidence_contract = {
+      status: 'api_reported', semantic_support_verified: false,
+      omitted_references: Math.max(0, top(outcome.data.references, topK).length - records.length),
+      registered_count: records.length, preview_count: Math.min(5, records.length),
+      note: 'final_answer 是服务生成文字，不是原文证据；原文仅取 references 的 API 返回片段。',
+    };
+    // Preserve source snippets in the task ledger; keep the model's directory
+    // compact enough that evidence IDs survive both transport/context limits.
+    projected.data.paths = projected.data.paths.slice(0, 3).map((item) => ({ ...item,
+      path: item.path.slice(0, 300), reason: item.reason.slice(0, 150) }));
+    projected.data.subgraphs = projected.data.subgraphs.slice(0, 3).map((item) => ({ ...item,
+      seeds: item.seeds.map((name) => String(name || '').slice(0, 100)) }));
+    projected.data.references = projected.data.references.slice(0, 3).map((item) => ({ ...item,
+      title: String(item.title || '').slice(0, 150), quote: item.quote.slice(0, 200) }));
+    if (projected.data.final_answer) projected.data.final_answer = projected.data.final_answer.slice(0, 1500);
+    if (projected.data.citation_bindings) projected.data.citation_bindings = projected.data.citation_bindings.slice(0, 3)
+      .map((item) => ({ reference_id: item.reference_id, target_type: item.target_type,
+        answer_excerpt: String(item.answer_excerpt || '').slice(0, 200) }));
+  }
   projected.data.scope = resolved.scope;
   if (resolved.discovery) projected.data.scope_resolution = resolved.discovery;
   return { ok: true, projected, counts: projected.counts };

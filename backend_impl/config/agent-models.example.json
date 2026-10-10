@@ -1,0 +1,25 @@
+{
+  "models": [
+    {
+      "id": "deepseek-pro",
+      "label": "DeepSeek Pro（云端）",
+      "kind": "cloud",
+      "model": "deepseek-v4-pro",
+      "apiUrl": "https://api.deepseek.com",
+      "authMode": "bearer",
+      "keyEnv": "LLM_API_KEY",
+      "enabled": true,
+      "maxTokens": 2048
+    },
+    {
+      "id": "local-finetuned",
+      "label": "本地微调模型（待部署）",
+      "kind": "local",
+      "model": "replace-with-served-model-id",
+      "apiUrl": "",
+      "authMode": "none",
+      "enabled": false,
+      "maxTokens": 2048
+    }
+  ]
+}

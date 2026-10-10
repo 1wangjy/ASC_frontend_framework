@@ -145,6 +145,7 @@ function readSession(id, options = {}) {
       createdAt: record.createdAt || nowIso(),
       updatedAt: record.updatedAt || record.createdAt || nowIso(),
       messages: Array.isArray(record.messages) ? record.messages : [],
+      ...(record.researchState && record.researchState.version === 1 ? { researchState: record.researchState } : {}),
     };
   } catch (error) {
     console.warn(`[agent:sessions] ${id}.json is not valid JSON:`, error.message);
@@ -219,6 +220,10 @@ function appendTurn(id, turn = {}) {
   const isFirstTurn = record.messages.length === 0;
   const added = [turn.user, turn.assistant].filter((message) => message && typeof message === 'object');
   for (const message of added) record.messages.push(message);
+  const removed = Math.max(0, record.messages.length - MAX_MESSAGES_PER_SESSION);
+  if (turn.researchState && turn.researchState.version === 1) record.researchState = turn.researchState;
+  if (record.researchState) record.researchState = { ...record.researchState,
+    historyStart: Math.max(0, (record.researchState.historyStart || 0) - removed) };
   if (record.messages.length > MAX_MESSAGES_PER_SESSION) {
     record.messages = record.messages.slice(-MAX_MESSAGES_PER_SESSION);
   }

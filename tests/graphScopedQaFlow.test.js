@@ -23,11 +23,11 @@ function extractBlockAfter(source, marker) {
   throw new Error(`expected a closing block for ${marker}`)
 }
 
-test('QA discovers only joined completed-report projects through the qualification controller', async () => {
+test('QA discovers completed-graph or completed-evolution projects through the qualification controller', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
 
   assert.match(source, /createQaProjectContextController/)
-  assert.match(source, /listReports/)
+  assert.doesNotMatch(source, /listReports|\bgetReport\b/)
   assert.match(source, /QaProjectSelector/)
   assert.doesNotMatch(source, /getRegisteredProjectIds/)
   assert.doesNotMatch(source, /projectRegistry/)
@@ -40,8 +40,7 @@ test('invalid QA scope refreshes into manual selection without resending the que
     'if (isInvalidGraphScopeError(error) || isInvalidQaEligibilityError(error))'
   )
 
-  assert.match(source, /requestCodAnswer\(\{\s*codGraphRAGQuery,\s*getProject,\s*getReport\s*\}/)
-  assert.match(source, /reportId:\s*activeProject\.value\.reportId/)
+  assert.match(source, /requestCodAnswer\(\{\s*codGraphRAGQuery,\s*getProject\s*\}/)
   assert.match(source, /simulationId:\s*activeProject\.value\.simulationId/)
   assert.match(invalidScopeRecovery, /isInvalidQaEligibilityError/)
   assert.match(invalidScopeRecovery, /draft\.value\s*=\s*qaState\.value\.question/)
@@ -50,7 +49,7 @@ test('invalid QA scope refreshes into manual selection without resending the que
   assert.match(source, /qaProjectContext\.clear\(\)/)
 })
 
-test('QA reloads projects when graph completion revision increases without owning the monitor lifecycle', async () => {
+test('QA reloads projects when graph completion revision increases with a started and stopped monitor lifecycle', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
 
   assert.match(source, /import\s*\{\s*useGraphTaskMonitor\s*\}\s*from\s*'\.\.\/features\/tasks\/graphTaskMonitor\.js'/)
@@ -59,7 +58,8 @@ test('QA reloads projects when graph completion revision increases without ownin
     source,
     /watch\(\s*\(\)\s*=>\s*graphTaskMonitor\.state\.completedRevision\s*,\s*\(current, previous\)\s*=>\s*\{\s*if\s*\(current > previous\)\s*refreshQualifiedProjects\(\)\s*}\s*\)/
   )
-  assert.doesNotMatch(source, /graphTaskMonitor\.(?:start|stop)\s*\(/)
+  assert.match(source, /await graphTaskMonitor\.start\(\)[\s\S]*consumeActiveQaRouteQuery\(\)/)
+  assert.match(source, /graphTaskMonitor\.stop\(\)/)
 })
 
 test('QA delegates race-safe project refresh state to the qualification controller', async () => {
@@ -70,24 +70,22 @@ test('QA delegates race-safe project refresh state to the qualification controll
   assert.doesNotMatch(source, /projectsRequestVersion/)
 })
 
-test('opens the qualified project selector from the existing control without a Process route', async () => {
+test('opens the qualified project selector from the existing scope control', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
 
   assert.doesNotMatch(source, /qa-project-picker|changeActiveProject|<select/)
   assert.match(source, /qa-project-context/)
   assert.match(source, /当前图谱/)
   assert.match(source, /更换图谱/)
-  assert.match(source, /@click="selectorOpen = true"/)
-  assert.doesNotMatch(source, /name:\s*'Process'/)
+  assert.match(source, /@click="onProjectAction"/)
 })
 
-test('completed graph builds route to QA and no longer write a local registry', async () => {
+test('completed graph builds keep the current page and no longer write a local registry', async () => {
   const source = await readFile(new URL('../src/views/MainView.vue', import.meta.url), 'utf8')
 
-  assert.match(source, /navigateGraphProjectToQa/)
   assert.match(source, /completeTaskGraphForQa/)
   assert.match(source, /completeMissingTaskGraphForQa/)
-  assert.match(source, /router\.replace\(qaRoute\)/)
+  assert.match(source, /navigateWhenReady:\s*false/)
   const loadGraphSource = source.slice(
     source.indexOf('const loadGraph = async'),
     source.indexOf('const refreshGraph =')

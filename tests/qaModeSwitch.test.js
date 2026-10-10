@@ -21,7 +21,7 @@ test('shared mode switcher emits the selected QA page mode', async () => {
   try {
     const multiButton = findRenderedNode(
       fixture.root,
-      node => node?.type === 'button' && renderedText(node).includes('多轮连续')
+      node => node?.type === 'button' && renderedText(node).includes('智能会话')
     )
     assert.ok(multiButton)
     assert.equal(multiButton.props['aria-pressed'], false)
@@ -42,10 +42,10 @@ test('centers the shared mode switcher without shifting either page heading', as
   assert.doesNotMatch(qaViewSource, /\.qa-empty h1,[\s\S]*?transform:\s*translateX/)
 })
 
-test('defaults to single-turn NEXUS with ontology enhancement enabled', () => {
+test('defaults to the Agent multi-turn entry with NEXUS with ontology enhancement enabled', () => {
   const state = qa.createQaState()
 
-  assert.equal(state.mode, 'single')
+  assert.equal(state.mode, 'multi')
   assert.equal(state.settings.framework, 'NEXUS')
   assert.equal(state.settings.ontologyEnabled, true)
 })
@@ -75,8 +75,8 @@ test('renders one composer with mode choices, model, reasoning, and no internal 
     mode: 'single'
   })
 
-  assert.match(html, /单轮深度/)
-  assert.match(html, /多轮连续/)
+  assert.match(html, /深度研究/)
+  assert.match(html, /智能会话/)
   assert.match(html, /模型/)
   assert.match(html, /推理/)
   assert.match(html, />查询</)
@@ -104,7 +104,7 @@ test('hides the entire compact follow-up composer after a single-turn question',
     compact: true
   })
 
-  assert.doesNotMatch(html, /单轮深度|多轮连续/)
+  assert.doesNotMatch(html, /深度研究|智能会话/)
   assert.doesNotMatch(html, /继续追问|模型|推理|查询/)
 })
 
@@ -117,7 +117,7 @@ test('keeps the compact follow-up composer for multi-turn mode without mode choi
     compact: true
   })
 
-  assert.doesNotMatch(html, /单轮深度|多轮连续/)
+  assert.doesNotMatch(html, /深度研究|智能会话/)
   assert.match(html, /继续追问/)
   assert.match(html, /模型/)
   assert.match(html, /推理/)
