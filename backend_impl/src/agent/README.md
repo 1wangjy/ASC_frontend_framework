@@ -4,7 +4,7 @@
 
 2026-10-09 工具测试更新：已盘点 9 个注册工具，选定离线回归 52 项通过；固定工具验收 11 项通过、1 项预测服务待验收，明确区分真实 API、本地片段/历史读取与拒绝检查。知识/文献检索单次 103.951/41.737 秒，服务答案及 16 条引用原样保留。3 页 PPT、原始返回与逐项结果见 [TOOL-TEST-RESULTS.md](./TOOL-TEST-RESULTS.md)。本轮未做回答质量优化，未宣称所有工具已完成真实部署。
 
-**最新口径覆盖下文历史草稿阶段**：暂不改进答案可靠性。默认 `AGENT_ANSWER_MODE=knowledge_service`，Agent 负责选择工具、历史与追问条件，`kg_search` 返回成文答案后原样发布服务答案与引用，不再让模型改写草稿。旧草稿门禁作为 `evidence_draft` 运维回退保留；质量对照实验暂停。范围/权限/预算/超时仍启用。真实验证及兼容边界见 [SERVICE-ANSWER-INTEGRATION.md](./SERVICE-ANSWER-INTEGRATION.md)。
+**最新口径覆盖下文历史草稿阶段（2026-10-10 修正）**：暂不改进答案可靠性。默认 `AGENT_ANSWER_MODE=knowledge_service`，Agent 负责选择工具、历史与追问条件；`kg_search` 返回答案后仍观察工具结果、按需继续调用，不立即结束，不强制调用全部工具。结束时原样发布保留的服务答案与引用，不让模型改写草稿。旧草稿门禁作为 `evidence_draft` 运维回退保留；质量对照实验暂停。范围/权限/预算/超时仍启用。真实验证及兼容边界见 [SERVICE-ANSWER-INTEGRATION.md](./SERVICE-ANSWER-INTEGRATION.md)。
 
 最新交付以 `D:/shixi/中关村学院/ASC-Agent实施方案（Git基线版）.md` 第 1–5 节为准，第 6 节提供详细记录索引：①重点工具测试与 2–3 页 PPT；②两个 Tab UI、流式执行块、模型/本地配置与历史管理入口；③配合李铭豪联调知识 API 等待状态和速度；④确认 CoT/ToT 决策、可用 subagent 状态/公开摘要并测试多模态。各项完成状态以主文档为准，旧测试日志和待办仅供回查。前端仅按这些任务的必要文件实施。
 

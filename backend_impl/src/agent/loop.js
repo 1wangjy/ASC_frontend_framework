@@ -143,7 +143,16 @@ function parseToolArguments(raw) {
 }
 
 function toolMessageContent(outcome) {
-  const text = JSON.stringify({ ok: outcome.ok, summary: outcome.summary, data: outcome.data });
+  // Publication is kept separately; do not flood the next decision with the
+  // full service answer or lose the evidence directory through truncation.
+  let data = outcome.data;
+  if (data?.service_answer) {
+    const { service_answer, ...projection } = data;
+    data = { ...projection, service_answer_available: true,
+      service_answer_preview: service_answer.text.slice(0, 1500),
+      note: '控制器保留服务原答案。根据用户需求决定后续工具；结束时原样发布，不需重写或核验。' };
+  }
+  const text = JSON.stringify({ ok: outcome.ok, summary: outcome.summary, data });
   if (text.length <= MAX_TOOL_PAYLOAD_CHARS) return text;
   return JSON.stringify({ ok: outcome.ok, summary: outcome.summary,
     data: { truncated: true, reason: 'model_context_limit', preview: text.slice(0, 3000),
@@ -207,7 +216,7 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
 
   const convo = [{ role: 'system', content: SYSTEM_PROMPT }, ...messages];
   if (context.answerMode === 'knowledge_service') convo[0].content =
-    SYSTEM_PROMPT + '\n当前使用知识服务原答案模式：你只负责选择工具和理解追问。材料知识问题优先调用kg_search取得成文答案；rag_search只提供片段，不是成文答案。kg_search返回成文答案后控制器直接展示，不需要你重新写答案或读取全部片段。历史用于理解问题和条件，不是新的工具结果。没有成文答案时说明服务未返回答案，不自行生成材料结论。';
+    SYSTEM_PROMPT + '\n当前使用知识服务原答案模式，下列流程覆盖上述草稿生成及支持度核验要求：材料知识问题按需调用kg_search取得成文答案。返回后继续观察工具结果并决定下一步：用户要求原文时按实际evidence_id调用read_evidence，缺少所需片段时调用rag_search，需要回忆会话时调用search_history，其他工具仅用于对应需求。信息足够就结束，不为展示而重复检索或强制用完全部工具。控制器保留并最终原样发布知识服务答案和引用，你不需要重写答案、生成草稿或进行质量核验。rag_search仅提供片段，不是成文答案。历史只用于理解问题和条件。没有成文答案时不要自行生成材料结论。';
   const budgetMessage = { role: 'system', content: '' };
   convo.splice(1, 0, budgetMessage);
   if (context.researchState) {
@@ -218,6 +227,7 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
   let steps = 0;
   let forceFinal = false;
   let lastText = '';
+  let pendingServiceAnswer = null;
   const publishAnswer = (text, streamed = false) => {
     const checked = checkAnswer(text, evidenceStore);
     if (streamed) emit({ type: 'message_delta', text: checked.text });
@@ -264,7 +274,9 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
         return !policy.toolQuotaReason(name, toolUsage, quota)
           && (!(name === 'kg_search' || name === 'rag_search') || remainingRetrieval > 0);
       });
-      if (finalOnly) convo.push({ role: 'user', content: '工具预算已结束。本次不得调用工具；请仅用已有证据，以不超过600字给出简洁结论、有效引用和条件缺口。没有支持证据时明确不能确定，不要展开未核验机理。' });
+      if (finalOnly) convo.push({ role: 'user', content: context.answerMode === 'knowledge_service'
+        ? '工具预算已结束。本次不得调用工具。控制器将发布已保留的知识服务原答案；不要重写答案或进行质量核验，请结束工具决策。'
+        : '工具预算已结束。本次不得调用工具；请仅用已有证据，以不超过600字给出简洁结论、有效引用和条件缺口。没有支持证据时明确不能确定，不要展开未核验机理。' });
       const modelStartedAt = Date.now();
       const modelClock = performance.now();
       emit({ type: 'model_status', status: 'running', step: steps, startedAt: modelStartedAt });
@@ -293,10 +305,18 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
 
       const calls = Array.isArray(assistant.tool_calls) ? assistant.tool_calls : [];
       if (assistant.finish_reason === 'length' || (finalOnly && calls.length)) {
+        if (pendingServiceAnswer) {
+          emit({ type: 'final', ...pendingServiceAnswer });
+          return finish();
+        }
         emit({ type: 'final', text: '回答生成未完整结束，未作为已完成草稿发布。', answer_check: { status: 'incomplete', semantic_support_verified: false } });
         return finish();
       }
       if (calls.length === 0) {
+        if (pendingServiceAnswer) {
+          emit({ type: 'final', ...pendingServiceAnswer });
+          return finish();
+        }
         const finalText = assistant.content || lastText;
         if (finalText.length > MAX_MESSAGE_CHARS) throw new Error('LLM draft exceeds the output character budget');
         if (context.answerMode === 'knowledge_service' && evidenceStore.retrievalAttempted) {
@@ -379,14 +399,17 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
         if (context.answerMode === 'knowledge_service' && name === 'kg_search') {
           const answer = serviceAnswer(outcome, context);
           if (answer) {
-            emit({ type: 'final', ...answer });
-            return finish();
+            pendingServiceAnswer = answer;
           }
         }
         convo.push({ role: 'tool', tool_call_id: id, content: toolMessageContent(outcome) });
       }
     }
 
+    if (pendingServiceAnswer) {
+      emit({ type: 'final', ...pendingServiceAnswer });
+      return finish();
+    }
     const exhausted = context.answerMode === 'knowledge_service'
       ? `已达到最大工具调用步数（${maxSteps}），知识工具尚未返回成文答案，请继续提问。`
       : `已达到最大工具调用步数（${maxSteps}），尚未完成回答校验，请继续提问。`;

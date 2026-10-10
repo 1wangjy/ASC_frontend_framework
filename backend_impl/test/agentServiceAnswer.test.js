@@ -19,16 +19,48 @@ test('service answer and original references survive without rewrite or citation
   assert.equal(serviceAnswer(response, { graphId: 'other' }), null);
   assert.equal(serviceAnswer({ ...response, ok: false }, context), null);
 });
-test('successful kg answer ends after one model decision, without executing the remaining batch', async t => {
+test('service answer preserves remaining batch and subsequent tool decisions without rewrite', async t => {
   let modelCalls = 0, tools = 0;
   t.mock.method(registry, 'runTool', async () => { tools++; return response; });
   const frames = [];
   await runAgent({ messages: [{ role: 'user', content: '材料问题' }], context, emit: f => frames.push(f),
-    provider: { available: true, async streamChat() { modelCalls++; return { tool_calls: ['kg_search', 'rag_search'].map((name,i) =>
-      ({ id: String(i), function: { name, arguments: '{"query":"材料问题"}' } })) }; } } });
-  assert.equal(modelCalls, 1); assert.equal(tools, 1);
+    provider: { available: true, async streamChat({ messages }) {
+      modelCalls++;
+      if (modelCalls === 1) return { tool_calls: ['kg_search', 'rag_search'].map((name,i) =>
+        ({ id: String(i), function: { name, arguments: '{"query":"材料问题"}' } })) };
+      assert.ok(messages.filter(m => m.role === 'tool').every(m => m.content.length < 12000));
+      if (modelCalls === 2) return { tool_calls: [{ id: 'read', function: {
+        name: 'read_evidence', arguments: '{"evidence_id":"ev_test"}' } }] };
+      return { content: '不能覆盖服务原答案' };
+    } } });
+  assert.equal(modelCalls, 3); assert.equal(tools, 3);
+  assert.deepEqual(frames.filter(f => f.type === 'tool_result').map(f => f.name), ['kg_search', 'rag_search', 'read_evidence']);
+  assert.equal(frames.filter(f => f.type === 'final').length, 1);
   assert.equal(frames.find(f => f.type === 'final').text, original);
   assert.equal(frames.at(-1).type, 'done');
+});
+
+test('one sufficient search may end naturally without forcing extra tools', async t => {
+  t.mock.method(registry, 'runTool', async () => response);
+  let step = 0; const frames = [];
+  await runAgent({ messages: [{ role: 'user', content: '材料问题' }], context, emit: f => frames.push(f),
+    provider: { available: true, async streamChat() { return ++step === 1 ? { tool_calls: [{ id: '1',
+      function: { name: 'kg_search', arguments: '{}' } }] } : { content: '结束' }; } } });
+  assert.equal(step, 2);
+  assert.equal(frames.filter(f => f.type === 'tool_call').length, 1);
+  assert.equal(frames.find(f => f.type === 'final').text, original);
+});
+
+test('tool budget exhaustion still publishes retained service answer unchanged', async t => {
+  t.mock.method(registry, 'runTool', async () => response);
+  let step = 0; const frames = [];
+  await runAgent({ messages: [{ role: 'user', content: '材料问题' }], context,
+    options: { maxTools: 1 }, emit: f => frames.push(f),
+    provider: { available: true, async streamChat({ tools }) {
+      if (++step === 1) return { tool_calls: [{ id: '1', function: { name: 'kg_search', arguments: '{}' } }] };
+      assert.equal(tools.length, 0); return { content: '结束' };
+    } } });
+  assert.equal(frames.find(f => f.type === 'final').text, original);
 });
 test('service failure cannot be replaced with a model-invented materials answer', async t => {
   t.mock.method(registry, 'runTool', async () => ({ ok: false, summary: 'offline unavailable', data: {} }));
