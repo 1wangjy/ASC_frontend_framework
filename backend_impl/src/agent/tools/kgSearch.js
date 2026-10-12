@@ -27,6 +27,7 @@
  */
 
 const kgList = require('./kgList');
+const { randomUUID } = require('node:crypto');
 
 const TIMEOUT_MS = Number(process.env.AGENT_KG_TIMEOUT_MS || 180000);
 
@@ -139,25 +140,44 @@ function buildPayload({ query, topK, retrievalOnly }, scope) {
 }
 
 /** Perform the POST and normalise the service envelope. */
-async function codQuery({ payload, signal }) {
+async function codQuery({ payload, signal, timeoutMs = TIMEOUT_MS }) {
   const url = codQueryUrl();
-  const timeout = AbortSignal.timeout(TIMEOUT_MS);
+  const started = performance.now();
+  const requestId = randomUUID();
+  const timing = { request_id: requestId, started_at: new Date().toISOString(),
+    timeout_ms: timeoutMs, phase: 'response_headers', headers_ms: null, body_ms: null };
+  const timeout = AbortSignal.timeout(timeoutMs);
   const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
 
   let response;
+  let text;
   try {
     response = await fetch(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-request-id': requestId },
       body: JSON.stringify(payload),
       signal: combined,
     });
+    timing.headers_ms = Math.round(performance.now() - started);
+    timing.status = response.status;
+    timing.upstream_request_id = response.headers?.get('x-request-id')?.slice(0, 128) || null;
+    timing.phase = 'response_body';
+    text = await response.text();
+    timing.body_ms = Math.round(performance.now() - started) - timing.headers_ms;
+    timing.phase = 'completed';
   } catch (error) {
-    const reason = error && error.name === 'TimeoutError' ? `timed out after ${TIMEOUT_MS}ms` : error.message;
-    return { ok: false, summary: `knowledge-graph service unreachable at ${url} (${reason})`, data: { url } };
+    timing.total_ms = Math.round(performance.now() - started);
+    if (timing.headers_ms !== null) timing.body_elapsed_ms = timing.total_ms - timing.headers_ms;
+    const interrupted = signal?.aborted;
+    const code = interrupted ? 'knowledge_request_cancelled'
+      : timeout.aborted || error?.name === 'TimeoutError' ? 'knowledge_tool_timeout' : 'knowledge_transport_error';
+    const summary = code === 'knowledge_tool_timeout'
+      ? `知识检索单次超时（${timeoutMs} ms，${timing.phase === 'response_body' ? '读取响应正文' : '等待响应头'}）；本轮不再自动重试知识服务，请稍后重新提问。`
+      : interrupted ? '知识请求已被本轮停止或超时取消；远端计算是否取消未知。'
+        : '知识服务连接或响应读取失败，请检查服务日志。';
+    return { ok: false, summary, data: { url, code, request_timing: timing } };
   }
-
-  const text = await response.text();
+  timing.total_ms = Math.round(performance.now() - started);
   let envelope = null;
   try {
     envelope = JSON.parse(text);
@@ -165,7 +185,7 @@ async function codQuery({ payload, signal }) {
     return {
       ok: false,
       summary: `knowledge-graph service returned non-JSON (HTTP ${response.status})`,
-      data: { url, status: response.status, body: text.slice(0, 500) },
+      data: { url, status: response.status, body: text.slice(0, 500), request_timing: timing },
     };
   }
 
@@ -174,10 +194,11 @@ async function codQuery({ payload, signal }) {
     return {
       ok: false,
       summary: `knowledge-graph query failed: ${String(errorText).slice(0, 300)}`,
-      data: { url, status: response.status },
+      data: { url, status: response.status, request_timing: timing },
     };
   }
-  return { ok: true, data: envelope.data || {}, url };
+  timing.qa_run_id = envelope.data?.qa_run_id || null;
+  return { ok: true, data: envelope.data || {}, url, request_timing: timing };
 }
 
 function top(items, n) {
@@ -261,6 +282,7 @@ async function runQuery({ params, ctx, retrievalOnly }) {
   }
 
   const projected = projectResult(outcome.data, { topK, includeAnswer: !retrievalOnly });
+  projected.data.request_timing = outcome.request_timing;
   // Separate publication payload from the compact model projection. Never
   // truncate the service's answer or alter its reference bindings silently.
   if (!retrievalOnly && ctx && ctx.answerMode === 'knowledge_service') {

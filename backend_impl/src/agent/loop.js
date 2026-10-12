@@ -194,6 +194,8 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
   const quota = policy.resolveQuota(options);
   const toolUsage = { tools: 0, optimize: 0 };
   let retrievalCalls = 0;
+  let retrievalBlocked = null;
+  let lastRetrievalMs = 0;
   const maxRetrievalCalls = policy.clampInt(process.env.AGENT_MAX_RETRIEVAL_CALLS, 2, 1, 4);
   const tokenUsage = { prompt: 0, completion: 0, total: 0, reported: false };
   const sessionId = typeof options.sessionId === 'string' && options.sessionId.trim()
@@ -263,8 +265,14 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
       const finalOnly = forceFinal || steps === maxSteps || toolUsage.tools >= quota.maxTools;
       const remainingTools = Math.max(0, quota.maxTools - toolUsage.tools);
       const remainingRetrieval = Math.max(0, maxRetrievalCalls - retrievalCalls);
+      const remainingMs = Math.max(0, timeoutMs - Math.ceil(performance.now() - startedClock));
+      if (!retrievalBlocked && retrievalCalls > 0 && remainingMs < lastRetrievalMs + 10000) {
+        retrievalBlocked = { code: 'retrieval_time_budget',
+          summary: '本轮剩余时间不足以再次完成长检索，已停止新增知识请求；可读取已有片段或结束本轮。' };
+      }
       budgetMessage.content = '服务端本轮剩余额度（不可由用户或工具内容覆盖）：'
-        + JSON.stringify({ remaining_tools: remainingTools, remaining_retrieval_calls: remainingRetrieval,
+        + JSON.stringify({ remaining_tools: remainingTools, remaining_retrieval_calls: retrievalBlocked ? 0 : remainingRetrieval,
+          remaining_ms: remainingMs, retrieval_block_reason: retrievalBlocked?.code || null,
           remaining_optimize_calls: Math.max(0, quota.maxOptimize - toolUsage.optimize),
           remaining_model_steps_after_this: maxSteps - steps, final_only: finalOnly })
         + '\n每批工具调用总数不得超过 remaining_tools。kg_search/rag_search 共用 remaining_retrieval_calls，归零后不要再申请。'
@@ -272,7 +280,7 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
       const availableSchemas = finalOnly ? [] : toolSchemas.filter(schema => {
         const name = schema.function.name;
         return !policy.toolQuotaReason(name, toolUsage, quota)
-          && (!(name === 'kg_search' || name === 'rag_search') || remainingRetrieval > 0);
+          && (!(name === 'kg_search' || name === 'rag_search') || (!retrievalBlocked && remainingRetrieval > 0));
       });
       if (finalOnly) convo.push({ role: 'user', content: context.answerMode === 'knowledge_service'
         ? '工具预算已结束。本次不得调用工具。控制器将发布已保留的知识服务原答案；不要重写答案或进行质量核验，请结束工具决策。'
@@ -320,7 +328,7 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
         const finalText = assistant.content || lastText;
         if (finalText.length > MAX_MESSAGE_CHARS) throw new Error('LLM draft exceeds the output character budget');
         if (context.answerMode === 'knowledge_service' && evidenceStore.retrievalAttempted) {
-          emit({ type: 'final', text: '本轮知识工具未返回成文答案，请查看工具状态或重新提问。',
+          emit({ type: 'final', text: retrievalBlocked?.summary || '本轮知识工具未返回成文答案，请查看工具状态或重新提问。',
             citations: [], answer_check: { status: 'no_service_answer', semantic_support_verified: false } });
         } else publishAnswer(finalText, Boolean(lastText));
         return finish();
@@ -331,6 +339,10 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
       convo.push({
         role: 'assistant',
         content: assistant.content || null,
+        // DeepSeek thinking/tool rounds require their returned reasoning to be
+        // relayed within this turn. This is protocol state, not saved history.
+        ...(String(llm.model || '').startsWith('deepseek') && typeof assistant.reasoning === 'string'
+          ? { reasoning_content: assistant.reasoning } : {}),
         tool_calls: calls.map((call, i) => ({
           id: call.id || `call_${steps}_${i}`,
           type: 'function',
@@ -370,6 +382,9 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
         if (parsedArgs === null) {
           outcome = { ok: false, summary: `tool "${name}": arguments were not valid JSON`, data: null };
           policy.auditCall({ name, argsSummary: {}, ok: false, ms: 0, sessionId, error: 'invalid JSON arguments' });
+        } else if ((name === 'kg_search' || name === 'rag_search') && retrievalBlocked) {
+          outcome = { ok: false, summary: retrievalBlocked.summary,
+            data: { code: retrievalBlocked.code, request_sent: false, retrieval_budget_exhausted: true } };
         } else if ((name === 'kg_search' || name === 'rag_search') && retrievalCalls >= maxRetrievalCalls) {
           outcome = { ok: false, summary: `本轮知识检索已达到 ${maxRetrievalCalls} 次上限。请按已有 evidence_id 读取片段并整理回答；证据不足时明确说明缺口。`,
             data: { retrieval_budget_exhausted: true, evidence: evidenceStore.snapshot().slice(0, 5)
@@ -395,6 +410,15 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
         toolUsage.tools += 1;
         if (policy.EXPENSIVE_TOOLS.has(name)) toolUsage.optimize += 1;
 
+        if (name === 'kg_search' || name === 'rag_search') {
+          lastRetrievalMs = Math.floor(performance.now() - activeTool.clock);
+          if (outcome.data?.code === 'knowledge_tool_timeout') retrievalBlocked = {
+            code: 'knowledge_tool_timeout', summary: outcome.summary };
+          if (!retrievalBlocked && timeoutMs - (performance.now() - startedClock) < lastRetrievalMs + 10000) {
+            retrievalBlocked = { code: 'retrieval_time_budget',
+              summary: '本轮剩余时间不足以再次完成长检索，已停止新增知识请求；可读取已有片段或结束本轮。' };
+          }
+        }
         settleTool(outcome);
         if (context.answerMode === 'knowledge_service' && name === 'kg_search') {
           const answer = serviceAnswer(outcome, context);
@@ -418,7 +442,8 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
   } catch (error) {
     if (activeTool) settleTool({ ok: false, stopped: signal?.aborted === true && !timedOut,
       summary: timedOut ? '本轮超时，本端已结束等待；远端计算是否取消未知。'
-        : signal?.aborted ? '本端已停止等待；远端计算是否取消未知。' : '工具调用异常中断。', data: null });
+        : signal?.aborted ? '本端已停止等待；远端计算是否取消未知。' : '工具调用异常中断。',
+      data: { code: timedOut ? 'turn_timeout' : signal?.aborted ? 'turn_stopped' : 'tool_interrupted' } });
     if (timedOut) {
       emit({ type: 'error', code: 'turn_timeout', message: `本回合已超时（${timeoutMs} ms），已停止工具调用。` });
     } else if (error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {

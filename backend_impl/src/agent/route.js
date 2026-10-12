@@ -202,6 +202,9 @@ function noteFrame(log, frame) {
         if (frame.ok === false && (frame.data?.retrieval_budget_exhausted === true || frame.data?.quota_exceeded === true)) entry.budgetDenied = true;
         entry.ms = Number.isFinite(frame.ms) ? frame.ms : 0;
         entry.finishedAt = frame.finishedAt;
+        entry.resultSummary = frame.summary;
+        entry.code = frame.data?.code;
+        entry.requestTiming = frame.data?.request_timing;
         if (frame.stopped) entry.stopped = true;
         log.pending.delete(String(frame.id));
       }
@@ -236,7 +239,8 @@ function assistantMessage(log) {
   const message = { role: 'assistant', content: log.finalText || log.deltaText || '' };
   if (log.reasoningText) message.reasoning = log.reasoningText;
   if (log.toolCalls.length) {
-    message.toolCalls = log.toolCalls.map(({ name, argsSummary, ok, ms, budgetDenied, stopped, startedAt, finishedAt }) => ({ name, argsSummary, ok: ok === true, ms, startedAt, finishedAt,
+    message.toolCalls = log.toolCalls.map(({ name, argsSummary, ok, ms, budgetDenied, stopped, startedAt, finishedAt, resultSummary, code, requestTiming }) => ({ name, argsSummary, ok: ok === true, ms, startedAt, finishedAt,
+      resultSummary, code, requestTiming,
       ...(stopped ? { stopped: true } : {}),
       ...(budgetDenied ? { budgetDenied: true } : {}) }));
   }

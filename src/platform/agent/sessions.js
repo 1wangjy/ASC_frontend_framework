@@ -37,8 +37,11 @@ export function sessionToolCallsToChat(toolCalls, messageIndex) {
       summary: argsSummary(call?.argsSummary),
       status: ok === null ? 'ok' : resolveToolStatus(call),
       ok,
-      resultSummary: '',
-      data: null,
+      resultSummary: text(call?.resultSummary),
+      data: call?.code || call?.requestTiming ? {
+        ...(call?.code ? { code: call.code } : {}),
+        ...(call?.requestTiming ? { request_timing: call.requestTiming } : {})
+      } : null,
       ...(Number.isFinite(call?.startedAt) ? { startedAt: call.startedAt } : {}),
       ...(Number.isFinite(call?.finishedAt) ? { finishedAt: call.finishedAt } : {}),
       ms: typeof call?.ms === 'number' && Number.isFinite(call.ms) ? call.ms : null
