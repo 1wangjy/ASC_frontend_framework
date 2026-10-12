@@ -33,7 +33,9 @@ start_one() {
     echo "[$name] 已在运行（$(health "$port" "$hpath")）"
     return 0
   fi
-  ( cd "$dir" && nohup bash -c "$cmd" > "$LOG_DIR/$name.log" 2>&1 & )
+  # setsid 让子进程脱离当前会话，且 stdin 接 /dev/null：
+  # 避免 nohup 子进程继续持有调用方的 stdout/stderr 管道（会让脚本化调用一直挂到超时）
+  ( cd "$dir" && setsid nohup bash -c "$cmd" </dev/null > "$LOG_DIR/$name.log" 2>&1 & )
   echo "[$name] 启动中 → 日志 $LOG_DIR/$name.log"
 }
 
