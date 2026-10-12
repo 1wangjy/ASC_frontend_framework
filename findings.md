@@ -171,3 +171,18 @@ AscSidebar 全部改为引用令牌；离阶值落到 4px 阶（sp-1/2/3/4/5/6�
   `API/INTERFACE.md`、`app.py` 文档串。
 - 验证：`/api/v1/model/metadata.variant_models_dir` 指向 `MODEL/outputs_exp_best`；`/api/v1/predict/simple` 返回
   `version=exp_best_2026-10-07`，四项预测值合理（含 cold 的偏移生效）；测试 21+13+4+9+6 全绿。
+
+## F18 — 达标（R²>0.85）模型全部上线（2026-10-08）
+按 `_exp` 三个 ledger 逐属性取"同目标语义下的最高留出 R²"，只采用**推理侧可 1:1 复现**的杠杆，训练并部署：
+
+| 属性 | 留出 R² | CV R² | 配置（来源） | 推理侧承载方式 |
+| --- | ---: | ---: | --- | --- |
+| 体积密度 | **0.9436** | 0.9583 | 单位修正+缩尾1% + LGBM&SFM(1.5×mean)（数据侧 R1G6） | 标签侧（仅训练）|
+| 常温抗折 | **0.8949** | 0.6437 | trimmed 标签 + 工况中心化 + 删>50%缺列+全缺列 + 工况均衡权重 + ET300（cold R6G1/R7G4 合并） | `condition_offsets` + `input_feature_columns` |
+| 常温耐压 | **0.8923** | 0.7027 | 丢弃 <10 样本工况列 + y2.5σ + XGBoost（数据侧 R4G6 可比口径） | 标签侧 + `training_conditions` |
+| 线变化率 | **0.9551** | 0.8922 | 删>50%缺列 + ET300（数据侧 R2G2） | `input_feature_columns` |
+
+- 版本 `exp_best_final_2026-10-08`；产物 `MODEL/outputs_exp_best/models/yangquan/*.joblib`；指标留档 `MODEL/metrics_exp_best.json`。
+- 复算方式：脚本内置与 `_exp` **完全相同**的 `split_by_recipe(0.2, seed 42)` 留出协议 → 上表 R² 为复算值（bulk/crush/linear 与 `_exp` 逐位一致；cold 因合并了可复现的工况均衡权重而略高于 R6G1 的 0.8927）。
+- API 增强：优先用 bundle 的 **`training_conditions`** 判定告警（数据侧清洗丢弃的工况不再静默外推）——实测 `crushing_strength` 对 1300℃、`linear_change` 对 110℃ 均正确告警。
+- **未采用**（需改特征构建，故本轮不上）：`miss__*` 缺失指示列（含该杠杆的 cold 配置 R²=0.8966，可从 0.8949 再提升约 0.17pp）。

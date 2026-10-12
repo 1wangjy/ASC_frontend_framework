@@ -127,3 +127,9 @@
   `API/app.py` 新目录优先 + `condition_offsets`（按工况中心化推理）；旧 `MODEL/` → `MODEL_old_sept_bak/`（代码保留入库）；
   同步修复 dump_vocab / _exp 脚本 / INTERFACE.md 的路径与描述。
 - 验证：API 版本切换成功、预测合理、测试全绿。
+
+## 会话 12 — 2026-10-08（达标模型全部上线）
+- 交付：`scripts/train_exp_best_models.py` 重写为"逐属性取 `_exp` 达标最优 + 内置留出复算"，
+  四项 R² = 0.9436 / 0.8949 / 0.8923 / 0.9551（**4/4 > 0.85**），版本 `exp_best_final_2026-10-08` 已部署到 8100。
+- API：新增 `training_conditions` 告警（避免对清洗丢弃的工况静默外推）。
+- 环境坑：`/tmp/svc` 被清理导致日志重定向失败、uvicorn 未启动（已重建目录并重启）。

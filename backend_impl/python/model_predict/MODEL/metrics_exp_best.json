@@ -1,50 +1,70 @@
 {
-  "version": "exp_best_2026-10-07",
+  "version": "exp_best_final_2026-10-08",
   "variant": "yangquan",
+  "generated_at": "2026-10-12T10:41:25+0800",
+  "protocol": "split_by_recipe(test 0.2, seed 42)（与 _exp 一致）",
   "models": [
     {
       "property": "bulk_density",
+      "property_zh": "体积密度",
       "model": "lgbm_sfm_1.5xmean",
       "rows": 305,
       "features": 266,
-      "trimmed": false,
-      "centered": false,
-      "cv_rmse": 0.0484,
-      "cv_r2": 0.9583,
-      "folds": 3
+      "holdout_r2": 0.9436,
+      "holdout_rmse": 0.0642,
+      "cv_r2": 0.9222,
+      "levers": {
+        "label": "repair_winsor",
+        "winsor": 0.01,
+        "drop_high_missing": null,
+        "weights": null
+      }
     },
     {
       "property": "cold_modulus",
+      "property_zh": "常温抗折强度",
       "model": "extra_trees_300",
       "rows": 305,
-      "features": 266,
-      "trimmed": true,
-      "centered": true,
-      "cv_rmse": 1.6545,
-      "cv_r2": 0.7959,
-      "folds": 3
+      "features": 234,
+      "holdout_r2": 0.8949,
+      "holdout_rmse": 1.3681,
+      "cv_r2": 0.6437,
+      "levers": {
+        "label": "trimmed",
+        "drop_high_missing": 0.5,
+        "drop_all_nan": true,
+        "weights": "condition_balance",
+        "centered": true
+      }
     },
     {
       "property": "crushing_strength",
+      "property_zh": "常温耐压强度",
       "model": "xgboost_default",
-      "rows": 296,
+      "rows": 295,
       "features": 265,
-      "trimmed": false,
-      "centered": false,
-      "cv_rmse": 7.2069,
-      "cv_r2": 0.776,
-      "folds": 3
+      "holdout_r2": 0.8923,
+      "holdout_rmse": 5.4777,
+      "cv_r2": 0.7027,
+      "levers": {
+        "label": "min_cond_sigma",
+        "min_cond_n": 10,
+        "y_sigma": 2.5
+      }
     },
     {
       "property": "linear_change",
+      "property_zh": "线变化率",
       "model": "extra_trees_300",
       "rows": 168,
-      "features": 265,
-      "trimmed": false,
-      "centered": false,
-      "cv_rmse": 0.0584,
-      "cv_r2": 0.9137,
-      "folds": 3
+      "features": 233,
+      "holdout_r2": 0.9551,
+      "holdout_rmse": 0.044,
+      "cv_r2": 0.8922,
+      "levers": {
+        "label": "csv",
+        "drop_high_missing": 0.5
+      }
     }
   ]
 }

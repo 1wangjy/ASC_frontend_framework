@@ -335,7 +335,10 @@ def predict_one(request: PredictRequest) -> Dict[str, Any]:
 
     for property_name in properties:
         bundle = load_model_bundle(variant, property_name)
-        known_conditions = set(trained_conditions(metadata, property_name))
+        # 优先用 bundle 记录的"实际训练工况"：数据侧清洗会丢弃样本过少的工况列（如 1300℃），
+        # 此时 metadata 仍列出该工况，若只看 metadata 会对模型没见过的工况静默外推。
+        bundle_conditions = set(bundle.get("training_conditions") or [])
+        known_conditions = bundle_conditions or set(trained_conditions(metadata, property_name))
         predict_conditions = request.conditions or trained_conditions(metadata, property_name)
         for condition in predict_conditions:
             if known_conditions and condition not in known_conditions:
