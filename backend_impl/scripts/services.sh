@@ -63,7 +63,7 @@ case "$action" in
     # 有界轮询直到就绪（uvicorn 要加载模型、vite 要预构建，25s 往往不够）
     echo "等待就绪（最多 90s）..."
     for _ in $(seq 1 18); do
-      local pending=0
+      pending=0
       for entry in "${SERVICES[@]}"; do
         IFS='|' read -r n p d c h pat <<<"$entry"
         want "$n" || continue
