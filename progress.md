@@ -133,3 +133,7 @@
   四项 R² = 0.9436 / 0.8949 / 0.8923 / 0.9551（**4/4 > 0.85**），版本 `exp_best_final_2026-10-08` 已部署到 8100。
 - API：新增 `training_conditions` 告警（避免对清洗丢弃的工况静默外推）。
 - 环境坑：`/tmp/svc` 被清理导致日志重定向失败、uvicorn 未启动（已重建目录并重启）。
+
+## 会话 13 — 2026-10-12（日志迁入仓库 + 服务脚本）
+- 新增 `backend_impl/scripts/services.sh`（start/stop/restart/status，日志写入 `backend_impl/data/logs/`）。
+- 修 `vite.config.js`：`open` 支持 `VITE_NO_OPEN=1` 关闭（WSL 下 open:true 会因 powershell EACCES 让 dev server 退出）。

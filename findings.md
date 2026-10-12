@@ -186,3 +186,12 @@ AscSidebar 全部改为引用令牌；离阶值落到 4px 阶（sp-1/2/3/4/5/6�
 - 复算方式：脚本内置与 `_exp` **完全相同**的 `split_by_recipe(0.2, seed 42)` 留出协议 → 上表 R² 为复算值（bulk/crush/linear 与 `_exp` 逐位一致；cold 因合并了可复现的工况均衡权重而略高于 R6G1 的 0.8927）。
 - API 增强：优先用 bundle 的 **`training_conditions`** 判定告警（数据侧清洗丢弃的工况不再静默外推）——实测 `crushing_strength` 对 1300℃、`linear_change` 对 110℃ 均正确告警。
 - **未采用**（需改特征构建，故本轮不上）：`miss__*` 缺失指示列（含该杠杆的 cold 配置 R²=0.8966，可从 0.8949 再提升约 0.17pp）。
+
+## F19 — 服务日志迁入仓库内目录 + 服务管理脚本（2026-10-12）
+- 背景：本机 `/tmp` 会被系统清理，导致 `nohup ... > /tmp/svc/x.log` 重定向失败、服务根本没起来（本会话踩两次）。
+- 方案：日志统一写 `backend_impl/data/logs/{beimpl,ai4sci,modelapi,frontend}.log`（`backend_impl/data` 已在 .gitignore 第 39 行）。
+- 新增 `backend_impl/scripts/services.sh`：`start|stop|restart|status [服务名...]`，端口 3001/5001/8100/3005，
+  健康检查用 `curl --noproxy '*'`，`start` 有界轮询（最多 90s，uvicorn 加载模型/vite 预构建常超 25s）。
+- 顺带修一个真实故障：`vite.config.js` 的 `open: true` 在 WSL 下会 spawn `powershell.exe` 触发 EACCES，
+  **dev server 随之退出**（前端反复 000 的根因）。改为 `open: process.env.VITE_NO_OPEN ? false : true`，
+  脚本启动时设 `VITE_NO_OPEN=1` 无头运行；人类 `npm run dev` 行为不变。

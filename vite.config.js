@@ -16,7 +16,9 @@ export default defineConfig({
   server: {
     port: 3005,
     strictPort: true,
-    open: true,
+    // WSL 下 open:true 会尝试调用 powershell.exe 打开浏览器；该调用 EACCES 会让 dev server 退出。
+    // 脚本化启动时设 VITE_NO_OPEN=1 即可无头运行（人类 `npm run dev` 仍保持自动打开）。
+    open: process.env.VITE_NO_OPEN ? false : true,
     watch: {
       ignored: ['**/_code/**', '**/node_modules/**', '**/dist/**', '**/.git/**'],
     },
