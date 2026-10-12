@@ -96,6 +96,7 @@ const predictProxyRoutes = require('./routes/predictProxy');
 const newDataRoutes = require('./routes/newData');
 const userRoutes = require('./routes/user');
 const attachmentRoutes = require('./routes/attachment');
+const acceptanceRoutes = require('./routes/acceptance');
 const agentRoutes = require('./agent');
 
 // 使用路由
@@ -117,6 +118,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/new-data', newDataRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/attachment', attachmentRoutes);
+// 验收测试[2026]：独立只读路由，不与业务路由耦合
+app.use('/api/acceptance', acceptanceRoutes);
 // 多轮对话 Agent（模块化：删除本行即移除该功能）
 app.use('/api/agent', agentRoutes.router);
 

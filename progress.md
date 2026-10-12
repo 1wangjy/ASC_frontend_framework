@@ -137,3 +137,10 @@
 ## 会话 13 — 2026-10-12（日志迁入仓库 + 服务脚本）
 - 新增 `backend_impl/scripts/services.sh`（start/stop/restart/status，日志写入 `backend_impl/data/logs/`）。
 - 修 `vite.config.js`：`open` 支持 `VITE_NO_OPEN=1` 关闭（WSL 下 open:true 会因 powershell EACCES 让 dev server 退出）。
+
+## 会话 14 — 2026-10-12（验收测试[2026] 独立页面 + 测试流接口）
+- 后端：`acceptanceChecks.js`（11 项/36 检查/3 类）+ `acceptanceService.js`（node:sqlite + curl --noproxy + node --test 解析 + SSE 批量）
+  + `routes/acceptance.js` 挂 `/api/acceptance`。
+- 前端：`AcceptanceView.vue` + `api/acceptance.js` + 路由 `Acceptance2026` + 侧边栏「模型入口 → 验收测试[2026]」+ 模型入口页链接（不动轮播）。
+- 实跑：36 项 → 33 通过 / 1 人工 / 0 未通过；新增 6 项注册表测试全通过。
+- 环境坑：`services.sh start` 对已在运行的服务会跳过 → 改代码后须用 `restart`；本机 HTTP_PROXY 会让 node:http 得到 502 → 检查统一走 curl --noproxy。

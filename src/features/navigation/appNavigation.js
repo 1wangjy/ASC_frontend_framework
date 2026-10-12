@@ -30,7 +30,8 @@ export const primaryNavigation = [
       { label: '性能预测', path: '/platform/model1' },
       { label: '配方优化', path: '/platform/model2' },
       { label: '服役预测', path: '/platform/model3' },
-      { label: '仿真重建', path: '/platform/model4' }
+      { label: '仿真重建', path: '/platform/model4' },
+      { label: '验收测试[2026]', path: '/platform/acceptance' }
     ]
   }
 ]

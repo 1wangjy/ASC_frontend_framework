@@ -81,6 +81,13 @@ export const ascRouteDefinitions = [
     meta: { title: '模型入口' }
   },
   {
+    // 验收测试[2026]：独立页面与接口（只读本机资源 + 本机服务，不影响业务功能）
+    path: '/platform/acceptance',
+    name: 'Acceptance2026',
+    component: () => import('../platform/views/AcceptanceView.vue'),
+    meta: { title: '验收测试[2026]' }
+  },
+  {
     path: '/platform/model1',
     name: 'PlatformModel1',
     component: () => import('../platform/views/Model1View.vue'),

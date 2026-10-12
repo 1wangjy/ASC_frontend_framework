@@ -195,3 +195,23 @@ AscSidebar 全部改为引用令牌；离阶值落到 4px 阶（sp-1/2/3/4/5/6�
 - 顺带修一个真实故障：`vite.config.js` 的 `open: true` 在 WSL 下会 spawn `powershell.exe` 触发 EACCES，
   **dev server 随之退出**（前端反复 000 的根因）。改为 `open: process.env.VITE_NO_OPEN ? false : true`，
   脚本启动时设 `VITE_NO_OPEN=1` 无头运行；人类 `npm run dev` 行为不变。
+
+## F20 — 「模型入口 → 验收测试[2026]」独立页面 + 路由测试流接口（2026-10-12）
+- 依据 `report_2026/ASC26年验收准备_v1`：**4 项合同工作 + 2 项额外工作 + 11 份交付材料**；
+  企业侧验收形式为现场验收（材料 10/11 + 演示链路：数据库查询导出 → 性能预测 → 配方优化）。
+- 后端（独立只读，不与业务路由耦合）：
+  * `src/config/acceptanceChecks.js` —— 声明式注册表：3 类分组 / 11 个验收项 / **36 条检查** / 11 份材料
+    （kind ∈ sqlite | json | json-stat | deviation-csv | opt-cases | kg-stats | file | http | http-json | http-predict | command | platform-structure | manual）
+  * `src/services/acceptanceService.js` —— 执行器：`node:sqlite`（零依赖）读库、curl `--noproxy '*'` 直连本机服务
+    （本机 HTTP_PROXY 会把 node:http 打到代理得到 502）、解析 `node --test` 的 pass/fail、按 CSV 算逐属性偏差均值、批量为 SSE 流式
+  * `src/routes/acceptance.js` + controller，挂载 `/api/acceptance`（checks / run / run/:id）
+- 前端：`src/platform/views/AcceptanceView.vue`（分类分组、逐条运行、SSE 实时结果、输出可展开、人工项可留档 + localStorage）、
+  `src/platform/api/acceptance.js`（含 SSE 客户端）、路由 `Acceptance2026` = `/platform/acceptance`、
+  侧边栏「模型入口 → 验收测试[2026]」子项、模型入口页追加一个链接（**不改动 3D 轮播的四张模型卡**）。
+- 关键数值核验（注册表断言直接对齐验收材料）：配方 780（≥300）、组分 12,522、材料 89、
+  逐样本 226 条 / 213 条 ≤25% / 逐属性均值 1.19%·10.07%·7.31%·15.96%、部署模型 4 项留出 R²>0.85、
+  优化案例 2 例目标达成、图谱节点 400/边 1,003/实体 10 类/关系 10 类、11 份材料体积下限。
+- 实跑（经 `/api/acceptance/run` SSE）：**36 项 → 通过 33 / 未通过 0 / 人工 1**（人工项=发明专利受理通知书）。
+- 测试：新增 `tests/acceptanceChecks.test.js`（6 项：分组/唯一 id/11 材料/阈值口径/路由与侧边栏已注册/轮播仍四卡）全通过。
+- 已知限制：`tests/ascLabExperience.test.js` 的路由全集 deepEqual 属**既有陈旧断言**（实际已含 AscHome/AscQa@/research/PlatformDataHome），
+  与本次改动无关，未去"重新钉住"；改为在新测试里做聚焦断言。

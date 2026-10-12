@@ -54,6 +54,11 @@
           <span aria-hidden="true">›</span>
         </button>
       </div>
+
+      <!-- 验收入口：独立页面，不改动上方轮播的模型卡 -->
+      <p class="carousel-3d__acceptance">
+        <router-link to="/platform/acceptance">验收测试[2026] · 逐项运行与留档 →</router-link>
+      </p>
     </section>
   </div>
 </template>
@@ -254,6 +259,9 @@ onBeforeUnmount(() => clearInterval(timer))
 }
 
 /* ── Controls ── */
+.carousel-3d__acceptance { position: relative; z-index: 40; margin: 18px 0 0; text-align: center; font-size: 13px; }
+.carousel-3d__acceptance a { color: var(--asc-primary); text-decoration: none; border-bottom: 1px dashed currentColor; }
+.carousel-3d__acceptance a:hover { color: var(--asc-primary-hover); }
 .carousel-3d__controls { position: relative; z-index: 40; display: flex; align-items: center; justify-content: center; gap: 26px; margin-top: 30px; }
 .carousel-3d__arrow {
   width: 42px; height: 42px; display: grid; place-items: center;
