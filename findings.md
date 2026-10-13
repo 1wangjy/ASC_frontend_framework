@@ -215,3 +215,13 @@ AscSidebar 全部改为引用令牌；离阶值落到 4px 阶（sp-1/2/3/4/5/6�
 - 测试：新增 `tests/acceptanceChecks.test.js`（6 项：分组/唯一 id/11 材料/阈值口径/路由与侧边栏已注册/轮播仍四卡）全通过。
 - 已知限制：`tests/ascLabExperience.test.js` 的路由全集 deepEqual 属**既有陈旧断言**（实际已含 AscHome/AscQa@/research/PlatformDataHome），
   与本次改动无关，未去"重新钉住"；改为在新测试里做聚焦断言。
+
+## F21 — 修 404：vite 代理未覆盖 /api/acceptance（2026-10-13）
+- 现象：页面报「验收清单加载失败：Request failed with status code 404」。
+- 根因：`vite.config.js` 的代理只有显式前缀（`/api/model2`、`/api/v1`…）+ **兜底 `/api → 5001`（知识图谱后端）**；
+  `/api/acceptance/*` 落进兜底 → 5001 无此路由 → **404**。
+- 修复：在兜底之前新增 `'/api/acceptance' → 127.0.0.1:3001`；并把「代理已覆盖验收路由」纳入 `platform-structure` 检查
+  （防止同类回归：漏配代理会让页面 404 而接口本身是好的）。
+- 实测：经 3005 代理 `GET /api/acceptance/checks` = **200**；`platform-structure` 检查通过（含新断言）；
+  服务健康 4/4；`pred-online` 预测 8/8 有限值（版本 exp_best_final_2026-10-08）。
+- 附带教训：改 `vite.config.js`（代理/端口）后**必须重启 frontend**；`services.sh start` 对已在运行的服务会跳过，需用 `restart`。

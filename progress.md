@@ -144,3 +144,7 @@
 - 前端：`AcceptanceView.vue` + `api/acceptance.js` + 路由 `Acceptance2026` + 侧边栏「模型入口 → 验收测试[2026]」+ 模型入口页链接（不动轮播）。
 - 实跑：36 项 → 33 通过 / 1 人工 / 0 未通过；新增 6 项注册表测试全通过。
 - 环境坑：`services.sh start` 对已在运行的服务会跳过 → 改代码后须用 `restart`；本机 HTTP_PROXY 会让 node:http 得到 502 → 检查统一走 curl --noproxy。
+
+## 会话 15 — 2026-10-13（修验收页 404）
+- 根因：vite 代理缺 `/api/acceptance`，被兜底 `/api`→5001 拿走 → 404。已补代理并重启前端（经 3005 验证 200）。
+- 硬化：`platform-structure` 检查新增"vite 代理已覆盖 /api/acceptance"断言，防回归。

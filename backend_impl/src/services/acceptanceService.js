@@ -353,17 +353,21 @@ async function runCommand(check) {
 function runPlatformStructure(check) {
   const routesFile = path.join(registry.REPO, 'src', 'config', 'ascRoutes.js');
   const navFile = path.join(registry.REPO, 'src', 'features', 'navigation', 'appNavigation.js');
+  const viteFile = path.join(registry.REPO, 'vite.config.js');
   if (!fs.existsSync(routesFile) || !fs.existsSync(navFile)) {
     return bad(check.id, check.label, '缺少 ascRoutes.js 或 appNavigation.js');
   }
   const routesSrc = fs.readFileSync(routesFile, 'utf8');
   const navSrc = fs.readFileSync(navFile, 'utf8');
+  const viteSrc = fs.existsSync(viteFile) ? fs.readFileSync(viteFile, 'utf8') : '';
   const routeNames = [...routesSrc.matchAll(/name:\s*'([^']+)'/g)].map((m) => m[1]);
   const pillars = [...navSrc.matchAll(/label:\s*'([^']+)'/g)].map((m) => m[1]);
   const childPaths = [...navSrc.matchAll(/path:\s*'([^']+)'/g)].map((m) => m[1]);
   const failures = [];
   if (!routeNames.includes('Acceptance2026')) failures.push('验收页路由 Acceptance2026 未注册');
   if (!navSrc.includes('/platform/acceptance')) failures.push('侧边栏未挂载验收页入口');
+  // 代理漏配会让前端 /api/acceptance/* 落到兜底 /api（5001）→ 404（已踩过一次）
+  if (!/['"]\/api\/acceptance['"]\s*:/.test(viteSrc)) failures.push('vite 代理未覆盖 /api/acceptance（会被兜底 /api 转发到 5001 导致 404）');
   if (pillars.filter((p) => ['问题研究', '数据平台', '模型入口'].includes(p)).length < 3) {
     failures.push('三支柱（问题研究/数据平台/模型入口）不完整');
   }
