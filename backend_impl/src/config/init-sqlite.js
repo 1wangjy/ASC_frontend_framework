@@ -185,12 +185,22 @@ class SQLiteInitializer {
           is_delete INTEGER DEFAULT 0
         );
 
-        -- 用户表（保留原有结构）
+        -- 用户表（多用户：邮箱注册 + 管理员审批 + 审计）
         CREATE TABLE IF NOT EXISTS users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           username TEXT UNIQUE NOT NULL,
           password TEXT NOT NULL,
           role TEXT DEFAULT 'user',
+          email TEXT,
+          real_name TEXT,
+          -- pending=待审批 / approved=已通过 / rejected=已拒绝 / disabled=已禁用
+          status TEXT DEFAULT 'approved',
+          approved_by TEXT,
+          approved_at TIMESTAMP,
+          review_note TEXT,
+          last_login_at TIMESTAMP,
+          fail_count INTEGER DEFAULT 0,
+          locked_until TIMESTAMP,
           create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           is_delete INTEGER DEFAULT 0
@@ -344,6 +354,7 @@ class SQLiteInitializer {
           this.ensureLiteratureAttachmentColumn()
             .then(() => this.ensureLiteratureCollectionColumn())
             .then(() => this.ensureLiteratureDedupeKeyColumn())
+            .then(() => this.ensureUserAccountColumns())
             .then(() => this.normalizeLiteratureEntryTypes())
             .then(() => this.initBasicData())
             .then(resolve)
@@ -406,6 +417,44 @@ class SQLiteInitializer {
     if (columns.some(column => column.name === 'attachment')) return;
     await this.dbRun('ALTER TABLE literature ADD COLUMN attachment TEXT', []);
     console.log('Added literature.attachment column');
+  }
+
+  /**
+   * 多用户改造迁移（幂等）：
+   *   - 补齐 email / real_name / status / 审批 / 审计 / 锁定 字段；
+   *   - 既有用户回填 status='approved'（避免历史账号被"待审批"挡住登录）；
+   *   - email 建部分唯一索引（允许多行 NULL/空串，非空必须唯一）。
+   */
+  async ensureUserAccountColumns() {
+    const columns = await new Promise((resolve, reject) => {
+      this.db.all('PRAGMA table_info(users)', (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+    const present = new Set(columns.map((column) => column.name));
+    const spec = [
+      ['email', 'TEXT'],
+      ['real_name', 'TEXT'],
+      ['status', "TEXT DEFAULT 'approved'"],
+      ['approved_by', 'TEXT'],
+      ['approved_at', 'TIMESTAMP'],
+      ['review_note', 'TEXT'],
+      ['last_login_at', 'TIMESTAMP'],
+      ['fail_count', 'INTEGER DEFAULT 0'],
+      ['locked_until', 'TIMESTAMP'],
+    ];
+    for (const [name, type] of spec) {
+      if (present.has(name)) continue;
+      await this.dbRun(`ALTER TABLE users ADD COLUMN ${name} ${type}`, []);
+      console.log(`Added users.${name} column`);
+    }
+    await this.dbRun("UPDATE users SET status = 'approved' WHERE status IS NULL OR status = ''", []);
+    await this.dbRun(
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(lower(email)) WHERE email IS NOT NULL AND email <> ''",
+      [],
+    );
+    await this.dbRun('CREATE INDEX IF NOT EXISTS idx_users_status ON users(status, is_delete)', []);
   }
 
   async initBasicData() {

@@ -176,6 +176,21 @@ const items = [
       { id: 'vocab-check', label: 'canonical 词表自检（build_material_vocab.py --check）', kind: 'command', cmd: 'python3', args: ['backend_impl/scripts/build_material_vocab.py', '--check'], cwd: REPO, parseTests: false },
     ],
   },
+  {
+    id: 'multi-user', category: 'extra', title: '多用户管理（注册·审批·权限）',
+    metric: '邮箱注册 + 管理员审批 + 失败锁定 + 禁用即时失效；账号表与接口均可用',
+    expect: 'users 表结构/唯一索引齐备；未授权接口返回 401；端到端流程 17 项全通过；前端可编译',
+    evidence: ['backend_impl/scripts/verify-user-management.js', 'src/platform/views/UserManagementView.vue'],
+    checks: [
+      { id: 'mu-users-schema', label: 'users 表含 16 列（账号/审批/锁定字段齐备）', kind: 'sqlite', db: REPO_DB, query: "SELECT COUNT(*) FROM pragma_table_info('users')", op: '>=', expect: 16 },
+      { id: 'mu-users-email-index', label: '邮箱唯一索引 idx_users_email_unique 存在', kind: 'sqlite', db: REPO_DB, query: "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_users_email_unique'", op: '>=', expect: 1 },
+      { id: 'mu-admin-approved', label: '内置 admin 账号为已通过状态', kind: 'sqlite', db: REPO_DB, query: "SELECT COUNT(*) FROM users WHERE username='admin' AND status='approved' AND is_delete=0", op: '>=', expect: 1 },
+      { id: 'mu-me-unauthorized', label: '未带令牌访问 /api/auth/me 返回 401', kind: 'http', url: 'http://127.0.0.1:3001/api/auth/me', expect: 401 },
+      { id: 'mu-users-unauthorized', label: '未带令牌访问 /api/user/users 返回 401', kind: 'http', url: 'http://127.0.0.1:3001/api/user/users', expect: 401 },
+      { id: 'mu-flow-e2e', label: '端到端：注册→待审批→审批→登录→改密→锁定→禁用→删除', kind: 'command', cmd: 'node', args: ['backend_impl/scripts/verify-user-management.js'], cwd: REPO, parseTests: true },
+      { id: 'mu-frontend-build', label: '前端可编译（含用户管理页与登录/注册弹窗）', kind: 'command', cmd: 'node', args: ['node_modules/.bin/vite', 'build'], cwd: REPO, parseTests: false },
+    ],
+  },
 ];
 
 function groupByCategory() {

@@ -100,6 +100,12 @@
     <template v-else-if="name === 'chevron'">
       <path d="m9 18 6-6-6-6" />
     </template>
+    <template v-else-if="name === 'users'">
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 20a5.5 5.5 0 0 1 11 0" />
+      <path d="M16.5 5.6a3 3 0 0 1 0 5.8" />
+      <path d="M18 20a5.4 5.4 0 0 0-2.2-4.4" />
+    </template>
     <template v-else>
       <circle cx="12" cy="12" r="8" />
     </template>

@@ -88,6 +88,13 @@ export const ascRouteDefinitions = [
     meta: { title: '验收测试[2026]' }
   },
   {
+    // 用户管理（仅管理员）：注册审批 + 角色/状态维护 + 密码重置
+    path: '/platform/system/users',
+    name: 'UserManagement',
+    component: () => import('../platform/views/UserManagementView.vue'),
+    meta: { title: '用户管理', admin: true }
+  },
+  {
     path: '/platform/model1',
     name: 'PlatformModel1',
     component: () => import('../platform/views/Model1View.vue'),

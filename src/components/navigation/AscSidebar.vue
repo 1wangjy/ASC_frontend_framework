@@ -105,6 +105,12 @@
           <div class="user-status">{{ authStore.isLoggedIn ? '已登录' : '点击登录' }}</div>
         </div>
       </div>
+      <router-link
+        v-if="authStore.isAdmin"
+        to="/platform/system/users"
+        class="sidebar-btn user-admin-btn"
+        @click="$emit('close')"
+      >用户管理</router-link>
       <button
         v-if="!authStore.isLoggedIn"
         class="sidebar-btn login-btn"
@@ -503,6 +509,22 @@ watch(
   border: 1px solid transparent;
 }
 .logout-btn:hover { background: rgba(255, 255, 255, 0.16); }
+
+/* 管理员入口：与登录/退出同级的全宽幽灵按钮（router-link 需清除下划线并居中） */
+.user-admin-btn {
+  display: block;
+  margin-bottom: var(--asc-sp-2);
+  border: 1px solid var(--asc-nav-line);
+  background: transparent;
+  color: var(--asc-muted);
+  text-align: center;
+  text-decoration: none;
+}
+
+.user-admin-btn:hover {
+  border-color: var(--asc-heading);
+  color: var(--asc-heading);
+}
 
 .sidebar--collapsed .sidebar-footer { text-align: center; }
 .sidebar--collapsed .user-info { justify-content: center; padding: var(--asc-sp-2); }

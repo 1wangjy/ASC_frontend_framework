@@ -1,346 +1,214 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const bcrypt = require('bcrypt');
-const fs = require('fs');
+'use strict';
 
-// 身份验证中间件
+/**
+ * 用户管理控制器（多用户：管理员 CRUD + 注册审批 + 自助改密）。
+ *
+ * 存储统一在 SQLite `users` 表（经 `services/userService`）。
+ * 鉴权：
+ *   authenticateAdmin —— 仅管理员（`/api/user/*` 的默认门槛）
+ *   authenticateUser  —— 任意已通过审批的登录用户（用于自助改密 / me）
+ */
+
+const { verifyToken } = require('../utils/jwt');
+const userService = require('../services/userService');
+
+function readToken(req) {
+  return (req.headers.authorization || '').replace('Bearer ', '').trim();
+}
+
 function authenticateAdmin(req, res, next) {
-  const token = req.headers['authorization']?.replace('Bearer ', '');
-  
-  if (!token) {
-    return res.status(401).json({
-      code: 401,
-      message: '未提供认证令牌'
-    });
-  }
-  
-  const { verifyToken } = require('../utils/jwt');
+  const token = readToken(req);
+  if (!token) return res.status(401).json({ code: 401, message: '未提供认证令牌' });
   const decoded = verifyToken(token);
-  
-  if (!decoded) {
-    return res.status(401).json({
-      code: 401,
-      message: '令牌无效或已过期'
-    });
-  }
-  
-  if (decoded.role !== 'admin') {
-    return res.status(403).json({
-      code: 403,
-      message: '权限不足'
-    });
-  }
-  
+  if (!decoded) return res.status(401).json({ code: 401, message: '令牌无效或已过期' });
+  if (decoded.role !== 'admin') return res.status(403).json({ code: 403, message: '权限不足：需要管理员' });
   req.user = decoded;
-  next();
+  return next();
+}
+
+async function authenticateUser(req, res, next) {
+  const token = readToken(req);
+  if (!token) return res.status(401).json({ code: 401, message: '未提供认证令牌' });
+  const decoded = verifyToken(token);
+  if (!decoded) return res.status(401).json({ code: 401, message: '令牌无效或已过期' });
+  const account = await userService.findById(decoded.id);
+  if (!account) return res.status(401).json({ code: 401, message: '账号不存在或已删除' });
+  if (account.status !== userService.STATUS.APPROVED) {
+    return res.status(403).json({
+      code: 403, error_code: 'ACCOUNT_INACTIVE',
+      message: `账号状态：${userService.STATUS_LABEL[account.status] || account.status}`,
+    });
+  }
+  req.user = { id: account.id, username: account.username, role: account.role };
+  return next();
 }
 
 class UserController {
-  static async hashPassword(password) {
-    return bcrypt.hash(password, 10);
-  }
+  static authenticateAdmin(req, res, next) { return authenticateAdmin(req, res, next); }
+  static authenticateUser(req, res, next) { return authenticateUser(req, res, next); }
 
-  static getUsersFilePath() {
-    return path.resolve('./data/users.json');
-  }
-
-  static readUsers() {
-    const usersFilePath = UserController.getUsersFilePath();
-    try {
-      if (fs.existsSync(usersFilePath)) {
-        const data = fs.readFileSync(usersFilePath, 'utf8');
-        return JSON.parse(data).users || [];
-      }
-      return [];
-    } catch (error) {
-      console.error('Error reading users file:', error);
-      return [];
-    }
-  }
-
-  static writeUsers(users) {
-    const usersFilePath = UserController.getUsersFilePath();
-    try {
-      // 确保目录存在
-      const dirPath = path.dirname(usersFilePath);
-      if (!fs.existsSync(dirPath)) {
-        fs.mkdirSync(dirPath, { recursive: true });
-      }
-      fs.writeFileSync(usersFilePath, JSON.stringify({ users }, null, 2));
-      return true;
-    } catch (error) {
-      console.error('Error writing users file:', error);
-      return false;
-    }
-  }
-
-  // 身份验证中间件
-  static authenticateAdmin(req, res, next) {
-    authenticateAdmin(req, res, next);
-  }
-
+  /** GET /api/user/users?status=&keyword=&page=&pageSize= */
   static async getUsers(req, res) {
     try {
-      const users = UserController.readUsers().filter(user => user.is_delete === 0);
-      
-      // 只返回需要的字段
-      const filteredUsers = users.map(user => ({
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        create_time: user.create_time,
-        update_time: user.update_time
-      }));
-
-      res.json({
-        code: 200,
-        message: '获取用户列表成功',
-        data: filteredUsers
-      });
+      const { status = '', keyword = '', page = 1, pageSize = 50 } = req.query || {};
+      const data = await userService.listUsers({ status, keyword, page, pageSize });
+      res.json({ code: 200, data });
     } catch (error) {
-      console.error('Get users error:', error);
-      res.status(500).json({
-        code: 500,
-        message: '获取用户列表失败，请稍后重试'
-      });
+      console.error('getUsers error:', error);
+      res.status(500).json({ code: 500, message: '获取用户列表失败' });
     }
   }
 
+  /** GET /api/user/users/stats —— 各状态计数（供管理页徽章） */
+  static async getUserStats(req, res) {
+    try {
+      res.json({ code: 200, data: { counts: await userService.counts(), max_login_fails: userService.MAX_LOGIN_FAILS, lock_minutes: userService.LOCK_MINUTES } });
+    } catch (error) {
+      console.error('getUserStats error:', error);
+      res.status(500).json({ code: 500, message: '获取用户统计失败' });
+    }
+  }
+
+  /** POST /api/user/users —— 管理员直接创建（默认 approved） */
   static async addUser(req, res) {
     try {
-      const { username, password, role = 'user' } = req.body;
-
-      if (!username || !password) {
-        return res.status(400).json({
-          code: 400,
-          message: '用户名和密码不能为空'
-        });
+      const { username, password, role = 'user', email = '', real_name: realName = '', status = 'approved' } = req.body || {};
+      const created = await userService.register({ username, email: email || `${String(username || '').trim()}@local`, password, realName });
+      if (!created.ok) {
+        return res.status(400).json({ code: 400, error_code: created.code, message: created.message });
       }
-
-      const hashedPassword = await UserController.hashPassword(password);
-      const users = UserController.readUsers();
-
-      // 检查用户名是否已存在
-      const existingUser = users.find(user => user.username === username && user.is_delete === 0);
-
-      if (existingUser) {
-        return res.status(400).json({
-          code: 400,
-          message: '用户名已存在'
-        });
-      }
-
-      // 生成新用户ID
-      const newId = users.length > 0 ? Math.max(...users.map(user => user.id)) + 1 : 1;
-      const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-      // 添加用户
-      const newUser = {
-        id: newId,
-        username,
-        password: hashedPassword,
-        role,
-        create_time: now,
-        update_time: now,
-        is_delete: 0
-      };
-
-      users.push(newUser);
-      const success = UserController.writeUsers(users);
-
-      if (!success) {
-        return res.status(500).json({
-          code: 500,
-          message: '添加用户失败，请稍后重试'
-        });
-      }
-
-      res.json({
-        code: 200,
-        message: '添加用户成功'
-      });
+      const id = created.user.id;
+      if (role === 'admin') await userService.setRole(id, 'admin', req.user.username);
+      if (status === 'approved') await userService.approve(id, req.user.username, '管理员创建');
+      res.json({ code: 200, message: '用户已创建', data: { user: await userService.safeUser(await userService.findById(id)) } });
     } catch (error) {
-      console.error('Add user error:', error);
-      res.status(500).json({
-        code: 500,
-        message: '添加用户失败，请稍后重试'
-      });
+      console.error('addUser error:', error);
+      res.status(500).json({ code: 500, message: '创建用户失败' });
     }
   }
 
+  /** PUT /api/user/users/:id —— 改资料 / 角色 / 状态 */
   static async updateUser(req, res) {
     try {
-      const { id } = req.params;
-      const { username, password, role } = req.body;
-
-      if (!id) {
-        return res.status(400).json({
-          code: 400,
-          message: '用户ID不能为空'
-        });
+      const id = Number(req.params.id);
+      const { role, status, email, real_name: realName } = req.body || {};
+      if (email !== undefined && email !== '') {
+        const error = userService.validateEmail(email);
+        if (error) return res.status(400).json({ code: 400, error_code: 'INVALID_EMAIL', message: error });
       }
-
-      const users = UserController.readUsers();
-      const userId = parseInt(id);
-      const userIndex = users.findIndex(user => user.id === userId && user.is_delete === 0);
-
-      if (userIndex === -1) {
-        return res.status(400).json({
-          code: 400,
-          message: '用户不存在'
-        });
+      if (role !== undefined) {
+        const result = await userService.setRole(id, role, req.user.username);
+        if (!result.ok) return res.status(400).json({ code: 400, error_code: result.code, message: result.message });
       }
-
-      // 检查新用户名是否已存在
-      if (username && username !== users[userIndex].username) {
-        const existingUser = users.find(user => user.username === username && user.is_delete === 0);
-        if (existingUser) {
-          return res.status(400).json({
-            code: 400,
-            message: '用户名已存在'
-          });
-        }
-        users[userIndex].username = username;
+      if (status !== undefined) {
+        const result = await userService.setStatus(id, String(status).toLowerCase(), req.user.username);
+        if (!result.ok) return res.status(400).json({ code: 400, error_code: result.code, message: result.message });
       }
-
-      // 更新密码
-      if (password) {
-        const hashedPassword = await UserController.hashPassword(password);
-        users[userIndex].password = hashedPassword;
+      if (email !== undefined || realName !== undefined) {
+        const account = await userService.findById(id);
+        if (!account) return res.status(404).json({ code: 404, message: '用户不存在' });
+        await require('../config/database').execute(
+          'UPDATE users SET email = ?, real_name = ?, update_time = CURRENT_TIMESTAMP WHERE id = ?',
+          [email !== undefined ? userService.normalizeEmail(email) : account.email,
+           realName !== undefined ? String(realName) : account.real_name, id],
+        );
       }
-
-      // 更新角色
-      if (role) {
-        users[userIndex].role = role;
-      }
-
-      // 更新时间
-      users[userIndex].update_time = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-      const success = UserController.writeUsers(users);
-
-      if (!success) {
-        return res.status(500).json({
-          code: 500,
-          message: '更新用户失败，请稍后重试'
-        });
-      }
-
-      res.json({
-        code: 200,
-        message: '更新用户成功'
-      });
+      res.json({ code: 200, message: '用户已更新', data: { user: userService.safeUser(await userService.findById(id)) } });
     } catch (error) {
-      console.error('Update user error:', error);
-      res.status(500).json({
-        code: 500,
-        message: '更新用户失败，请稍后重试'
-      });
+      console.error('updateUser error:', error);
+      res.status(500).json({ code: 500, message: '更新用户失败' });
     }
   }
 
+  /** POST /api/user/users/:id/approve */
+  static async approveUser(req, res) {
+    try {
+      const result = await userService.approve(Number(req.params.id), req.user.username, req.body?.note || '');
+      res.status(result.ok ? 200 : 400).json({ code: result.ok ? 200 : 400, error_code: result.code, message: result.message, data: { user: result.user } });
+    } catch (error) {
+      console.error('approveUser error:', error);
+      res.status(500).json({ code: 500, message: '审批失败' });
+    }
+  }
+
+  /** POST /api/user/users/:id/reject */
+  static async rejectUser(req, res) {
+    try {
+      const result = await userService.reject(Number(req.params.id), req.user.username, req.body?.note || '');
+      res.status(result.ok ? 200 : 400).json({ code: result.ok ? 200 : 400, error_code: result.code, message: result.message, data: { user: result.user } });
+    } catch (error) {
+      console.error('rejectUser error:', error);
+      res.status(500).json({ code: 500, message: '拒绝失败' });
+    }
+  }
+
+  /** POST /api/user/users/:id/reset-password —— 管理员重置（password 可省略则自动生成） */
+  static async resetPassword(req, res) {
+    try {
+      const id = Number(req.params.id);
+      let password = String(req.body?.password || '');
+      if (!password) password = UserController.generatePasswordValue({ length: 12, includeUppercase: true, includeLowercase: true, includeNumbers: true, includeSymbols: false });
+      const result = await userService.setPassword(id, password);
+      if (!result.ok) return res.status(400).json({ code: 400, error_code: result.code, message: result.message });
+      res.json({ code: 200, message: '密码已重置', data: { password } });
+    } catch (error) {
+      console.error('resetPassword error:', error);
+      res.status(500).json({ code: 500, message: '重置密码失败' });
+    }
+  }
+
+  /** POST /api/user/password/change —— 自助改密（任意已登录用户） */
+  static async changePassword(req, res) {
+    try {
+      const { old_password: oldPassword, new_password: newPassword } = req.body || {};
+      const result = await userService.changeOwnPassword(req.user.id, oldPassword, newPassword);
+      res.status(result.ok ? 200 : 400).json({ code: result.ok ? 200 : 400, error_code: result.code, message: result.message });
+    } catch (error) {
+      console.error('changePassword error:', error);
+      res.status(500).json({ code: 500, message: '修改密码失败' });
+    }
+  }
+
+  /** GET /api/user/me —— 当前登录用户（含状态与角色） */
+  static async me(req, res) {
+    try {
+      res.json({ code: 200, data: { user: userService.safeUser(await userService.findById(req.user.id)) } });
+    } catch (error) {
+      console.error('me error:', error);
+      res.status(500).json({ code: 500, message: '获取当前用户失败' });
+    }
+  }
+
+  /** DELETE /api/user/users/:id —— 软删除 */
   static async deleteUser(req, res) {
     try {
-      const { id } = req.params;
-
-      if (!id) {
-        return res.status(400).json({
-          code: 400,
-          message: '用户ID不能为空'
-        });
-      }
-
-      const users = UserController.readUsers();
-      const userId = parseInt(id);
-      const userIndex = users.findIndex(user => user.id === userId && user.is_delete === 0);
-
-      if (userIndex === -1) {
-        return res.status(400).json({
-          code: 400,
-          message: '用户不存在'
-        });
-      }
-
-      // 不能删除admin用户
-      if (users[userIndex].username === 'admin') {
-        return res.status(400).json({
-          code: 400,
-          message: '不能删除admin用户'
-        });
-      }
-
-      // 标记为已删除
-      users[userIndex].is_delete = 1;
-      users[userIndex].update_time = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-      const success = UserController.writeUsers(users);
-
-      if (!success) {
-        return res.status(500).json({
-          code: 500,
-          message: '删除用户失败，请稍后重试'
-        });
-      }
-
-      res.json({
-        code: 200,
-        message: '删除用户成功'
-      });
+      const result = await userService.softDelete(Number(req.params.id), req.user);
+      res.status(result.ok ? 200 : 400).json({ code: result.ok ? 200 : 400, error_code: result.code, message: result.message });
     } catch (error) {
-      console.error('Delete user error:', error);
-      res.status(500).json({
-        code: 500,
-        message: '删除用户失败，请稍后重试'
-      });
+      console.error('deleteUser error:', error);
+      res.status(500).json({ code: 500, message: '删除用户失败' });
     }
   }
 
-
+  /** 随机密码（保留原能力：POST /api/user/generate-password） */
+  static generatePasswordValue({ length = 12, includeUppercase = true, includeLowercase = true, includeNumbers = true, includeSymbols = false } = {}) {
+    let characters = '';
+    if (includeUppercase) characters += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (includeLowercase) characters += 'abcdefghijklmnopqrstuvwxyz';
+    if (includeNumbers) characters += '0123456789';
+    if (includeSymbols) characters += '!@#$%^&*';
+    if (!characters) characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < length; i += 1) password += characters.charAt(Math.floor(Math.random() * characters.length));
+    return password;
+  }
 
   static async generatePassword(req, res) {
     try {
-      const { length = 8, includeUppercase = true, includeLowercase = true, includeNumbers = true, includeSymbols = true } = req.body;
-
-      const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-      const numbers = '0123456789';
-      const symbols = '!@#$%^&*()_+[]{}|;:,.<>?';
-
-      let characters = '';
-      if (includeUppercase) characters += uppercase;
-      if (includeLowercase) characters += lowercase;
-      if (includeNumbers) characters += numbers;
-      if (includeSymbols) characters += symbols;
-
-      if (characters === '') {
-        return res.status(400).json({
-          code: 400,
-          message: '至少需要选择一种字符类型'
-        });
-      }
-
-      let password = '';
-      for (let i = 0; i < length; i++) {
-        const randomIndex = Math.floor(Math.random() * characters.length);
-        password += characters[randomIndex];
-      }
-
-      const hashedPassword = await UserController.hashPassword(password);
-
-      res.json({
-        code: 200,
-        message: '生成密码成功',
-        data: {
-          password,
-          hashedPassword
-        }
-      });
+      const { length = 12, includeUppercase = true, includeLowercase = true, includeNumbers = true, includeSymbols = false } = req.body || {};
+      res.json({ code: 200, data: { password: UserController.generatePasswordValue({ length: Number(length) || 12, includeUppercase, includeLowercase, includeNumbers, includeSymbols }) } });
     } catch (error) {
-      console.error('Generate password error:', error);
-      res.status(500).json({
-        code: 500,
-        message: '生成密码失败，请稍后重试'
-      });
+      res.status(500).json({ code: 500, message: '生成密码失败' });
     }
   }
 }

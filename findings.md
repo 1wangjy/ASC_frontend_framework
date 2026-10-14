@@ -225,3 +225,38 @@ AscSidebar 全部改为引用令牌；离阶值落到 4px 阶（sp-1/2/3/4/5/6�
 - 实测：经 3005 代理 `GET /api/acceptance/checks` = **200**；`platform-structure` 检查通过（含新断言）；
   服务健康 4/4；`pred-online` 预测 8/8 有限值（版本 exp_best_final_2026-10-08）。
 - 附带教训：改 `vite.config.js`（代理/端口）后**必须重启 frontend**；`services.sh start` 对已在运行的服务会跳过，需用 `restart`。
+
+## F22 — 多用户管理改造前的勘察事实（2026-10-13）
+- 登录：`POST /api/auth/login` → `authController.login` 查 **SQLite `users`**（`username/password/role/is_delete`），bcrypt 校验，
+  `utils/jwt.js` 签发 **24h JWT**（payload: id/username/role），密钥 `JWT_SECRET`（无则用默认值）。
+- **两套用户存储（隐患）**：`/api/user/*`（`userController`）读写的却是 `./data/users.json`（**该文件不存在**）；
+  即"用户管理"接口实际是死路径。本次统一到 SQLite `users`。
+- 鉴权：`/api/user/*` 用 `authenticateAdmin`（`Authorization: Bearer <token>` + `role==='admin'`）；
+  `/api/admin/*` 是通用表 CRUD（数据库控制台）。
+- 前端：`store/auth.js` 只把用户对象存 `localStorage['asc_user']`（**没有保存 token**）；
+  `request.js` **不注入 Authorization**；`AscLoginModal.vue` 仅登录、无注册；无用户管理页面。
+- 路由守卫：未发现 `requiresAuth` 类全局守卫（平台页未登录会被重定向首页，属组件/布局层行为）。
+- SQLite `users` 现状：仅 `admin`（role=admin, is_delete=0）。
+
+## F23 — 多用户管理改造实施与验证（2026-10-14）
+- **两套用户存储合并**：`/api/user/*` 原先读写不存在的 `./data/users.json`（死路径），现已统一到 SQLite `users`
+  （`services/userService.js` 是唯一账号仓库；`config/database` 抽象层，兼容 sqlite/mongodb 切换）。
+- **账号状态机**：`pending`（注册后）→ `approved`（管理员审批）/ `rejected` / `disabled`；登录按状态返回 `error_code`
+  （`PENDING_APPROVAL`/`REJECTED`/`DISABLED`），连续失败 5 次锁定 15 分钟（`locked_until`）。**管理员任何状态变更都会清零失败计数与锁定**，
+  否则"重新启用"会被旧锁定挡住（实测踩到：禁用检查先撞 429 LOCKED）。
+- **前端登录态修复**：此前只存 `asc_user`（无 token）且 axios 不注入 `Authorization` → 任何需鉴权请求都发不出去。
+  现 `store/auth.js` 同时持久化 `asc_token`（键名集中在 `src/config/authStorage.js`），`platform/api/request.js` 请求拦截器统一注入；
+  `isLoggedIn` 要求 user+token 同时存在（旧遗留的单边存储会被清空并要求重新登录）。
+- **删除死代码**：`src/platform/stores/auth.js` + `src/platform/components/LoginModal.vue`（第二套鉴权，仅互相引用、无人挂载）。
+- **新增页面**：`/platform/system/users`（`UserManagementView.vue`：待审批/正常/禁用/已拒绝 分页 + 审批/禁用/重置密码/改角色/删除 + 新建用户）；
+  路由 `meta.admin`（非管理员直连 URL 会被守卫退回首页；接口层仍二次鉴权）；
+  入口放在**侧边栏用户区**（`.user-admin-btn`，仅管理员可见）——顶层新增导航项会破坏 `tests/acceptanceChecks.test.js`
+  里"一级项固定为 首页/问题研究/数据平台/模型入口"的结构契约（已踩）。
+- **验证**：
+  - 后端 17/17 端到端（`backend_impl/scripts/verify-user-management.js`，注册→待审批拒登→审批→登录→邮箱登录→me→自助改密→锁定→禁用即时失效→软删除）。
+  - 验收页新增 `multi-user` 项 7 条检查（表结构 16 列 / 邮箱唯一索引 / admin 已通过 / 两个 401 闸门 / 端到端 17 项 / 前端可编译）→ **7/7 pass**。
+  - 前端 `vite build` 通过（`UserManagementView-*.js` 入包；产物内含 `asc_token`/`Authorization`/`PENDING_APPROVAL`/`/platform/system/users`）。
+  - **限制**：本环境浏览器工具无法导航（连 `https://example.com` 都 `Page.navigate timed out`），**点击级交互未做真机验证**；
+    以「vite 按需编译 15 个改动模块 + 前端 API 层接口表对照 + 后端端到端」替代，视觉/交互建议人工过一遍。
+  - **回归基线**：`node --test "tests/*.test.js"` 在本仓库**既有 15 条失败**（`ascLabExperience` 5 条 + 图谱/QA 相关 10 条；
+    用 `git worktree add /tmp/asc_base HEAD` 洁净基线复核，失败集合完全一致）→ 本次改动**零回归**。

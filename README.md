@@ -252,10 +252,22 @@ backend_impl/data/sqlite/database.db
 - SQLite 文献 CRUD 仍可使用
 - PDF 上传、预览、下载等附件功能不可用
 
-## 认证与开发限流
+## 认证与多用户账号
 
-- 登录接口：`POST /api/auth/login`
-- 前端登录状态和 JWT 保存在 `localStorage`
+- 账号存储：SQLite `users` 表（`email` 唯一，`status` 取 `pending|approved|rejected|disabled`）；
+  首次启动会补充账号字段并把内置 `admin` 置为 `approved`。
+- 注册：`POST /api/auth/register`（邮箱必填）→ 新账号为 `pending`，需管理员在「用户管理」页审批后登录。
+- 登录：`POST /api/auth/login`（用户名或邮箱 + 密码）。仅 `approved` 可登录，失败响应带 `error_code`：
+  `PENDING_APPROVAL` / `REJECTED` / `DISABLED` / `BAD_PASSWORD`；连续失败 5 次锁定 15 分钟（`LOCKED` + `retry_after_minutes`）。
+- 会话：JWT 存 `localStorage['asc_token']`，用户对象存 `localStorage['asc_user']`；
+  axios 请求拦截器统一注入 `Authorization: Bearer <token>`（键名见 `src/config/authStorage.js`）。
+  `GET /api/auth/me` 可随时校验会话——被禁用/拒绝/删除后立即失效（前端 `refreshSession` 会自动登出）。
+- 用户管理（需管理员令牌；页面 `/platform/system/users`，仅管理员可见）：
+  - `GET /api/user/users?status=&keyword=&page=&pageSize=`、`GET /api/user/users/stats`
+  - `POST /api/user/users`、`PUT /api/user/users/:id`
+  - `POST /api/user/users/:id/approve`、`POST /api/user/users/:id/reject`、`POST /api/user/users/:id/reset-password`、`DELETE /api/user/users/:id`
+  - `POST /api/user/password/change`（自助改密，任意已登录用户）、`POST /api/user/generate-password`
+- 自检：`node backend_impl/scripts/verify-user-management.js`（17 项端到端；已接入验收页 `multi-user` 检查项）。
 - `NODE_ENV=development` 时不启用 API 限流，便于联调
 - `NODE_ENV=production` 时启用 `/api/*` 限流
 - 生产环境必须更换安全的 `JWT_SECRET`

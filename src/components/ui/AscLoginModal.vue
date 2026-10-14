@@ -5,22 +5,74 @@
         <div class="asc-login-card__glow" aria-hidden="true"></div>
         <div class="asc-login-card__head">
           <span class="asc-login-card__mark">ASC</span>
-          <h2>用户登录</h2>
-          <p>欢迎使用 ASC 材料研究平台</p>
+          <h2>{{ isRegister ? '注册账号' : '用户登录' }}</h2>
+          <p>{{ isRegister ? '注册后需管理员审批，通过即可登录' : '欢迎使用 ASC 材料研究平台' }}</p>
         </div>
+
+        <div class="asc-login-tabs" role="tablist">
+          <button
+            class="asc-login-tab"
+            :class="{ 'is-active': !isRegister }"
+            role="tab"
+            :aria-selected="!isRegister"
+            @click="switchMode(false)"
+          >登录</button>
+          <button
+            class="asc-login-tab"
+            :class="{ 'is-active': isRegister }"
+            role="tab"
+            :aria-selected="isRegister"
+            @click="switchMode(true)"
+          >注册</button>
+        </div>
+
         <div v-if="errorMsg" class="asc-login-error">{{ errorMsg }}</div>
+        <div v-if="noticeMsg" class="asc-login-notice">{{ noticeMsg }}</div>
+
         <div class="asc-login-field">
-          <label for="asc-username">用户名</label>
-          <input id="asc-username" v-model="username" type="text" placeholder="请输入用户名" @keyup.enter="handleLogin" />
+          <label for="asc-username">{{ isRegister ? '用户名' : '用户名 / 邮箱' }}</label>
+          <input
+            id="asc-username"
+            v-model="username"
+            type="text"
+            :placeholder="isRegister ? '3-32 位字母、数字、下划线' : '请输入用户名或邮箱'"
+            @keyup.enter="submit"
+          />
         </div>
+
+        <template v-if="isRegister">
+          <div class="asc-login-field">
+            <label for="asc-email">邮箱（用于账号唯一标识）</label>
+            <input id="asc-email" v-model="email" type="email" placeholder="name@example.com" @keyup.enter="submit" />
+          </div>
+          <div class="asc-login-field">
+            <label for="asc-realname">姓名（选填）</label>
+            <input id="asc-realname" v-model="realName" type="text" placeholder="真实姓名" @keyup.enter="submit" />
+          </div>
+        </template>
+
         <div class="asc-login-field">
           <label for="asc-password">密码</label>
-          <input id="asc-password" v-model="password" type="password" placeholder="请输入密码" @keyup.enter="handleLogin" />
+          <input
+            id="asc-password"
+            v-model="password"
+            type="password"
+            :placeholder="isRegister ? '至少 8 位，含字母和数字' : '请输入密码'"
+            @keyup.enter="submit"
+          />
         </div>
-        <button class="asc-login-btn" :disabled="loading" @click="handleLogin">
-          <span>{{ loading ? '登录中...' : '登录' }}</span>
+
+        <div v-if="isRegister" class="asc-login-field">
+          <label for="asc-password2">确认密码</label>
+          <input id="asc-password2" v-model="password2" type="password" placeholder="再次输入密码" @keyup.enter="submit" />
+        </div>
+
+        <button class="asc-login-btn" :disabled="loading" @click="submit">
+          <span>{{ loading ? (isRegister ? '提交中...' : '登录中...') : (isRegister ? '提交注册' : '登录') }}</span>
         </button>
-        <p class="asc-login-hint">首次使用请联系管理员获取账号</p>
+        <p class="asc-login-hint">
+          {{ isRegister ? '已有账号？点上方「登录」' : '首次使用请先注册，等待管理员审批通过' }}
+        </p>
       </div>
     </div>
   </Teleport>
@@ -31,30 +83,89 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../store/auth.js'
 import { consumeIntendedPath } from '../../config/routeAccess.js'
+import { login as apiLogin, register as apiRegister } from '../../platform/api/auth.js'
 
 const authStore = useAuthStore()
 const router = useRouter()
+
+const isRegister = ref(false)
 const username = ref('')
+const email = ref('')
+const realName = ref('')
 const password = ref('')
+const password2 = ref('')
 const errorMsg = ref('')
+const noticeMsg = ref('')
 const loading = ref(false)
 
-/** 直接调用后端 /api/auth/login 验证 */
-async function handleLogin() {
-  if (!username.value || !password.value) {
-    errorMsg.value = '请输入用户名和密码'
+/** 后端 error_code -> 中文提示（后端 message 已是中文，这里补足前端特有的引导语） */
+const ERROR_TEXT = {
+  PENDING_APPROVAL: '账号待管理员审批，通过后即可登录',
+  REJECTED: '注册申请未通过，请联系管理员',
+  DISABLED: '账号已被禁用，请联系管理员',
+  USER_NOT_FOUND: '用户名或密码错误',
+  BAD_PASSWORD: '用户名或密码错误',
+  USERNAME_TAKEN: '该用户名已被占用',
+  EMAIL_TAKEN: '该邮箱已被注册',
+}
+
+function describeError(error) {
+  const payload = error?.response?.data
+  if (!payload) return '无法连接到服务器，请检查后端服务是否启动'
+  if (payload.error_code === 'LOCKED') {
+    return `登录失败次数过多，请 ${payload.retry_after_minutes || 15} 分钟后重试`
+  }
+  return ERROR_TEXT[payload.error_code] || payload.message || '操作失败'
+}
+
+function switchMode(toRegister) {
+  isRegister.value = toRegister
+  errorMsg.value = ''
+  noticeMsg.value = ''
+}
+
+function validate() {
+  if (!username.value || !password.value) return '请输入用户名和密码'
+  if (isRegister.value) {
+    if (!email.value) return '请输入邮箱'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) return '邮箱格式不正确'
+    if (password.value.length < 8) return '密码至少 8 位'
+    if (password.value !== password2.value) return '两次输入的密码不一致'
+  }
+  return ''
+}
+
+async function submit() {
+  const invalid = validate()
+  if (invalid) {
+    errorMsg.value = invalid
     return
   }
   loading.value = true
   errorMsg.value = ''
+  noticeMsg.value = ''
   try {
-    const { default: axios } = await import('axios')
-    const res = await axios.post('/api/auth/login', {
-      username: username.value,
-      password: password.value,
-    })
-    if (res.data?.code === 200) {
-      authStore.setUser(res.data.data?.user || { username: username.value })
+    if (isRegister.value) {
+      const res = await apiRegister({
+        username: username.value,
+        email: email.value,
+        password: password.value,
+        real_name: realName.value,
+      })
+      if (res?.code === 200) {
+        switchMode(false)
+        noticeMsg.value = '注册成功，等待管理员审批通过后即可登录'
+        password.value = ''
+        password2.value = ''
+      } else {
+        errorMsg.value = describeError({ response: { data: res } })
+      }
+      return
+    }
+
+    const res = await apiLogin({ username: username.value, password: password.value })
+    if (res?.code === 200 && res.data?.token) {
+      authStore.setSession(res.data.user || { username: username.value }, res.data.token)
       authStore.closeLoginModal()
       username.value = ''
       password.value = ''
@@ -62,10 +173,10 @@ async function handleLogin() {
       const intended = consumeIntendedPath()
       if (intended) router.replace(intended)
     } else {
-      errorMsg.value = res.data?.message || '登录失败'
+      errorMsg.value = describeError({ response: { data: res } })
     }
-  } catch (e) {
-    errorMsg.value = e.response?.data?.message || '无法连接到服务器'
+  } catch (error) {
+    errorMsg.value = describeError(error)
   } finally {
     loading.value = false
   }
@@ -75,153 +186,162 @@ async function handleLogin() {
 <style scoped>
 .asc-login-overlay {
   position: fixed;
-  z-index: 9999;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(7, 25, 43, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: var(--asc-sp-5, 24px);
+  background: rgba(8, 12, 22, 0.68);
+  backdrop-filter: blur(6px);
 }
 
 .asc-login-card {
   position: relative;
   width: min(420px, 100%);
-  padding: 40px 40px 34px;
-  border-radius: 16px;
+  padding: var(--asc-sp-6, 32px) var(--asc-sp-5, 24px);
+  border: 1px solid var(--asc-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--asc-radius, 16px);
+  background: var(--asc-surface, #101828);
+  box-shadow: var(--asc-shadow, 0 24px 64px rgba(0, 0, 0, 0.45));
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 30px 80px rgba(4, 28, 49, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
 }
-/* top accent + soft glow */
-.asc-login-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 4px;
-  background: linear-gradient(90deg, #0869ad, #12a1c7, #0869ad);
-  background-size: 220% 100%;
-  opacity: 0.9;
-}
+
 .asc-login-card__glow {
   position: absolute;
-  top: -140px;
-  left: 50%;
-  width: 480px;
-  height: 280px;
-  transform: translateX(-50%);
-  background: radial-gradient(closest-side, rgba(8, 105, 173, 0.16), transparent 72%);
+  inset: -40% -20% auto;
+  height: 240px;
+  background: radial-gradient(circle at 50% 40%, rgba(56, 148, 255, 0.35), transparent 70%);
   pointer-events: none;
 }
 
 .asc-login-card__head {
   position: relative;
   text-align: center;
-  margin-bottom: 26px;
+  margin-bottom: var(--asc-sp-4, 16px);
 }
+
 .asc-login-card__mark {
-  display: inline-grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  margin-bottom: 14px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #0a6fb8, #0869ad 55%, #0e5c94);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  box-shadow: 0 10px 24px rgba(8, 105, 173, 0.35);
+  display: inline-block;
+  margin-bottom: var(--asc-sp-2, 8px);
+  font-family: var(--asc-font-mono, monospace);
+  letter-spacing: 0.18em;
+  color: var(--asc-primary, #3894ff);
 }
+
 .asc-login-card__head h2 {
-  margin: 0 0 6px;
-  color: #102a43;
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.3px;
+  margin: 0 0 var(--asc-sp-1, 4px);
+  font-size: var(--asc-fs-h3, 20px);
+  color: var(--asc-heading, #f5f7fa);
 }
+
 .asc-login-card__head p {
   margin: 0;
-  color: #6b7f93;
-  font-size: 14px;
+  font-size: var(--asc-fs-small, 13px);
+  color: var(--asc-muted, #94a3b8);
+}
+
+.asc-login-tabs {
+  position: relative;
+  display: flex;
+  gap: var(--asc-sp-1, 4px);
+  padding: var(--asc-sp-1, 4px);
+  margin-bottom: var(--asc-sp-4, 16px);
+  border: 1px solid var(--asc-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--asc-control-radius, 10px);
+  background: var(--asc-surface-soft, rgba(255, 255, 255, 0.04));
+}
+
+.asc-login-tab {
+  flex: 1;
+  padding: var(--asc-sp-2, 8px) 0;
+  border: 0;
+  border-radius: calc(var(--asc-control-radius, 10px) - 2px);
+  background: transparent;
+  color: var(--asc-muted, #94a3b8);
+  font-size: var(--asc-fs-small, 13px);
+  cursor: pointer;
+  transition: var(--asc-transition-base, all 0.2s ease);
+}
+
+.asc-login-tab.is-active {
+  background: var(--asc-primary-soft, rgba(56, 148, 255, 0.16));
+  color: var(--asc-heading, #f5f7fa);
+}
+
+.asc-login-error,
+.asc-login-notice {
+  position: relative;
+  margin-bottom: var(--asc-sp-3, 12px);
+  padding: var(--asc-sp-2, 8px) var(--asc-sp-3, 12px);
+  border-radius: var(--asc-control-radius, 10px);
+  font-size: var(--asc-fs-small, 13px);
 }
 
 .asc-login-error {
-  position: relative;
-  color: #c34646;
-  padding: 10px 14px;
-  background: #fef3f2;
-  border: 1px solid #f6d4d2;
-  border-radius: 8px;
-  font-size: 13px;
-  margin-bottom: 16px;
-  text-align: center;
+  border: 1px solid var(--asc-danger, #ff5d5d);
+  background: rgba(255, 93, 93, 0.12);
+  color: var(--asc-danger, #ff5d5d);
 }
 
-.asc-login-field { position: relative; margin-bottom: 16px; }
+.asc-login-notice {
+  border: 1px solid var(--asc-success, #35d07f);
+  background: var(--asc-success-soft, rgba(53, 208, 127, 0.12));
+  color: var(--asc-success, #35d07f);
+}
+
+.asc-login-field {
+  position: relative;
+  margin-bottom: var(--asc-sp-3, 12px);
+}
+
 .asc-login-field label {
   display: block;
-  margin-bottom: 7px;
-  font-weight: 650;
-  color: #102a43;
-  font-size: 13px;
+  margin-bottom: var(--asc-sp-1, 4px);
+  font-size: var(--asc-fs-caption, 12px);
+  color: var(--asc-muted, #94a3b8);
 }
+
 .asc-login-field input {
   width: 100%;
-  padding: 12px 15px;
-  border: 1.5px solid #d5e2ec;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
-  color: #1d2a38;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.asc-login-field input:focus {
+  padding: var(--asc-sp-2, 8px) var(--asc-sp-3, 12px);
+  border: 1px solid var(--asc-border, rgba(255, 255, 255, 0.14));
+  border-radius: var(--asc-control-radius, 10px);
+  background: var(--asc-canvas, #0b1120);
+  color: var(--asc-text, #e6ebf2);
+  font-size: var(--asc-fs-body, 14px);
   outline: none;
-  border-color: #0a94c0;
-  box-shadow: 0 0 0 4px rgba(8, 105, 173, 0.12);
+}
+
+.asc-login-field input:focus {
+  border-color: var(--asc-primary, #3894ff);
 }
 
 .asc-login-btn {
-  position: relative;
   width: 100%;
-  margin-top: 6px;
-  padding: 13px;
+  margin-top: var(--asc-sp-2, 8px);
+  padding: var(--asc-sp-3, 12px) 0;
   border: 0;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #0a6fb8 0%, #0869ad 55%, #0e5c94 100%);
+  border-radius: var(--asc-control-radius, 10px);
+  background: var(--asc-primary, #3894ff);
   color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: var(--asc-fs-body, 14px);
   cursor: pointer;
-  box-shadow: 0 12px 26px rgba(8, 105, 173, 0.32);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-}
-.asc-login-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.05);
-  box-shadow: 0 16px 34px rgba(8, 105, 173, 0.4);
-}
-.asc-login-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-  box-shadow: none;
-}
-.asc-login-hint {
-  position: relative;
-  text-align: center;
-  margin: 18px 0 0;
-  color: #8296a8;
-  font-size: 12px;
+  transition: var(--asc-transition-base, all 0.2s ease);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .asc-login-card::before { animation: none; }
+.asc-login-btn:hover:not(:disabled) {
+  background: var(--asc-primary-hover, #1f7ae0);
+}
+
+.asc-login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.asc-login-hint {
+  margin: var(--asc-sp-3, 12px) 0 0;
+  text-align: center;
+  font-size: var(--asc-fs-caption, 12px);
+  color: var(--asc-muted, #94a3b8);
 }
 </style>
