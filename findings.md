@@ -260,3 +260,24 @@ AscSidebar 全部改为引用令牌；离阶值落到 4px 阶（sp-1/2/3/4/5/6�
     以「vite 按需编译 15 个改动模块 + 前端 API 层接口表对照 + 后端端到端」替代，视觉/交互建议人工过一遍。
   - **回归基线**：`node --test "tests/*.test.js"` 在本仓库**既有 15 条失败**（`ascLabExperience` 5 条 + 图谱/QA 相关 10 条；
     用 `git worktree add /tmp/asc_base HEAD` 洁净基线复核，失败集合完全一致）→ 本次改动**零回归**。
+
+## F24 — resource3 文献合并入库：收尾核验与修复（2026-10-14）
+- **合并本身此前已完成**：`data/resource3.bib` 由 627 个 PDF 生成 466 条 → 库中命中 **466/466**
+  （新增 `r3` 386 行；43 条命中 `aug`、37 条命中 `sep` 的 DOI 去重），附件全部挂到源 PDF（`lit_file` 指向采集目录，`storage='ref'`）。
+- **发现并修复三类缺陷**（都在 r3 侧）：
+  1. **重复行 3 组**（去重键没命中）：2 组是 r3 行 DOI 解析错（标题同 sep 行，DOI 却是 `10.1016/j.jcin.*` 心脏病学刊）
+     ↔ sep 行正确；1 组是同一篇 REM 2009 论文的两个 PDF（一个带 DOI、一个无）。
+     → `repair_literature_dupes.py --only r3 --hard-delete`：保留元数据最完整的行、迁移附件后硬删重复行。
+     合并后总量 17698 → **17695**，`lit_file` 2466 **不变**（附件未丢），非 r3 行元数据哈希**逐字节一致**（零误伤）。
+     **注意**：同名 `AFV CoverSheet` 三行是**三篇不同论文**（DOI 不同）→ 判据里"标题相同也必须一方无 DOI 或标题可信"才合并，
+     否则会把真实文献删掉（已避免）。
+  2. **标题是 PDF 抽取产物**：`AFV CoverSheet` / `5_REM_372_MET.pmd` / `June Journal.indb` / `011` / `RESEARCH ARTICLE` 等
+     → `enrich_literature.py --replace-implausible-titles` 用 Crossref 标题替换（共 14 条，逐条复核均为改善）；
+     另有 3 条中日文标题被 PDF 抽成了"字间空格"（`高 炉 出 銑樋`）→ 折叠（含全角拉丁 `Ｃ ｏ ｒ ｒ ｅ ｓｐｏｎｄｉｎｇ`）。
+  3. **元数据空洞**：r3 中 year 仅 125/386、journal 0/386（`build_resource3_bib.py` 未取到）。
+     → Crossref 补 year/journal/volume/number/pages/abstract（260 条命中；CNKI 系 DOI 在 Crossref 无记录，返回 404）；
+       CNKI DOI 内嵌年份（`10.13957/j.cnki.tcxb.2017.06.023` → 2017）与「知网目录名即刊名」兜底。
+       结果：r3 的 year **125→321/383**、journal **0→256/383**；残留 year 缺 62 条（多为无 DOI 中文/日文条目）、journal 缺 127 条。
+- **残留缺口（未做，属可选）**：62 条无年份的中文条目可解析 PDF 首页年份（启发式，风险高于收益，未动）；
+  287 条无摘要（Crossref 多数不提供）；`sep` 集合里既有 211 组**既往**重复标题未处理（不属本次范围，`--only r3` 未触及）。
+- **命令与口径**已写入 README「文献库批量导入与维护」；两个新脚本：`enrich_literature.py`、`repair_literature_dupes.py`。

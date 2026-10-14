@@ -252,6 +252,19 @@ backend_impl/data/sqlite/database.db
 - SQLite 文献 CRUD 仍可使用
 - PDF 上传、预览、下载等附件功能不可用
 
+### 文献库批量导入与维护（backend_impl/scripts/）
+
+文献库（`literature` + `lit_file`）按 `collection` 标记来源：`aug`(2026-08, 1000, 带附件) / `sep`(2026-09, 16312, 仅元数据) / `r3`(research papers 与知网 PDF, 383)。
+
+- 生成 bib：`python3 backend_impl/scripts/build_resource3_bib.py`（扫描 PDF → `data/resource3.bib`；DOI 来源见文件头注释）
+- 导入：`python3 backend_impl/scripts/import_bib.py data/resource3.bib --apply --collection r3 --roots <pdf 根目录,…>`
+  —— 幂等键 `dedupe_key`（有 DOI 用 `doi:<doi>`，无 DOI 用 标题+作者+年份 的 sha1）；重复 DOI 只更新，不新增
+- 元数据补齐：`python3 backend_impl/scripts/enrich_literature.py --collection r3 --apply --replace-implausible-titles`
+  —— 有 DOI 走 Crossref（缓存 `data/crossref_cache.json`）；中文知网条目用「目录名即刊名」+「CNKI DOI 内嵌年份」
+- 重复合并：`python3 backend_impl/scripts/repair_literature_dupes.py --only r3 --hard-delete --apply`
+  —— 同 DOI/dedupe_key，或「标题相同且一方无 DOI / 标题可信」才合并；保留元数据最完整的行并迁移附件
+  （注意：文献列表接口不过滤 `is_delete`，合并请用 `--hard-delete`）
+
 ## 认证与多用户账号
 
 - 账号存储：SQLite `users` 表（`email` 唯一，`status` 取 `pending|approved|rejected|disabled`）；
