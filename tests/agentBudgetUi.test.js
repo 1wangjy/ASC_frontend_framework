@@ -19,7 +19,7 @@ test('budget denial stays unsuccessful but differs from transport, scope and too
   assert.deepEqual(describeRun({ message: { toolCalls: tools } }).counts, { total: 2, completed: 0, denied: 1, failed: 1 })
 });
 
-test('saved budget denial restores its own label, colour class and count in the actual panel', async () => {
+test('saved budget denial restores its own label and colour inside a folded answer', async () => {
   const original = globalThis.fetch
   globalThis.fetch = async url => String(url).endsWith('/sessions/budget')
     ? Response.json({ sessionId: 'budget', researchState: { scope: { projectId: 'p', graphId: 'g' } }, messages: [
@@ -29,10 +29,11 @@ test('saved budget denial restores its own label, colour class and count in the 
   let fixture
   try {
     fixture = await mountSfcWithMemoryRouter('/src/platform/agent/AgentPanel.vue', '/', { embedded: true, projectId: 'p', graphId: 'g', initialSessionId: 'budget' })
-    for (let i = 0; i < 50 && !renderedText(fixture.root).includes('预算拒绝 2 次'); i++) {
+    for (let i = 0; i < 50 && !renderedText(fixture.root).includes('2 次工具调用'); i++) {
       await new Promise(resolve => setTimeout(resolve, 20)); await nextTick()
     }
-    assert.ok(renderedText(fixture.root).includes('预算拒绝 2 次 · 调用异常 0 次'))
+    assert.ok(renderedText(fixture.root).includes('2 次工具调用'))
+    assert.ok(renderedText(fixture.root).includes('预算拒绝'))
     assert.ok(findRenderedNode(fixture.root, node => String(node.props.class || '').includes('agent-tool--budget_denied')))
   } finally { if (fixture) await fixture.close(); globalThis.fetch = original }
 })

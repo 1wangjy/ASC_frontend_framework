@@ -67,91 +67,23 @@ async function click(root, label) {
   await nextTick()
 }
 
-test('tool authorization chips default to all-on, then narrow and persist', async () => {
+// The permissions editor is intentionally hidden by the simplified UI.
+// Stored permission enforcement remains covered by toolPrefs tests and this blocked-send check.
+test('hidden permission controls keep the registry loaded and persisted restrictions intact', async () => {
   const previousFetch = globalThis.fetch
   const previousStorage = globalThis.localStorage
   const calls = installFetchStub()
-  const stored = installStorage()
-  const fixture = await mountSfcWithMemoryRouter('/src/platform/agent/AgentPanel.vue', '/', { projectId: 'p1' })
-  const { root } = fixture
-
-  try {
-    await waitFor(
-      () => assert.match(renderedText(root), /已启用 7\/7/),
-      'the header hint never reflected the loaded catalog'
-    )
-    const toolCalls = calls.filter(call => call.url.endsWith('/api/agent/tools'))
-    assert.equal(toolCalls.length, 1)
-    assert.ok(calls.some(call => call.url.endsWith('/api/agent/models')))
-
-    const toggle = findButton(root, '工具权限')
-    assert.equal(toggle.props['aria-expanded'], false)
-    assert.equal(toggle.props['aria-controls'], 'agent-tool-auth')
-
-    await click(root, '工具权限')
-    const auth = findRenderedNode(root, node => node?.props?.id === 'agent-tool-auth')
-    assert.ok(auth, 'the authorization section did not open')
-    assert.match(renderedText(auth), /已启用 7\/7/)
-
-    const chips = TOOLS.map(name => findButton(root, name))
-    chips.forEach(chip => assert.equal(chip.props['aria-pressed'], true))
-    assert.equal(findButton(root, '只读模式').props['aria-checked'], false)
-
-    await click(root, 'recipe_optimize')
-    assert.equal(findButton(root, 'recipe_optimize').props['aria-pressed'], false)
-    assert.match(renderedText(root), /已启用 6\/7/)
-
-    await click(root, '只读模式')
-    assert.match(renderedText(root), /只读：禁用配方优化（recipe_optimize）/)
-    const locked = findButton(root, 'recipe_optimize')
-    assert.equal(locked.props['aria-pressed'], false)
-    assert.equal(locked.props.disabled, true)
-    assert.match(renderedText(root), /已启用 6\/7/)
-
-    assert.ok(stored.get(AGENT_TOOL_PREFS_KEY), 'selection was not persisted')
-    assert.deepEqual(JSON.parse(stored.get(AGENT_TOOL_PREFS_KEY)), {
-      disabled: ['recipe_optimize'],
-      readOnly: true
-    })
-
-    await click(root, '只读模式')
-    assert.equal(findButton(root, 'recipe_optimize').props.disabled, false)
-    for (const name of TOOLS) {
-      if (findButton(root, name).props['aria-pressed'] === true) await click(root, name)
-    }
-    assert.match(renderedText(root), /已启用 0\/7/)
-    assert.match(renderedText(root), /已禁用全部可用工具，请至少启用一个工具再发送/)
-    assert.match(renderedText(root), /已禁用全部可用工具，无法发送/)
-    assert.equal(findButton(root, '发送').props.disabled, true)
-  } finally {
-    await fixture.close()
-    globalThis.fetch = previousFetch
-    if (previousStorage === undefined) delete globalThis.localStorage
-    else globalThis.localStorage = previousStorage
-  }
-})
-
-test('a persisted selection is restored and reflected in the chips', async () => {
-  const previousFetch = globalThis.fetch
-  const previousStorage = globalThis.localStorage
-  installFetchStub()
-  installStorage({
-    [AGENT_TOOL_PREFS_KEY]: JSON.stringify({ disabled: ['predict', 'web_browse'], readOnly: true })
+  const stored = installStorage({
+    [AGENT_TOOL_PREFS_KEY]: JSON.stringify({ disabled: TOOLS, readOnly: true })
   })
   const fixture = await mountSfcWithMemoryRouter('/src/platform/agent/AgentPanel.vue', '/', { projectId: 'p1' })
-  const { root } = fixture
-
   try {
-    await waitFor(
-      () => assert.match(renderedText(root), /已启用 4\/7/),
-      'the persisted selection was not restored'
-    )
-    await click(root, '工具权限')
-    assert.match(renderedText(root), /只读：禁用配方优化/)
-    assert.equal(findButton(root, 'predict').props['aria-pressed'], false)
-    assert.equal(findButton(root, 'web_browse').props['aria-pressed'], false)
-    assert.equal(findButton(root, 'recipe_optimize').props.disabled, true)
-    assert.equal(findButton(root, 'kg_search').props['aria-pressed'], true)
+    await waitFor(() => assert.match(renderedText(fixture.root), /已禁用全部可用工具，无法发送/), 'stored restrictions not loaded')
+    assert.equal(findButton(fixture.root, '工具权限'), null)
+    assert.equal(findRenderedNode(fixture.root, node => node.props?.id === 'agent-tool-auth'), null)
+    assert.equal(findButton(fixture.root, '发送').props.disabled, true)
+    assert.equal(calls.filter(call => call.url.endsWith('/api/agent/tools')).length, 1)
+    assert.deepEqual(JSON.parse(stored.get(AGENT_TOOL_PREFS_KEY)), { disabled: TOOLS, readOnly: true })
   } finally {
     await fixture.close()
     globalThis.fetch = previousFetch

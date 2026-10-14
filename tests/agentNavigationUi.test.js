@@ -37,7 +37,7 @@ test('session creation locks input, model and exposed parent navigation before s
     assert.equal(findRenderedNode(state.fixture.root, n => n.type === 'textarea').props.disabled, true)
     assert.equal(findRenderedNode(state.fixture.root, n => n.type === 'select').props.disabled, true)
     assert.equal(state.fixture.app._instance.exposed.sending.value, true)
-    assert.ok(renderedText(state.fixture.root).includes('正在创建会话'))
+    assert.equal(findRenderedNode(state.fixture.root, n => n.type === 'button' && renderedText(n).trim() === '新建会话').props.disabled, true)
     state.release()
     await state.pending
     assert.equal(state.calls.filter(call => call.url.endsWith('/stream')).length, 1)

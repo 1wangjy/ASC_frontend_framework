@@ -62,25 +62,11 @@
         :class="multiHasHistory ? 'qa-multi-page--history' : 'qa-multi-page--empty'"
       >
         <div class="qa-empty__intro qa-research-intro qa-multi-page__intro">
-          <div class="asc-orbit" aria-hidden="true">
-            <span>ASC</span>
-          </div>
-          <h1>{{ multiHeroTitle }}</h1>
-          <p>{{ multiHeroSubtitle }}</p>
           <QaModeSwitcher
             mode="multi"
             :disabled="multiNavigationLocked"
             @update:mode="updateMode"
           />
-          <button
-            type="button"
-            class="qa-agent-toggle"
-            :disabled="multiNavigationLocked"
-            @click="useLegacyDiscussion = !useLegacyDiscussion; multiHasHistory = false"
-          >
-            <span class="qa-agent-toggle__mark" aria-hidden="true">✦</span>
-            {{ useLegacyDiscussion ? '切回 Agent 智能会话' : '原知识对话（兼容入口）' }}
-          </button>
         </div>
 
 
@@ -379,14 +365,6 @@ const showQaHome = computed(() => qaState.value.phase === 'empty')
 const multiSending = computed(() => Boolean(multiDiscussionPanel.value?.sending))
 const multiNavigationLocked = computed(() => (
   shouldLockMultiDiscussionNavigation(qaState.value.mode, multiSending.value)
-))
-const multiHeroTitle = computed(() => (
-  multiHasHistory.value ? '与当前图谱持续讨论' : '从一个图谱问题开始'
-))
-const multiHeroSubtitle = computed(() => (
-  multiHasHistory.value
-    ? '延续已有讨论上下文，继续追问、验证与深入分析'
-    : '围绕当前图谱提出第一个问题，后续追问将自动继承上下文'
 ))
 const multiGraphOptions = computed(() => activeProject.value ? [{
   project_id: activeProject.value.projectId,
@@ -1113,6 +1091,8 @@ onUnmounted(() => {
 }
 
 .qa-multi-page {
+  --qa-page-max: 1400px;
+  --qa-page-max-narrow: 1400px;
   width: min(var(--qa-page-max), calc(100% - var(--qa-gutter) * 2));
   min-height: calc(100vh - var(--qa-topbar-h));
   display: flex;

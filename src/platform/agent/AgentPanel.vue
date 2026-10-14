@@ -5,33 +5,9 @@
         <span class="agent-panel__badge" aria-hidden="true">AI</span>
         <div>
           <h2 class="agent-panel__title">智能体 Agent<span class="agent-panel__beta">Beta</span></h2>
-          <p class="agent-panel__subtitle">多轮工具调用 · 文本 Agent · 本地模型部署、图片与推理模式配置待联调</p>
         </div>
       </div>
       <div class="agent-panel__head-actions">
-        <span class="agent-panel__status" role="status" aria-live="polite">
-          <span
-            class="agent-panel__status-dot"
-            :class="{ 'agent-panel__status-dot--live': sending }"
-            aria-hidden="true"
-          ></span>
-          {{ statusText }}
-        </span>
-        <span class="agent-panel__tools-hint" :title="toolsHintTitle">
-          {{ toolsHint }}
-        </span>
-        <span v-if="shortSessionId(sessionId)" class="agent-panel__session" :title="`会话 ${sessionId}`">
-          会话 {{ shortSessionId(sessionId) }}
-        </span>
-        <button
-          type="button"
-          class="agent-panel__ghost"
-          aria-controls="agent-metrics"
-          :aria-expanded="metricsOpen"
-          @click="toggleMetrics"
-        >
-          运行指标
-        </button>
         <button
           type="button"
           class="agent-panel__ghost"
@@ -43,20 +19,11 @@
         </button>
         <button
           type="button"
-          class="agent-panel__ghost"
+          class="agent-panel__ghost agent-panel__primary"
           :disabled="sending"
           @click="newSession"
         >
           新建会话
-        </button>
-        <button
-          type="button"
-          class="agent-panel__ghost"
-          aria-controls="agent-tool-auth"
-          :aria-expanded="authOpen"
-          @click="authOpen = !authOpen"
-        >
-          工具权限
         </button>
         <button
           type="button"
@@ -81,24 +48,6 @@
       <button type="button" class="agent-panel__ghost" @click="modelConfigOpen = !modelConfigOpen">本地模型配置</button>
       <p v-if="modelsError" role="status">{{ modelsError }}；仅可使用服务端默认模型，发送时由后端再次校验。</p>
     </div>
-    <section class="agent-run" :class="`agent-run--${runStatus.tone}`" aria-label="本轮执行" role="status" aria-live="polite">
-      <div class="agent-run__heading">
-        <span class="agent-run__eyebrow">本轮执行</span>
-        <strong>{{ runStatus.title }}</strong>
-        <span v-if="lastAssistant?.model" class="agent-run__model">实际模型 · {{ lastAssistant.model.name }}</span>
-      </div>
-      <p>{{ runStatus.detail }}</p>
-      <p v-if="lastAssistant?.timing" class="agent-run__counts">{{ timingLabel(lastAssistant.timing) }}</p>
-      <p v-else-if="streaming && lastAssistant?.startedAt" class="agent-run__counts">本轮{{ elapsedLabel(lastAssistant.startedAt, clockNow) }}</p>
-      <div class="agent-run__scope">
-        <span>项目：{{ projectId || '未选择' }}</span>
-        <span>图谱：{{ graphId || '未选择' }}</span>
-      </div>
-      <div v-if="runStatus.counts.total" class="agent-run__counts">
-        工具请求 {{ runStatus.counts.total }} 次 · 完成 {{ runStatus.counts.completed }} 次 · 预算拒绝 {{ runStatus.counts.denied }} 次 · 调用异常 {{ runStatus.counts.failed }} 次
-      </div>
-      <p class="agent-run__note">只展示真实执行状态；没有模拟思考或百分比进度。</p>
-    </section>
     <details v-if="modelConfigOpen" open class="agent-model-guide">
       <summary>服务端模型配置与部署说明</summary>
       <p>由服务端管理员配置 backend_impl/config/agent-models.json，并在 backend_impl/.env 中设置 AGENT_MODELS_FILE 的绝对路径。页面不接收密钥或任意模型服务地址。</p>
@@ -179,6 +128,7 @@
       <div class="agent-meta__row">
         <span class="agent-meta__title">会话历史</span>
         <span class="agent-meta__note">{{ sessions.length }} 条</span>
+        <button type="button" class="agent-meta__refresh" @click="sessionsOpen = false">收起</button>
         <button
           type="button"
           class="agent-meta__refresh"
@@ -266,13 +216,30 @@
         <div class="agent-message__avatar" aria-hidden="true">
           {{ message.role === 'user' ? '你' : '智' }}
         </div>
-        <div class="agent-message__body">
+        <component :is="message.role === 'assistant' ? 'details' : 'div'"
+          class="agent-message__body" :class="{ 'agent-answer': message.role === 'assistant' }"
+          :open="message.role === 'assistant' && (message.streaming || !!message.error)">
+          <summary v-if="message.role === 'assistant'" class="agent-answer__summary">
+            <strong>智能体回答</strong>
+            <span>{{ message.streaming ? '执行中 · 实时更新' : message.error ? '执行异常 · 查看详情' : '展开查看回答与执行过程' }}</span>
+            <span v-if="message.toolCalls?.length">{{ message.toolCalls.length }} 次工具调用</span>
+          </summary>
           <div class="agent-message__meta">
             <strong>{{ message.role === 'user' ? '用户' : '智能体' }}</strong>
             <span v-if="message.model">实际模型：{{ message.model.name }}</span>
             <span v-if="message.stopped">已停止</span>
           </div>
 
+          <details v-if="message.reasoning || message.toolCalls?.length || message.streaming" class="agent-execution" :open="message.streaming">
+            <summary>执行过程 · {{ message.streaming ? '实时更新' : '已结束' }}</summary>
+            <details v-if="message.reasoning" class="agent-reasoning" :open="message.streaming">
+              <summary class="agent-reasoning__summary">
+                <span class="agent-reasoning__label">模型返回的推理内容（非核验结论）</span>
+                <span class="agent-reasoning__meta">{{ reasoningMeta(message) }}</span>
+              </summary>
+              <div class="agent-reasoning__body">{{ message.reasoning }}</div>
+            </details>
+            <p v-else-if="message.streaming" class="agent-tool__result">{{ message.toolCalls?.some(tool => tool.status === 'running') ? '工具执行中，等待服务返回；暂未收到新的模型推理文本。' : '模型处理中，等待实际返回的推理或工具调用。' }}</p>
           <div v-if="message.toolCalls?.length" class="agent-tools">
             <details
               v-for="tool in message.toolCalls"
@@ -293,21 +260,14 @@
                 <p v-if="tool.status === 'running'" class="agent-tool__result">{{ waitingDetail(tool, clockNow) }}</p>
                 <p v-if="tool.resultSummary" class="agent-tool__result">{{ tool.resultSummary }}</p>
                 <ToolEvidence :tool="tool" />
-                <pre class="agent-tool__code" tabindex="0">{{ toolPayload(tool) }}</pre>
+                <details v-if="tool.data || Object.keys(tool.args || {}).length" class="agent-tool__technical">
+                  <summary>调用参数与返回数据</summary>
+                  <pre class="agent-tool__code" tabindex="0">{{ toolPayload(tool) }}</pre>
+                </details>
               </div>
             </details>
           </div>
 
-          <details
-            v-if="message.reasoning"
-            class="agent-reasoning"
-            :class="{ 'agent-reasoning--live': message.streaming && message.modelStatus?.status === 'running' }"
-          >
-            <summary class="agent-reasoning__summary">
-              <span class="agent-reasoning__label">模型返回的推理内容（非核验结论）</span>
-              <span class="agent-reasoning__meta">{{ reasoningMeta(message) }}</span>
-            </summary>
-            <div class="agent-reasoning__body">{{ message.reasoning }}</div>
           </details>
 
           <p
@@ -328,6 +288,8 @@
               ? '知识服务原答案 · Agent 未二次改写'
               : message.answer_check.status === 'no_service_answer'
                 ? '知识工具未返回成文答案'
+              : message.answer_check.status === 'blocked'
+                ? '引用检查未通过'
               : message.answer_check.status === 'citations_valid_support_unverified'
               ? '引用完整性已检查 · 原文支持度尚未核验'
               : message.answer_check.status === 'incomplete'
@@ -351,7 +313,7 @@
               <span class="agent-message__retry-hint">{{ retryHint }}</span>
             </p>
           </div>
-        </div>
+        </component>
       </article>
     </div>
 
@@ -364,7 +326,7 @@
         ref="inputElement"
         v-model="draft"
         class="agent-panel__input"
-        rows="2"
+        rows="5"
         :disabled="sending || (embedded && (!projectId || !graphId))"
         placeholder="围绕当前图谱提问，例如：SiC 与抗氧化性能有什么关联？追问可补充温度、气氛等条件。"
         @keydown.enter.exact.prevent="submit"
@@ -645,6 +607,7 @@ async function openSession(id) {
     if (props.embedded && ((props.projectId && scope?.projectId !== props.projectId)
       || (props.graphId && scope?.graphId !== props.graphId))) throw new Error('该历史会话不属于当前图谱，请先选择对应项目；未记录范围的旧会话也不能直接续问。')
     loadSession(detail)
+    sessionsOpen.value = false
     if (detail.activeTurn) void restoreActiveTurn(detail)
   } catch (err) {
     sessionError.value = err?.message || '会话详情读取失败'
@@ -1204,12 +1167,47 @@ defineExpose({ messages, streaming, sending, steps, sessionId, submitExternal, s
 }
 
 .agent-sessions__list {
+  max-height: 240px;
+  overflow-y: auto;
   display: grid;
   gap: var(--agent-space-1);
   margin: 0;
   padding: 0;
   list-style: none;
 }
+
+.agent-panel__primary {
+  background: var(--asc-primary, #086cac);
+  color: white;
+  border-color: var(--asc-primary, #086cac);
+}
+
+.agent-answer__summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 0;
+  cursor: pointer;
+  color: var(--asc-primary, #086cac);
+  list-style: none;
+}
+
+.agent-answer__summary::before { content: '▸'; }
+.agent-answer[open] > .agent-answer__summary::before { content: '▾'; }
+.agent-answer__summary span { font-size: 12px; font-weight: 400; }
+.agent-answer:not([open]) { padding-top: 0; padding-bottom: 0; }
+.agent-execution {
+  margin: 8px 0 12px;
+  padding: 10px;
+  border: 1px solid var(--asc-border, #d1dfed);
+  border-radius: 8px;
+  background: var(--asc-surface-muted, #f5f9fd);
+}
+.agent-execution > summary,
+.agent-tool__technical > summary { cursor: pointer; font-size: 12px; }
+.agent-execution > summary { font-weight: 600; margin-bottom: 8px; }
+.agent-tool__technical { margin-top: 8px; }
 
 .agent-sessions__item {
   display: flex;
@@ -1300,8 +1298,8 @@ defineExpose({ messages, streaming, sending, steps, sessionId, submitExternal, s
 
 .agent-panel__log {
   flex: 1;
-  min-height: 220px;
-  max-height: min(46vh, 460px);
+  min-height: clamp(320px, 38vh, 480px);
+  max-height: min(56vh, 640px);
   overflow-y: auto;
   padding: var(--agent-space-4);
   background: var(--asc-canvas);
@@ -1674,21 +1672,22 @@ defineExpose({ messages, streaming, sending, steps, sessionId, submitExternal, s
 
 .agent-panel__composer {
   display: grid;
-  gap: var(--agent-space-1);
-  padding: var(--agent-space-2) var(--agent-space-3) var(--agent-space-3);
+  gap: var(--agent-space-2);
+  padding: var(--agent-space-4);
   border-top: 1px solid var(--agent-border-color);
   background: var(--agent-surface);
 }
 
 .agent-panel__input {
   width: 100%;
-  min-height: 62px;
-  padding: var(--agent-space-2) var(--agent-space-3);
+  min-height: 128px;
+  box-sizing: border-box;
+  padding: var(--agent-space-3) var(--agent-space-4);
   border: 1px solid var(--asc-border-strong);
   border-radius: var(--agent-ctl-radius);
   background: var(--agent-surface);
   color: var(--agent-ink);
-  font-size: var(--agent-font-md);
+  font-size: 16px;
   line-height: 1.6;
   resize: vertical;
 }
@@ -1775,7 +1774,16 @@ defineExpose({ messages, streaming, sending, steps, sessionId, submitExternal, s
   }
 
   .agent-panel__log {
+    min-height: 260px;
     max-height: 60vh;
+  }
+
+  .agent-panel__composer {
+    padding: var(--agent-space-3);
+  }
+
+  .agent-panel__input {
+    min-height: 112px;
   }
 }
 </style>

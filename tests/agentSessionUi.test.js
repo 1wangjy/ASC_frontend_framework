@@ -173,7 +173,8 @@ test('会话历史 opens a past session, replays its messages and continues on t
   const fixture = await mountSfcWithMemoryRouter(MODULE, '/', { projectId: 'p1' })
   const { root } = fixture
   try {
-    await waitFor(() => assert.match(renderedText(root), /已启用 7\/7/), 'tools never loaded')
+    await waitFor(() => assert.ok(calls.some(call => call.url.endsWith('/api/agent/tools'))), 'tools never loaded')
+    await nextTick()
 
     await click(root, '会话历史')
     await waitFor(() => assert.match(renderedText(root), /热震稳定性检索/), 'session list never rendered')
@@ -189,7 +190,9 @@ test('会话历史 opens a past session, replays its messages and continues on t
     assert.ok(calls.some(call => call.url.endsWith('/api/agent/sessions/s-1')))
     assert.match(renderedText(root), /检索热震稳定性/)
     assert.match(renderedText(root), /kg_search/)
-    assert.match(renderedText(root), /会话 s-1/)
+    assert.equal(findButton(root, '会话历史').props['aria-expanded'], false)
+    const answer = findRenderedNode(root, node => node?.type === 'details' && String(node.props.class).includes('agent-answer'))
+    assert.equal(answer.props.open, false)
 
     // 在同一会话里继续对话：不应新建会话
     await type(root, '继续检索抗热震证据')
@@ -219,7 +222,8 @@ test('the first question lazily creates a session before streaming', async () =>
   const fixture = await mountSfcWithMemoryRouter(MODULE, '/', { projectId: 'p1' })
   const { root } = fixture
   try {
-    await waitFor(() => assert.match(renderedText(root), /已启用 7\/7/), 'tools never loaded')
+    await waitFor(() => assert.ok(calls.some(call => call.url.endsWith('/api/agent/tools'))), 'tools never loaded')
+    await nextTick()
     await type(root, '用 X_comp=[[61,70]] 预测体积密度')
     await submit(root)
     await waitFor(() => assert.match(renderedText(root), /体积密度 3.12/), 'the answer never rendered')
@@ -229,37 +233,28 @@ test('the first question lazily creates a session before streaming', async () =>
     // 标题建议按 24 字截断，保持头部会话标签紧凑
     assert.equal(createCall.body.title, '用 X_comp=[[61,70]] 预测体积…')
     assert.equal(calls.find(call => call.url.endsWith('/api/agent/stream')).body.sessionId, 's-new')
-    assert.match(renderedText(root), /会话 s-new/)
+    assert.equal(findButton(root, '新建会话').props.disabled, false)
   } finally {
     await fixture.close()
     restore()
   }
 })
 
-test('运行指标 shows the aggregated line, token usage and per-tool breakdown', async () => {
+test('simplified header retains history and new session without diagnostic clutter', async () => {
   const restore = installStorage()
-  const calls = installFetchStub()
+  installFetchStub()
   const fixture = await mountSfcWithMemoryRouter(MODULE, '/', { projectId: 'p1' })
-  const { root } = fixture
   try {
-    await waitFor(() => assert.match(renderedText(root), /已启用 7\/7/), 'tools never loaded')
-    assert.ok(!calls.some(call => call.url.endsWith('/api/agent/metrics')), 'metrics must be lazy')
-
-    await click(root, '运行指标')
-    await waitFor(() => assert.match(renderedText(root), /轮次 3 · 工具调用 5 · 失败 1 · 平均 4.2s/), 'metrics never rendered')
-    assert.match(renderedText(root), /tokens 提示 1.2k · 生成 340 · 合计 1.5k/)
-    assert.match(renderedText(root), /predict/)
-    assert.match(renderedText(root), /3 次/)
-    assert.match(renderedText(root), /平均 900ms/)
-    assert.match(renderedText(root), /失败 1（50%）/)
-
-    const panel = findRenderedNode(root, node => node?.props?.id === 'agent-metrics')
-    assert.equal(panel.props['aria-label'], '运行指标')
-    assert.equal(findButton(root, '运行指标').props['aria-expanded'], true)
-  } finally {
-    await fixture.close()
-    restore()
-  }
+    assert.ok(findButton(fixture.root, '会话历史'))
+    assert.ok(findButton(fixture.root, '新建会话'))
+    for (const label of ['运行指标', '工具权限']) assert.equal(findButton(fixture.root, label), null)
+    assert.doesNotMatch(renderedText(fixture.root), /本轮执行|多轮工具调用|已启用/)
+    assert.equal(findButton(fixture.root, '会话历史').props['aria-expanded'], false)
+    await click(fixture.root, '会话历史')
+    await waitFor(() => assert.match(renderedText(fixture.root), /热震稳定性检索/), 'history missing')
+    await click(fixture.root, '收起')
+    assert.equal(findRenderedNode(fixture.root, node => node?.props?.id === 'agent-sessions'), null)
+  } finally { await fixture.close(); restore() }
 })
 
 test('a timed-out turn offers 从断点续传 and resumes from the last frame id', async () => {
@@ -282,7 +277,8 @@ test('a timed-out turn offers 从断点续传 and resumes from the last frame id
   const fixture = await mountSfcWithMemoryRouter(MODULE, '/', { projectId: 'p1' })
   const { root } = fixture
   try {
-    await waitFor(() => assert.match(renderedText(root), /已启用 7\/7/), 'tools never loaded')
+    await waitFor(() => assert.ok(calls.some(call => call.url.endsWith('/api/agent/tools'))), 'tools never loaded')
+    await nextTick()
     await type(root, '检索热震稳定性证据')
     await submit(root)
 
@@ -331,7 +327,8 @@ test('删除 asks for confirmation and only then hits the API', async () => {
   const fixture = await mountSfcWithMemoryRouter(MODULE, '/', { projectId: 'p1' })
   const { root } = fixture
   try {
-    await waitFor(() => assert.match(renderedText(root), /已启用 7\/7/), 'tools never loaded')
+    await waitFor(() => assert.ok(calls.some(call => call.url.endsWith('/api/agent/tools'))), 'tools never loaded')
+    await nextTick()
     await click(root, '会话历史')
     await waitFor(() => assert.match(renderedText(root), /体积密度预测/), 'session list never rendered')
 
@@ -360,6 +357,54 @@ test('删除 asks for confirmation and only then hits the API', async () => {
   }
 })
 
+test('streamed reasoning and tool transitions render before the turn completes, then fold', async () => {
+  const restore = installStorage()
+  installFetchStub()
+  const fallback = globalThis.fetch
+  let controller
+  globalThis.fetch = async (url, init) => String(url).endsWith('/api/agent/stream')
+    ? new Response(new ReadableStream({ start(value) { controller = value } }),
+      { headers: { 'Content-Type': 'text/event-stream' } })
+    : fallback(url, init)
+  const fixture = await mountSfcWithMemoryRouter(MODULE, '/', { projectId: 'p1' })
+  const { root } = fixture
+  let pending
+  const push = (id, event) => controller.enqueue(new TextEncoder().encode(frame(id, event)))
+  const answer = () => findRenderedNode(root, node => node?.type === 'details' && String(node.props.class).includes('agent-answer'))
+  try {
+    await type(root, '检索证据')
+    pending = submit(root)
+    await waitFor(() => assert.ok(controller), 'stream missing')
+    push(1, { type: 'reasoning_delta', text: '先检查当前图谱。' })
+    await waitFor(() => assert.match(renderedText(root), /先检查当前图谱。/), 'reasoning did not stream')
+    assert.equal(answer().props.open, true)
+    push(2, { type: 'tool_call', id: 't1', name: 'kg_search', args: { query: 'SiC' } })
+    await waitFor(() => assert.match(renderedText(root), /kg_search/), 'tool did not stream')
+    assert.match(renderedText(root), /执行中/)
+    push(3, { type: 'tool_result', id: 't1', name: 'kg_search', ok: true, ms: 25, summary: '找到证据', data: { evidence: [] } })
+    push(4, { type: 'reasoning_delta', text: '读取返回的原文。' })
+    push(5, { type: 'tool_call', id: 't2', name: 'read_evidence', args: { evidence_id: 'ev_1' } })
+    await waitFor(() => assert.match(renderedText(root), /read_evidence/), 'second tool did not stream')
+    assert.match(renderedText(root), /先检查当前图谱。读取返回的原文。/)
+    push(6, { type: 'tool_result', id: 't2', name: 'read_evidence', ok: true, ms: 10, summary: '已读取原文' })
+    push(7, { type: 'final', text: '服务答案' })
+    push(8, { type: 'done', sessionId: 's-new', steps: 2 })
+    controller.close()
+    await pending
+    await nextTick()
+    assert.equal(answer().props.open, false)
+    assert.match(renderedText(root), /服务答案/)
+    const technical = findRenderedNode(root, node => node?.type === 'details' && node.props.class === 'agent-tool__technical')
+    assert.ok(technical)
+    assert.notEqual(technical.props.open, true)
+  } finally {
+    try { controller?.close() } catch {}
+    if (pending) await pending
+    await fixture.close()
+    restore()
+  }
+})
+
 test('新建会话 creates a server session and clears the log', async () => {
   const restore = installStorage()
   const calls = installFetchStub({
@@ -377,13 +422,14 @@ test('新建会话 creates a server session and clears the log', async () => {
   const fixture = await mountSfcWithMemoryRouter(MODULE, '/', { projectId: 'p1' })
   const { root } = fixture
   try {
-    await waitFor(() => assert.match(renderedText(root), /已启用 7\/7/), 'tools never loaded')
+    await waitFor(() => assert.ok(calls.some(call => call.url.endsWith('/api/agent/tools'))), 'tools never loaded')
+    await nextTick()
     await type(root, '第一问')
     await submit(root)
     await waitFor(() => assert.match(renderedText(root), /第一次回答/), 'the first answer never rendered')
 
     await click(root, '新建会话')
-    await waitFor(() => assert.match(renderedText(root), /会话 s-new/), 'the new session id never appeared')
+    await waitFor(() => assert.ok(!renderedText(root).includes('第一次回答')), 'the log was not cleared')
     assert.ok(!renderedText(root).includes('第一次回答'), 'a new session starts from an empty log')
     assert.match(renderedText(root), /从一次真实的工具调用开始/)
     // 第一轮惰性建了会话，点“新建会话”又建了一条

@@ -70,6 +70,9 @@ test('embedded composer uses real Agent wire contract and restores citations and
     assert.match(renderedText(fixture.root), /API完整片段/)
     assert.equal(requests.length, 1, 'history opening does not regenerate an answer')
     saved.researchState.scope.graphId = 'other-graph'
+    await invoke(button('会话历史'), 'onClick', event)
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    await nextTick()
     await invoke(findRenderedNode(fixture.root, (n) => n.type === 'button' && renderedText(n).includes('历史温度讨论')), 'onClick', event)
     assert.match(renderedText(fixture.root), /不属于当前图谱/)
     assert.equal(requests.length, 1)

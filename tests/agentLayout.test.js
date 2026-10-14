@@ -33,6 +33,24 @@ test('long tool parameters cannot expand the message grid on narrow screens', as
 })
 
 // CSS contract regression, not a browser geometry/visual assertion.
+test('conversation workspace and composer have enlarged defaults without removing responsive gutters', async () => {
+  const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
+  const root = postcss.parse(parse(source).descriptor.styles.map(style => style.content).join('\n'))
+  const page = root.nodes.find(node => node.selector === '.qa-multi-page')
+  const values = Object.fromEntries(page.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value]))
+  assert.equal(values['--qa-page-max'], '1400px')
+  assert.equal(values['--qa-page-max-narrow'], '1400px')
+  assert.match(values.width, /calc\(100% - var\(--qa-gutter\) \* 2\)/)
+  const panel = await readFile(new URL('../src/platform/agent/AgentPanel.vue', import.meta.url), 'utf8')
+  const css = postcss.parse(parse(panel).descriptor.styles.map(style => style.content).join('\n'))
+  const declarations = selector => Object.fromEntries(css.nodes.find(node => node.selector === selector).nodes
+    .filter(node => node.type === 'decl').map(node => [node.prop, node.value]))
+  assert.equal(declarations('.agent-panel__input')['min-height'], '128px')
+  assert.equal(declarations('.agent-panel__input')['font-size'], '16px')
+  assert.equal(declarations('.agent-panel__input').resize, 'vertical')
+  assert.equal(declarations('.agent-panel__log')['min-height'], 'clamp(320px, 38vh, 480px)')
+})
+
 test('Agent workspace cannot clip its composer; legacy history keeps its bounded layout', async () => {
   const source = await readFile(new URL('../src/views/AscQaView.vue', import.meta.url), 'utf8')
   const { descriptor } = parse(source)

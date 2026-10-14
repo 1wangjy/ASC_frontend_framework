@@ -27,9 +27,11 @@ test('real embedded Agent composer sends a research question and follow-up, stre
       mode: 'memory-renderer-real-Vite-API; NOT browser visual QA',
       scope: { projectId, graphId }, status: 'failed', turns: [], stream_requests: [] }
     const tracked = []
+    let catalogLoaded = false
     globalThis.fetch = async (url, init) => {
       const href = String(url).startsWith('/') ? base + url : String(url)
       const response = await originalFetch(href, init)
+      if (href.endsWith('/api/agent/tools') && response.ok) catalogLoaded = true
       if (href.endsWith('/api/agent/stream')) {
         const body = JSON.parse(init.body)
         report.stream_requests.push(body)
@@ -57,9 +59,10 @@ test('real embedded Agent composer sends a research question and follow-up, stre
       }
     }
     const mount = async (id = graphId) => {
+      catalogLoaded = false
       fixture = await mountSfcWithMemoryRouter('/src/platform/agent/AgentPanel.vue', '/',
         { embedded: true, projectId, graphId: id })
-      await waitFor(() => renderedText(fixture.root).includes('已启用 6/9'))
+      await waitFor(() => catalogLoaded)
     }
     try {
       const files = ['../src/platform/agent/AgentPanel.vue', '../src/platform/agent/useAgentChat.js',
@@ -80,7 +83,7 @@ test('real embedded Agent composer sends a research question and follow-up, stre
           await new Promise(resolve => setTimeout(resolve, 100))
           await nextTick()
           const text = renderedText(fixture.root)
-          observed.executing ||= text.includes('正在执行')
+          observed.executing ||= text.includes('执行中 · 实时更新')
           observed.tools ||= text.includes('工具执行中；知识服务尚未提供百分比进度')
           observed.stop_button ||= !!button('停止')
           observed.model_locked ||= findRenderedNode(fixture.root, n => n.type === 'select')?.props.disabled === true

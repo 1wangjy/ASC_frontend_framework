@@ -67,7 +67,7 @@ test('actual research workspace switches Tabs, locks navigation during Agent exe
     await waitFor(() => fixture.router.currentRoute.value.query.agentSession === 'workspace-session')
     assert.deepEqual(requests[0].context, { projectId: 'p1', graphId: 'g1' })
     assert.equal(button('深度研究').props.disabled, true)
-    assert.equal(findRenderedNode(fixture.root, n => n.type === 'button' && renderedText(n).includes('原知识对话（兼容入口）')).props.disabled, true)
+    assert.equal(findRenderedNode(fixture.root, n => n.type === 'button' && renderedText(n).includes('原知识对话（兼容入口）')), null)
     const projectButton = findRenderedNode(fixture.root, n => n.type === 'button' && n.parent?.props.class?.includes('qa-project-context'))
     assert.ok(projectButton)
     assert.equal(projectButton.props.disabled, true)

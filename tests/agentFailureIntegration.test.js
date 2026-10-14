@@ -129,6 +129,7 @@ test('refresh: reconnects same active turn without old frames or duplicate execu
   assert.equal(restored.messages.value.length, 2)
   assert.equal(restored.messages.value.at(-1).content, '知识服务原答案')
   assert.equal(restored.canSend.value, true)
-  assert.deepEqual(f.counts(), { modelCalls: 1, toolCalls: 1 })
+  // 正常循环：首次选择工具、收到结果后再次决策；刷新没有重跑工具。
+  assert.deepEqual(f.counts(), { modelCalls: 2, toolCalls: 1 })
   assert.equal((await f.detail()).messages.length, 2)
 })
