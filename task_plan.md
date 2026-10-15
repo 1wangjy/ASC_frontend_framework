@@ -43,7 +43,17 @@
 - [x] 写入路径与闸门定位；确认物化脚本绕过服务层故需自校验
 - [x] 发现并记录：词表 0 命中、文档结构不符、粒级折叠、TP 粒度过粗、MP 删除判据偏软
 
-### Phase 2：语义映射与文档结构设计 — Status: pending
+### Phase 2：语义映射与文档结构设计 — Status: pending（**待用户裁定词表策略后开工**）
+
+> **实测修正（F28）**：ML 工况以**裸温度**为主（110/1100/1300/1450/1500℃），带 `×Nh` 仅 56 单元，`zibo` 1712 单元全为 `'null'`；
+> 平台测试词表原生可映射率 **0.4%**（18/4757）。故"不改词表"会导致 99.6% 的值只能进 `customProperties`。三条路线见下。
+
+**词表策略分叉（需裁定）**
+- **A｜扩充测试词表（推荐）**：为 ML 工况新增 `<属性>(110C)`…`(1500C)`/`(1450Cx3H)`/`(1100Cx3H)`/`(1450Cx1H)`/`(1450C/1500C)` 及**无工况裸名**（`bulkDensity` 等），
+  约 4 属性 × 10 变体 ≈ 40 条；`properties-def.js` 会自动补 temperature/duration 字段。代价：改全局 `properties-config.json`（纯新增，不改既有名）。
+- **B｜不改词表**：能对上的（0.4%）走词表，其余进 `customProperties`（名称内嵌工况，如 `体积密度@1100℃`）。零配置风险，但非一等公民（无类型化温度/时长字段、不可按工况筛选）。
+- **C｜性能改放物性表**：用 `pureMaterialProperties` 的裸名（`bulkDensity`/`flexuralStrength`/`compressiveStrength` ✓）+ 测量项的温度/时长字段；
+  但 `linear_change`（加热永久线变化）在 pure 词表无对应（仅 test 侧 `permanentLineChange(...)`），且会把"成品性能"混入"原料物性"。
 - [ ] 写出 `ml → 平台` 词表映射模块（属性名/单位/工况三元组 ⇄ `<name>(<T>Cx<H>H)`），并列出**非词表工况**清单（如 1450Cx3H）
 - [ ] 确定 `fixed_properties` / `custom_properties` / `test_results` 的**文档 JSON 结构**（对齐 `normalizePropertyDocument`/`createEmptyPropertyDocument`）
 - [ ] 原料身份决策：是否保留粒级实例（推荐：`(source, material_id, particle_size_mean, particle_size_std)` 为 MC 身份，名称仍用 `material_base` 规范名 + meta 携带 ML 身份）
