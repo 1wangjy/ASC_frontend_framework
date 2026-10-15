@@ -281,3 +281,64 @@ AscSidebar 全部改为引用令牌；离阶值落到 4px 阶（sp-1/2/3/4/5/6�
 - **残留缺口（未做，属可选）**：62 条无年份的中文条目可解析 PDF 首页年份（启发式，风险高于收益，未动）；
   287 条无摘要（Crossref 多数不提供）；`sep` 集合里既有 211 组**既往**重复标题未处理（不属本次范围，`--only r3` 未触及）。
 - **命令与口径**已写入 README「文献库批量导入与维护」；两个新脚本：`enrich_literature.py`、`repair_literature_dupes.py`。
+
+## F25 — ML 数据集 → 数据管理四表：勘察事实（2026-10-14）
+- **计划文件**：`task_plan.md` 顶部为当前计划（ML 数据集→四表导入）；原 R² 计划降级为「附：已完成/悬置计划」，内容未删。
+- **ML 数据集根**：`_ref/handover/ML/`（353MB）。主数据集 `datasetv2.npy` **780 条**，按来源拆
+  `batch183.npy` 182 / `zibo.npy` 457 / `yangquan.npy` 141；另有 `dataset_processed.npy`（清洗后）、`dataset_fill.npy`（化学字段填补后）、
+  `processed/*.py`（清洗/填补/拆分）、`FEATURE/build_features.py` + `FEATURE/outputs/`（`features_{base,processed,fill,batch183,zibo,yangquan}.csv` 2MB 级 + `metadata_*.json`）、`MODEL/`。
+- **平台侧已物化**（`backend_impl/data/sqlite/database.db`，`remark='ingested from private/*.npy'`，`ingested_at=2026-09-10`）：
+  - `ml_dataset_meta` 3 行（batch183 182 / zibo 457 / yangquan 141；`total_component_count` 3311/7361/1850）；
+    `comp_feature_names` = material_id, ratio_pct, particle_size_mean/std, base, PC1..PC20, SiC/SiO2/AL2O3/Fe2O3/TiO2/CaO/MgO/K2O/Na2O/PH/loss_on_ignition…；
+    `global_feature_names` = water_amount, hardening_time, hardening_time_uncertainty；`y_feature_keys` = bulk_density, cold_modulus, crushing_strength, linear_change。
+  - `ml_formula` **780** 行：`dataset_source, recipe_id('batch1-No1'), n_components, x_global(JSON,含 NaN), x_global_names, y_labels(JSON)`；
+    `y_labels` 结构 = `{属性: {工况: "值"}}`，工况如 `110℃×24h` / `1450℃×3h` / `1450℃×1h` / `1450℃`；
+    **值可能是重复测量**：`"3.06 / 3.03"`、`"4.88 / 4.84"`（拆分为多条测试记录的依据）。
+  - `ml_formula_component` **12,522** 行：`dataset_source, recipe_id, comp_index, material_id, ratio_pct, component_features(JSON)`；
+    例 `material_id='61.0'` + `base='棕刚玉'` + `particle_size_mean=11.5/std=3.5`。
+- **组分 material_id 与原料注册表已对齐**：`material_base` 89 行（material_id 0..88，S1 冻结基准）↔ `ml_formula_component.material_id`（findings F14/S1）。
+- **四张业务表当前基数**（数据管理页签对应表，待 Phase 1 用 DDL 复核列契约）：
+  `recipes` 0 ｜ `mp_properties` 3 ｜ `test_indicators` 0 ｜ `tp_test_properties` 2 ｜ `mc_material` 3 ｜
+  `working_conditions` 0 ｜ `fe_working_condition` 0 ｜ `service_data`/`ru_service_data` 0 ｜ `mr_formula` 2。
+- **未决（Phase 1 必须确认）**：四表精确表名与字段契约；原料闸门要求；重复测量与工况如何落表；溯源列落在哪一列。
+
+## F26 — 已存在的「物化」入口与它未跑的缺口（2026-10-14）
+**结论：用户要的导入，仓库里已有实现且从未运行** —— `backend_impl/scripts/materialize_ml_dataset.py`（430 行，`ml_*` → 业务四表，
+幂等 delete-then-insert，靠 ML 标记只删自己创建的行）。前端 `MlDatasetView.vue`（数据管理 → ml 数据 tab）经 `/api/ml-dataset` 触发 load/materialize。
+**四表映射（据代码逐条核对）**：配方表 `mr_formula` / 原料表 `mc_material` / 物性表 `mp_properties` / 测试表 `tp_test_properties`。
+
+| 目标表 | 粒度 | 关键列写入 | 标记 |
+| --- | --- | --- | --- |
+| `mc_material`（原料） | 每个 `(dataset_source, material_id)` **一条** | `batch_no='ML-<src>-<mid>'`、`type='其他'`、`component_list=[[label, mp_id, "{}", 100]]` | `batch_no LIKE 'ML-%'` |
+| `mp_properties`（物性） | 每个 MC **一条** | `fixed_properties`(稳定理化子集)、`custom_properties`(51 特征原样)、`mc_ids=[mc_id]` | **无标记列** → 靠 `mc_ids` 反向引用判定（软） |
+| `mr_formula`（配方） | 每个配方一条 | `formula_name='[ML] <src>-<rid>'`、`batch_no='ML-<src>'`、`component_list=[[label, mc_id, "{}", ratio], …]`、`tp_ids`、`creator='ml-ingest:<src>'` | `creator`/name/batch 三处前缀 |
+| `tp_test_properties`（测试） | 每个有 y 的配方**一条** | `mp_id=NULL`、`test_params={property_keys, temperature_conditions, value_shape}`、`test_results=y_labels 原样 JSON`、`test_condition='ML数据集: <src>'` | `test_condition LIKE 'ML数据集: %'` |
+
+**必须在方案中处理的缺口（未跑，因此尚未暴露）**：
+1. **原料身份丢了粒级轴**：MC/MP 按 `(source, material_id)` 去重，同一 `material_id` 的不同 `particle_size_mean/std` 实例被折叠成一条
+   （实测 `ml_formula_component` 里 material_id=61.0 既有 mean=11.5/std=3.5 也有 mean=6.5/std=1.5）→ 与 F14/S7 确立的「粒径轴一等公民」冲突；
+   而配方里的配比保留在 MR.component_list（ratio ✓），粒级却无落点。
+2. **测试表粒度过粗**：一个配方一条 TP，把 4 属性 × 多工况 × 可能 2 次重复测量（`"3.06 / 3.03"`）塞进一个 JSON；
+   无法按属性/工况检索或与物性关联（`mp_id=NULL`），重复测量未拆分。
+3. **成品性能无处可放**：4 个 y（体积密度/常温抗折/耐压/线变化）只作为 TP 里的 JSON 键；`mp_properties` 只承载**原料**理化特征。
+   「物性表」的语义（原料物性 vs 成品性能）需按前端页签确认后再定。
+4. **删除判据偏软**：MP 无标记列，靠「只被 ML 的 MC 引用」判定并删除 → 若某条业务 MP 只引用 ML MC 会被误删。
+5. **数据完整度**：33/780 配方 `y_labels` 为空（无 TP）；零组分配方会被跳过（计数待测）。
+6. **注册表闸门未接**：脚本直接用 `material_id`/`base` 文本造 label，未走 `material_base`/`material_alias`/`resolveMaterialBase`
+   的规范名与别名解析（F14/S1 已冻结 material_id 0..88 ↔ material_base）。
+
+## F27 — 四表契约冻结：为什么现有物化脚本「能跑但会显示为空」（2026-10-14）
+**四页签 ↔ 表**（`DataManagerView.vue:574` MANAGE_TABS）：配方=`mr_formula`、原料=`mc_material`、物性=`mp_properties`、测试=`tp_test_properties`。
+**展示别名 ≠ DB 列**：`mp.properties` 由 `renderPropsDisplay(fixed_properties, custom_properties)`（`DataTable.vue:97`）合成；`tp.mr_id` 入参经 `payload.mr_ids=[payload.mr_id]`（`:282`）归一，行内渲染 `mr_ids` 徽章（`:109`）；`tp.test_results` 走 `renderPropsDisplay(row.test_results, [], true)`（`:103`）。
+
+**三处硬约束（现有脚本全不满足）**
+1. **属性名必须命中词表**：`formatPropertyDocument`（`utils/propertyMeasurements.js:331-348`）**只遍历词表定义**渲染，`document.properties[definition.name]`；
+   而 `properties-config.json` 的 `testProperties` 是 camelCase + 带工况后缀（`bulkDensity(110Cx24H)`、`flexuralStrength(110Cx24H)`、`compressiveStrength(110Cx24H)`、`permanentLineChange(1450Cx24H)`…），
+   ML 的 `bulk_density/cold_modulus/crushing_strength/linear_change` **命中 0 条** → 按现状导入，测试表「内容」列渲染 `暂无数据`。
+2. **文档结构不符**：平台物性文档是 `{schemaVersion, properties:{name:[测量项]}, customProperties:[]}`（测量项含 `fields:{value,temperature,duration}`，见 `properties-def.js:3-16` 与 `enrichProperty`）；
+   ML 的 `test_results` 是 `{属性:{工况:"值"}}`（值为字符串，含重复测量 `"3.06 / 3.03"`）→ 结构与类型都不匹配。
+3. **工况命名规范**：`properties-def.js:45-52` 解析 `<name>(<T>Cx<H>H)` 为 name+温度+时长 → 平台的 110℃×24h == `110Cx24H` ✓；
+   但 ML 还有 `1450℃×3h` / `1450℃×1h` / `1450℃`（无时长）→ **词表没有**，需决策（改词表 or 入 customProperties）。
+
+**闸门（脚本直连 SQLite，绕过服务层 → 必须自检）**：组件名需能解析到 enabled `material_base`（`materialBaseService.resolveComponentsForInsert:262-295`）、`ratio∈(0,100]` 且**和=100±0.01**、组件列表非空、引用 ID 存在（`newDbService.js:505-512` 为 MC 侧闸门；MR 侧只校验 MC 存在）。
+**其他既有缺陷（已在方案中列明处理）**：MC 按 `(source, material_id)` 折叠丢粒级轴（与 F14/S7 冲突）；MP 无标记列、删除靠 `mc_ids` 反向引用（会误删业务行）；TP 一配方一条把 4 属性×多工况×重复测量塞进一个 JSON；33/780 配方无 y（无 TP）；零组分配方被跳过。

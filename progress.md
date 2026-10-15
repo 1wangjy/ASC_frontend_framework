@@ -148,3 +148,18 @@
 ## 会话 15 — 2026-10-13（修验收页 404）
 - 根因：vite 代理缺 `/api/acceptance`，被兜底 `/api`→5001 拿走 → 404。已补代理并重启前端（经 3005 验证 200）。
 - 硬化：`platform-structure` 检查新增"vite 代理已覆盖 /api/acceptance"断言，防回归。
+
+## 会话 16 — 2026-10-14（ML 数据集 → 数据管理四表：方案阶段）
+- 用户需求：把 ML 数据集原始记录（允许来源追溯与处理）导入数据管理四张表：配方/原料/物性/测试；要求先"schemeize"整个处理流程（planning-with-files）。
+- 本轮产出：`task_plan.md` 顶部新增当前计划（Phase 1–5，Phase 1 进行中），原 R² 计划降级保留；`findings.md` 增 F25（ML 数据集侧勘察事实 + 四表当前基数）。
+- 已核实：780 条配方/12,522 条组分来自 `_ref/handover/ML/*.npy`（batch183/zibo/yangquan），`y_labels` 为 `{属性:{工况:"值"}}` 且含重复测量字符串。
+- 并行勘察中：ML 数据集来源链路与现存脚本；数据管理四表契约/写入路径/闸门。
+- 注：本轮只做方案，未导入任何数据（Phase 4 才写库）。
+
+## 会话 16（续）— 2026-10-14（四表契约冻结，Phase 1 complete）
+- 两个只读勘察返回：ML 数据集来源链路（MlDatasetSource）+ 四表契约/闸门（DataMgmtTables）。
+- 决定性发现：`materialize_ml_dataset.py` 已实现「ml_* → 四表」且**从未运行**；但它写出的属性名/文档结构与平台词表不匹配
+  （ML `bulk_density` 等 0 命中词表；`test_results` 结构 ≠ 物性文档），**直接跑会导致界面显示"暂无数据"**（见 F27）。
+- 本轮只做方案：`task_plan.md` Phase 1 → complete，Phase 2–6 细化为可执行步骤 + 6 条决策；findings 增 F26/F27。
+- 两个待用户拍板的点已列入 Phase 2：MC 是否按粒级实例化身份；非词表工况（1450Cx3H 等）是改词表还是入 customProperties。
+- 未导入任何数据（Phase 4/5 才写库）。
