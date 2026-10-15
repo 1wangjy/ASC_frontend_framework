@@ -305,7 +305,11 @@
           </details>
 
           <div v-if="message.error" class="agent-message__error" role="alert">
-            <p class="agent-message__error-text">{{ message.error }}</p>
+            <p class="agent-message__error-text">{{ agentErrorMessage(message.error) }}</p>
+            <details v-if="agentErrorMessage(message.error) !== message.error" class="agent-tool__technical">
+              <summary>错误详情</summary>
+              <pre class="agent-tool__code">{{ message.error }}</pre>
+            </details>
             <p v-if="canRetry && message.id === lastAssistantId" class="agent-message__retry">
               <button type="button" class="agent-btn agent-btn--retry" @click="retryTurn">
                 从断点续传
@@ -317,7 +321,7 @@
       </article>
     </div>
 
-    <p v-if="error && (!messages.length || streaming)" class="agent-panel__banner" role="alert">{{ error }}</p>
+    <p v-if="error && (!messages.length || streaming)" class="agent-panel__banner" role="alert">{{ agentErrorMessage(error) }}</p>
 
     <form class="agent-panel__composer" @submit.prevent="submit">
       <label class="sr-only" for="agent-panel-input">向智能体提问</label>
@@ -364,6 +368,7 @@ import { RETRY_HINT, useAgentChat } from './useAgentChat.js'
 import { describeRun } from './runStatus.js'
 import { elapsedLabel, waitingDetail, timingLabel } from './executionTiming.js'
 import ToolEvidence from './ToolEvidence.vue'
+import { agentErrorMessage } from './errorMessage.js'
 import { renderChatMarkdown } from '../../features/markdown/chatMarkdown.js'
 import {
   createAgentSession,

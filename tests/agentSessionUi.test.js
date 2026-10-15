@@ -405,6 +405,40 @@ test('streamed reasoning and tool transitions render before the turn completes, 
   }
 })
 
+test('model busy errors show a concise label with original details folded away', async () => {
+  const restore = installStorage()
+  const raw = 'LLM request failed (HTTP 503): {"error":{"message":"Service is too busy","code":"service_unavailable_error"}}'
+  installFetchStub({ streams: [() => [
+    frame(1, { type: 'error', message: raw }),
+    frame(2, { type: 'done', steps: 1, sessionId: 's-new' })
+  ]] })
+  const fallback = globalThis.fetch
+  globalThis.fetch = (url, init) => String(url).endsWith('/api/agent/sessions/s-1')
+    ? Promise.resolve(Response.json({ ...DETAIL, messages: [
+      { role: 'user', content: '历史问题' }, { role: 'assistant', content: '', error: raw }
+    ] })) : fallback(url, init)
+  const fixture = await mountSfcWithMemoryRouter(MODULE, '/', { projectId: 'p1' })
+  const { root } = fixture
+  const check = () => {
+    const label = findRenderedNode(root, node => node.props?.class === 'agent-message__error-text')
+    assert.equal(renderedText(label), '模型服务繁忙，请稍后重试')
+    const details = findRenderedNode(root, node => node.type === 'details' && renderedText(node).startsWith('错误详情'))
+    assert.ok(details)
+    assert.notEqual(details.props.open, true)
+    assert.ok(renderedText(details).includes(raw))
+  }
+  try {
+    await type(root, '继续检索')
+    await submit(root)
+    await waitFor(check, 'busy label missing')
+    await click(root, '会话历史')
+    await waitFor(() => assert.match(renderedText(root), /热震稳定性检索/), 'history missing')
+    await clickNode(findRenderedNode(root, node => node.type === 'button' && renderedText(node).includes('热震稳定性检索')))
+    await waitFor(() => assert.match(renderedText(root), /历史问题/), 'history not restored')
+    check()
+  } finally { await fixture.close(); restore() }
+})
+
 test('新建会话 creates a server session and clears the log', async () => {
   const restore = installStorage()
   const calls = installFetchStub({
