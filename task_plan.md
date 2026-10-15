@@ -43,22 +43,30 @@
 - [x] 写入路径与闸门定位；确认物化脚本绕过服务层故需自校验
 - [x] 发现并记录：词表 0 命中、文档结构不符、粒级折叠、TP 粒度过粗、MP 删除判据偏软
 
-### Phase 2：语义映射与文档结构设计 — Status: pending（**待用户裁定词表策略后开工**）
+### Phase 2：据原始契约冻结完整策略 — Status: complete（2026-10-14）
+**依据**：`_ref/handover/ML/enterprise_input_template.json`（`enterprise_input_v1`，48 列 X 契约 + `validation_rules`）、
+`data/handover/base_list.json`(89) + `V1_base_mapping.json`(142 别名→base_id)、实测 DB 一致性（F29/F30）。
 
-> **实测修正（F28）**：ML 工况以**裸温度**为主（110/1100/1300/1450/1500℃），带 `×Nh` 仅 56 单元，`zibo` 1712 单元全为 `'null'`；
-> 平台测试词表原生可映射率 **0.4%**（18/4757）。故"不改词表"会导致 99.6% 的值只能进 `customProperties`。三条路线见下。
+**四表数据流（一条记录的生命周期）**
+```
+enterprise JSON(48列契约) → datasetv2.npy(780) → ml_formula/ml_formula_component(平台)
+   →[规范化]→ MC(原料,按粒级) + MP(原料物性) + MR(配方) + TP(测试,配方级 y)
+溯源键：{dataset:'datasetv2', source, recipe_id, comp_index, ml_formula.id, ml_formula_component.id, orig_ratio_sum}
+```
 
-**词表策略分叉（需裁定）**
-- **A｜扩充测试词表（推荐）**：为 ML 工况新增 `<属性>(110C)`…`(1500C)`/`(1450Cx3H)`/`(1100Cx3H)`/`(1450Cx1H)`/`(1450C/1500C)` 及**无工况裸名**（`bulkDensity` 等），
-  约 4 属性 × 10 变体 ≈ 40 条；`properties-def.js` 会自动补 temperature/duration 字段。代价：改全局 `properties-config.json`（纯新增，不改既有名）。
-- **B｜不改词表**：能对上的（0.4%）走词表，其余进 `customProperties`（名称内嵌工况，如 `体积密度@1100℃`）。零配置风险，但非一等公民（无类型化温度/时长字段、不可按工况筛选）。
-- **C｜性能改放物性表**：用 `pureMaterialProperties` 的裸名（`bulkDensity`/`flexuralStrength`/`compressiveStrength` ✓）+ 测量项的温度/时长字段；
-  但 `linear_change`（加热永久线变化）在 pure 词表无对应（仅 test 侧 `permanentLineChange(...)`），且会把"成品性能"混入"原料物性"。
-- [ ] 写出 `ml → 平台` 词表映射模块（属性名/单位/工况三元组 ⇄ `<name>(<T>Cx<H>H)`），并列出**非词表工况**清单（如 1450Cx3H）
-- [ ] 确定 `fixed_properties` / `custom_properties` / `test_results` 的**文档 JSON 结构**（对齐 `normalizePropertyDocument`/`createEmptyPropertyDocument`）
-- [ ] 原料身份决策：是否保留粒级实例（推荐：`(source, material_id, particle_size_mean, particle_size_std)` 为 MC 身份，名称仍用 `material_base` 规范名 + meta 携带 ML 身份）
-- [ ] TP 粒度决策：一配方一 TP（承载全部测量项）vs 一配方一工况一 TP → 记录理由
+**必须执行的规范化（否则写不进去/数据失真）**
+1. **组分解重**：按 `(material_id, particle_size_mean, particle_size_std)` 合并同一配方内的重复组分（重复块样例：`yangquan/BZ20250505-002` 3×13 行）；合并策略=比例相加，并记录原始行数。
+2. **配比归一**：按契约 `ratio_pct_total_should_be=100` 做比例归一到 100±0.01；原始和写入溯源；**偏差 >1% 的 151 条另出"待核对清单"**（不得静默改写）。
+3. **ID 格式**：铸 `MC_/MP_/MR_/TP_` + 6 位（9 字符，接 DB 最大值续号）——修现有脚本的无下划线前缀。
+4. **名称**：组件名用 `base_list` 的 89 个规范名（保证过闸门）；ML 身份（source/material_id/粒级/原始 min-max）放 `component_list` 第 3 位 meta 对象。
+5. **MC 身份 = (source, material_id, particle_size_mean, particle_size_std)**（用户裁定：按粒级实例化；且后端禁止同配方重复引用同一 MC，必须如此）。
+6. **MP 物性文档**（schemaVersion 3）：`particleSize`(粒径, 取 mean/或 min-max 入 custom)、`bulkDensity/trueDensity/waterAbsorption/porosity` 等按词表名；化学组成（SiC/SiO2/AL2O3/…）与 PC1..PC20/`fired_*` → `customProperties`（化学键在 pure 词表 0 命中）。
+7. **TP 测试文档**（schemaVersion 3）：属性用**测试词表裸名**（新增 4 条：`bulkDensity/flexuralStrength/compressiveStrength/permanentLineChange`），**工况放测量项字段**
+   （`temperature` = 110/1100/1300/1450/1500 ℃；`duration` = 3/24/1 h 或 `N/A`；zibo 的 `'null'` → 温度/时长均 `N/A`）；重复测量 `"a / b"` **拆成两条测量项**；
+   `1450℃/1500℃` 双温度 → 两条测量项或一条 + custom 备注（Phase 3 定）；`test_condition='ML数据集: <src>'`、`mr_ids=[mr_id]`。
+8. **不动全局其它配置**：词表仅**追加 4 个裸名**（不改既有名、不加 40 条工况变体）。
 
+### Phase 3：加载器改造（复用而非重写） — Status: pending
 ### Phase 3：加载器改造（复用而非重写） — Status: pending
 - [ ] 改造 `backend_impl/scripts/materialize_ml_dataset.py`：词表映射、文档结构、规范名、粒级身份、`--dry-run`
 - [ ] 溯源写入：`{dataset:'datasetv2', source, recipe_id, comp_index, ml_formula.id, ml_formula_component.id}` 落到 meta/custom_properties，可反查 npy 行

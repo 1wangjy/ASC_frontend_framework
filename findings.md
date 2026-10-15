@@ -358,3 +358,24 @@ F27 里我按 2 行样例写成"工况如 `110℃×24h`/`1450℃×3h`"，**实�
 - 重复测量：4757 个单元里 **2794 个**是 `"a / b"` 形式（占 59%）→ 必须拆成多条测量项（文档结构支持数组 ✓）。
 - 另有 33/780 配方 `y_labels` 为空；`bulk_density` 在 zibo 存在量纲异常的历史告警（`utils/modelSources.js:11-26`）。
 - 结论：**"不改词表直接导入" 会把 99.6% 的测试值降级为 customProperties**，与"数据管理四表可用"的意图不符 → 需在设计上先定词表策略（见 task_plan 的分叉）。
+
+## F29 — 原始输入契约（用户要求"先找原始 JSON 源"）2026-10-14
+**源文件**：`_ref/handover/ML/enterprise_input_template.json`（3247 B；`format_version=enterprise_input_v1`，`source_dataset=datasetv2.npy`）。
+- 契约声明：**只含 X 输入字段**，`note="Only X input fields are included. y_labels/performance targets are intentionally omitted."`
+- `x_global_field_order`(3)：`water_amount, hardening_time, hardening_time_uncertainty`
+- `x_comp_column_order`(**48**)：`material_id, ratio_pct, particle_size_min, particle_size_max, base, PC1..PC20, component_batch, SiC…PH, loss_on_ignition, bulk_density, true_density, water_absorption, porosity, moisture, d50, ph, fired_bulk_density, fired_cold_modulus, fired_crushing_strength, fired_linear_change`
+- 样例记录（1 条）的组分是**结构化对象**：`{material_id, material_name, ratio_pct, particle_size_min, particle_size_max, base, component_batch, chemical_composition{…}, physical_properties{bulk_density,true_density,water_absorption,porosity,moisture,d50}, fired_properties{…}}`
+- `validation_rules`：`ratio_pct_total_should_be=100`、`do_not_fill_product_targets_here=[y_labels.bulk_density, cold_modulus, crushing_strength, linear_change]`
+  → **成品性能属于配方级（y），不得混进组分** ✓ 与我们 TP 承载 y 的设计一致。
+**权威原料映射**：`data/handover/base_list.json`（89 个规范名）+ `data/handover/V1_base_mapping.json`（142 条 `new_id/new_name → base_id/base_name`，`match_method=mapping_json`、`confidence` 全 1.0；如 `YGZ/YGZ粉/棕刚玉/棕刚玉粉 → 61/棕刚玉`）。
+**实测一致性**：`ml_formula_component` 的 distinct `material_id` = **89** 与 `base_list` 89 完全对应，89 个 `base` 名**全部**可在 `base_list ∪ 映射目标名` 中找到（未映射 = 0）✓。
+**字段级差异**：契约有 `particle_size_min/max`、`component_batch`；DB 特征里是 `particle_size_mean/std`（ML 侧换算过），**min/max 与 component_batch 已丢**（需在溯源中标注或回原始 npy 复核）。
+
+## F30 — ML 摄取链的数据缺陷（导入前必须处理）2026-10-14
+| 缺陷 | 实测 | 影响 |
+| --- | --- | --- |
+| **组分重复块** | 2,119 组 `(配方, material_id)` 出现多行；极值例 `yangquan/BZ20250505-002` 把同一份 13 行组分**重复 3 遍**（39 行，和 288.15%） | 直接写入会被后端拒绝/数据失真 |
+| **配比和不等于 100** | 739/780 越界（>0.01）；632 条 >0.1；151 条 >1；64 条 >5；最大 288.15%（契约要求 100） | 后端**硬校验** `Math.abs(total-100) > 0.01` 即抛错（`newDbService.js:99`） |
+| **ID 格式不符** | 平台既有 ID = `MC_000001/MP_000001/MR_000001/TP_000001`（下划线+6 位，9 字符）；现有物化脚本铸 `MC000001`（无下划线） | 违反 `newDbService.js:91` 与前端 `entities.js:109` 的 `startsWith('MC_')/startsWith('MP_')` 校验 |
+| **同配方重复引用同一 MC 被禁** | `new Set(ids).size !== ids.length` → `Duplicate MC references are not allowed`（`newDbService.js:97`） | 同材料不同粒级必须各自成 MC 行 → **印证"按粒级实例化"不只是保真，而是必需** |
+| 工况形态 | 裸温度为主、zibo 全 `'null'`、yangquan 有双温度；词表原生可映射 0.4%（F28） | 测试表命名策略需以"属性裸名 + 测量项温度/时长字段"承载工况 |
