@@ -265,6 +265,29 @@ backend_impl/data/sqlite/database.db
   —— 同 DOI/dedupe_key，或「标题相同且一方无 DOI / 标题可信」才合并；保留元数据最完整的行并迁移附件
   （注意：文献列表接口不过滤 `is_delete`，合并请用 `--hard-delete`）
 
+### ML 数据集 → 数据管理四表（配方/原料/物性/测试）
+
+把 ML 数据集（=`ml_formula` 780 条配方）的**原始记录**导入数据管理四张业务表。真源为抽取器的
+Clean Canonical 输出（字段最全、可反查到源文件/批次）：
+
+- 真源：`../_code/private_data/addtional/extractor/output/{yangquan,zibo}_formulas_clean/*.json`
+  （yangquan 258 / zibo 2556；ML 数据集是它们的子集 141 + 457，另 182 条 batch183 无 clean JSON → 走 `ml_formula` 回退）
+- 命令（默认只导 ML 子集 780 条，干跑不写库）：
+  ```bash
+  python3 backend_impl/scripts/import_ml_formulas.py                 # 干跑：行数/跳过/配比偏差清单
+  python3 backend_impl/scripts/import_ml_formulas.py --apply         # 写库（幂等：先删自己创建的行）
+  python3 backend_impl/scripts/import_ml_formulas.py --all-sources   # 真源全部 2814 条
+  ```
+- 映射与规范（细节见 `findings.md` F31/F32）：
+  - 原料 `mc_material`：身份 = `factory + material_name + spec + particle_size`（**按粒级实例化**），名称解析到 `material_base` 规范名，meta 携带源文件/批次/原始配比和
+  - 物性 `mp_properties`：v3 物性文档（`property_inspection` 7 键按词表映射；`chemical` 11 键内嵌在文档的 `customProperties`）
+  - 配方 `mr_formula`：`[ML] <factory>-<formula_id>`，`component_list=[名称, MC_ID, meta, ratio]`（ratio 之和恒为 100±0.01）
+  - 测试 `tp_test_properties`：来自 `formula_tests.product_tests[]`，每条测试一项测量（含 `test_stage`/温度；无工况写 `N/A`）
+- 源数据口径提示：两厂 `ratio_pct` 并非都闭合（yangquan 中位 95.06）→ 导入按比例归一并把**原始和写入溯源**；
+  zibo 的包装行（`集装袋/普黑/PA胶` 或 `ratio>100`）已过滤；重复组分（同配方同料同粒级）按比例相加合并。
+- 写库前请备份 `backend_impl/data/sqlite/database.db`；重复导入安全（幂等标记：`batch_no LIKE 'ML-%'`、
+  `creator LIKE 'ml-ingest:%'`、`test_condition LIKE 'ML数据集: %'`）。
+
 ## 认证与多用户账号
 
 - 账号存储：SQLite `users` 表（`email` 唯一，`status` 取 `pending|approved|rejected|disabled`）；

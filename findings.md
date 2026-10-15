@@ -408,3 +408,33 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 
 **策略修订**：主源改为这两组 clean JSON/YAML（字段最全、可追到源表/批次/置信度），`ml_formula*` 降级为交叉校验；
 补回 `component_batch`/`apparent_porosity`/`wear`/`test_stage`/`judgment`/`source_table`；溯源列写 `factory+formula_id+purpose+material_name+spec+batch+match_confidence`。
+
+## F32 — ML 数据集 → 数据管理四表：实施与验证（2026-10-14）
+**实现**：新增 `backend_impl/scripts/import_ml_formulas.py`（`--apply` 幂等；默认只导 ML 子集的 780 条；`--all-sources` 可导真源全部 2814）。
+主源 = Clean Canonical JSON（`findings` F31 的真源），batch183（182 条）无 clean JSON → 走 `ml_formula` 回退源。
+
+**导入结果（实测，写库后）**
+| 表 | 导入前 | 导入后 | 其中 ML 侧 |
+| --- | ---: | ---: | ---: |
+| `mc_material`（原料，按粒级实例化） | 3 | **385** | 382 |
+| `mp_properties`（物性） | 3 | **385** | 382 |
+| `mr_formula`（配方） | 2 | **782** | 780 |
+| `tp_test_properties`（测试） | 2 | **749** | 747（= 有 y 的配方数，与 `ml_formula` 的 747 吻合） |
+
+**校验全绿**：配比闭合（780 条配方 `|Σratio−100|` 最大 **0.000000**）、引用闭合（MR→MC/MR→TP/TP→MR/MP→MC 悬空 **0**；同配方重复 MC 引用 **0**）、
+种子行保留（新行从 `MC_000004`/`MR_000003` 起）、**幂等**（二次 `--apply` 清理 747/780/382 后重灌，计数不变）、
+未解析到注册表的材料名 **0**（闸门必过）、四表 API 均 200（`/api/new-data/{mc,mp,mr,tp}`）。
+
+**界面等价验证（浏览器在本沙箱不可用，改为直接跑真实前端渲染函数）**
+用 `src/platform/utils/propertyMeasurements.js` 的 `formatPropertyDocument` + 服务端 `/config/properties-config.json` 词表，
+对库中真实文档渲染：测试表输出 `体积密度: [(3.15 g/cm³, 110 ℃, N/A), …]`（4 属性、含温度）、物性表输出
+`SiC: [(98.49 %)] / AL2O3: [(96.71 %)] …`（9 行化学组成），**无 UNKNOWN、无"暂无数据"**。
+
+**两处契约细节（踩到后修正，值得记录）**
+1. **v3 物性文档的自定义属性必须内嵌**：`normalizePropertyDocument` 的 schemaVersion=3 分支**只读文档自身**的 `customProperties`，
+   忽略 `fixed`+`custom` 双参形态（那个分支只在**无 schemaVersion** 的旧结构下生效）→ 若把自定义属性只写进 `custom_properties` 列，
+   界面「属性」列会显示"暂无数据"（已修：文档内嵌 + 该列同时保留，兼容 API 消费方）。
+2. **缺工况要写 `N/A`**：界面 `formatDisplayField(undefined)` 渲染成 `UNKNOWN`，而 `SPECIAL_TOKENS` 认 `N/A` → 测量项缺温度/时长时显式写 `N/A`，才是"未记录"的正确语义。
+3. **无需改词表**：`config/properties-def.js` 的 `LEGACY_TEST_PROPERTIES` 会把 `bulkDensity(110Cx24H)` 等剥成裸名并补 temperature(+duration) 字段，
+   故 `bulkDensity/flexuralStrength/compressiveStrength/permanentLineChange/apparentPorosity/abrasionResistance` 本来可用；
+   脚本改为**只读校验**（`verify_vocab`），已撤销此前对 `properties-config.json` 的改写（避免 444+/72− 行格式噪音与全局副作用）。

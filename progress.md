@@ -163,3 +163,12 @@
 - 本轮只做方案：`task_plan.md` Phase 1 → complete，Phase 2–6 细化为可执行步骤 + 6 条决策；findings 增 F26/F27。
 - 两个待用户拍板的点已列入 Phase 2：MC 是否按粒级实例化身份；非词表工况（1450Cx3H 等）是改词表还是入 customProperties。
 - 未导入任何数据（Phase 4/5 才写库）。
+
+## 会话 17 — 2026-10-15（ML 数据集 → 数据管理四表：导入完成）
+- 用户指引真源 `../_code/private_data/addtional/extractor/output/{yangquan,zibo}_formulas_clean`，据此核对并冻结策略（F31）。
+- 新增 `backend_impl/scripts/import_ml_formulas.py`：读 Clean JSON（batch183 走 ml_formula 回退），
+  组分解重+包装行过滤+配比归一（原始和留痕）、按粒级实例化 MC、v3 物性文档、测试文档（含 test_stage/温度/N-A）。
+- 实测导入：MC 3→385、MP 3→385、MR 2→782、TP 2→749；配比闭合 0 违例、引用闭合 0 悬空、幂等复跑计数不变；
+  四表 API 200；用真实前端渲染函数验证测试表/物性表均能显示（无"暂无数据"）。
+- 修正两处契约细节（v3 文档需内嵌 customProperties；缺工况写 N/A）；撤销 properties-config.json 改动（词表本已可用）。
+- 备份：`/tmp/database.db.bak-1015_144302`（写库前）。
