@@ -379,3 +379,32 @@ F27 里我按 2 行样例写成"工况如 `110℃×24h`/`1450℃×3h`"，**实�
 | **ID 格式不符** | 平台既有 ID = `MC_000001/MP_000001/MR_000001/TP_000001`（下划线+6 位，9 字符）；现有物化脚本铸 `MC000001`（无下划线） | 违反 `newDbService.js:91` 与前端 `entities.js:109` 的 `startsWith('MC_')/startsWith('MP_')` 校验 |
 | **同配方重复引用同一 MC 被禁** | `new Set(ids).size !== ids.length` → `Duplicate MC references are not allowed`（`newDbService.js:97`） | 同材料不同粒级必须各自成 MC 行 → **印证"按粒级实例化"不只是保真，而是必需** |
 | 工况形态 | 裸温度为主、zibo 全 `'null'`、yangquan 有双温度；词表原生可映射 0.4%（F28） | 测试表命名策略需以"属性裸名 + 测量项温度/时长字段"承载工况 |
+
+## F31 — 真源核对：extractor 输出 → ML 链路全链（2026-10-14）
+**用户指引的真源**：`../_code/private_data/addtional/extractor/output/yangquan_formulas_clean/`（**258** JSON + 258 YAML）
+与 `zibo_formulas_clean/`（**2556** JSON + 2556 YAML），由 `extractor/clean_schema.py` 按 README §4.152 的 Clean Canonical **五段结构**产出：
+`source_factory` / `formula{formula_id,purpose,product_name,water_addition_pct,hardening_time,demolding_strength,production_date,judgment}` /
+`components[{material_name,spec,ratio_pct,particle_size,batch,component_tests{chemical,property_inspection,fired_block,judgment}}]` /
+`formula_tests{matched,product_tests[{test_stage,temperature,bulk_density,cold_modulus,crushing_strength,linear_change,wear,true_density,
+water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_dry,linear_change_dry,judgment,source_table}]}` /
+`metadata{extract_time,formula_date,clean_mode,units,stats}`；
+关联证据链 `association_log.jsonl/json/csv`（策略 `batch_批次号`/`via_SKZZD_YPID`/`chem_date_sorted`，阳泉带 high/medium/low 置信度）。
+
+**核对结论（一一对上）**
+- **ML 侧配方来自这两目录的子集**：`ml_formula` 的 recipe_id 交集 = yangquan **141/258**、zibo **457/2556**（**ML 独有 0**）；141+457+182(batch183) = 780 ✓
+- **链路**：`extractor/output/*_formulas_clean/*.{json,yaml}` →（`.trae/documents/plan-yaml-data-pipeline-v2.md`：`_code/feature-engineering/.../yaml_codec.py` + 清洗管线）→
+  `_code/output/dataset_20260723.npz`(147MB) → `dataset_20260725.npy`(2997) → `dataset_726_20260728_*`(726, D=20 统一编码，`multi-source-data-processing-plan.md`) →
+  `dataset_{batch183,zibo,yangquan}_20260728.npy` → `datasetv2.npy`(780) → `_ref/handover/ML/*.npy` → `private/dataset_clean_meanstd.npy` →
+  `backend_impl/scripts/load_ml_dataset.py` → `ml_formula*`(780/12,522) → `materialize_ml_dataset.py` → 四表（本次目标）。
+  batch183 源头更早：`batch*.txt` → `dataset_merged.npy`(X=(183,96,3)=content%/size_min/size_max) → 融合为 D=20（`2026-07-27-merge-and-boost-mlp-r2.md`）。
+- **源→ML 的变换与丢失（实测）**
+  1. 非组分材料过滤（`ratio_pct>100` 或 `集装袋|袋装|普黑|PA胶`）已生效 → DB 中 0 命中；这解释了源侧 zibo 和≈**2700**（包装行 2500）而 ML 侧中位 **100.24**。
+  2. `particle_size` 三格式（淄博 float d50；阳泉 `"8-15"`；`200目`/null→0）编码为 `[min,max]`，最终落成 `particle_size_mean/std`。
+  3. **`component_batch`（批次号）被丢弃** ✗ —— 源 `components[].batch` 有值（`CY-不-2025011` / `260113050010`），是原料溯源关键字段。
+  4. **Y 只保留 4 属性** ✗ —— 源有 `apparent_porosity`(气孔率) 与 `wear`(耐磨)（平台词表有 `apparentPorosity(...)`），未搬运。
+  5. **`'null'` 键问题**：计划写明"跳过 `temperature: null` 的行"，但最终 `y_labels` 里 zibo 有 **1712** 个键字面为 `'null'` → 该规则在末轮未生效（或键写成了 `str(None)`）。
+  6. 工况命名来源已定位：yangquan 的 `1450℃/1500℃` ← 源 `test_stage`「高温抗折1450℃/1500℃」；`110℃`/`1450℃` ← `temperature` 字段。
+  7. **配比口径（ML 侧实测）**：batch183 中位 **100.22**；zibo 中位 **100.24**（454/457 在 100±0.5）；yangquan 中位 **95.06**（**仅 4/141** 在 ±0.5，极端 288.15）→ **yangquan 源自身不闭合**，需归一化 + 待核对清单。
+
+**策略修订**：主源改为这两组 clean JSON/YAML（字段最全、可追到源表/批次/置信度），`ml_formula*` 降级为交叉校验；
+补回 `component_batch`/`apparent_porosity`/`wear`/`test_stage`/`judgment`/`source_table`；溯源列写 `factory+formula_id+purpose+material_name+spec+batch+match_confidence`。

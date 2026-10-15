@@ -1,7 +1,7 @@
 # 任务计划（当前）：ML 数据集原始记录 → 数据管理四张业务表
 
-**目标**：把 ML 数据集（`_ref/handover/ML/*.npy` 及其派生 `ml_formula` / `ml_formula_component` / `FEATURE/outputs/*`）
-中的**原始记录**按来源可追溯、可复跑的方式导入「数据管理」的四张业务表 —— **配方表、原料表、物性表、测试表**；
+**目标**：把 ML 数据集的**原始记录**（真源 = `../_code/private_data/addtional/extractor/output/{yangquan,zibo}_formulas_clean/*.json`；
+派生 = `_ref/handover/ML/*.npy` → `ml_formula*`）按来源可追溯、可复跑的方式导入「数据管理」的四张业务表 —— **配方表、原料表、物性表、测试表**；
 不污染既有表（如 `literature`、`ml_*`），也不改动线上训练链路。
 
 **已核实的前提（2026-10-14）**
@@ -43,29 +43,29 @@
 - [x] 写入路径与闸门定位；确认物化脚本绕过服务层故需自校验
 - [x] 发现并记录：词表 0 命中、文档结构不符、粒级折叠、TP 粒度过粗、MP 删除判据偏软
 
-### Phase 2：据原始契约冻结完整策略 — Status: complete（2026-10-14）
-**依据**：`_ref/handover/ML/enterprise_input_template.json`（`enterprise_input_v1`，48 列 X 契约 + `validation_rules`）、
-`data/handover/base_list.json`(89) + `V1_base_mapping.json`(142 别名→base_id)、实测 DB 一致性（F29/F30）。
+### Phase 2：据真源与原始契约冻结完整策略 — Status: complete（2026-10-14，已按用户指引修正主源）
+**主源（真源）**：`../_code/private_data/addtional/extractor/output/{yangquan_formulas_clean(258), zibo_formulas_clean(2556)}/*.json`
+（Clean Canonical 五段结构 + `association_log.*` 关联置信度）；**交叉校验源**：`ml_formula*`（780/12,522，实测为真源子集 141/457）。
+**补充契约**：`enterprise_input_template.json`（X 48 列口径 + `ratio_pct_total_should_be=100`）、`base_list.json`(89 规范名)、`V1_base_mapping.json`(142 别名→base_id)。
 
-**四表数据流（一条记录的生命周期）**
-```
-enterprise JSON(48列契约) → datasetv2.npy(780) → ml_formula/ml_formula_component(平台)
-   →[规范化]→ MC(原料,按粒级) + MP(原料物性) + MR(配方) + TP(测试,配方级 y)
-溯源键：{dataset:'datasetv2', source, recipe_id, comp_index, ml_formula.id, ml_formula_component.id, orig_ratio_sum}
-```
+**链路（已核对，见 F31）**：`*_formulas_clean/*.{json,yaml}` →（yaml_codec + 清洗，`plan-yaml-data-pipeline-v2.md`）→ `_code/output/dataset_20260723.npz`
+→ `dataset_20260725.npy` → `dataset_726_20260728_*`(D=20) → `dataset_{batch183,zibo,yangquan}_20260728.npy` → `datasetv2.npy`(780)
+→ `_ref/handover/ML/*.npy` → `load_ml_dataset.py` → `ml_formula*` → 四表物化。
 
-**必须执行的规范化（否则写不进去/数据失真）**
-1. **组分解重**：按 `(material_id, particle_size_mean, particle_size_std)` 合并同一配方内的重复组分（重复块样例：`yangquan/BZ20250505-002` 3×13 行）；合并策略=比例相加，并记录原始行数。
-2. **配比归一**：按契约 `ratio_pct_total_should_be=100` 做比例归一到 100±0.01；原始和写入溯源；**偏差 >1% 的 151 条另出"待核对清单"**（不得静默改写）。
-3. **ID 格式**：铸 `MC_/MP_/MR_/TP_` + 6 位（9 字符，接 DB 最大值续号）——修现有脚本的无下划线前缀。
-4. **名称**：组件名用 `base_list` 的 89 个规范名（保证过闸门）；ML 身份（source/material_id/粒级/原始 min-max）放 `component_list` 第 3 位 meta 对象。
-5. **MC 身份 = (source, material_id, particle_size_mean, particle_size_std)**（用户裁定：按粒级实例化；且后端禁止同配方重复引用同一 MC，必须如此）。
-6. **MP 物性文档**（schemaVersion 3）：`particleSize`(粒径, 取 mean/或 min-max 入 custom)、`bulkDensity/trueDensity/waterAbsorption/porosity` 等按词表名；化学组成（SiC/SiO2/AL2O3/…）与 PC1..PC20/`fired_*` → `customProperties`（化学键在 pure 词表 0 命中）。
-7. **TP 测试文档**（schemaVersion 3）：属性用**测试词表裸名**（新增 4 条：`bulkDensity/flexuralStrength/compressiveStrength/permanentLineChange`），**工况放测量项字段**
-   （`temperature` = 110/1100/1300/1450/1500 ℃；`duration` = 3/24/1 h 或 `N/A`；zibo 的 `'null'` → 温度/时长均 `N/A`）；重复测量 `"a / b"` **拆成两条测量项**；
-   `1450℃/1500℃` 双温度 → 两条测量项或一条 + custom 备注（Phase 3 定）；`test_condition='ML数据集: <src>'`、`mr_ids=[mr_id]`。
-8. **不动全局其它配置**：词表仅**追加 4 个裸名**（不改既有名、不加 40 条工况变体）。
+**主源带来的改进（相对仅用 ml_formula*）**：可恢复 `component_batch`(批次号)、`apparent_porosity`/`wear`、`test_stage`、`judgment`、`source_table`、
+`water_addition_pct`/`hardening_time`/`production_date`，以及每条测试的**匹配策略与置信度**（溯源硬度显著提升）。
 
+**必须执行的规范化/映射（定稿）**
+1. **组分解重**：同配方内按 `(material_name, spec/粒径)` 合并重复组分（比例相加），记录原始行数。
+2. **配比处理（按源区分口径）**：zibo/batch183 ≈ 百分比（中位 100.2，微调即可）；**yangquan 中位 95.06、仅 4/141 闭合** → 比例归一到 100±0.01 并**另出待核对清单**（原始和留痕）。
+3. **ID**：`MC_/MP_/MR_/TP_` + 6 位（9 字符，接 DB 最大续号）；修既有脚本的无下划线前缀。
+4. **名称**：`base_list` 规范名（过闸门）；`V1_base_mapping` 142 别名用于解析；ML 身份（factory/formula_id/material_name/spec/batch）入 `component_list` meta。
+5. **MC 身份 = (factory, material_name, spec/粒径)**（用户裁定：按粒级实例化；后端禁止同配方重复引用同一 MC，故必需）。
+6. **MP 物性文档**（schemaVersion 3）：`property_inspection` 7 键按词表映射（`particleSize`/`bulkDensity`/`trueDensity`/`waterAbsorption`/`porosity`）+ `chemical` 11 键（SiC…PH/loi）入 `customProperties`。
+7. **TP 测试文档**（schemaVersion 3）：源自 `formula_tests.product_tests[]`，**每条测试一条测量**（保留 `test_stage`；`temperature` 入测量项字段；**跳过 `temperature=null`** 或单列"无工况"，不再产生 `'null'` 键）；属性含 4+2（`apparent_porosity`/`wear` 一并保留）；词表仅追加 4 个裸名（`bulkDensity/flexuralStrength/compressiveStrength/permanentLineChange`）。
+8. **可追溯**：每条记录写源文件相对路径 + `formula_id` + `purpose` + `batch` + 关联 `match_confidence`，支持反查源 JSON 与源表。
+
+### Phase 3：加载器改造（复用而非重写） — Status: pending
 ### Phase 3：加载器改造（复用而非重写） — Status: pending
 ### Phase 3：加载器改造（复用而非重写） — Status: pending
 - [ ] 改造 `backend_impl/scripts/materialize_ml_dataset.py`：词表映射、文档结构、规范名、粒级身份、`--dry-run`
