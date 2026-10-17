@@ -458,3 +458,9 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 - 计划与 TODO 已写入 `task_plan.md`（当前计划置顶，7 个 Phase）与 `progress.md`（会话 18）；`todo` 工具已登记 21 项。
 - 设计要点（待 Phase 2 定稿）：GridFS 存本体 + `file_meta` 集合存索引（`file_id, doi, lit_id, kind, mime, size, sha256, visibility, source, created_at, deleted_at`），
   `sha256` 唯一（内容去重）、`(doi, kind)` 唯一（同 DOI 同类型唯一）、`visibility ∈ {public, private}`（文献默认 public）。
+
+## F35 — 迁移集量化（Mongo 入库前的账面）2026-10-15
+- `lit_file` **2,466 行 / 2,466 个唯一路径，全部在磁盘存在**，合计 **6.23 GB**；类型 1,466 `pdf` + 1,000 `md`；**`sha256` 一列全为空**（需迁移时计算）。
+- `literature.attachment` 非空 **1,420** 行，**全部能在 `lit_file` 按 filename 命中**（未命中 0、有 attachment 但无 lit_file 行 0）→ 衔接一致，可直接按 `lit_id` 迁移。
+- `lit_file` 按 collection：aug 2,043（1,000 PDF + 1,043 MD）、r3 384、sep 39。
+- 迁移预期：按 `sha256` 去重后 ≤2,466 个对象（同名不同内容需保留多份）；单对象平均 ≈2.5 MB。
