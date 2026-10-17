@@ -438,3 +438,23 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 3. **无需改词表**：`config/properties-def.js` 的 `LEGACY_TEST_PROPERTIES` 会把 `bulkDensity(110Cx24H)` 等剥成裸名并补 temperature(+duration) 字段，
    故 `bulkDensity/flexuralStrength/compressiveStrength/permanentLineChange/apparentPorosity/abrasionResistance` 本来可用；
    脚本改为**只读校验**（`verify_vocab`），已撤销此前对 `properties-config.json` 的改写（避免 444+/72− 行格式噪音与全局副作用）。
+
+## F33 — MongoDB 统一文件管理：现状真值（2026-10-15）
+**Mongo 侧**
+- mongod 在 `0.0.0.0:27017` 运行；`.env` `MONGODB_URI=mongodb://localhost:27017/asc-platform`。
+- **`asc-platform` 库尚不存在**（`listDatabases` 只有 `admin/config/local`）→ 文件管理等于从零开始，不存在历史脏数据。
+- 依赖齐全：`mongodb`、`mongoose`、`gridfs-stream`、`multer` 均已安装。
+- 现有附件实现：`src/controllers/attachmentController.js` + `src/services/gridFsBucketStorage.js`，
+  bucket = **`attachments`**；路由 `/api/attachment/upload`、`/remove/:litId`、`/metadata/:litId`、`GET /:filename`；
+  mongoose 连接失败时仅禁用附件（不阻塞启动）。**从未有文件写入**（bucket 空/库不存在）。
+- 现有实现缺口：无 DOI 索引、无 public/private 标签、无统一元数据集合（仅 GridFS 内嵌 metadata）、无 sha256 去重与对账字段。
+
+**SQLite 侧（迁移基数）**
+- `literature` 17,695 行，其中 **`attachment` 非空 1,420**；**无 `file_id` 列**（需新增）。
+- `lit_file` 2,466 行，`storage` 全为 `ref`（本地绝对路径）；`lit_file` 与 `literature.attachment` 语义重叠（文件名 vs 路径）。
+- 结论：需要入 Mongo 的候选文件 = 1,420 条 attachment + 2,466 条 lit_file（按 `sha256`/路径去重后统计），迁移必须输出「缺失/孤儿/重复」清单。
+
+## F34 — 任务计划（Mongo 统一文件管理）
+- 计划与 TODO 已写入 `task_plan.md`（当前计划置顶，7 个 Phase）与 `progress.md`（会话 18）；`todo` 工具已登记 21 项。
+- 设计要点（待 Phase 2 定稿）：GridFS 存本体 + `file_meta` 集合存索引（`file_id, doi, lit_id, kind, mime, size, sha256, visibility, source, created_at, deleted_at`），
+  `sha256` 唯一（内容去重）、`(doi, kind)` 唯一（同 DOI 同类型唯一）、`visibility ∈ {public, private}`（文献默认 public）。

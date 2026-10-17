@@ -172,3 +172,11 @@
   四表 API 200；用真实前端渲染函数验证测试表/物性表均能显示（无"暂无数据"）。
 - 修正两处契约细节（v3 文档需内嵌 customProperties；缺工况写 N/A）；撤销 properties-config.json 改动（词表本已可用）。
 - 备份：`/tmp/database.db.bak-1015_144302`（写库前）。
+
+## 会话 18 — 2026-10-15（MongoDB 统一文件管理：立项与勘察）
+- 用户需求：backend_impl 内基于 MongoDB 的统一文件管理；GraphRAG chunk 按 DOI 可溯原文；文献库原文链接指向 Mongo；
+  Mongo 分 public/private 标签（文献默认 public）；最后对齐前端「文献数据管理」逐条核验。
+- 已：新增当前计划（`task_plan.md`，7 Phase）+ 21 项 TODO；修复旧的重复 Phase 3 标题；把 ML→四表计划据实标记为完成。
+- 勘察真值（F33）：Mongo `asc-platform` 库**尚不存在**；现有 `attachments` bucket 从未写入；SQLite `literature` 17,695（attachment 1,420）、
+  `lit_file` 2,466（全 ref 本地路径）、无 `file_id` 列。
+- 进行中：三路只读勘察（Mongo/GridFS 现状、GraphRAG chunk 与 DOI、前端文献管理交互）。

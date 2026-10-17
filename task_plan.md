@@ -1,4 +1,74 @@
-# 任务计划（当前）：ML 数据集原始记录 → 数据管理四张业务表
+# 任务计划（当前）：基于 MongoDB 的统一文件管理（backend_impl）
+
+**目标**：把「原文/附件」统一收敛到 MongoDB（GridFS + 元数据集合），实现四件事：
+1. `backend_impl` 内提供统一文件管理服务（上传/下载/预览/按 DOI 查询/标签/软删），文件本体与元数据都在 Mongo。
+2. **GraphRAG 的每条 chunk 可按记录的 DOI 追溯到 Mongo 原文**（chunk 携带 `doi` + `file_id`，检索结果可回链）。
+3. 文献库（SQLite 检索保留）的**原文链接全部指向 Mongo**（`literature` / `lit_file` 不再以本地路径为最终来源）。
+4. MongoDB 内以 **`public` / `private` 两种 tag** 管理可见性，文献默认 `public`；前端「文献数据管理」逐条核验原文真实进入 Mongo。
+
+**范围与非目标**
+- 在 `backend_impl/` 内实现；不改动 SQLite 的文献检索/元数据模型（只新增 Mongo 文件引用列）。
+- 不迁移/改写 GraphRAG 的检索算法与向量库，只补「chunk → 原文」的溯源键与回链接口。
+- 迁移不删除本地 PDF 原件（Mongo 建副本 + 记录 sha256，可对账）。
+
+## Phases
+
+### Phase 1：勘察三面现状 — Status: in_progress
+- [ ] Mongo/GridFS 现有实现（连接、bucket、metadata、接口、`literature.attachment`/`lit_file` 语义）
+- [ ] GraphRAG chunk 存储位置与字段（是否带 doi / 文献 id；入库与检索链路）
+- [ ] 前端「文献数据管理」的页签、附件 API、预览/下载/上传流程与字段假设
+- [ ] 产出：`findings.md` 记录 + 缺口清单
+
+### Phase 2：统一文件模型设计 — Status: pending
+- [ ] 集合与索引：GridFS bucket 命名、元数据集合字段（`file_id/doi/lit_id/kind/mime/size/sha256/visibility/source/created_at`）+ 唯一索引
+- [ ] 可见性模型：`visibility: public|private`（文献默认 public），API 过滤与写保护规则
+- [ ] 幂等键：`sha256`（同文件不重复存）+ `(doi, kind)` 唯一性策略；DOI 归一化规则
+- [ ] SQLite 侧改动：`literature.file_id`（+ 迁移），`attachment` 兼容语义
+
+### Phase 3：统一文件服务实现（backend_impl） — Status: pending
+- [ ] `services/fileStoreService.js`：上传（流式）/按 id 或 DOI 取流/元数据 CRUD/标签切换/软删
+- [ ] 路由与控制器（含 Range 支持、Content-Type/Disposition、鉴权与可见性）
+- [ ] 单测/冒烟：上传→按 DOI 命中→下载→sha256 校验→标签切换→软删
+
+### Phase 4：文献库接入与存量迁移 — Status: pending
+- [ ] 文献上传/替换走统一文件服务；`literature.file_id` 回写
+- [ ] 存量迁移脚本：`literature`(17,695) + `lit_file`(2,466) → Mongo（默认 public，保留 sha256/原路径留痕），输出**缺失清单**
+- [ ] 预览/下载接口改为 Mongo 优先，本地路径仅作历史回退（并标注）
+
+### Phase 5：GraphRAG chunk → DOI → 原文 打通 — Status: pending
+- [ ] chunk 写入侧补 `doi`（与 `file_id`），解析 DOI 的来源与归一化
+- [ ] 检索返回结构补 `doi/file_id/original_url`，提供「按 DOI 取原文」接口
+- [ ] 端到端：任取 chunk → 提取 doi → 命中 Mongo 文件 → 下载校验
+
+### Phase 6：前端「文献数据管理」对齐与逐条核验 — Status: pending
+- [ ] 页面/接口对齐（附件字段、预览/下载链接、上传回写）
+- [ ] **逐条核验**：前端可见的文献行 → 其 `file_id` 在 Mongo 存在、可下载、`sha256` 与本地一致；输出「齐备/缺失/孤儿」三张清单
+- [ ] UI 等价验证（浏览器不可用时用 API + 渲染/字段断言，注明限制）
+
+### Phase 7：回归、文档与提交 — Status: pending
+- [ ] 回归：`node --test "tests/*.test.js"`（既有 15 条失败为基线）、四表/文献 API 冒烟
+- [ ] README「统一文件管理」小节 + findings 记录 + 提交
+
+## Decisions Made
+| 决策 | 理由 |
+| --- | --- |
+| GridFS 存本体 + 元数据集合存索引/标签 | 大文件流式读写用 GridFS 最稳；DOI/标签/检索放普通集合便于建索引与聚合 |
+| `sha256` 作幂等键 | 同一 PDF 多来源重复投递常见（resource3 已见 161 处重复），按内容去重避免重复存储 |
+| SQLite 保留检索、仅新增 `file_id` | 用户明确「文献检索保留自己一套 sqlite 没问题」 |
+| 迁移不删本地原件 | 可回滚、可对账（sha256），避免一次性不可逆操作 |
+| 文献默认 `public` | 用户明确要求；`private` 用于后续受限资料 |
+
+## Errors Encountered
+| Error | Attempt | Resolution |
+| --- | --- | --- |
+| — | — | — |
+
+## Next Step
+等三面勘察（Mongo 现状 / GraphRAG chunk / 前端文献管理）返回后，进入 Phase 2 冻结文件模型与索引，再写服务层。
+
+---
+
+# 附：已完成计划 — ML 数据集原始记录 → 数据管理四张业务表（2026-10-15 完成）
 
 **目标**：把 ML 数据集的**原始记录**（真源 = `../_code/private_data/addtional/extractor/output/{yangquan,zibo}_formulas_clean/*.json`；
 派生 = `_ref/handover/ML/*.npy` → `ml_formula*`）按来源可追溯、可复跑的方式导入「数据管理」的四张业务表 —— **配方表、原料表、物性表、测试表**；
@@ -65,24 +135,22 @@
 7. **TP 测试文档**（schemaVersion 3）：源自 `formula_tests.product_tests[]`，**每条测试一条测量**（保留 `test_stage`；`temperature` 入测量项字段；**跳过 `temperature=null`** 或单列"无工况"，不再产生 `'null'` 键）；属性含 4+2（`apparent_porosity`/`wear` 一并保留）；词表仅追加 4 个裸名（`bulkDensity/flexuralStrength/compressiveStrength/permanentLineChange`）。
 8. **可追溯**：每条记录写源文件相对路径 + `formula_id` + `purpose` + `batch` + 关联 `match_confidence`，支持反查源 JSON 与源表。
 
-### Phase 3：加载器改造（复用而非重写） — Status: pending
-### Phase 3：加载器改造（复用而非重写） — Status: pending
-### Phase 3：加载器改造（复用而非重写） — Status: pending
+### Phase 3：加载器改造（复用而非重写） — Status: complete
 - [ ] 改造 `backend_impl/scripts/materialize_ml_dataset.py`：词表映射、文档结构、规范名、粒级身份、`--dry-run`
 - [ ] 溯源写入：`{dataset:'datasetv2', source, recipe_id, comp_index, ml_formula.id, ml_formula_component.id}` 落到 meta/custom_properties，可反查 npy 行
 - [ ] 加固删除判据：MP 靠 `custom_properties` 内的 ML 溯源键识别（不再靠 `mc_ids` 反向引用）
 - [ ] 自检闸门（名称解析/ratio 和/引用闭合），不合规记录**报告不静默丢弃**
 
-### Phase 4：干跑与抽样验证 — Status: pending
+### Phase 4：干跑与抽样验证 — Status: complete
 - [ ] `--dry-run` 输出：四表预计行数、被跳过记录与原因、ratio 和分布、非词表工况/未知 base 清单
 - [ ] 抽样人工核对 3 条配方的 配方↔原料↔物性↔测试 四表闭环
 - [ ] 写库前备份 DB（`cp database.db database.db.bak-<ts>`）
 
-### Phase 5：正式导入与逐表校验 — Status: pending
+### Phase 5：正式导入与逐表校验 — Status: complete
 - [ ] `--apply` 导入；四表计数、必填非空、引用闭合（`mr.tp_ids ⊆ tp`、`tp.mr_ids ⊆ mr`、`mr.component_list[].id ⊆ mc`、`mp.mc_ids ⊆ mc`）、重复键 = 0
 - [ ] 幂等复核：连跑两次，第二次行数不变且不产生重复
 
-### Phase 6：界面与回归验证 + 文档 — Status: pending
+### Phase 6：界面与回归验证 + 文档 — Status: complete（浏览器不可用，用真实渲染函数等价验证）
 - [ ] 四个页签可见且「属性/内容」列有渲染（浏览器工具在本沙箱不可用 → 用 API + 文档渲染函数等价验证，并声明限制）
 - [ ] 回归：`node --test "tests/*.test.js"` 与验收页相关项不退化；对比基线（`tests/` 既有 15 条失败）
 - [ ] 文档：README 增「ML 数据集 → 数据管理四表」小节；findings F27；提交
