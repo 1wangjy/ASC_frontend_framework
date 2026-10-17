@@ -542,3 +542,13 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 - `POST /api/pdf-library/files`（带 `doi/lit_id/platform_file_id`）→ 响应记录含三个字段（回读自 DB，证明已持久化）✓
 - 单元验证 `_to_reference`：`platform_file_id` → `http://127.0.0.1:3001/api/files/<id>/stream`；
   仅 `doi` → `/api/files/by-doi/<doi>/stream`；两者皆无 → `None` ✓
+
+## F39 补充 — 容器 OOM 与 9p 文件系统（2026-10-15，已修复环境）
+- `docker events` 确证：容器 `mongodb-seml` 在 **10:07:42 / 10:14:52 两次 `container oom`**（`exitCode=137`）→
+  首次迁移的 2,020 个对象/约 5 GB 写入丢失（进程报告"成功"，但服务端被 OOM kill）。
+- 内存面：宿主 15.6 GB、`free` 仅 ~4.4 GB、swap 已用 3.7 GB；mongod 无内存上限、默认 WiredTiger cache 会按比例占满。
+- **命名卷不可用**：Docker 数据根在 `D:\wsl\docker-data`（**9p**），WiredTiger 打开 `WiredTiger.wt` 报
+  `Operation not permitted`（O_DIRECT 语义不支持）→ 命名卷方案在本机行不通（已试并回滚）。
+- **最终修复（已实施）**：把 `/data/db` 绑定到 **WSL ext4** 的 `/home/shin/mongo-data`（`-v /home/shin/mongo-data:/data/db`）
+  并加 `--wiredTigerCacheSizeGB 0.5` 限制缓存 → 容器稳定运行、数据落在 ext4（可持久、支持 WiredTiger I/O）。
+- 说明：容器重建后原 `asc-platform` 数据为空，迁移脚本幂等重跑了全量（`lit_file.file_id` 仍指向旧 id → `findById` 失配 → 重传）。
