@@ -288,6 +288,31 @@ Clean Canonical 输出（字段最全、可反查到源文件/批次）：
 - 写库前请备份 `backend_impl/data/sqlite/database.db`；重复导入安全（幂等标记：`batch_no LIKE 'ML-%'`、
   `creator LIKE 'ml-ingest:%'`、`test_condition LIKE 'ML数据集: %'`）。
 
+### 统一文件管理（MongoDB GridFS）
+
+原文/附件的**唯一权威存储**是 MongoDB（SQLite 只保留检索元数据与 `file_id` 引用）。
+
+- 存储：GridFS bucket **`asc_files`** + 元数据集合 **`file_meta`**
+  （`file_id, doi, doi_key, lit_id, kind, filename, aliases[], mime, size, sha256, visibility, source, source_path, gridfs_id, created_at, deleted_at`）。
+  索引：`sha256`、`doi_key`、`(doi_key,kind)`、`lit_id`、`visibility`、`filename`（均为普通索引）。
+- 可见性：`visibility ∈ {public, private}`，**文献默认 `public`**；`PATCH /api/files/:fileId/visibility` 切换。
+- 去重：**按内容 `sha256`**（应用层，先算哈希再查）；同一内容不同文件名时把旧名写入 `aliases`，保证旧链接仍可解析。
+- SQLite 引用：`literature.file_id`（主文件）、`lit_file.file_id`（每个 pdf/md 分片）；`lit_file.storage='mongo'` 表示已入库。
+- 接口（`/api/files`）：`POST /upload`、`GET /by-doi/:doi[/stream]`、`GET /by-lit/:litId`、
+  `GET /:fileId/meta|stream`（支持 `Range`）、`PATCH /:fileId/visibility`、`DELETE /:fileId`、`GET /stats|health`。
+  前端沿用的 `GET /api/attachment/:filename` 仍可用（按 `filename` 或 `aliases` 解析，Mongo 优先、旧 bucket 回退）。
+- 迁移与核验：
+  ```bash
+  node backend_impl/scripts/migrate_files_to_mongo.js --dry-run   # 账面：行数/字节/缺失
+  node backend_impl/scripts/migrate_files_to_mongo.js --apply     # 幂等：只补缺失，已有跳过；自动补别名
+  node backend_impl/scripts/verify_literature_files.js            # 逐条核验（存在性 + sha256 + HTTP 可下载 + 前端 URL）
+  ```
+- **GraphRAG 溯源**：5001 的 `pdf_files` 保存 `doi/lit_id/platform_file_id`；项目文件记录与 `EvidenceChunk.metadata`
+  均带 `platform_file_id`；`AnswerReference.original_url` 指向 `/api/files/<file_id>/stream`（无 file_id 时用 `/by-doi/<doi>/stream`）。
+- **环境注意**：若 MongoDB 跑在 Docker 且数据目录落在 9p（`D:\wsl\docker-data`），WiredTiger 会因 `Operation not permitted` 启动失败；
+  请把 `/data/db` 绑定到 WSL ext4（如 `-v /home/shin/mongo-data:/data/db`）并限制缓存（`--wiredTigerCacheSizeGB 0.5`），
+  否则大批量写入会触发容器 OOM（exit 137）并丢失未落盘数据。
+
 ## 认证与多用户账号
 
 - 账号存储：SQLite `users` 表（`email` 唯一，`status` 取 `pending|approved|rejected|disabled`）；

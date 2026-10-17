@@ -25,27 +25,27 @@
 - [ ] 幂等键：`sha256`（同文件不重复存）+ `(doi, kind)` 唯一性策略；DOI 归一化规则
 - [ ] SQLite 侧改动：`literature.file_id`（+ 迁移），`attachment` 兼容语义
 
-### Phase 3：统一文件服务实现（backend_impl） — Status: pending
+### Phase 3：统一文件服务实现（backend_impl） — Status: complete
 - [ ] `services/fileStoreService.js`：上传（流式）/按 id 或 DOI 取流/元数据 CRUD/标签切换/软删
 - [ ] 路由与控制器（含 Range 支持、Content-Type/Disposition、鉴权与可见性）
 - [ ] 单测/冒烟：上传→按 DOI 命中→下载→sha256 校验→标签切换→软删
 
-### Phase 4：文献库接入与存量迁移 — Status: pending
+### Phase 4：文献库接入与存量迁移 — Status: complete（迁移因容器 OOM 重跑，见 F39）
 - [ ] 文献上传/替换走统一文件服务；`literature.file_id` 回写
 - [ ] 存量迁移脚本：`literature`(17,695) + `lit_file`(2,466) → Mongo（默认 public，保留 sha256/原路径留痕），输出**缺失清单**
 - [ ] 预览/下载接口改为 Mongo 优先，本地路径仅作历史回退（并标注）
 
-### Phase 5：GraphRAG chunk → DOI → 原文 打通 — Status: pending
+### Phase 5：GraphRAG chunk → DOI → 原文 打通 — Status: complete
 - [ ] chunk 写入侧补 `doi`（与 `file_id`），解析 DOI 的来源与归一化
 - [ ] 检索返回结构补 `doi/file_id/original_url`，提供「按 DOI 取原文」接口
 - [ ] 端到端：任取 chunk → 提取 doi → 命中 Mongo 文件 → 下载校验
 
-### Phase 6：前端「文献数据管理」对齐与逐条核验 — Status: pending
+### Phase 6：前端「文献数据管理」对齐与逐条核验 — Status: complete
 - [ ] 页面/接口对齐（附件字段、预览/下载链接、上传回写）
 - [ ] **逐条核验**：前端可见的文献行 → 其 `file_id` 在 Mongo 存在、可下载、`sha256` 与本地一致；输出「齐备/缺失/孤儿」三张清单
 - [ ] UI 等价验证（浏览器不可用时用 API + 渲染/字段断言，注明限制）
 
-### Phase 7：回归、文档与提交 — Status: pending
+### Phase 7：回归、文档与提交 — Status: in_progress
 - [ ] 回归：`node --test "tests/*.test.js"`（既有 15 条失败为基线）、四表/文献 API 冒烟
 - [ ] README「统一文件管理」小节 + findings 记录 + 提交
 
@@ -64,7 +64,7 @@
 | — | — | — |
 
 ## Next Step
-等三面勘察（Mongo 现状 / GraphRAG chunk / 前端文献管理）返回后，进入 Phase 2 冻结文件模型与索引，再写服务层。
+运行回归测试（`node --test "tests/*.test.js"` 基线 15 条失败）与四表/文献 API 冒烟，然后提交。
 
 ---
 

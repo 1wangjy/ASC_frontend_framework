@@ -111,6 +111,7 @@ function toFile(doc) {
     visibility: doc.visibility || DEFAULT_VISIBILITY,
     source: doc.source || null,
     source_path: doc.source_path || null,
+    aliases: Array.isArray(doc.aliases) ? doc.aliases : [],
     created_at: doc.created_at || null,
   };
 }
@@ -153,10 +154,14 @@ async function uploadStream(readable, meta = {}) {
   const duplicate = await db.collection(META).findOne({ sha256, deleted_at: null }, { sort: { created_at: 1 } });
   if (duplicate) {
     await bucket.delete(upload.id).catch(() => {});
-    if (meta.litId && !duplicate.lit_id) {
-      await db.collection(META).updateOne({ _id: duplicate._id }, { $set: { lit_id: meta.litId, updated_at: now } });
-      duplicate.lit_id = meta.litId;
+    const patch = { updated_at: now };
+    if (meta.litId && !duplicate.lit_id) patch.lit_id = meta.litId;
+    // 同内容不同文件名（文献库里既有重复件）→ 记录别名，保证旧链接仍可解析
+    if (filename && filename !== duplicate.filename) {
+      await db.collection(META).updateOne({ _id: duplicate._id }, { $addToSet: { aliases: filename } });
     }
+    await db.collection(META).updateOne({ _id: duplicate._id }, { $set: patch });
+    if (patch.lit_id) duplicate.lit_id = patch.lit_id;
     return { ...toFile(duplicate), deduped: true };
   }
   const doc = {
@@ -202,6 +207,18 @@ async function uploadStream(readable, meta = {}) {
   return { ...toFile(doc), deduped: false };
 }
 
+/** 追加文件名别名（同内容不同文件名时保证旧链接可解析） */
+async function addAlias(fileId, alias) {
+  const name = String(alias || '').trim();
+  if (!name) return null;
+  const db = await getDb();
+  await db.collection(META).updateOne(
+    { file_id: String(fileId), deleted_at: null },
+    { $addToSet: { aliases: name }, $set: { updated_at: new Date() } },
+  );
+  return findById(fileId);
+}
+
 async function findByDoi(doi, options = {}) {
   const db = await getDb();
   await ensureIndexes();
@@ -233,7 +250,11 @@ async function findByLitId(litId) {
 /** 旧接口兼容：按文件名解析（file_meta.filename 优先，其次 GridFS 旧 bucket） */
 async function resolveByFilename(filename) {
   const db = await getDb();
-  const meta = await db.collection(META).findOne({ filename: String(filename), deleted_at: null }, { sort: { created_at: -1 } });
+  // 先按当前文件名，再按别名（同一内容被不同文件名引用时，去重会留下别名）
+  const meta = await db.collection(META).findOne(
+    { $or: [{ filename: String(filename) }, { aliases: String(filename) }], deleted_at: null },
+    { sort: { created_at: -1 } },
+  );
   if (meta) return { file: toFile(meta), legacy: false };
   const legacy = await new GridFSBucket(db, { bucketName: LEGACY_BUCKET }).find({ filename: String(filename) })
     .sort({ uploadDate: -1 }).limit(1).next();
@@ -349,7 +370,7 @@ async function close() {
 module.exports = {
   BUCKET, LEGACY_BUCKET, META, DEFAULT_VISIBILITY, VISIBILITIES,
   normalizeDoi, kindOf, mimeOf,
-  uploadStream, findByDoi, findById, findBySha256, findByLitId,
+  uploadStream, findByDoi, findById, findBySha256, findByLitId, addAlias,
   resolveByFilename, openStream, setVisibility, softDelete, linkLiterature,
   stats, isReady, ensureIndexes, close,
 };

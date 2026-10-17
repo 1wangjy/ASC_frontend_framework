@@ -552,3 +552,28 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 - **最终修复（已实施）**：把 `/data/db` 绑定到 **WSL ext4** 的 `/home/shin/mongo-data`（`-v /home/shin/mongo-data:/data/db`）
   并加 `--wiredTigerCacheSizeGB 0.5` 限制缓存 → 容器稳定运行、数据落在 ext4（可持久、支持 WiredTiger I/O）。
 - 说明：容器重建后原 `asc-platform` 数据为空，迁移脚本幂等重跑了全量（`lit_file.file_id` 仍指向旧 id → `findById` 失配 → 重传）。
+
+## F41 — 统一文件管理交付核验（2026-10-15）
+**落库结果**：`asc_files` + `file_meta` = **2,437 个对象 / 6.15 GB**（PDF 1,437 + MD 1,000）；
+`lit_file` 2,466 行全部回填 `file_id` 且 `storage='mongo'`；`literature.file_id` 回填 1,422（含 2 条仅 MD 的文献）。
+迁移：2,328 新传 + 24 内容去重 + 114 跳过（前一轮已传）= 2,466，**0 缺失 0 错误**。
+
+**逐条核验（`verify_literature_files.js`，两轮）**
+| 检查 | 结果 |
+| --- | --- |
+| `lit_file.file_id` 回填 | 2,466 / 2,466 |
+| Mongo `file_meta` 存在 | 0 缺失 |
+| `asc_files.files` 对象存在 | 0 缺失 |
+| **sha256 与本地原件一致** | **0 不符**（全量 6.15 GB 哈希对账） |
+| `GET /api/files/<id>/stream` | 0 失败（200/206） |
+| 前端 `GET /api/attachment/<attachment>` | **0 失败**（1,420 条） |
+| 孤儿（Mongo 有、SQLite 无引用） | 0 |
+
+**过程中发现的两类真实问题**
+1. **文献库既有重复文件**：`106_10.1111_ijac.12691.pdf` 与 `105_10.1111_ijac.13249.pdf` 字节完全相同（4,689,346 B / 同 sha256），
+   `201_10.1111_jace.19119.pdf` 与 `198_10.1016_j.ceramint.2018.09.165.pdf` 同样相同 → 内容去重只存一份后，
+   旧文件名按名解析不到（2 条附件 URL 404）。**修复**：`file_meta` 增 `aliases[]`，去重命中时把旧文件名写入别名，
+   `/api/attachment/:filename` 按 `filename` 或 `aliases` 解析 → 两条 URL 均恢复 200；复核 attachment_failed=0。
+   （这两对**同内容不同文件名**说明 aug 采集批次存在重复下载，建议后续按 sha256 做一次库内去重决策。）
+2. **环境 OOM/文件系统**（F39）：容器两次 OOM（exit 137）导致首轮迁移写入丢失；Docker 数据根在 9p 上无法承载 WiredTiger 命名卷。
+   已改为 `/home/shin/mongo-data`（WSL ext4）绑定卷 + `--wiredTigerCacheSizeGB 0.5`，容器 `RestartCount=0` 稳定至今。

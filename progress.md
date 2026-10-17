@@ -180,3 +180,20 @@
 - 勘察真值（F33）：Mongo `asc-platform` 库**尚不存在**；现有 `attachments` bucket 从未写入；SQLite `literature` 17,695（attachment 1,420）、
   `lit_file` 2,466（全 ref 本地路径）、无 `file_id` 列。
 - 进行中：三路只读勘察（Mongo/GridFS 现状、GraphRAG chunk 与 DOI、前端文献管理交互）。
+
+## 会话 19 — 2026-10-15（MongoDB 统一文件管理：实施）
+- 服务与接口：`fileStoreService`（GridFS `asc_files` + `file_meta`，DOI/sha256/visibility）、`/api/files/*`、
+  `attachmentController` 接入（上传回写 attachment+file_id、预览 Mongo 优先带 Range、删除软删、元数据提取适配）。
+- SQLite：`literature.file_id` / `lit_file.file_id`（幂等迁移）。
+- 存量迁移：`migrate_files_to_mongo.js`（流式 + sha256 + 报告）；2,466 行 / 6.23 GB。
+- GraphRAG：5001 `pdf_files` 增 doi/lit_id/platform_file_id；项目文件记录与 EvidenceChunk.metadata 带 platform_file_id；
+  `AnswerReference.original_url` 指向 3001 的 Mongo 原文流；前端桥接透传三个字段。
+- 环境事故与修复（F39）：容器 `mongodb-seml` 两次 OOM（exit 137）导致首轮迁移写入丢失；Docker 数据根在 9p 上，
+  命名卷不兼容 WiredTiger（EPERM）→ 改为 `/home/shin/mongo-data`（WSL ext4）绑定卷 + `--wiredTigerCacheSizeGB 0.5`，容器稳定。
+- 进行中：全量重迁移 + 逐条核验（`verify_literature_files.js`）。
+
+## 会话 19（续）— 2026-10-15（统一文件管理：核验通过）
+- 迁移落库：`asc_files`/`file_meta` 2,437 对象 / 6.15 GB；`lit_file` 2,466 行全部回填、`literature.file_id` 1,422。
+- 逐条核验：2,466/2,466 通过（存在性 + 全量 sha256 对账 + 流式下载 200/206），附件 1,420 条 0 失败，0 孤儿。
+- 发现并修复：文献库既有同内容不同名文件（2 对）导致 2 条附件 404 → 增文件名别名 `aliases[]` 并兼容解析。
+- README 新增「统一文件管理（MongoDB GridFS）」；findings 增 F39（OOM/9p 环境）与 F41（核验结果）。

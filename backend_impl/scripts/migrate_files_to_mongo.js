@@ -82,7 +82,13 @@ async function main() {
 
     if (!args.force && row.existing_file_id) {
       const exists = await fileStore.findById(row.existing_file_id).catch(() => null);
-      if (exists) { report.skipped += 1; bucket.skipped += 1; continue; }
+      if (exists) {
+        // 同内容去重后文件名可能不同：把 lit_file/literature 里的旧文件名记为别名，保证旧链接可解析
+        if (row.filename && exists.filename && row.filename !== exists.filename && !(exists.aliases || []).includes(row.filename)) {
+          await fileStore.addAlias(exists.file_id, row.filename).catch(() => {});
+        }
+        report.skipped += 1; bucket.skipped += 1; continue;
+      }
     }
     if (!row.path || !fs.existsSync(row.path)) {
       report.missing += 1;
