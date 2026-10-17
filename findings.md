@@ -479,3 +479,30 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
   `literatureDeletion.js`（级联删附件+文献）、**`graphDocumentBridge.js`（把文献附件桥接到 5001 图谱后端）** —— 后者是 chunk 溯源的关键入口。
 - **对齐要求**：统一文件服务必须保住 `attachment`（文件名）语义或提供等价映射，否则前端预览/下载/删除全部断链；
   推荐后端内部把 `attachment` 解析为 `file_meta.file_id`，对外仍以文件名（或 file_id）兼容。
+
+## F37 — GraphRAG chunk / 引用 / 5001 存储现状（2026-10-15）
+- **chunk 不持久化**：`TextProcessor.split_text(chunk_size=500, chunk_overlap=50)`（`backend/app/services/text_processor.py:42`）把
+  `uploads/projects/{project_id}/extracted_text.txt`（+ `source_texts/*.txt`）切分；检索时 **动态构造** `EvidenceChunk`
+  （`cod_graphrag/subgraph_retriever.py:550,694`），不是数据库记录。
+- **EvidenceChunk 字段**（`cod_graphrag/schemas.py:53`）：`paper_id`、`chunk_id`（`text::0001` / `edge::{uuid}` …）、`quote`、`evidence_type`、
+  `source`、`metadata{source_file_id, source_filename, page_number, char_start, char_end}`、`score`。
+- **AnswerReference 已支持**（`:65`）：`doi`、`paper_id`、`project_id`、`source_filename(s)`、`source_file_id`、`page_number`、`bbox`、`deep_link`。
+- **DOI 溯源现状（脆弱）**：`cod_graphrag/reference_provenance.py` 的 `normalize_doi()` 只用正则从**文本/文件名**里抓 DOI
+  （如 `10.1002_adem.202200296.md`）；若文件名不是 DOI 命名（如 pdf_xxx / 16 位 hex），`doi=None`；引用与原文靠**字符重合度**倒查。
+- **5001 侧缺关键关联**：`pdf_files` 表（`backend/database/pdf_library.db`：`file_id, filename, content BLOB`）与 `Project.files`
+  **不存 `lit_id`/`doi`/`title`**；前端 `graphDocumentBridge.js` 上传到 `/api/pdf-library/files` 时**未携带**平台 `lit_id/doi`。
+- **打通方案（Phase 5）**：① 3001 增加 `GET /api/files/by-doi/:doi` + `GET /api/files/:fileId/stream`；
+  ② 5001 侧接收并持久化 `doi/lit_id/file_id`（`pdf_files` 增列 + sidecar），构造 `EvidenceChunk.metadata` 时带上 `doi/file_id`；
+  ③ 检索 `AnswerReference` 回填 `doi` + `original_url`（指向 3001 的 Mongo 流）；④ 前端桥接补齐三个字段。
+
+## F38 — Phase 2 设计冻结：统一文件模型（2026-10-15）
+- **GridFS bucket**：新库统一用 **`asc_files`**（旧 `attachments` bucket 仅作历史只读回退，避免与既有空实现耦合）。
+- **元数据集合 `file_meta`**（`asc-platform`）字段：
+  `file_id`(ObjectId hex)、`doi`、`doi_key`(归一化)、`lit_id`、`kind`、`filename`、`mime`、`size`、`sha256`、
+  `visibility`(`public|private`，**默认 public**)、`source`(`upload|migration|bib|graph`)、`source_path`(迁移留痕)、
+  `gridfs_id`、`page_count?`、`created_at`、`updated_at`、`deleted_at`。
+- **索引**：`sha256` 唯一（未删，内容去重）；`(doi_key, kind)` 唯一（未删；同 DOI 同类型唯一）；`lit_id`；`visibility`；`doi_key`。
+- **接口**：`POST /api/files/upload`、`GET /api/files/by-doi/:doi`、`GET /api/files/:fileId/meta`、
+  `GET /api/files/:fileId/stream`（Range）、`PATCH /api/files/:fileId/visibility`、`DELETE /api/files/:fileId`、`GET /api/files/stats`；
+  **兼容**：`GET /api/attachment/:filename` 先查 `file_meta.filename` → 再回退旧 `attachments` bucket。
+- **SQLite**：`literature.file_id` + `lit_file.file_id` 新增列（迁移脚本回填）；检索/元数据不变。

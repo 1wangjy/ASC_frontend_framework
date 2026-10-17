@@ -13,13 +13,13 @@
 
 ## Phases
 
-### Phase 1：勘察三面现状 — Status: in_progress
+### Phase 1：勘察三面现状 — Status: complete
 - [ ] Mongo/GridFS 现有实现（连接、bucket、metadata、接口、`literature.attachment`/`lit_file` 语义）
 - [ ] GraphRAG chunk 存储位置与字段（是否带 doi / 文献 id；入库与检索链路）
 - [ ] 前端「文献数据管理」的页签、附件 API、预览/下载/上传流程与字段假设
 - [ ] 产出：`findings.md` 记录 + 缺口清单
 
-### Phase 2：统一文件模型设计 — Status: pending
+### Phase 2：统一文件模型设计 — Status: complete（F38 已冻结）
 - [ ] 集合与索引：GridFS bucket 命名、元数据集合字段（`file_id/doi/lit_id/kind/mime/size/sha256/visibility/source/created_at`）+ 唯一索引
 - [ ] 可见性模型：`visibility: public|private`（文献默认 public），API 过滤与写保护规则
 - [ ] 幂等键：`sha256`（同文件不重复存）+ `(doi, kind)` 唯一性策略；DOI 归一化规则
