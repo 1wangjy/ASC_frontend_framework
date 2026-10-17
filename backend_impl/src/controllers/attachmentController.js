@@ -1,5 +1,7 @@
 const express = require('express');
+const { Readable } = require('node:stream');
 const mongoose = require('mongoose');
+const fileStoreService = require('../services/fileStoreService');
 const newDbService = require('../services/newDbService');
 const GridFsBucketStorage = require('../services/gridFsBucketStorage');
 const pdfMetadataExtractorService = require('../services/pdfMetadataExtractorService');
@@ -13,6 +15,9 @@ let gridFsStorage = null;
 exports.isAttachmentStorageReady = () => Boolean(
   gridFsStorage && mongoose.connection.readyState === 1
 );
+
+/** 统一文件存储（GridFS asc_files + file_meta）是否可用 */
+exports.isUnifiedStorageReady = () => fileStoreService.isReady();
 
 // 尝试连接MongoDB，但不阻止应用启动
 mongoose.connect(mongoURI).catch(err => {
@@ -52,27 +57,47 @@ exports.uploadAttachment = async (req, res) => {
     // 获取文献信息，检查是否有DOI
     const lit = await newDbService.getLit(litId);
     let finalFilename = normalizeUploadFilename(file.originalname);
-    
+
     if (lit && lit.doi) {
-      // 如果有DOI，使用DOI作为文件名
+      // 如果有DOI，使用DOI作为文件名（前端 attachment 字段沿用文件名语义）
       const ext = finalFilename.split('.').pop();
-      // 移除DOI中的特殊字符，只保留字母、数字、连字符和点
       const doiFilename = lit.doi.replace(/[^a-zA-Z0-9\-\.]/g, '_');
       finalFilename = `${doiFilename}.${ext}`;
     }
-    
-    await gridFsStorage.upload(file.buffer, finalFilename, file.mimetype);
 
+    // 统一文件存储：写入 GridFS asc_files + file_meta（含 doi/lit_id/visibility/sha256）
+    const uploaded = await fileStoreService.uploadStream(Readable.from(file.buffer), {
+      filename: finalFilename,
+      mime: file.mimetype || 'application/pdf',
+      doi: lit && lit.doi ? lit.doi : '',
+      litId,
+      visibility: 'public',   // 文献原文默认 public
+      source: 'upload',
+    });
+
+    // 去向文献行回写：attachment 用**实际存储的文件名**（去重命中时可能是既有文件名），并记录 file_id
+    const storedFilename = uploaded && uploaded.filename ? uploaded.filename : finalFilename;
     try {
       await newDbService.updateLit(litId, {
-        attachment: finalFilename
+        attachment: storedFilename,
+        file_id: uploaded.file_id,
       });
     } catch (error) {
-      await gridFsStorage.deleteByFilename(finalFilename).catch(() => {});
+      // 回写失败：不删已入库文件（可能有其它文献引用），仅记录并抛错
+      console.error('Failed to update literature attachment fields:', error.message);
       throw error;
     }
-
-    res.json({ success: true, data: { filename: finalFilename } });
+    finalFilename = storedFilename;
+    res.json({
+      success: true,
+      data: {
+        filename: finalFilename,
+        file_id: uploaded.file_id,
+        visibility: uploaded.visibility,
+        sha256: uploaded.sha256,
+        deduped: Boolean(uploaded.deduped),
+      },
+    });
   } catch (error) {
     console.error('Error uploading attachment:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -83,7 +108,18 @@ exports.uploadAttachment = async (req, res) => {
 exports.getAttachment = async (req, res) => {
   try {
     const filename = req.params.filename;
-    
+
+    // 统一存储优先：file_meta.filename → GridFS asc_files（支持 Range）
+    const resolved = await fileStoreService.resolveByFilename(filename).catch(() => null);
+    if (resolved && resolved.file && !resolved.legacy) {
+      const filesController = require('./filesController');
+      return filesController.streamFile(res, resolved.file, req.headers.range);
+    }
+    if (resolved && resolved.file && resolved.legacy) {
+      const filesController = require('./filesController');
+      return filesController.streamFile(res, resolved.file, req.headers.range);
+    }
+
     if (!gridFsStorage) {
       res.status(503).json({ success: false, error: 'MongoDB未连接，附件存储功能暂时不可用' });
       return;
@@ -95,12 +131,9 @@ exports.getAttachment = async (req, res) => {
       return;
     }
 
-    const asciiFilename = filename.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
     res.set('Content-Type', file.contentType || file.metadata?.contentType || 'application/pdf');
-    res.set(
-      'Content-Disposition',
-      `inline; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
-    );
+    const asciiFilename = filename.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+    res.set('Content-Disposition', `inline; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
 
     const readStream = gridFsStorage.openDownloadStream(file._id);
     readStream.once('error', (error) => {
@@ -138,12 +171,20 @@ exports.removeAttachment = async (req, res) => {
       return;
     }
     
-    await gridFsStorage.deleteByFilename(lit.attachment);
+    // 统一存储：软删该文献的全部分片（pdf/md…）
+    const files = await fileStoreService.findByLitId(litId).catch(() => []);
+    for (const file of files) {
+      await fileStoreService.softDelete(file.file_id).catch(() => {});
+    }
+    // 旧 bucket 兼容删除
+    await gridFsStorage.deleteByFilename(lit.attachment).catch(() => {});
+
     await newDbService.updateLit(litId, {
-      attachment: null
+      attachment: null,
+      file_id: null,
     });
 
-    res.json({ success: true });
+    res.json({ success: true, data: { deleted_files: files.length } });
   } catch (error) {
     console.error('Error removing attachment:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -169,10 +210,28 @@ exports.extractMetadata = async (req, res) => {
       return;
     }
 
+    const unifiedStorage = {
+      async findByFilename(filename) {
+        const resolved = await fileStoreService.resolveByFilename(filename);
+        if (!resolved || !resolved.file) return null;
+        return { _id: resolved.file.file_id, filename: resolved.file.filename, contentType: resolved.file.mime };
+      },
+      openDownloadStream(fileId) {
+        const { PassThrough } = require('node:stream');
+        const out = new PassThrough();
+        fileStoreService.openStream(String(fileId)).then((opened) => {
+          if (!opened) return out.destroy(new Error('文件不存在'));
+          opened.stream.once('error', (error) => out.destroy(error));
+          opened.stream.pipe(out);
+        }).catch((error) => out.destroy(error));
+        return out;
+      },
+    };
+
     const result = await literatureMetadataService.extractAndPersistMetadata({
       litId: lit.lit_id,
       filename: lit.attachment,
-      storage: gridFsStorage,
+      storage: unifiedStorage,
       dbService: newDbService,
       extractorService: pdfMetadataExtractorService,
       overwriteExisting: req.body?.overwriteExisting === true,

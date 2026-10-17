@@ -79,6 +79,11 @@ export async function uploadPdfDocuments(uploadPdfFiles, files = [], metadata = 
 
   if (metadata.category) formData.append('category', metadata.category)
   if (metadata.description) formData.append('description', metadata.description)
+  // 统一文件管理溯源字段（平台 DOI / 文献 id / MongoDB file_id）
+  ;['doi', 'lit_id', 'platform_file_id'].forEach((key) => {
+    const value = metadata[key]
+    if (value) formData.append(key === 'platform_file_id' ? 'platform_file_id' : key, String(value))
+  })
 
   const response = await uploadPdfFiles(formData)
   const result = response?.data && !Array.isArray(response.data)

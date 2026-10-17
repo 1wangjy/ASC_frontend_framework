@@ -31,6 +31,10 @@ async function uploadCurrentPdfToLibrary(file, literature) {
   const result = await uploadPdfDocuments(uploadPdfFiles, [file], {
     category: CATEGORY_BY_ENTRY_TYPE[normalizeLiteratureEntryType(literature.entry_type)] || '未分类',
     description: `由数据平台文献 ${literature.lit_id || ''} 提供的本次构图输入副本`,
+    // 溯源：让 5001 侧能按 DOI / 平台 file_id 回链到 MongoDB 原文
+    doi: literature.doi || '',
+    lit_id: literature.lit_id || '',
+    platform_file_id: literature.file_id || '',
   })
   if (result.errors.length) {
     throw new Error(result.errors[0]?.error || result.errors[0]?.message || 'PDF 上传失败')

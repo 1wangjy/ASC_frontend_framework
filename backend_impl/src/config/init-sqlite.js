@@ -132,6 +132,7 @@ class SQLiteInitializer {
           note TEXT,
           entry_type TEXT,
           attachment TEXT,
+          file_id TEXT,              -- MongoDB file_meta.file_id（统一文件管理的原文引用）
           collection TEXT,           -- 文献收集批次标记（如 aug / sep / r3）
           dedupe_key TEXT,           -- 去重键：doi:<doi> 或 无 DOI 时的 标题|作者|年份 哈希
           create_time TIMESTAMP NOT NULL,
@@ -320,6 +321,7 @@ class SQLiteInitializer {
           filename TEXT NOT NULL,
           path TEXT NOT NULL,
           storage TEXT NOT NULL,
+          file_id TEXT,              -- MongoDB file_meta.file_id（storage='mongo' 时有效）
           size INTEGER,
           sha256 TEXT,
           mime TEXT,
@@ -329,6 +331,7 @@ class SQLiteInitializer {
         );
         CREATE INDEX IF NOT EXISTS idx_lit_file_lit ON lit_file(lit_id);
         CREATE INDEX IF NOT EXISTS idx_lit_file_sha ON lit_file(sha256);
+        -- 注意：idx_lit_file_file_id 在 ensureFileIdColumns 迁移里创建（存量库此时尚无 file_id 列）
 
         -- 创建索引
         CREATE INDEX IF NOT EXISTS idx_mp_mc_ids ON mp_properties(mc_ids);
@@ -354,6 +357,7 @@ class SQLiteInitializer {
           this.ensureLiteratureAttachmentColumn()
             .then(() => this.ensureLiteratureCollectionColumn())
             .then(() => this.ensureLiteratureDedupeKeyColumn())
+            .then(() => this.ensureFileIdColumns())
             .then(() => this.ensureUserAccountColumns())
             .then(() => this.normalizeLiteratureEntryTypes())
             .then(() => this.initBasicData())
@@ -392,6 +396,28 @@ class SQLiteInitializer {
     if (columns.some(column => column.name === 'dedupe_key')) return;
     await this.dbRun('ALTER TABLE literature ADD COLUMN dedupe_key TEXT', []);
     console.log('Added literature.dedupe_key column');
+  }
+
+  /**
+   * 统一文件管理：literature.file_id / lit_file.file_id（幂等）。
+   * lit_file 可能由 import_bib.py 创建（若早于本迁移），因此两表都按列存在性补齐。
+   */
+  async ensureFileIdColumns() {
+    const tables = ['literature', 'lit_file'];
+    for (const table of tables) {
+      const columns = await new Promise((resolve, reject) => {
+        this.db.all(`PRAGMA table_info(${table})`, (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows || []);
+        });
+      });
+      if (!columns.length) continue;
+      if (!columns.some(column => column.name === 'file_id')) {
+        await this.dbRun(`ALTER TABLE ${table} ADD COLUMN file_id TEXT`, []);
+        console.log(`Added ${table}.file_id column`);
+      }
+    }
+    await this.dbRun('CREATE INDEX IF NOT EXISTS idx_lit_file_file_id ON lit_file(file_id)', []).catch(() => {});
   }
 
   async ensureLiteratureCollectionColumn() {

@@ -96,6 +96,7 @@ const predictProxyRoutes = require('./routes/predictProxy');
 const newDataRoutes = require('./routes/newData');
 const userRoutes = require('./routes/user');
 const attachmentRoutes = require('./routes/attachment');
+const filesRoutes = require('./routes/files');
 const acceptanceRoutes = require('./routes/acceptance');
 const agentRoutes = require('./agent');
 
@@ -118,6 +119,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/new-data', newDataRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/attachment', attachmentRoutes);
+// 统一文件管理（MongoDB GridFS + file_meta，按 DOI/sha256/visibility 管理）
+app.use('/api/files', filesRoutes);
 // 验收测试[2026]：独立只读路由，不与业务路由耦合
 app.use('/api/acceptance', acceptanceRoutes);
 // 多轮对话 Agent（模块化：删除本行即移除该功能）

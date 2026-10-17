@@ -501,8 +501,44 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
   `file_id`(ObjectId hex)、`doi`、`doi_key`(归一化)、`lit_id`、`kind`、`filename`、`mime`、`size`、`sha256`、
   `visibility`(`public|private`，**默认 public**)、`source`(`upload|migration|bib|graph`)、`source_path`(迁移留痕)、
   `gridfs_id`、`page_count?`、`created_at`、`updated_at`、`deleted_at`。
-- **索引**：`sha256` 唯一（未删，内容去重）；`(doi_key, kind)` 唯一（未删；同 DOI 同类型唯一）；`lit_id`；`visibility`；`doi_key`。
+- **索引（2026-10-15 修订）**：`sha256` 唯一（未删，内容去重）；`(doi_key, kind)` **普通索引**（非唯一）；
+  `lit_id`；`visibility`；`doi_key`；`filename`。
+  > 修订原因：实测 44 组「同 DOI 同类型」PDF 中有 **17 组字节不同**（同论文的不同副本/版本）；
+  > 若按 `(doi,kind)` 唯一会静默丢文件。故 DOI 维度只保证可检索（`findByDoi` 取最早一条），内容去重只靠 `sha256`。
 - **接口**：`POST /api/files/upload`、`GET /api/files/by-doi/:doi`、`GET /api/files/:fileId/meta`、
   `GET /api/files/:fileId/stream`（Range）、`PATCH /api/files/:fileId/visibility`、`DELETE /api/files/:fileId`、`GET /api/files/stats`；
   **兼容**：`GET /api/attachment/:filename` 先查 `file_meta.filename` → 再回退旧 `attachments` bucket。
 - **SQLite**：`literature.file_id` + `lit_file.file_id` 新增列（迁移脚本回填）；检索/元数据不变。
+
+## F39 — 关键环境风险：MongoDB 跑在 Docker 容器且 /data/db 无持久卷（2026-10-15）
+- `27017` 由容器 **`mongodb-seml`（镜像 `mongo:6`，7 周前创建）** 提供；`docker inspect` 显示
+  **只挂了 `/data/configdb`，`/data/db` 没有命名卷**；`StartedAt=2026-10-17T02:07:42`、`RestartCount=1`。
+- **实测后果**：首次迁移（2,466 文件 / 6.23 GB）期间容器于 **02:07:41 重启，重启前的写入全部丢失**——
+  Mongo 里只剩 02:07:44 之后的 418 个文件（1.1 GB），而迁移脚本报告 2,438 条"上传成功"。
+  磁盘上 `lit_file`/`literature` 的 `file_id` 已回填，但指向的对象已不存在 → 必须重跑迁移（幂等重传）。
+- **次生问题**：容器重启后索引定义也丢失；`file_meta` 现存 1 组同 `sha256` 文档（内容重复）→
+  唯一索引 `uniq_sha256` 构建失败（`E11000`），而迁移进程内 `indexPromise` 已缓存"成功"，不会重建 →
+  后续上传全部报 `Index build failed`。
+- **修复（已实施）**：`sha256` 改为**非唯一索引** `idx_sha256` + **应用层内容去重**（算完哈希先查、命中即复用并删新对象）；
+  其余索引（`doi_key/lit_id/visibility/filename/(doi_key,kind)`）均为普通索引，不会再因数据重复而失败。
+- **建议（需用户决定，本次不动基础设施）**：给容器加命名卷 `-v <name>:/data/db`，或改用宿主 `mongod`；
+  否则容器再次重建/重启时，Mongo 侧原文仍可能丢失（SQLite 索引与本地原件仍在，可重跑迁移恢复）。
+
+## F40 — GraphRAG 溯源打通（5001 + 前端）实施与验证（2026-10-15）
+**改动**
+- 5001 `models/pdf_library.py`：`pdf_files` 新增 `doi / lit_id / platform_file_id` 三列（含存量库 PRAGMA+ALTER 迁移），
+  `create_file/get_file_meta/list_files/get_file_content` 全部读写这三列，并建 `idx_pdf_doi` / `idx_pdf_platform_file`。
+- 5001 `api/pdf_library.py`：上传接口接收 `doi / lit_id / platform_file_id`（兼容 `file_id` 别名）。
+- 5001 `models/project.py`：`save_bytes_to_project(..., extra=)` 把溯源字段并入项目文件记录。
+- 5001 `api/graph.py`：pdf-library → 项目 的分支把 `doi/lit_id/platform_file_id` 传入并落进 `project.files`。
+- 5001 `cod_graphrag/reference_provenance.py`：文档字典带 `platform_file_id`；
+  `subgraph_retriever._reference_metadata` 复制 `platform_file_id` → **每条 EvidenceChunk.metadata 都带 doi/platform_file_id**。
+- 5001 `cod_graphrag/schemas.py` + `reference_manager.py`：`AnswerReference` 新增 `original_url`；
+  由 `platform_file_id`（优先）或 `doi` 合成指向 3001 统一文件服务的绝对 URL（`PLATFORM_API_BASE` 可配）。
+- 前端：`pdfLibraryAdapter.uploadPdfDocuments` 透传 `doi/lit_id/platform_file_id`；
+  `graphDocumentBridge.uploadCurrentPdfToLibrary` 从文献行带上 `doi / lit_id / file_id`。
+
+**验证（实跑）**
+- `POST /api/pdf-library/files`（带 `doi/lit_id/platform_file_id`）→ 响应记录含三个字段（回读自 DB，证明已持久化）✓
+- 单元验证 `_to_reference`：`platform_file_id` → `http://127.0.0.1:3001/api/files/<id>/stream`；
+  仅 `doi` → `/api/files/by-doi/<doi>/stream`；两者皆无 → `None` ✓
