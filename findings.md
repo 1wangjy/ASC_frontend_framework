@@ -464,3 +464,18 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 - `literature.attachment` 非空 **1,420** 行，**全部能在 `lit_file` 按 filename 命中**（未命中 0、有 attachment 但无 lit_file 行 0）→ 衔接一致，可直接按 `lit_id` 迁移。
 - `lit_file` 按 collection：aug 2,043（1,000 PDF + 1,043 MD）、r3 384、sep 39。
 - 迁移预期：按 `sha256` 去重后 ≤2,466 个对象（同名不同内容需保留多份）；单对象平均 ≈2.5 MB。
+
+## F36 — 前端「文献数据管理」现状（2026-10-15）
+- **位置**：`src/platform/views/DataManagerView.vue` 的 `literature` 页签（「文献库管理」）；配套组件
+  `LiteratureAttachmentActions.vue`（预览/下载/上传）、`LiteratureDetailsModal.vue`、`DataTable.vue`（lit 列定义 `attachment`）、
+  `LiteraturePdfImportActions.vue`（导入 PDF / 手动新增）。
+- **附件契约（现状）**：文献行的 `attachment` 是 **GridFS 文件名（字符串）**，前端只做 `Boolean(attachment)` 判存在；
+  - 预览：`getAttachmentUrl(filename)` = `GET /api/attachment/${encodeURIComponent(filename)}`（`api/attachment.js:38-40`；
+    使用处 `LiteratureAttachmentActions.vue:5`、`DataTable.vue:120`）
+  - 下载：同一 URL 以 blob 取回（`api/attachment.js:42-60`）
+  - 上传：`POST /api/attachment/upload`（multipart：`file`, `litId`）→ 后端写 GridFS 并回写 `literature.attachment`
+  - 删除：`DELETE /api/attachment/remove/:litId`；连通性：`GET /api/attachment/test`
+- **编排层**：`src/platform/services/literaturePdfImport.js`（校验→测 Mongo→建文献→传附件→提元数据）、
+  `literatureDeletion.js`（级联删附件+文献）、**`graphDocumentBridge.js`（把文献附件桥接到 5001 图谱后端）** —— 后者是 chunk 溯源的关键入口。
+- **对齐要求**：统一文件服务必须保住 `attachment`（文件名）语义或提供等价映射，否则前端预览/下载/删除全部断链；
+  推荐后端内部把 `attachment` 解析为 `file_meta.file_id`，对外仍以文件名（或 file_id）兼容。
