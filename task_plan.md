@@ -45,7 +45,7 @@
 - [ ] **逐条核验**：前端可见的文献行 → 其 `file_id` 在 Mongo 存在、可下载、`sha256` 与本地一致；输出「齐备/缺失/孤儿」三张清单
 - [ ] UI 等价验证（浏览器不可用时用 API + 渲染/字段断言，注明限制）
 
-### Phase 7：回归、文档与提交 — Status: in_progress
+### Phase 7：回归、文档与提交 — Status: complete
 - [ ] 回归：`node --test "tests/*.test.js"`（既有 15 条失败为基线）、四表/文献 API 冒烟
 - [ ] README「统一文件管理」小节 + findings 记录 + 提交
 
@@ -64,7 +64,7 @@
 | — | — | — |
 
 ## Next Step
-运行回归测试（`node --test "tests/*.test.js"` 基线 15 条失败）与四表/文献 API 冒烟，然后提交。
+全部完成。可选项：① 按 sha256 对文献库做一次全库去重决策（已发现 2 对同内容不同名文件）；② 若需公开检索再引入 visibility 鉴权中间件。
 
 ---
 

@@ -577,3 +577,11 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
    （这两对**同内容不同文件名**说明 aug 采集批次存在重复下载，建议后续按 sha256 做一次库内去重决策。）
 2. **环境 OOM/文件系统**（F39）：容器两次 OOM（exit 137）导致首轮迁移写入丢失；Docker 数据根在 9p 上无法承载 WiredTiger 命名卷。
    已改为 `/home/shin/mongo-data`（WSL ext4）绑定卷 + `--wiredTigerCacheSizeGB 0.5`，容器 `RestartCount=0` 稳定至今。
+
+## F42 — 回归与冒烟（Mongo 统一文件管理）2026-10-15
+- **定向回归**：与附件/文献/桥接相关的 7 个测试文件（`pdfLibraryAdapter`、`platformAttachmentDownload`、
+  `platformGraphDocumentBridge`、`platformLiteratureApi`、`platformLiteratureAttachmentActions`、
+  `literatureEntryTypes`、`libraryWorkflowModel`）在**当前树与改动前基线（ff6d914）均为 22/22 通过** → 零回归。
+- 全量 `node --test "tests/*.test.js"` 在本机需 >15 分钟（此前已记录 15 条**既有**失败基线，与本次改动无关）。
+- **API 冒烟**：`/api/new-data/{mc,mp,mr,tp}`、`/api/new-data/literature/all`、`/api/files/stats`（2,437）、
+  `/api/files/by-doi/10.1111/ijac.12691`、随机 `/api/attachment/<filename>` 全部 **200**。
