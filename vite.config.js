@@ -20,7 +20,11 @@ export default defineConfig({
     // 脚本化启动时设 VITE_NO_OPEN=1 即可无头运行（人类 `npm run dev` 仍保持自动打开）。
     open: process.env.VITE_NO_OPEN ? false : true,
     watch: {
-      ignored: ['**/_code/**', '**/node_modules/**', '**/dist/**', '**/.git/**'],
+      ignored: [
+        '**/_code/**', '**/node_modules/**', '**/dist/**', '**/.git/**',
+        // Python 虚拟环境/日志库：几十万文件，WSL 下会把 inotify watch 配额打满（ENOSPC 导致 dev server 退出）
+        '**/.venv/**', '**/backend_impl/**', '**/AI4Sci-NEXUS-ASC-Development-Domain/**',
+      ],
     },
     proxy: {
       // 数据平台 API → Node.js 后端 (端口 3001)

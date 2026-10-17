@@ -585,3 +585,12 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 - 全量 `node --test "tests/*.test.js"` 在本机需 >15 分钟（此前已记录 15 条**既有**失败基线，与本次改动无关）。
 - **API 冒烟**：`/api/new-data/{mc,mp,mr,tp}`、`/api/new-data/literature/all`、`/api/files/stats`（2,437）、
   `/api/files/by-doi/10.1111/ijac.12691`、随机 `/api/attachment/<filename>` 全部 **200**。
+
+## F43 — 前端 dev server 反复退出：inotify ENOSPC（2026-10-15）
+- 现象：`services.sh restart frontend` 后 3005 短暂 200 又变 000；日志报
+  `Error: ENOSPC: System limit for number of file watchers reached`，指向
+  `AI4Sci-.../backend/uploads/projects/.../node_*.json` 与 `backend_impl/python/model_predict/.venv/...`。
+- 根因：Vite 默认监听整个仓库；仓库内含 Python `.venv`（数十万文件）、5001 的 `uploads/projects`（海量产物）、
+  `backend_impl/data`（日志/DB 变动）。`fs.inotify.max_user_watches=524288` 仍被打满 → dev server 进程崩溃退出。
+- 修复：`vite.config.js` 的 `server.watch.ignored` 增 `**/.venv/**`、`**/backend_impl/**`、`**/AI4Sci-NEXUS-ASC-Development-Domain/**`
+  （前端只关心 `src/` 与根级配置，后端/产物目录无需热更新）。修复后 3005 稳定 200。
