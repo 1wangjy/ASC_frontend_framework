@@ -259,3 +259,33 @@ Phase 2：产出 `ml → 平台` 词表映射模块（含非词表工况清单�
 人工队列裁定（84 条，见 `data/material_vocab_queue.csv`）：按频次先裁 4 条硬骨头（CA68水泥/CA71F水泥/磨料/除尘料）
 与 8 条代号类歧义（10#/20#/80#/71水泥），其余可批量确认或挂 deprecated。（标签聚合改造 + 推理侧工况中心化）；如获批准，另起 Phase 5 迁移。
 
+
+---
+
+# 任务计划（追加）：智能会话 / 深度研究 UI 优化（2026-10-19）
+
+**目标**：按用户 7 点反馈优化两类问答页：
+0. 修复 `QaSessionToc` 右侧不显示；
+1. 深度研究 hero 信息移到模式切换器下方；切换器高度与智能会话一致；两页问答窗顶部绝对对齐；精简空态文案为一行「试试以下的问题」；示例问题带显式 `/tool` 标记；
+2. 去掉智能体标题后的 Beta；
+3. 智能体配置 meta 展示支持的工具能力（`/toolname` 标签）；
+4. 移除 header「图谱演化状态」；两页左侧空白统一放悬浮球「图谱状态」，点击展开 three.js 点云连接图（单位圆点 + 弧形边 + 动态激活/传播 + 3D 效果），下方链接「进入图谱演化管理」；
+5. 深度研究复用智能会话右侧 session panel（新建/历史/删除），与用户 id 绑定；
+6. 全局 footer `@copyright` → `@Copyright`。
+
+## Phases
+### Phase A：修复右侧目录不显示 — Status: in_progress
+### Phase B：头部/窗口对齐 + 文案与示例（item 1） — Status: pending
+### Phase C：Beta 与工具能力 meta（items 2,3） — Status: pending
+### Phase D：悬浮球 + three.js 点云 + header 入口迁移（item 4） — Status: pending
+### Phase E：深度研究会话面板（item 5） — Status: pending
+### Phase F：footer 大小写（item 6） — Status: pending
+### Phase G：编译/接口/SSR 回归与提交 — Status: pending
+
+### 执行结果（2026-10-19） — Status: complete
+- Phase A：根因是 agent API 未带 token；已修复并让目录在 agent/single 常显（浏览器实测 26 条 agent、1 条 single）。
+- Phase B：共享 hero 位于切换器下方；切换器 y/h 一致；窗口顶部均 313.5；文案与示例已改。
+- Phase C：Beta 移除；工具能力 meta 已加。
+- Phase D：header 指示器移除；three.js 点云悬浮球 + 管理链接（跳转实测）。
+- Phase E：mode + turns 接口；深度研究目录复用与恢复实测。
+- Phase F：footer 大小写已改。

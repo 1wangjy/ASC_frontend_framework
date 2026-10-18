@@ -4,7 +4,7 @@
       <div class="agent-panel__heading">
         <span class="agent-panel__badge" aria-hidden="true">AI</span>
         <div>
-          <h2 class="agent-panel__title">智能体 Agent<span class="agent-panel__beta">Beta</span></h2>
+          <h2 class="agent-panel__title">智能体 Agent</h2>
         </div>
       </div>
       <!-- 嵌入到「智能会话」页时，会话由页面右侧目录管理；独立面板仍保留按钮 -->
@@ -49,6 +49,10 @@
       <button type="button" class="agent-panel__ghost" @click="modelConfigOpen = !modelConfigOpen">本地模型配置</button>
       <p v-if="modelsError" role="status">{{ modelsError }}；仅可使用服务端默认模型，发送时由后端再次校验。</p>
     </div>
+    <p v-if="tools.length" class="agent-toolcaps" aria-label="支持的工具能力">
+      <span>支持工具</span>
+      <code v-for="tool in tools" :key="tool.name" :title="tool.description || tool.name">/{{ tool.name }}</code>
+    </p>
     <details v-if="modelConfigOpen" open class="agent-model-guide">
       <summary>服务端模型配置与部署说明</summary>
       <p>由服务端管理员配置 backend_impl/config/agent-models.json，并在 backend_impl/.env 中设置 AGENT_MODELS_FILE 的绝对路径。页面不接收密钥或任意模型服务地址。</p>
@@ -197,10 +201,7 @@
     <p v-if="sessionPersistWarning" class="agent-panel__banner">{{ sessionPersistWarning }}</p>
     <div ref="logElement" class="agent-panel__log" role="log" aria-live="polite" aria-relevant="additions text">
       <div v-if="!messages.length" class="agent-panel__empty">
-        <p class="agent-panel__empty-title">从一次真实的工具调用开始</p>
-        <p class="agent-panel__empty-text">
-          智能体只会调用已注册的工具，无法读取本地文件或数据库。试试下面的问题：
-        </p>
+        <p class="agent-panel__empty-title">试试以下的问题</p>
         <ul class="agent-panel__examples">
           <li v-for="example in examples" :key="example">
             <button type="button" @click="useExample(example)">{{ example }}</button>
@@ -412,9 +413,9 @@ const props = defineProps({
 const emit = defineEmits(['close', 'history-change', 'session-change'])
 
 const examples = [
-  'SiC 与 ASC 耐火材料的抗氧化性能有哪些关联？请查找原文依据。',
-  '在 1500℃ 空气气氛下，上面的结论是否仍然适用？',
-  '比较两种材料性能时，哪些实验条件必须保持一致？'
+  'SiC 与 ASC 耐火材料的抗氧化性能有哪些关联？请查找原文依据。 /kg_search',
+  '在 1500℃ 空气气氛下，上面的结论是否仍然适用？ /rag_search',
+  '比较两种材料性能时，哪些实验条件必须保持一致？ /kg_graph'
 ]
 
 const {
@@ -792,6 +793,8 @@ defineExpose({ messages, streaming, sending, steps, sessionId, submitExternal, s
 .agent-run .agent-run__note { font-size: 11px; color: var(--asc-muted, #64748b); }
 @media (max-width: 560px) { .agent-run { margin: 10px 8px; padding: 12px; } .agent-run__scope { flex-direction: column; } }
 .agent-model-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--asc-border); }
+.agent-toolcaps { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--asc-border); font-size: 12px; color: var(--asc-text-muted); }
+.agent-toolcaps code { padding: 1px 7px; border: 1px solid var(--asc-border); border-radius: 999px; background: var(--asc-surface-2, #f6f7f9); color: var(--asc-text); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .agent-model-bar select { min-height: var(--agent-ctl-h); max-width: 100%; padding: 0 var(--agent-space-2); border: 1px solid var(--agent-border-color); border-radius: var(--agent-ctl-radius); background: var(--agent-surface); color: var(--agent-ink); font: inherit; font-size: var(--agent-font-sm); }
 .agent-model-bar label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .agent-model-bar p, .agent-model-guide { font-size: 12px; overflow-wrap: anywhere; }
@@ -874,18 +877,7 @@ defineExpose({ messages, streaming, sending, steps, sessionId, submitExternal, s
   line-height: 1.3;
 }
 
-.agent-panel__beta {
-  min-height: var(--agent-chip-h);
-  display: inline-flex;
-  align-items: center;
-  margin-left: var(--agent-space-1);
-  padding: 0 var(--agent-space-2);
-  border-radius: var(--agent-chip-radius);
-  background: var(--asc-primary-soft);
-  color: var(--asc-primary-hover);
-  font-size: var(--agent-font-xs);
-  font-weight: 800;
-}
+
 
 .agent-panel__subtitle {
   margin: 2px 0 0;

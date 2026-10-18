@@ -12,13 +12,6 @@
         <div class="qa-topbar__info">
           <strong v-if="qaState.phase === 'empty'">问题研究</strong>
           <strong v-else>研究答疑 / 热震稳定性</strong>
-          <GlobalGraphTaskIndicator
-            :items="graphTaskMonitor.state.items"
-            :connection="graphTaskMonitor.state.connection"
-            :last-synced-at="graphTaskMonitor.state.lastSyncedAt"
-            @refresh="graphTaskMonitor.refresh"
-            @view-project="onTaskbarViewProject"
-          />
         </div>
         <!-- 右：图谱选择（唯一操作入口） -->
         <div
@@ -50,12 +43,17 @@
             :disabled="multiNavigationLocked"
             @update:mode="updateMode"
           />
+          <QaIntroHero v-if="!multiHasHistory" />
         </div>
 
 
-        <div class="qa-multi-page__row" :class="{ 'has-toc': showSessionToc }">
-        <div
-          class="qa-multi-page__workspace"
+        <div class="qa-stage" :class="{ 'qa-stage--narrow': !multiHasHistory }">
+          <div class="qa-stage__left">
+            <GraphStatusOrb :project-id="activeProject?.projectId || ''" />
+          </div>
+
+          <div
+            class="qa-multi-page__workspace qa-stage__main"
           :class="[multiHasHistory
             ? 'qa-multi-page__workspace--history'
             : 'qa-multi-page__workspace--empty',
@@ -101,6 +99,7 @@
           <!-- 右侧会话目录：顶部"+ 新建对话"，其下按 workspace 折叠分组的历史会话 -->
           <QaSessionToc
             v-if="showSessionToc"
+            class="qa-stage__toc"
             :active-session-id="typeof route.query.agentSession === 'string' ? route.query.agentSession : ''"
             :projects="projects"
             :active-project-id="activeProjectId"
@@ -114,101 +113,121 @@
 
       </section>
 
-      <section v-else-if="showQaHome" class="qa-empty">
-        <div class="qa-empty__intro qa-research-intro">
-          <div class="asc-orbit" aria-hidden="true">
-            <span>ASC</span>
-          </div>
-          <h1>今天想研究什么？</h1>
-          <p>围绕耐火材料配方、工艺、组织结构、服役性能与失效机理提出问题</p>
+      <section v-else class="qa-single-page">
+        <div v-if="showQaHome" class="qa-empty__intro qa-research-intro">
           <QaModeSwitcher
             :mode="qaState.mode"
             :disabled="qaState.phase === 'loading'"
             @update:mode="updateMode"
           />
+          <QaIntroHero />
         </div>
 
-
-        <QuestionComposer
-          v-model="draft"
-          :show-mode-switcher="false"
-          :disabled="projectsLoading || !activeProject"
-          :mode="qaState.mode"
-          :mode-disabled="qaState.phase === 'loading'"
-          :settings="qaState.settings"
-          :model-options="composerModelOptions"
-          @update:mode="updateMode"
-          @update:settings="updateSettings"
-          @submit="sendQuestion"
-        />
-
-        <TaskShortcuts
-          :guides="questionGuides"
-          @select="draft = $event"
-          @refresh="refreshGuide"
-        />
-      </section>
-
-      <section v-else class="qa-session">
-        <button type="button" class="qa-result-back" @click="returnToQaHome">
-          <span aria-hidden="true">←</span>
-          返回首页
-        </button>
-
-        <header class="qa-result-context">
-          <div class="qa-result-context__summary">
-            <span class="qa-result-context__label">
-              <span class="qa-result-context__label-icon" aria-hidden="true">▣</span>
-              问题摘要
-            </span>
-            <strong class="qa-result-context__question">{{ qaState.question }}</strong>
+        <div class="qa-stage qa-stage--narrow">
+          <div class="qa-stage__left">
+            <GraphStatusOrb :project-id="activeProject?.projectId || ''" />
           </div>
-          <div class="qa-result-context__mode">
-            <span>当前问答模式</span>
-            <strong class="qa-result-context__mode-badge">{{ qaModeLabel }}</strong>
+
+          <div class="qa-stage__main">
+            <div v-if="showQaHome" class="qa-empty">
+              <QuestionComposer
+                v-model="draft"
+                :show-mode-switcher="false"
+                :disabled="projectsLoading || !activeProject"
+                :mode="qaState.mode"
+                :mode-disabled="qaState.phase === 'loading'"
+                :settings="qaState.settings"
+                :model-options="composerModelOptions"
+                @update:mode="updateMode"
+                @update:settings="updateSettings"
+                @submit="sendQuestion"
+              />
+
+              <TaskShortcuts
+                :guides="questionGuides"
+                @select="draft = $event"
+                @refresh="refreshGuide"
+              />
+            </div>
+
+            <div v-else class="qa-session">
+              <button type="button" class="qa-result-back" @click="returnToQaHome">
+                <span aria-hidden="true">←</span>
+                返回首页
+              </button>
+
+              <header class="qa-result-context">
+                <div class="qa-result-context__summary">
+                  <span class="qa-result-context__label">
+                    <span class="qa-result-context__label-icon" aria-hidden="true">▣</span>
+                    问题摘要
+                  </span>
+                  <strong class="qa-result-context__question">{{ qaState.question }}</strong>
+                </div>
+                <div class="qa-result-context__mode">
+                  <span>当前问答模式</span>
+                  <strong class="qa-result-context__mode-badge">{{ qaModeLabel }}</strong>
+                </div>
+              </header>
+
+              <ConversationPanel
+                :state="qaState"
+                :evaluation-enabled="evaluationEnabled"
+                @citation="chooseCitation"
+                @open-evidence="openEvidencePanel"
+                @open-quality="openQualityPanel"
+                @answer-selection="captureEvaluationExcerpt"
+                @retry="retryQuestion"
+              />
+
+              <AnswerDetailsTabs
+                v-if="qaState.phase === 'answered' && qaState.answerDetails?.length"
+                :active-tab="answerDetailTab"
+                :items="qaState.answerDetails"
+                :references="qaState.references"
+                :question="qaState.question"
+                :result="qaState.qaResult"
+                @select="answerDetailTab = $event"
+                @citation="chooseCitation"
+              />
+
+              <QuestionComposer
+                v-model="draft"
+                compact
+                :disabled="qaState.phase === 'loading' || !activeProject"
+                :mode="qaState.mode"
+                :mode-disabled="qaState.phase === 'loading'"
+                :settings="qaState.settings"
+                @update:mode="updateMode"
+                @update:settings="updateSettings"
+                @submit="sendQuestion"
+              />
+            </div>
           </div>
-        </header>
 
-        <ConversationPanel
-          :state="qaState"
-          :evaluation-enabled="evaluationEnabled"
-          @citation="chooseCitation"
-          @open-evidence="openEvidencePanel"
-          @open-quality="openQualityPanel"
-          @answer-selection="captureEvaluationExcerpt"
-          @retry="retryQuestion"
-        />
-
-        <AnswerDetailsTabs
-          v-if="qaState.phase === 'answered' && qaState.answerDetails?.length"
-          :active-tab="answerDetailTab"
-          :items="qaState.answerDetails"
-          :references="qaState.references"
-          :question="qaState.question"
-          :result="qaState.qaResult"
-          @select="answerDetailTab = $event"
-          @citation="chooseCitation"
-        />
-
-        <QuestionComposer
-          v-model="draft"
-          compact
-          :disabled="qaState.phase === 'loading' || !activeProject"
-          :mode="qaState.mode"
-          :mode-disabled="qaState.phase === 'loading'"
-          :settings="qaState.settings"
-          @update:mode="updateMode"
-          @update:settings="updateSettings"
-          @submit="sendQuestion"
-        />
+          <QaSessionToc
+            class="qa-stage__toc"
+            mode="single"
+            :active-session-id="singleSessionId"
+            :projects="projects"
+            :active-project-id="activeProjectId"
+            :locked="qaState.phase === 'loading'"
+            :refresh-key="tocRefreshKey"
+            @create="startNewSingleSession"
+            @open="openSingleSession"
+            @deleted="onSingleSessionDeleted"
+          />
+        </div>
       </section>
     </main>
 
     <RecentConversationsPanel
-      v-if="!qaState.evidenceOpen && (qaState.mode !== 'multi' || useLegacyDiscussion)"
+      v-if="!qaState.evidenceOpen && qaState.mode === 'multi' && useLegacyDiscussion"
       :mode="qaState.mode"
       :disabled="multiNavigationLocked"
     />
+
+
 
     <EvidencePanel
       v-if="qaState.evidenceOpen"
@@ -259,7 +278,9 @@ import EvidencePanel from '../features/qa/EvidencePanel.vue'
 import QualityPanel from '../features/qa/QualityPanel.vue'
 import RecentConversationsPanel from '../features/qa/RecentConversationsPanel.vue'
 import QaSessionToc from '../platform/agent/QaSessionToc.vue'
+import { appendAgentTurn, createAgentSession, getAgentSession } from '../platform/agent/api'
 import QaModeSwitcher from '../features/qa/QaModeSwitcher.vue'
+import QaIntroHero from '../features/qa/QaIntroHero.vue'
 import QaProjectSelector from '../features/qa/QaProjectSelector.vue'
 import MultiDiscussionPanel from '../features/qa/multiDiscussion/MultiDiscussionPanel.vue'
 import AgentPanel from '../platform/agent/AgentPanel.vue'
@@ -309,7 +330,7 @@ import {
   createQuestionGuideState,
   refreshQuestionGuide
 } from '../features/qa/questionGuideModel.js'
-import GlobalGraphTaskIndicator from '../features/tasks/GlobalGraphTaskIndicator.vue'
+import GraphStatusOrb from '../features/graph/GraphStatusOrb.vue'
 import { useGraphTaskMonitor } from '../features/tasks/graphTaskMonitor.js'
 
 const route = useRoute()
@@ -750,8 +771,8 @@ function newMultiDiscussion() {
 }
 
 const tocRefreshKey = ref(0)
-/** 右侧目录：仅智能会话（Agent）且有历史时显示 */
-const showSessionToc = computed(() => !useLegacyDiscussion.value && multiHasHistory.value)
+/** 右侧目录：智能会话（Agent）常显（无历史时也提供「新建对话」入口） */
+const showSessionToc = computed(() => !useLegacyDiscussion.value)
 
 /** 会话目录刷新：会话可能在提问时被隐式创建，一轮结束后轮数/时间也会变。 */
 function onMultiHistoryChange(hasHistory) {
@@ -786,11 +807,106 @@ function onAgentSessionChange(id) {
   void router.replace({ path: route.path, query })
 }
 
+// --- 深度研究（single）：会话持久化与恢复 ----------------------------------
+const singleSessionId = ref('')
+const singlePersistKey = ref('')
 
-function onTaskbarViewProject(projectId) {
-  if (projectId) router.push({ name: 'Process', params: { projectId } })
-  else router.push('/process')
+function singleAnswerText(state) {
+  if (!state?.answer) return ''
+  const parts = []
+  if (state.answer.summary) parts.push(String(state.answer.summary))
+  for (const section of state.answer.sections || []) {
+    if (section?.body) parts.push(`${section.title || ''}\n${section.body}`.trim())
+  }
+  return parts.join('\n\n').trim()
 }
+
+/** 单轮问答完成后写入用户自己的会话（同一问一答只写一次）。 */
+async function persistSingleTurn() {
+  const state = qaState.value
+  if (state.mode !== 'single' || state.phase !== 'answered') return
+  const question = String(state.question || '').trim()
+  const answer = singleAnswerText(state)
+  if (!question || !answer) return
+  const key = `${question}\u0000${answer}`
+  if (key === singlePersistKey.value) return
+  singlePersistKey.value = key
+  try {
+    let id = singleSessionId.value
+    if (!id) {
+      const created = await createAgentSession({
+        title: question.slice(0, 60),
+        mode: 'single',
+        workspace: {
+          projectId: activeProject.value?.projectId || '',
+          graphId: activeProject.value?.graphId || ''
+        }
+      })
+      id = created.sessionId
+      singleSessionId.value = id
+    }
+    await appendAgentTurn(id, {
+      user: { role: 'user', content: question },
+      assistant: { role: 'assistant', content: answer }
+    })
+    tocRefreshKey.value += 1
+  } catch (error) {
+    // 保存失败不阻断问答：下次刷新目录时仍可见已成功的记录
+    console.warn('[qa] 保存深度研究会话失败：', error?.message || error)
+  }
+}
+
+watch(
+  () => [qaState.value.mode, qaState.value.phase, qaState.value.question],
+  () => { void persistSingleTurn() },
+  { flush: 'post' }
+)
+
+function startNewSingleSession() {
+  requestVersion += 1
+  singleSessionId.value = ''
+  singlePersistKey.value = ''
+  qaState.value = selectQaMode(createQaState(), 'single')
+  draft.value = ''
+  qualityOpen.value = false
+}
+
+async function openSingleSession({ sessionId } = {}) {
+  if (!sessionId) return
+  try {
+    const record = await getAgentSession(sessionId)
+    const messages = Array.isArray(record?.messages) ? record.messages : []
+    const question = [...messages].reverse().find((message) => message?.role === 'user')?.content || ''
+    const answer = [...messages].reverse().find((message) => message?.role === 'assistant')?.content || ''
+    if (!question) return
+    requestVersion += 1
+    singleSessionId.value = sessionId
+    singlePersistKey.value = `${question}\u0000${answer}`
+    qaState.value = {
+      ...selectQaMode(createQaState(), 'single'),
+      phase: 'answered',
+      question,
+      answerSource: 'history',
+      errorMessage: '',
+      answer: { summary: String(answer || ''), sections: [], citationIds: [] },
+      answerDetails: [],
+      references: []
+    }
+    draft.value = ''
+    qualityOpen.value = false
+  } catch (error) {
+    console.warn('[qa] 打开深度研究会话失败：', error?.message || error)
+  }
+}
+
+function onSingleSessionDeleted(sessionId) {
+  if (singleSessionId.value === sessionId) {
+    singleSessionId.value = ''
+    singlePersistKey.value = ''
+  }
+  tocRefreshKey.value += 1
+}
+
 
 function loadConversation(conversation) {
   if (qaState.value.mode === 'multi') {
@@ -971,6 +1087,34 @@ onUnmounted(() => {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* --- 三列舞台：左空白（悬浮球居中）/ 居中主窗口 / 右侧依附会话目录 --- */
+.qa-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--qa-stage-width, var(--qa-page-max))) minmax(0, 1fr);
+  column-gap: var(--qa-space-5);
+  align-items: stretch;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.qa-stage--narrow { --qa-stage-width: var(--qa-page-max-narrow); }
+
+.qa-stage__left { grid-column: 1; justify-self: safe center; align-self: start; min-width: 0; }
+.qa-stage__main { grid-column: 2; min-width: 0; }
+
+/* 会话目录：依附主窗口右缘（右侧空白列），与主窗口同高、顶部对齐，且不挤压主窗口宽度 */
+.qa-stage__toc { grid-column: 3; justify-self: start; align-self: stretch; min-width: 0; }
+.qa-stage__toc > .qa-session-toc { width: 248px; max-width: 100%; height: 100%; position: static; max-height: none; }
+
+@media (max-width: 1280px) {
+  .qa-stage { grid-template-columns: minmax(0, 1fr); }
+  .qa-stage__left { grid-column: 1; justify-self: start; padding-left: var(--qa-gutter); }
+  .qa-stage__main,
+  .qa-stage__toc { grid-column: 1; }
+  .qa-stage__toc { width: 100%; }
+  .qa-stage__toc > .qa-session-toc { height: auto; max-height: 320px; }
+}
+
 .qa-main {
   min-width: 0;
   min-height: 100vh;
@@ -1076,16 +1220,26 @@ onUnmounted(() => {
 }
 
 /* --- one page shell for BOTH modes: same gutter, same max-width, same rhythm --- */
+/* 单页内容体：宽度由 .qa-stage 的中间列决定（不再自行收窄/居中） */
 .qa-empty {
-  width: min(var(--qa-page-max-narrow), calc(100% - var(--qa-gutter) * 2));
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--qa-section-gap);
+}
+
+.qa-single-page {
+  width: 100%;
   min-height: calc(100vh - var(--qa-topbar-h));
-  display: grid;
-  align-content: center;
-  justify-items: center;
+  display: flex;
+  flex-direction: column;
   gap: var(--qa-section-gap);
   margin: 0 auto;
-  padding: var(--qa-page-pad-top) 0 var(--qa-page-pad-bottom);
+  padding: var(--qa-page-pad-top) var(--qa-gutter) var(--qa-page-pad-bottom);
+  box-sizing: border-box;
 }
+
+.qa-single-page .qa-empty__intro { max-width: var(--qa-page-max-narrow); margin-inline: auto; }
 
 .qa-multi-page {
   /* 历史态：容器占满可用宽度，由 __row 负责把「内容列」按页宽居中；
@@ -1101,10 +1255,11 @@ onUnmounted(() => {
 }
 
 .qa-multi-page--empty {
-  width: min(var(--qa-page-max-narrow), calc(100% - var(--qa-gutter) * 2));
-  padding-inline: 0;
-  justify-content: center;
-  padding-block: var(--qa-page-pad-top) var(--qa-page-pad-bottom);
+  justify-content: flex-start;
+}
+
+.qa-multi-page--empty .qa-multi-page__intro {
+  max-width: var(--qa-page-max-narrow);
 }
 
 .qa-multi-page--history {
@@ -1125,27 +1280,8 @@ onUnmounted(() => {
   text-align: center;
 }
 
-.asc-orbit {
-  width: 56px;
-  height: 56px;
-  display: grid;
-  place-items: center;
-  margin: 0 0 var(--qa-space-3);
-  border: 1px solid #b9d8eb;
-  border-radius: 50%;
-  background: var(--qa-surface);
-  box-shadow: inset 0 0 0 8px #eff8fd;
-}
-
-.asc-orbit span {
-  display: block;
-  color: var(--qa-accent);
-  font-size: var(--qa-font-sm);
-  font-weight: 900;
-  line-height: 1;
-}
-
 .qa-empty h1,
+.qa-single-page h1,
 .qa-multi-page h1 {
   width: 100%;
   margin: 0;
@@ -1160,13 +1296,6 @@ onUnmounted(() => {
 }
 
 
-.qa-research-intro .asc-orbit {
-  width: 48px;
-  height: 48px;
-  margin-bottom: var(--qa-space-2);
-  box-shadow: inset 0 0 0 7px #eff8fd;
-}
-
 .qa-research-intro h1 {
   font-size: clamp(29px, 3.2vw, 39px);
 }
@@ -1179,33 +1308,6 @@ onUnmounted(() => {
   font-weight: 500;
   letter-spacing: 0.005em;
   line-height: 1.7;
-}
-
-.qa-multi-page__row {
-  width: 100%;
-  display: block;
-}
-
-.qa-multi-page__row:not(.has-toc) > .qa-multi-page__workspace {
-  width: min(var(--qa-page-max), 100%);
-  margin-inline: auto;
-}
-
-/* 有目录时：内容列固定为页宽（与「深度研究」一致）并居中，目录在它右侧额外并排 */
-.qa-multi-page__row.has-toc {
-  display: grid;
-  grid-template-columns: minmax(0, var(--qa-page-max)) 248px;
-  gap: var(--qa-space-5);
-  justify-content: center;
-  align-items: start;
-}
-
-@media (max-width: 1400px) {
-  .qa-multi-page__row.has-toc { grid-template-columns: minmax(0, 1fr) 232px; }
-}
-
-@media (max-width: 1100px) {
-  .qa-multi-page__row.has-toc { grid-template-columns: minmax(0, 1fr); }
 }
 
 .qa-multi-page__workspace {
@@ -1336,13 +1438,10 @@ onUnmounted(() => {
 }
 
 .qa-session {
-  width: min(var(--qa-page-max), calc(100% - var(--qa-gutter) * 2));
-  min-height: calc(100vh - var(--qa-topbar-h));
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: var(--qa-section-gap);
-  margin: 0 auto;
-  padding: var(--qa-page-pad-top) 0 var(--qa-page-pad-bottom);
 }
 
 .qa-result-context {

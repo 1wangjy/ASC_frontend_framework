@@ -114,6 +114,8 @@ function summarize(record) {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     turns: countTurns(record.messages),
+    // mode: agent = 智能会话；single = 深度研究单轮问答
+    mode: record.mode === 'single' ? 'single' : 'agent',
     // workspace = 会话所属的图谱范围（前端按此做「同一 workspace 下折叠」）
     workspace: record.workspace || normalizeWorkspace(record.researchState?.scope) || null,
   };
@@ -165,6 +167,7 @@ function readSession(id, options = {}) {
       messages: Array.isArray(record.messages) ? record.messages : [],
       // 多用户与目录分组字段：读取时必须保留，否则列表/归属校验会全部失配
       userId: record.userId ? String(record.userId) : null,
+      mode: record.mode === 'single' ? 'single' : 'agent',
       workspace: normalizeWorkspace(record.workspace),
       ...(record.researchState && record.researchState.version === 1 ? { researchState: record.researchState } : {}),
     };
@@ -191,6 +194,7 @@ function createSession(options = {}) {
     messages: [],
     // 多用户：会话按用户隔离（仅列出/读写自己的会话）
     userId: options.userId ? String(options.userId) : null,
+    mode: options.mode === 'single' ? 'single' : 'agent',
     workspace: normalizeWorkspace(options.workspace),
   };
   writeSessionFile(sessionPath(sessionId, options.dir), record);
@@ -246,6 +250,7 @@ function listSessions(options = {}) {
   const dir = sessionDir(options.dir);
   const limit = clampInt(options.limit, DEFAULT_LIST_LIMIT, 1, MAX_LIST_LIMIT);
   const userId = options.userId ? String(options.userId) : null;
+  const mode = options.mode === 'single' ? 'single' : (options.mode === 'agent' ? 'agent' : null);
   let entries;
   try {
     entries = fs.readdirSync(dir);
@@ -259,6 +264,7 @@ function listSessions(options = {}) {
     if (!record) continue;
     // 只看自己的会话；匿名视图只看未归属会话（旧文件不会跨用户泄漏）
     if (!ownsSession(record, userId)) continue;
+    if (mode && (record.mode === 'single' ? 'single' : 'agent') !== mode) continue;
     records.push(summarize(record));
   }
   records.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));

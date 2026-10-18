@@ -711,3 +711,15 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 
 **测试**：`agentSessionsModel` 期望补 `workspace: null`；`agentNavigationUi` 断言嵌入态无会话按钮；
 `agentPrimaryEntry`/`agentPrimarySendLive` 的历史流程改用独立面板挂载（嵌入态由目录承担）。
+
+## 2026-10-19 问答页优化勘察
+- `agent/api.js` 的三处 fetch（stream/tools/sessions）均未带 token；平台 axios 才注入 `Authorization`。多用户会话隔离上线后，该模块的列表/创建/读写全部按匿名处理 → 右侧目录显示空态（并非组件未渲染）。修复：模块内 `authHeaders()` 统一注入。
+- `showSessionToc` 原为 `!legacy && multiHasHistory`；无历史时右侧空白。现改为 agent 模式常显，并在 single 模式复用同一组件。
+- 布局实测（1600×1000）：`.qa-topbar` 高 58；两种模式 intro 顺序一致（switcher→hero），switcher y=82；多轮面板与单轮 composer 顶部 y=313.5；单轮目录 x=1272（内容列右侧），y=82。
+- 深度研究持久化：`POST /sessions` 带 `mode:'single'`；答案完成后 `POST /sessions/:id/turns` 追加 user/assistant 两条消息；恢复时取最后一条 user/assistant 构造 `answer.summary`。
+
+### 布局几何（2026-10-19 二次澄清）
+- `.qa-stage` 列：`minmax(0,1fr) minmax(0,var(--qa-stage-width)) minmax(0,1fr)`；`--qa-stage-width` 空态/单页 = 980，历史 = 1400。
+- 目录不再占用主窗口宽度：`grid-column:3; justify-self:start; align-self:stretch;` 子项 `width:248px; max-width:100%; height:100%; position:static`。
+- 1600 视口下：空态左右空白各 162px（目录 162）；历史态主窗口吃满 1304，右空白 26px。若需更宽的目录，只能提高视口或降低主窗口 max-width（与「主窗口宽度不变」冲突）。
+- 悬浮球居左空白：`justify-self: safe center`（空白不足时回退到 start，避免越过侧栏）。

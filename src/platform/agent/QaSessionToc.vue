@@ -69,6 +69,8 @@ const props = defineProps({
   activeProjectId: { type: String, default: '' },
   locked: { type: Boolean, default: false },
   refreshKey: { type: Number, default: 0 },
+  // agent = 智能会话；single = 深度研究（单轮问答）
+  mode: { type: String, default: 'agent' },
 })
 
 const emit = defineEmits(['create', 'open', 'deleted'])
@@ -140,7 +142,7 @@ async function reload() {
   loading.value = true
   error.value = ''
   try {
-    const payload = await listAgentSessions({ limit: 100 })
+    const payload = await listAgentSessions({ limit: 100, mode: props.mode === 'single' ? 'single' : 'agent' })
     sessions.value = mapSessionList(payload)
     // 默认展开：当前会话所属分组；没有当前会话时展开最新一组
     const active = sessions.value.find((item) => item.sessionId === props.activeSessionId)

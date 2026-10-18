@@ -56,7 +56,7 @@
         </div>
       </div>
       <footer class="app-shell__footer">
-        <span>@copyright 2026 金隅集团 · 北京金隅通达耐火技术有限公司 &amp; 中关村人工智能研究院</span>
+        <span>@Copyright 2026 金隅集团 · 北京金隅通达耐火技术有限公司 &amp; 中关村人工智能研究院</span>
       </footer>
     </div>
   </div>

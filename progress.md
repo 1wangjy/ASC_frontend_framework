@@ -232,3 +232,20 @@
 - 会话目录：`QaSessionToc.vue`（+新建对话 / 按 workspace 折叠分组 / 打开 / 删除），嵌入面板隐藏会话按钮。
 - 后端：会话加 `userId`+`workspace`，列表/读写/流全部按用户隔离（他人 404）；管理员认领无归属旧会话。
 - 实测：隔离用例通过（admin 可见、匿名 0、他人 404）；TOC SSR 406B；单测与回归见提交说明。
+
+## 会话 25 — 2026-10-19（问答页 7 项体验优化）
+- **0 右侧目录空白（根因）**：`src/platform/agent/api.js` 用原生 fetch，未注入 `Authorization` → 目录请求是匿名的，多用户隔离后列表恒为空。新增 `authHeaders()`（读取 `asc_token`），覆盖 sessions / tools / stream 三处 fetch。
+- **1 头部与窗口对齐**：新增共享 `QaIntroHero.vue`；两种模式统一顺序「切换器 → hero」，空态顶部锚定。实测切换器 y=82/h=42 一致，多轮 AgentPanel 与单轮 composer 顶部均为 y=313.5（绝对对齐）。空态文案精简为「试试以下的问题」，示例问题带 `/kg_search`、`/rag_search`、`/kg_graph`。
+- **2** 移除标题 `Beta`（含死 CSS）。
+- **3** 模型栏下新增「支持工具」meta：`/kg_graph /kg_list /kg_search /predict /rag_search /read_evidence /recipe_optimize /search_history /web_browse` 胶囊标签。
+- **4** 移除 header「图谱演化状态」；新增 `GraphStatusOrb.vue`：左侧悬浮球「图谱状态」，点击展开 three.js 点云（14 点单位圆 + 弧线弦 + 逐边激活脉冲 + 缓慢 3D 旋转），下方「进入图谱演化管理」→ `/process/:projectId`（已实测跳转）。
+- **5** 深度研究会话：后端 sessions 增加 `mode`（agent|single）+ `POST /api/agent/sessions/:id/turns`（归属校验）；`QaSessionToc` 增加 `mode` 过滤；深度研究页右侧复用同一目录（新建/打开/删除），答案完成后自动保存、点击恢复（实测 Q1→A1）。
+- **6** footer `@copyright` → `@Copyright`。
+- 清理：删除验证用的 5 条临时会话。
+
+### 会话 25 追加（用户澄清后的布局修正）
+- **三列舞台 `.qa-stage`**：`1fr | 主窗口(980/1400) | 1fr`。主窗口宽度与居中不受目录影响；目录位于右侧空白列（`justify-self:start`，`align-self:stretch`，子组件 `height:100%`）→ 依附主窗口右缘、同高、顶部对齐。
+- **单页布局回归**：深度研究恢复单列（`.qa-main` 全宽），header 宽度恢复满宽（1392）；正文/问答分两个状态放进同一 stage。
+- **删除 ASC 行**：`QaIntroHero` 只保留「今天想研究什么？」+ 副标题；移除 `.asc-orbit` 样式。
+- **悬浮球**：移入 stage 左列（`justify-self: safe center`），水平居中于左侧空白；顶部与主窗口对齐（两模式均为 y=292.5）。面板居中于球心（面板/标题/球心 x=313 实测一致）；标题行居中。
+- 实测（1600×1000）：两模式 header 1392、主窗口 980@y=292.5、目录同高（789/333）同顶；悬浮球 x=282、面板 x=313 中心。历史态主窗口 1304（视口限制），目录列仅 26px（1600 宽度下无剩余空间，属几何约束；≥1920 时为空白列宽）。

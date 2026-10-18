@@ -500,11 +500,13 @@ function createRouter(config = {}) {
       title: body.title,
       userId: userIdOf(req),
       workspace: body.workspace,
+      mode: body.mode,
     });
     res.json({
       sessionId: record.sessionId,
       title: record.title,
       createdAt: record.createdAt,
+      mode: record.mode,
       workspace: record.workspace || null,
     });
   });
@@ -513,7 +515,7 @@ function createRouter(config = {}) {
     const { userId, role } = authOf(req);
     // 管理员首次访问时，把没有归属的旧会话认领到自己名下（保留历史，同时保持严格隔离）
     if (role === 'admin') sessions.claimOrphans(userId);
-    res.json(sessions.listSessions({ limit: req.query.limit, userId }));
+    res.json(sessions.listSessions({ limit: req.query.limit, userId, mode: req.query.mode }));
   });
 
   instance.get('/sessions/:id', (req, res) => {
@@ -533,10 +535,33 @@ function createRouter(config = {}) {
       messages: record.messages,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
+      mode: record.mode,
       ...(activeTurns.has(id) ? { activeTurn: (({ question, fromEventId, scope }) =>
         ({ question, fromEventId, scope }))(activeTurns.get(id)) } : {}),
       ...(record.researchState ? { researchState: record.researchState } : {}),
     });
+  });
+
+  // 非流式会话（如「深度研究」单轮问答）：追加一轮问答，供右侧目录恢复
+  instance.post('/sessions/:id/turns', (req, res) => {
+    const { id } = req.params;
+    if (!sessions.isValidSessionId(id)) return res.status(400).json({ code: 400, message: 'invalid sessionId' });
+    const existing = sessions.readSession(id);
+    if (!existing || !sessions.ownsSession(existing, userIdOf(req))) {
+      return res.status(404).json({ code: 404, message: `unknown sessionId "${id}"` });
+    }
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const clean = (message) => {
+      if (!message || typeof message !== 'object') return null;
+      const content = typeof message.content === 'string' ? message.content.slice(0, 60000) : '';
+      if (!content) return null;
+      return { role: message.role === 'assistant' ? 'assistant' : 'user', content };
+    };
+    const user = clean(body.user);
+    const assistant = clean(body.assistant);
+    if (!user && !assistant) return res.status(400).json({ code: 400, message: 'empty turn' });
+    const record = sessions.appendTurn(id, { user, assistant });
+    res.json({ ok: Boolean(record), sessionId: id, updatedAt: record?.updatedAt || existing.updatedAt });
   });
 
   instance.post('/sessions/:id/stop', (req, res) => {

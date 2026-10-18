@@ -27,9 +27,26 @@
  *   GET    /api/agent/metrics                            → {turns,toolCalls,toolErrors,tokens,avgTurnMs,tools}
  */
 
+import { TOKEN_STORAGE_KEY } from '../../config/authStorage.js'
 import { buildApiUrl } from '../../api/runtime.js'
 
 export const AGENT_API_PATH = '/api/agent'
+
+/**
+ * 请求头：带上当前登录用户的 Bearer token。
+ * Agent 模块使用原生 fetch（不经过平台 axios 拦截器），因此必须自行注入；
+ * localStorage 不可用或被浏览器拦截时退化为匿名请求。
+ */
+function authHeaders(extra = {}) {
+  const headers = { ...extra }
+  try {
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_STORAGE_KEY) : ''
+    if (token) headers.Authorization = `Bearer ${token}`
+  } catch {
+    /* storage blocked → anonymous request */
+  }
+  return headers
+}
 
 /**
  * 增量式 SSE 解析器：把任意切分的 chunk 拼装成完整事件块。
@@ -132,10 +149,10 @@ export async function streamAgent({
   const body = { messages, context, options, sessionId, modelId, resumeFromEventId }
   const response = await fetch(url, {
     method: 'POST',
-    headers: {
+    headers: authHeaders({
       'Content-Type': 'application/json',
       Accept: 'text/event-stream'
-    },
+    }),
     body: JSON.stringify(body),
     signal
   })
@@ -180,7 +197,7 @@ export async function streamAgent({
 export async function getAgentTools({ baseUrl = '' } = {}) {
   const response = await fetch(buildApiUrl(`${AGENT_API_PATH}/tools`, baseUrl), {
     method: 'GET',
-    headers: { Accept: 'application/json' }
+    headers: authHeaders({ Accept: 'application/json' })
   })
   if (!response.ok) {
     throw new Error(`工具清单读取失败（HTTP ${response.status}）`)
@@ -194,9 +211,9 @@ export async function getAgentTools({ baseUrl = '' } = {}) {
 async function requestJson(path, { method = 'GET', body, baseUrl = '', failureLabel = '请求失败', signal } = {}) {
   const response = await fetch(buildApiUrl(`${AGENT_API_PATH}${path}`, baseUrl), {
     method,
-    headers: body === undefined
+    headers: authHeaders(body === undefined
       ? { Accept: 'application/json' }
-      : { Accept: 'application/json', 'Content-Type': 'application/json' },
+      : { Accept: 'application/json', 'Content-Type': 'application/json' }),
     body: body === undefined ? undefined : JSON.stringify(body),
     signal
   })
@@ -222,10 +239,11 @@ export async function getAgentModels({ baseUrl = '' } = {}) {
  * @param {{title?:string, workspace?:{projectId?:string,graphId?:string}, baseUrl?:string}} [params]
  * @returns {Promise<{sessionId:string,title:string,createdAt:string,workspace?:object}>}
  */
-export async function createAgentSession({ title, workspace, baseUrl = '' } = {}) {
+export async function createAgentSession({ title, workspace, mode = '', baseUrl = '' } = {}) {
   const body = {}
   if (title) body.title = title
   if (workspace && typeof workspace === 'object') body.workspace = workspace
+  if (mode === 'single' || mode === 'agent') body.mode = mode
   const payload = await requestJson('/sessions', {
     method: 'POST',
     body,
@@ -241,8 +259,9 @@ export async function createAgentSession({ title, workspace, baseUrl = '' } = {}
  * @param {{limit?:number, baseUrl?:string}} [params]
  * @returns {Promise<Array>} 原始条目数组 —— 映射交给 sessions.js
  */
-export async function listAgentSessions({ limit = 20, baseUrl = '' } = {}) {
-  const payload = await requestJson(`/sessions?limit=${encodeURIComponent(limit)}`, {
+export async function listAgentSessions({ limit = 20, mode = '', baseUrl = '' } = {}) {
+  const modeQuery = mode === 'single' || mode === 'agent' ? `&mode=${encodeURIComponent(mode)}` : ''
+  const payload = await requestJson(`/sessions?limit=${encodeURIComponent(limit)}${modeQuery}`, {
     baseUrl,
     failureLabel: '会话列表读取失败'
   })
@@ -261,6 +280,22 @@ export async function getAgentSession(sessionId, { baseUrl = '' } = {}) {
   return requestJson(`/sessions/${encodeURIComponent(id)}`, {
     baseUrl,
     failureLabel: '会话详情读取失败'
+  })
+}
+
+/**
+ * 追加一轮问答（用于「深度研究」等非流式会话的历史保存）。
+ * @param {string} sessionId
+ * @param {{user?:object, assistant?:object, baseUrl?:string}} [turn]
+ */
+export async function appendAgentTurn(sessionId, { user, assistant, baseUrl = '' } = {}) {
+  const id = String(sessionId || '').trim()
+  if (!id) throw new Error('保存问答记录失败：缺少 sessionId')
+  return requestJson(`/sessions/${encodeURIComponent(id)}/turns`, {
+    method: 'POST',
+    body: { user, assistant },
+    baseUrl,
+    failureLabel: '保存问答记录失败'
   })
 }
 
