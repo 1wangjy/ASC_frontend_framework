@@ -57,6 +57,7 @@ const toolRegistry = require('./tools');
 const policy = require('./policy');
 const { runAgent, normalizeMessages } = require('./loop');
 const sessions = require('./sessions');
+const { verifyToken } = require('../utils/jwt');
 const activeTurns = new Map();
 const metrics = require('./metrics');
 const modelProfiles = require('./models');
@@ -284,7 +285,10 @@ async function runTurn({ stream, messages, context, options, sessionId, signal, 
       const done = sessionId ? { ...frame, sessionId, turnIndex } : frame;
       noteFrame(log, done);
       if (sessionId && log.user) sessions.appendTurn(sessionId, {
-        user: log.user, assistant: assistantMessage(log), researchState: context.researchState,
+        user: log.user,
+        assistant: assistantMessage(log),
+        researchState: context.researchState,
+        workspace: { projectId: context.projectId, graphId: context.graphId },
       });
       emitter.emit(done);
       return;
@@ -318,6 +322,25 @@ async function runTurn({ stream, messages, context, options, sessionId, signal, 
  * POST /api/agent/stream
  * @param {{provider?:object}} [deps] test seam; production uses the configured client
  */
+/**
+ * 当前用户 id（来自平台 JWT）。多用户：会话按 userId 隔离；
+ * 未携带令牌（如独立 agent 入口/测试）落入 `anonymous` 命名空间。
+ */
+function authOf(req) {
+  try {
+    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    const decoded = token ? verifyToken(token) : null;
+    if (decoded && decoded.id !== undefined && decoded.id !== null) {
+      return { userId: String(decoded.id), role: String(decoded.role || '') };
+    }
+  } catch { /* 令牌无效 → 匿名 */ }
+  return { userId: 'anonymous', role: '' };
+}
+
+function userIdOf(req) {
+  return authOf(req).userId;
+}
+
 async function streamHandler(req, res, deps = {}) {
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const resumeFromEventId = parseResumeFromEventId(body.resumeFromEventId);
@@ -344,7 +367,8 @@ async function streamHandler(req, res, deps = {}) {
     return;
   }
   const record = sessionId ? sessions.readSession(sessionId) : null;
-  if (sessionId && !record) {
+  if (sessionId && (!record || !sessions.ownsSession(record, userIdOf(req)))) {
+    // 不区分「不存在」与「不属于你」，避免泄漏他人会话是否存在
     res.status(404).json({ code: 404, message: `unknown sessionId "${sessionId}"` });
     return;
   }
@@ -472,12 +496,24 @@ function createRouter(config = {}) {
 
   instance.post('/sessions', (req, res) => {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const record = sessions.createSession({ title: body.title });
-    res.json({ sessionId: record.sessionId, title: record.title, createdAt: record.createdAt });
+    const record = sessions.createSession({
+      title: body.title,
+      userId: userIdOf(req),
+      workspace: body.workspace,
+    });
+    res.json({
+      sessionId: record.sessionId,
+      title: record.title,
+      createdAt: record.createdAt,
+      workspace: record.workspace || null,
+    });
   });
 
   instance.get('/sessions', (req, res) => {
-    res.json(sessions.listSessions({ limit: req.query.limit }));
+    const { userId, role } = authOf(req);
+    // 管理员首次访问时，把没有归属的旧会话认领到自己名下（保留历史，同时保持严格隔离）
+    if (role === 'admin') sessions.claimOrphans(userId);
+    res.json(sessions.listSessions({ limit: req.query.limit, userId }));
   });
 
   instance.get('/sessions/:id', (req, res) => {
@@ -487,7 +523,7 @@ function createRouter(config = {}) {
       return;
     }
     const record = sessions.readSession(id);
-    if (!record) {
+    if (!record || !sessions.ownsSession(record, userIdOf(req))) {
       res.status(404).json({ code: 404, message: `unknown sessionId "${id}"` });
       return;
     }
@@ -506,7 +542,8 @@ function createRouter(config = {}) {
   instance.post('/sessions/:id/stop', (req, res) => {
     const { id } = req.params;
     if (!sessions.isValidSessionId(id)) return res.status(400).json({ message: 'invalid sessionId' });
-    if (!sessions.readSession(id)) return res.status(404).json({ message: 'unknown sessionId' });
+    const owned = sessions.readSession(id);
+    if (!owned || !sessions.ownsSession(owned, userIdOf(req))) return res.status(404).json({ message: 'unknown sessionId' });
     const active = activeTurns.get(id);
     if (active) active.controller.abort();
     res.json({ ok: true, stopping: Boolean(active) });
@@ -516,6 +553,12 @@ function createRouter(config = {}) {
     const { id } = req.params;
     if (!sessions.isValidSessionId(id)) {
       res.status(400).json({ code: 400, message: 'invalid sessionId' });
+      return;
+    }
+    // 归属校验：不属于当前用户的会话按"不存在"处理
+    const existing = sessions.readSession(id);
+    if (existing && !sessions.ownsSession(existing, userIdOf(req))) {
+      res.status(404).json({ code: 404, message: `unknown sessionId "${id}"` });
       return;
     }
     // Idempotent: deleting an unknown session is not an error for a client.

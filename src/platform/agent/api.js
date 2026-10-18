@@ -218,14 +218,17 @@ export async function getAgentModels({ baseUrl = '' } = {}) {
 }
 
 /**
- * 新建会话。
- * @param {{title?:string, baseUrl?:string}} [params]
- * @returns {Promise<{sessionId:string,title:string,createdAt:string}>}
+ * 新建会话（workspace = 该会话归属的图谱范围，用于右侧目录分组）。
+ * @param {{title?:string, workspace?:{projectId?:string,graphId?:string}, baseUrl?:string}} [params]
+ * @returns {Promise<{sessionId:string,title:string,createdAt:string,workspace?:object}>}
  */
-export async function createAgentSession({ title, baseUrl = '' } = {}) {
+export async function createAgentSession({ title, workspace, baseUrl = '' } = {}) {
+  const body = {}
+  if (title) body.title = title
+  if (workspace && typeof workspace === 'object') body.workspace = workspace
   const payload = await requestJson('/sessions', {
     method: 'POST',
-    body: title ? { title } : {},
+    body,
     baseUrl,
     failureLabel: '新建会话失败'
   })

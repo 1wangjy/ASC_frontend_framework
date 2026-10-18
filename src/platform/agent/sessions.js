@@ -74,12 +74,16 @@ export function mapSessionSummary(raw) {
   const sessionId = text(raw?.sessionId || raw?.session_id || raw?.id)
   if (!sessionId) return null
   const turns = Number(raw?.turns)
+  const workspace = raw?.workspace && typeof raw.workspace === 'object'
+    ? { projectId: text(raw.workspace.projectId) || '', graphId: text(raw.workspace.graphId) || '' }
+    : null
   return {
     sessionId,
     title: text(raw?.title, '未命名会话'),
     createdAt: text(raw?.createdAt || raw?.created_at),
     updatedAt: text(raw?.updatedAt || raw?.updated_at || raw?.createdAt || raw?.created_at),
-    turns: Number.isFinite(turns) && turns > 0 ? Math.floor(turns) : 0
+    turns: Number.isFinite(turns) && turns > 0 ? Math.floor(turns) : 0,
+    workspace
   }
 }
 

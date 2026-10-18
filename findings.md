@@ -683,3 +683,31 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
   表头 `position: sticky` 吸顶，长文件名/DOI 可换行不挤压。
 - 概览卡片等高（`min-height:64`，内容垂直居中）、数值单行省略；侧栏 232px 固定宽 + 独立滚动；控件统一 34px 高，搜索框自适应。
 - 响应式：≤1024px 侧栏折叠到上方。
+
+## F52 — 智能会话：宽度对齐 + 右侧会话目录（多用户隔离）（2026-10-18）
+**宽度契约（按用户澄清）**
+- 「内容和深度研究同宽并居中；会话目录是内容列之外额外并排的 panel」：
+  `--qa-page-max`（1400）上移到 `.qa-layout`，两种模式共用；`.qa-multi-page` 改为容器占满（带 gutter），
+  由 `.qa-multi-page__row.has-toc` 用 `grid-template-columns: minmax(0, var(--qa-page-max)) 248px; justify-content: center`
+  把**内容列**按页宽居中、目录放在其右侧；无目录时单列也按页宽居中；空态仍用 `--qa-page-max-narrow`(980) 与深度研究首页一致；
+  ≤1400 目录列收窄到 232px，≤1100 上下堆叠；另修掉空态的双 gutter。
+
+**会话目录（替代面板里的「会话历史/新建会话」按钮）**
+- 新组件 `src/platform/agent/QaSessionToc.vue`：顶部 **+ 新建对话**；其下按 **workspace(projectId)** 折叠分组
+  （组头显示项目名 + 数量，默认展开当前会话所在组）；条目显示标题/轮数/相对时间，支持删除（确认）；
+  新增 `.qa-multi-page__row` 两列布局，`showSessionToc = !useLegacyDiscussion && multiHasHistory`。
+- `AgentPanel` 嵌入模式**隐藏**会话按钮（目录接管）；独立面板保留原按钮与列表。
+- 刷新时机：`history-change`（消息增减）、`session-change`（会话隐式创建）、目录内删除后。
+
+**多用户隔离（后端）**
+- `sessions.js`：会话记录新增 `userId`、`workspace{projectId,graphId}`；`readSession` 保留这两个字段（此前重建对象会丢）；
+  `listSessions({userId})` 严格过滤；新增 `ownsSession()` 与 `claimOrphans()`（管理员首次列列表时把无归属旧会话认领给自己）。
+- `route.js`：`authOf(req)`（Bearer → `{userId, role}`，无令牌 → anonymous）；创建/列表按用户；
+  `GET/DELETE/stop/stream` 一律做归属校验，非本人按 **404** 处理（不泄漏存在性）；`runTurn` 写入 `workspace`。
+- 实测（真实接口）：admin 建会话返回 workspace；admin 列表可见、detail 200；匿名列表 0；另一用户 GET/DELETE/stream 全 **404**；
+  管理员首次列表把 23 条旧会话认领后可见（默认 limit 20）。
+- 前端：`createAgentSession({workspace})`；`mapSessionSummary` 增 `workspace`；`openSession` 的范围守卫改为**按 props 范围**判定
+  （此前仅在 embedded 生效，独立面板给定了范围却不校验）。
+
+**测试**：`agentSessionsModel` 期望补 `workspace: null`；`agentNavigationUi` 断言嵌入态无会话按钮；
+`agentPrimaryEntry`/`agentPrimarySendLive` 的历史流程改用独立面板挂载（嵌入态由目录承担）。

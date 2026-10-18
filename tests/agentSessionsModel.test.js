@@ -41,14 +41,16 @@ test('session list mapping keeps titles, turn counts and timestamps', () => {
       title: '热震稳定性检索',
       createdAt: '2026-09-16T08:00:00Z',
       updatedAt: '2026-09-16T09:00:00Z',
-      turns: 2
+      turns: 2,
+      workspace: null
     },
     {
       sessionId: 's-2',
       title: '未命名会话',
       createdAt: '2026-09-15T08:00:00Z',
       updatedAt: '2026-09-15T08:00:00Z',
-      turns: 0
+      turns: 0,
+      workspace: null
     }
   ])
 })
@@ -64,7 +66,8 @@ test('session list mapping tolerates wrappers, snake_case and broken entries', (
     title: '未命名会话',
     createdAt: '',
     updatedAt: '',
-    turns: 0
+    turns: 0,
+    workspace: null
   })
 })
 

@@ -9,7 +9,7 @@ import { AGENT_TOOL_PREFS_KEY } from '../src/platform/agent/toolPrefs.js'
 
 // Explicit opt-in: creates a retained test session and incurs real model/API usage.
 // This is the actual embedded composer with a memory renderer, NOT browser QA.
-test('real embedded Agent composer sends a research question and follow-up, streams tools and restores history',
+test('real Agent composer sends a research question and follow-up, streams tools and restores history',
   { skip: process.env.AGENT_LIVE_SEND !== '1', timeout: 720000 }, async () => {
     const base = process.env.AGENT_LIVE_UI_URL || 'http://127.0.0.1:3005'
     const projectId = process.env.AGENT_LIVE_PROJECT_ID || 'proj_65ac6094e268'
@@ -61,7 +61,8 @@ test('real embedded Agent composer sends a research question and follow-up, stre
     const mount = async (id = graphId) => {
       catalogLoaded = false
       fixture = await mountSfcWithMemoryRouter('/src/platform/agent/AgentPanel.vue', '/',
-        { embedded: true, projectId, graphId: id })
+        // 会话历史入口只在独立面板存在（嵌入态由页面右侧目录管理）
+        { embedded: false, projectId, graphId: id })
       await waitFor(() => catalogLoaded)
     }
     try {

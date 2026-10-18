@@ -37,7 +37,8 @@ test('session creation locks input, model and exposed parent navigation before s
     assert.equal(findRenderedNode(state.fixture.root, n => n.type === 'textarea').props.disabled, true)
     assert.equal(findRenderedNode(state.fixture.root, n => n.type === 'select').props.disabled, true)
     assert.equal(state.fixture.app._instance.exposed.sending.value, true)
-    assert.equal(findRenderedNode(state.fixture.root, n => n.type === 'button' && renderedText(n).trim() === '新建会话').props.disabled, true)
+    // 嵌入模式下会话管理在页面右侧目录（QaSessionToc），面板头部不再放会话按钮
+    assert.equal(findRenderedNode(state.fixture.root, n => n.type === 'button' && /新建会话|会话历史/.test(renderedText(n))), null)
     state.release()
     await state.pending
     assert.equal(state.calls.filter(call => call.url.endsWith('/stream')).length, 1)

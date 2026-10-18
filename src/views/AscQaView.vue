@@ -53,6 +53,7 @@
         </div>
 
 
+        <div class="qa-multi-page__row" :class="{ 'has-toc': showSessionToc }">
         <div
           class="qa-multi-page__workspace"
           :class="[multiHasHistory
@@ -68,7 +69,7 @@
               embedded
               :graph-options="multiGraphOptions"
               :selected-graph-id="activeProject?.graphId || ''"
-              @history-change="multiHasHistory = $event"
+              @history-change="onMultiHistoryChange"
               @select-prompt="draft = $event"
             />
             <AgentPanel
@@ -80,7 +81,7 @@
               :graph-id="activeProject?.graphId || ''"
               :initial-session-id="typeof route.query.agentSession === 'string' ? route.query.agentSession : ''"
               @session-change="onAgentSessionChange"
-              @history-change="multiHasHistory = $event"
+              @history-change="onMultiHistoryChange"
             />
           </div>
 
@@ -94,6 +95,20 @@
             :model-options="composerModelOptions"
             @update:settings="updateSettings"
             @submit="sendQuestion"
+          />
+        </div>
+
+          <!-- 右侧会话目录：顶部"+ 新建对话"，其下按 workspace 折叠分组的历史会话 -->
+          <QaSessionToc
+            v-if="showSessionToc"
+            :active-session-id="typeof route.query.agentSession === 'string' ? route.query.agentSession : ''"
+            :projects="projects"
+            :active-project-id="activeProjectId"
+            :locked="multiNavigationLocked"
+            :refresh-key="tocRefreshKey"
+            @create="newMultiDiscussion"
+            @open="openSessionFromToc"
+            @deleted="onSessionDeleted"
           />
         </div>
 
@@ -243,6 +258,7 @@ import AnswerDetailsTabs from '../features/qa/AnswerDetailsTabs.vue'
 import EvidencePanel from '../features/qa/EvidencePanel.vue'
 import QualityPanel from '../features/qa/QualityPanel.vue'
 import RecentConversationsPanel from '../features/qa/RecentConversationsPanel.vue'
+import QaSessionToc from '../platform/agent/QaSessionToc.vue'
 import QaModeSwitcher from '../features/qa/QaModeSwitcher.vue'
 import QaProjectSelector from '../features/qa/QaProjectSelector.vue'
 import MultiDiscussionPanel from '../features/qa/multiDiscussion/MultiDiscussionPanel.vue'
@@ -733,7 +749,35 @@ function newMultiDiscussion() {
   questionGuides.value = createQuestionGuideState()
 }
 
+const tocRefreshKey = ref(0)
+/** 右侧目录：仅智能会话（Agent）且有历史时显示 */
+const showSessionToc = computed(() => !useLegacyDiscussion.value && multiHasHistory.value)
+
+/** 会话目录刷新：会话可能在提问时被隐式创建，一轮结束后轮数/时间也会变。 */
+function onMultiHistoryChange(hasHistory) {
+  multiHasHistory.value = Boolean(hasHistory)
+  tocRefreshKey.value += 1
+}
+
+/** 从右侧目录打开会话（必要时先切到该会话所属图谱）。 */
+function openSessionFromToc({ sessionId, projectId } = {}) {
+  if (!sessionId) return
+  if (projectId && projectId !== activeProjectId.value) selectQualifiedProject(projectId)
+  const query = { ...route.query, agentSession: sessionId }
+  void router.replace({ path: route.path, query })
+}
+
+function onSessionDeleted(sessionId) {
+  if (route.query.agentSession === sessionId) {
+    const query = { ...route.query }
+    delete query.agentSession
+    void router.replace({ path: route.path, query })
+  }
+  tocRefreshKey.value += 1
+}
+
 function onAgentSessionChange(id) {
+  tocRefreshKey.value += 1
   if (qaState.value.mode !== 'multi' || useLegacyDiscussion.value) return
   if ((route.query.agentSession || '') === id) return
   const query = { ...route.query }
@@ -915,6 +959,8 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   background: var(--asc-bg);
+  /* 两种模式共用同一页宽（智能会话 与 深度研究 保持一致） */
+  --qa-page-max: 1400px;
 }
 
 .qa-layout--evidence {
@@ -1042,25 +1088,34 @@ onUnmounted(() => {
 }
 
 .qa-multi-page {
-  --qa-page-max: 1400px;
-  --qa-page-max-narrow: 1400px;
-  width: min(var(--qa-page-max), calc(100% - var(--qa-gutter) * 2));
+  /* 历史态：容器占满可用宽度，由 __row 负责把「内容列」按页宽居中；
+     空态仍收窄（见 --empty），与「深度研究」首页一致。 */
+  width: 100%;
   min-height: calc(100vh - var(--qa-topbar-h));
   display: flex;
   flex-direction: column;
   gap: var(--qa-section-gap);
   margin: 0 auto;
-  padding: var(--qa-page-pad-top) 0 var(--qa-page-pad-bottom);
+  padding: var(--qa-page-pad-top) var(--qa-gutter) var(--qa-page-pad-bottom);
+  box-sizing: border-box;
 }
 
 .qa-multi-page--empty {
   width: min(var(--qa-page-max-narrow), calc(100% - var(--qa-gutter) * 2));
+  padding-inline: 0;
   justify-content: center;
   padding-block: var(--qa-page-pad-top) var(--qa-page-pad-bottom);
 }
 
 .qa-multi-page--history {
   justify-content: flex-start;
+}
+
+.qa-multi-page__intro {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: var(--qa-page-max);
+  margin-inline: auto;
 }
 
 .qa-empty__intro {
@@ -1104,9 +1159,6 @@ onUnmounted(() => {
   text-wrap: balance;
 }
 
-.qa-multi-page__intro {
-  flex: 0 0 auto;
-}
 
 .qa-research-intro .asc-orbit {
   width: 48px;
@@ -1127,6 +1179,33 @@ onUnmounted(() => {
   font-weight: 500;
   letter-spacing: 0.005em;
   line-height: 1.7;
+}
+
+.qa-multi-page__row {
+  width: 100%;
+  display: block;
+}
+
+.qa-multi-page__row:not(.has-toc) > .qa-multi-page__workspace {
+  width: min(var(--qa-page-max), 100%);
+  margin-inline: auto;
+}
+
+/* 有目录时：内容列固定为页宽（与「深度研究」一致）并居中，目录在它右侧额外并排 */
+.qa-multi-page__row.has-toc {
+  display: grid;
+  grid-template-columns: minmax(0, var(--qa-page-max)) 248px;
+  gap: var(--qa-space-5);
+  justify-content: center;
+  align-items: start;
+}
+
+@media (max-width: 1400px) {
+  .qa-multi-page__row.has-toc { grid-template-columns: minmax(0, 1fr) 232px; }
+}
+
+@media (max-width: 1100px) {
+  .qa-multi-page__row.has-toc { grid-template-columns: minmax(0, 1fr); }
 }
 
 .qa-multi-page__workspace {

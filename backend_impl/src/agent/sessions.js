@@ -91,6 +91,22 @@ function countTurns(messages) {
 }
 
 /** Public projection of a stored session (no internal bookkeeping fields). */
+/** 归一化 workspace（会话归属的项目/图谱范围）。 */
+function normalizeWorkspace(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const projectId = typeof raw.projectId === 'string' ? raw.projectId.trim() : '';
+  const graphId = typeof raw.graphId === 'string' ? raw.graphId.trim() : '';
+  if (!projectId && !graphId) return null;
+  return { projectId: projectId || null, graphId: graphId || null };
+}
+
+/** 会话归属校验（严格）：未归属的旧会话只对匿名视图可见。 */
+function ownsSession(record, userId) {
+  if (!record) return false;
+  const owner = record.userId || null;
+  return owner === (userId ? String(userId) : null);
+}
+
 function summarize(record) {
   return {
     sessionId: record.sessionId,
@@ -98,6 +114,8 @@ function summarize(record) {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     turns: countTurns(record.messages),
+    // workspace = 会话所属的图谱范围（前端按此做「同一 workspace 下折叠」）
+    workspace: record.workspace || normalizeWorkspace(record.researchState?.scope) || null,
   };
 }
 
@@ -145,6 +163,9 @@ function readSession(id, options = {}) {
       createdAt: record.createdAt || nowIso(),
       updatedAt: record.updatedAt || record.createdAt || nowIso(),
       messages: Array.isArray(record.messages) ? record.messages : [],
+      // 多用户与目录分组字段：读取时必须保留，否则列表/归属校验会全部失配
+      userId: record.userId ? String(record.userId) : null,
+      workspace: normalizeWorkspace(record.workspace),
       ...(record.researchState && record.researchState.version === 1 ? { researchState: record.researchState } : {}),
     };
   } catch (error) {
@@ -162,9 +183,44 @@ function createSession(options = {}) {
   const sessionId = isValidSessionId(options.id) ? options.id : crypto.randomUUID();
   const title = clampTitle(options.title) || DEFAULT_TITLE;
   const timestamp = nowIso();
-  const record = { sessionId, title, createdAt: timestamp, updatedAt: timestamp, messages: [] };
+  const record = {
+    sessionId,
+    title,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    messages: [],
+    // 多用户：会话按用户隔离（仅列出/读写自己的会话）
+    userId: options.userId ? String(options.userId) : null,
+    workspace: normalizeWorkspace(options.workspace),
+  };
   writeSessionFile(sessionPath(sessionId, options.dir), record);
   return record;
+}
+
+/**
+ * 把「无 userId 的旧会话」认领给指定用户（仅管理员在首次列出时调用）。
+ * 直接读写原始 JSON，避免重建对象时丢字段。
+ * @returns {number} 认领条数
+ */
+function claimOrphans(userId) {
+  if (!userId) return 0;
+  const dir = sessionDir();
+  let entries;
+  try { entries = fs.readdirSync(dir); } catch { return 0; }
+  let claimed = 0;
+  for (const entry of entries) {
+    if (!entry.endsWith('.json')) continue;
+    const id = entry.slice(0, -'.json'.length);
+    if (!isValidSessionId(id)) continue;
+    const file = sessionPath(id, dir);
+    try {
+      const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (!raw || typeof raw !== 'object' || raw.userId) continue;
+      raw.userId = String(userId);
+      if (writeSessionFile(file, raw)) claimed += 1;
+    } catch { /* 损坏文件跳过 */ }
+  }
+  return claimed;
 }
 
 /** Delete a session file (idempotent). @returns {boolean} whether one existed */
@@ -189,6 +245,7 @@ function deleteSession(id, options = {}) {
 function listSessions(options = {}) {
   const dir = sessionDir(options.dir);
   const limit = clampInt(options.limit, DEFAULT_LIST_LIMIT, 1, MAX_LIST_LIMIT);
+  const userId = options.userId ? String(options.userId) : null;
   let entries;
   try {
     entries = fs.readdirSync(dir);
@@ -199,7 +256,10 @@ function listSessions(options = {}) {
   for (const entry of entries) {
     if (!entry.endsWith('.json')) continue;
     const record = readSession(entry.slice(0, -'.json'.length), { dir });
-    if (record) records.push(summarize(record));
+    if (!record) continue;
+    // 只看自己的会话；匿名视图只看未归属会话（旧文件不会跨用户泄漏）
+    if (!ownsSession(record, userId)) continue;
+    records.push(summarize(record));
   }
   records.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
   return records.slice(0, limit);
@@ -222,6 +282,7 @@ function appendTurn(id, turn = {}) {
   for (const message of added) record.messages.push(message);
   const removed = Math.max(0, record.messages.length - MAX_MESSAGES_PER_SESSION);
   if (turn.researchState && turn.researchState.version === 1) record.researchState = turn.researchState;
+  if (turn.workspace) record.workspace = normalizeWorkspace(turn.workspace);
   if (record.researchState) record.researchState = { ...record.researchState,
     historyStart: Math.max(0, (record.researchState.historyStart || 0) - removed) };
   if (record.messages.length > MAX_MESSAGES_PER_SESSION) {
@@ -355,11 +416,14 @@ module.exports = {
   sessionPath,
   createSession,
   readSession,
+  claimOrphans,
   listSessions,
   deleteSession,
   appendTurn,
   countTurns,
   summarize,
+  normalizeWorkspace,
+  ownsSession,
   publish,
   replay,
   lastBufferedFrame,

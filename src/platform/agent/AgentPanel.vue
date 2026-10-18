@@ -7,7 +7,8 @@
           <h2 class="agent-panel__title">智能体 Agent<span class="agent-panel__beta">Beta</span></h2>
         </div>
       </div>
-      <div class="agent-panel__head-actions">
+      <!-- 嵌入到「智能会话」页时，会话由页面右侧目录管理；独立面板仍保留按钮 -->
+      <div v-if="!embedded" class="agent-panel__head-actions">
         <button
           type="button"
           class="agent-panel__ghost"
@@ -124,7 +125,7 @@
       </ul>
     </section>
 
-    <section v-if="sessionsOpen" id="agent-sessions" class="agent-meta" aria-label="会话历史">
+    <section v-if="!embedded && sessionsOpen" id="agent-sessions" class="agent-meta" aria-label="会话历史">
       <div class="agent-meta__row">
         <span class="agent-meta__title">会话历史</span>
         <span class="agent-meta__note">{{ sessions.length }} 条</span>
@@ -588,7 +589,7 @@ async function newSession() {
   sessionError.value = ''
   sessionPersistWarning.value = ''
   try {
-    const created = await createAgentSession({})
+    const created = await createAgentSession({ workspace: { projectId: props.projectId, graphId: props.graphId } })
     if (!componentActive) return
     startSession(created.sessionId)
     if (sessionsOpen.value) await refreshSessions()
@@ -609,8 +610,10 @@ async function openSession(id) {
     if (!componentActive) return
     if (!detail) throw new Error('会话详情缺少 sessionId')
     const scope = detail.activeTurn?.scope || detail.researchState?.scope
-    if (props.embedded && ((props.projectId && scope?.projectId !== props.projectId)
-      || (props.graphId && scope?.graphId !== props.graphId))) throw new Error('该历史会话不属于当前图谱，请先选择对应项目；未记录范围的旧会话也不能直接续问。')
+    // 只要调用方给了范围（嵌入页或独立使用），就按范围守卫；未给范围则不做限制。
+    const scopeMismatch = (props.projectId && scope?.projectId !== props.projectId)
+      || (props.graphId && scope?.graphId !== props.graphId)
+    if (scopeMismatch) throw new Error('该历史会话不属于当前图谱，请先选择对应项目；未记录范围的旧会话也不能直接续问。')
     loadSession(detail)
     sessionsOpen.value = false
     if (detail.activeTurn) void restoreActiveTurn(detail)
@@ -642,7 +645,7 @@ async function ensureSession(text) {
   if (sessionId.value) return true
   sessionPersistWarning.value = ''
   try {
-    const created = await createAgentSession({ title: suggestSessionTitle(text) })
+    const created = await createAgentSession({ title: suggestSessionTitle(text), workspace: { projectId: props.projectId, graphId: props.graphId } })
     if (!componentActive) return false
     adoptSession(created.sessionId)
   } catch (err) {

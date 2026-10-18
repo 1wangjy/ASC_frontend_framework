@@ -30,7 +30,7 @@ test('smart conversation defaults to Agent on the main workspace, legacy and dee
   assert.match(source, /<section v-else-if="showQaHome"/)
 })
 
-test('embedded composer uses real Agent wire contract and restores citations and full quote after history reload', async (t) => {
+test('composer uses real Agent wire contract and restores citations and full quote after history reload', async (t) => {
   const previous = globalThis.fetch
   const requests = []
   const saved = { sessionId: 'ui-session', researchState: { scope: { projectId: 'p1', graphId: 'g1' } },
@@ -52,7 +52,8 @@ test('embedded composer uses real Agent wire contract and restores citations and
     return new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } })
   }
   t.after(() => { globalThis.fetch = previous })
-  const fixture = await mountSfcWithMemoryRouter(MODULE, '/', { embedded: true, projectId: 'p1', graphId: 'g1' })
+  // 会话历史入口只在独立面板存在（嵌入态由页面右侧目录管理），故此处用非嵌入挂载
+  const fixture = await mountSfcWithMemoryRouter(MODULE, '/', { embedded: false, projectId: 'p1', graphId: 'g1' })
   try {
     const input = findRenderedNode(fixture.root, (n) => n.type === 'textarea')
     await invoke(input, 'onUpdate:modelValue', '温度条件？')
