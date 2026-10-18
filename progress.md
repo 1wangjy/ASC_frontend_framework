@@ -285,3 +285,8 @@
 - `QaIntroHero` 改为无边框可折叠区：0fr↔1fr + opacity 460/300ms 过渡，圆形箭头 180° 旋转，`aria-expanded`/`aria-label` 齐全。
 - 页面联动：首页展开；多轮 `multiHasHistory` 变真 / 单轮 `showQaHome` 变假（发送或打开历史会话）自动收起；新建对话/回到首页自动展开；箭头可手动切换。
 - 实测：multi 展开 114.5px（stage 300.5）→ 发送后 0（stage 186）；single 打开历史时 200ms 中间帧 24.2px（stage 206）→ 900ms 收尽 0（stage 186）；新建对话回到 114.5（stage 300.5）。
+
+### 会话 26 追加（主窗口内部滚动）
+- 页面容器由 `min-height` 改为固定 `height: calc(100vh - topbar)` + `overflow:hidden`：内容再多页面也不增高。
+- 单页问答态新增 `.qa-session__scroll`（flex:1/min-height:0/overflow-y:auto），问题摘要、回答、详情在窗口内滚动；输入区保持在窗口底部（不随滚动）。
+- 实测（长回答 5k+ 字）：docScroll 1050、footer 1000 恒定；session 186..988；滚动区 client 650 / scroll 1008，滚动后页面不变；目录底 988（距页底 12px）。多轮面板 301..988、目录 988。

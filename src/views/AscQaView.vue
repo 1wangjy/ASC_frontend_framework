@@ -151,6 +151,7 @@
             </div>
 
             <div v-else class="qa-session">
+              <div class="qa-session__scroll">
               <header class="qa-result-context">
                 <div class="qa-result-context__summary">
                   <span class="qa-result-context__label">
@@ -185,6 +186,7 @@
                 @select="answerDetailTab = $event"
                 @citation="chooseCitation"
               />
+              </div>
 
               <QuestionComposer
                 v-model="draft"
@@ -1233,7 +1235,8 @@ onUnmounted(() => {
 
 .qa-single-page {
   width: 100%;
-  min-height: calc(100vh - var(--qa-topbar-h));
+  height: calc(100vh - var(--qa-topbar-h));
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--qa-section-gap);
@@ -1256,16 +1259,16 @@ onUnmounted(() => {
   min-height: 0;
 }
 
-/* 问答态：输入区贴底，窗口底边与右侧目录一致 */
+/* 问答态：输入区固定在主窗口底部（不随内容滚动） */
 .qa-stage__main > .qa-session > :deep(.composer-shell) {
-  margin-top: auto;
+  flex: 0 0 auto;
 }
 
 .qa-multi-page {
-  /* 历史态：容器占满可用宽度，由 __row 负责把「内容列」按页宽居中；
-     空态仍收窄（见 --empty），与「深度研究」首页一致。 */
+  /* 固定为一屏高度：内容超出时只在主窗口内部滚动，页面本身不增高 */
   width: 100%;
-  min-height: calc(100vh - var(--qa-topbar-h));
+  height: calc(100vh - var(--qa-topbar-h));
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--qa-section-gap);
@@ -1464,9 +1467,22 @@ onUnmounted(() => {
 
 .qa-session {
   width: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: var(--qa-section-gap);
+  overflow: hidden;
+}
+
+/* 主窗口内部滚动：问题摘要/回答/证据详情；输入区固定在窗口底部 */
+.qa-session__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--qa-section-gap);
+  padding-right: 4px;
 }
 
 .qa-result-context {
