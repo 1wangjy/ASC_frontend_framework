@@ -621,3 +621,12 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 - 实测：故障态启动 → 503（`mongooseState:2`）；恢复 Mongo 后 **5s 内自愈 200**（未重启后端）；
   20s 后 legacy 也恢复（`mongooseState:1`）；容器 stop/start 后 `files/stats` 仍 2437 / 6,149,674,180 B。
 - 记录：`check/check_status_2026-10-18_mongo-connection.md`。
+
+## F46 — 前端同源回链补齐：`/api/files` 代理 + `original_url` 相对路径（2026-10-18）
+- 缺口：`vite.config.js` **没有 `/api/files` 代理** → 经 3005 访问落入兜底 `/api`（→5001）得到 404；
+  而 5001 生成的 `original_url` 是**绝对地址** `http://127.0.0.1:3001/...`（跨机/他机浏览器不可用）。
+- 修复：① vite 新增 `'/api/files'` → 3001（位于兜底 `/api` 之前）；② 5001 `reference_manager` 的
+  `PLATFORM_API_BASE` 默认改为空 → `original_url` 输出**相对路径** `/api/files/...`，由浏览器按前端同源解析
+  （需要绝对地址时仍可用 `PLATFORM_API_BASE` 覆盖）。
+- 实测：`/api/files/stats` 经 3005 **200**；`/api/files/by-doi/10.1016/j.jeurceramsoc.2021.01.021/stream`
+  直连 3001 与经 3005 均 **200 / 10,176,213 B**（连测 3 次稳定）；agent 引用的 `original_url` 16/16 为相对路径。

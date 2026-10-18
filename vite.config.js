@@ -122,6 +122,12 @@ export default defineConfig({
         secure: false,
       },
       // 智能体（SSE 流式）→ Node.js 后端
+      // 统一文件管理（GridFS asc_files + file_meta）
+      '/api/files': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+        secure: false
+      },
       '/api/agent': {
         target: 'http://127.0.0.1:3001',
         changeOrigin: true,
