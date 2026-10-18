@@ -151,11 +151,6 @@
             </div>
 
             <div v-else class="qa-session">
-              <button type="button" class="qa-result-back" @click="returnToQaHome">
-                <span aria-hidden="true">←</span>
-                返回首页
-              </button>
-
               <header class="qa-result-context">
                 <div class="qa-result-context__summary">
                   <span class="qa-result-context__label">
@@ -751,20 +746,6 @@ function reset() {
   questionGuides.value = createQuestionGuideState()
 }
 
-
-
-async function returnToQaHome() {
-  if (qaState.value.mode === 'multi') {
-    if (multiNavigationLocked.value) return
-    if (multiDiscussionPanel.value) multiDiscussionPanel.value.startNewDiscussion()
-    else clearSavedMultiDiscussion(browserStorage, activeProject.value?.graphId)
-    draft.value = ''
-  } else reset()
-  const query = { ...route.query }
-  delete query.conversation
-  delete query.new
-  await router.replace({ path: '/research', query })
-}
 
 function newMultiDiscussion() {
   if (qaState.value.mode !== 'multi') return
@@ -1484,32 +1465,6 @@ onUnmounted(() => {
   border-radius: var(--qa-radius-card);
   background: var(--qa-surface);
   box-shadow: var(--qa-shadow-card);
-}
-
-.qa-result-back {
-  width: max-content;
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--qa-space-2);
-  min-height: var(--qa-control-h);
-  padding: 0 var(--qa-space-2);
-  border: 0;
-  border-radius: var(--qa-radius-control);
-  background: transparent;
-  color: var(--qa-accent);
-  font-size: var(--qa-control-font);
-  font-weight: var(--qa-weight-heavy);
-  cursor: pointer;
-}
-
-.qa-result-back:hover {
-  background: var(--qa-accent-soft);
-}
-
-.qa-result-back:focus-visible {
-  outline: 3px solid rgba(33, 113, 174, .16);
-  outline-offset: 2px;
 }
 
 .qa-result-context__summary,
