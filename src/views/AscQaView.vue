@@ -1243,6 +1243,23 @@ onUnmounted(() => {
 
 .qa-single-page .qa-empty__intro { max-width: var(--qa-page-max-narrow); margin-inline: auto; }
 
+/* 深度研究：中部主窗口同样拉到底部对齐线（会话目录之外的组件跟随一致） */
+.qa-stage__main > .qa-empty,
+.qa-stage__main > .qa-session {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.qa-stage__main > .qa-empty > :deep(.shortcut-grid) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* 问答态：输入区贴底，窗口底边与右侧目录一致 */
+.qa-stage__main > .qa-session > :deep(.composer-shell) {
+  margin-top: auto;
+}
+
 .qa-multi-page {
   /* 历史态：容器占满可用宽度，由 __row 负责把「内容列」按页宽居中；
      空态仍收窄（见 --empty），与「深度研究」首页一致。 */

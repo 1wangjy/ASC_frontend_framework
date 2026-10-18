@@ -80,9 +80,9 @@ function discTexture() {
   canvas.height = size
   const ctx = canvas.getContext('2d')
   const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
-  gradient.addColorStop(0, 'rgba(255,255,255,1)')
-  gradient.addColorStop(0.35, 'rgba(120,220,255,0.95)')
-  gradient.addColorStop(1, 'rgba(60,150,255,0)')
+  gradient.addColorStop(0, 'rgba(18,103,168,1)')
+  gradient.addColorStop(0.35, 'rgba(48,150,214,0.95)')
+  gradient.addColorStop(1, 'rgba(48,150,214,0)')
   ctx.fillStyle = gradient
   ctx.fillRect(0, 0, size, size)
   const texture = new THREE.CanvasTexture(canvas)
@@ -116,8 +116,7 @@ function buildScene() {
     map: sprite,
     transparent: true,
     depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    color: new THREE.Color('#bfe9ff')
+    color: new THREE.Color('#1f7fc4')
   })
   group.add(new THREE.Points(geometry, pointsMaterial))
 
@@ -133,19 +132,18 @@ function buildScene() {
     const curve = new THREE.QuadraticBezierCurve3(start, middle, end)
     const curveGeometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(24))
     const material = new THREE.LineBasicMaterial({
-      color: new THREE.Color('#2d5f8a'),
+      color: new THREE.Color('#7aa9c9'),
       transparent: true,
-      opacity: 0.32,
-      blending: THREE.AdditiveBlending
+      opacity: 0.5
     })
     group.add(new THREE.Line(curveGeometry, material))
-    edgeRecords.push({ curve, material, baseColor: new THREE.Color('#2d5f8a') })
+    edgeRecords.push({ curve, material, baseColor: new THREE.Color('#7aa9c9') })
   })
 
   // 激活脉冲：沿某条边传播的小光点
   activeNode = new THREE.Mesh(
     new THREE.SphereGeometry(0.045, 12, 12),
-    new THREE.MeshBasicMaterial({ color: new THREE.Color('#7ff0ff'), transparent: true, opacity: 0 })
+    new THREE.MeshBasicMaterial({ color: new THREE.Color('#00a3e0'), transparent: true, opacity: 0 })
   )
   group.add(activeNode)
 
@@ -182,7 +180,7 @@ function buildScene() {
     if (!activeEdge && now - lastActivation > GAP_MS) {
       activeEdge = edgeRecords[Math.floor(Math.random() * edgeRecords.length)]
       activeStarted = now
-      activeEdge.material.color.copy(new THREE.Color('#79e6ff'))
+      activeEdge.material.color.copy(new THREE.Color('#0b8fd6'))
       activeEdge.material.opacity = 0.95
     }
 
@@ -200,7 +198,7 @@ function buildScene() {
       activeNode.material.opacity = Math.sin(progress * Math.PI) * 1.4
       activeEdge.material.opacity = 0.35 + 0.6 * Math.sin(progress * Math.PI)
       if (progress >= 1) {
-        activeEdge.material.opacity = 0.32
+        activeEdge.material.opacity = 0.5
         activeEdge.material.color.copy(activeEdge.baseColor)
         activeNode.material.opacity = 0
         activeEdge = null
@@ -336,27 +334,26 @@ onBeforeUnmount(dispose)
 
 .graph-orb__panel {
   position: absolute;
-  top: calc(100% + 10px);
-  /* 面板与悬浮球水平居中对齐（264 / 2 = 132），标题行随之居中 */
-  left: 50%;
-  margin-left: -132px;
+  top: calc(100% + 22px);
+  /* 从左缘展开（与悬浮球左缘对齐），避免增宽后压到左侧导航栏；标题行在面板内居中 */
+  left: 0;
   z-index: 41;
-  width: 264px;
-  padding: 10px 12px 12px;
-  border: 1px solid rgba(120, 210, 255, 0.38);
+  width: 317px;
+  padding: 12px 14px 14px;
+  border: 1px solid rgba(96, 158, 204, 0.4);
   border-radius: 16px;
-  background: linear-gradient(165deg, rgba(8, 40, 68, 0.94), rgba(5, 27, 48, 0.92));
-  box-shadow: 0 18px 42px rgba(4, 25, 46, 0.42);
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.97), rgba(238, 247, 254, 0.96));
+  box-shadow: 0 18px 42px rgba(23, 68, 104, 0.16);
   backdrop-filter: blur(10px);
-  color: #d8f1ff;
+  color: #173a56;
 }
 
 .graph-orb__canvas {
-  width: 240px;
-  height: 210px;
+  width: 100%;
+  height: 252px;
   border-radius: 12px;
   overflow: hidden;
-  background: radial-gradient(circle at 50% 52%, rgba(40, 130, 200, 0.22), rgba(4, 24, 44, 0.1) 70%);
+  background: radial-gradient(circle at 50% 52%, rgba(196, 228, 250, 0.55), rgba(240, 248, 254, 0.35) 70%);
 }
 
 .graph-orb__canvas :deep(canvas) {
@@ -373,15 +370,15 @@ onBeforeUnmount(dispose)
   margin: 8px 2px 6px;
   text-align: center;
   font-size: 11px;
-  color: rgba(190, 226, 248, 0.78);
+  color: #4a7191;
 }
 
 .graph-orb__dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #7fe6ff;
-  box-shadow: 0 0 8px rgba(127, 230, 255, 0.9);
+  background: #1fa5e0;
+  box-shadow: 0 0 8px rgba(31, 165, 224, 0.45);
 }
 
 .graph-orb__link {
@@ -390,17 +387,17 @@ onBeforeUnmount(dispose)
   gap: 6px;
   padding: 6px 0 0;
   border: 0;
-  border-top: 1px solid rgba(120, 210, 255, 0.22);
+  border-top: 1px solid rgba(96, 158, 204, 0.24);
   width: 100%;
   background: transparent;
-  color: #9fdcff;
+  color: #0b6fb8;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .graph-orb__link:hover {
-  color: #d5f3ff;
+  color: #055a97;
 }
 
 .graph-orb-drop-enter-active,

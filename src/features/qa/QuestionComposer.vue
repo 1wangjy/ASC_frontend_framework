@@ -1,5 +1,6 @@
 <template>
-  <div v-if="!compact || mode === 'multi'" class="composer-shell">
+  <!-- 紧凑模式（单轮追问）同样需要输入框：模式切换器由内部 v-if 控制，外壳始终渲染 -->
+  <div class="composer-shell" :class="{ 'composer-shell--compact': compact }">
     <QaModeSwitcher
       v-if="!compact && showModeSwitcher"
       :mode="mode"

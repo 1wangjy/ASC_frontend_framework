@@ -255,3 +255,8 @@
 - 两页内容改为 flex 填满：`.qa-stage { flex:1; min-height:0 }`，`.qa-stage__main` 为 flex 列；`.qa-multi-page` / `.qa-single-page` 底部 padding = 12px。
 - 去掉固定高度 clamp：`.qa-multi-page__workspace--history` 的 `clamp(460px, …, 640px)` 删除；嵌入态 AgentPanel `height:100%`，日志 `min-height:0; max-height:none`，由 flex 分配剩余高度。
 - 实测（1600×1000）：主窗口 292.5→988（高 695.5），目录同高同底；页面 58→1000，footer 1000→1050（与性能预测相同的 12px 页底内边距）；面板内部无溢出（log 滚动区 286，composer 贴底）。
+
+### 会话 25 追加（中部窗口贴底 + 悬浮面板亮色）
+- 深度研究中部窗口拉到底：`.qa-stage__main > .qa-empty/.qa-session { flex:1 }`，快捷问题网格 `flex:1` 拉伸；实测 `.qa-empty` 292.5→988、shortcut 网格底 988；问答态 `.qa-session` 82→988，输入区 `margin-top:auto` 贴底（856→988）。
+- 顺带修复既有缺陷：`QuestionComposer` 紧凑模式的根 `v-if` 使单轮追问输入框完全不渲染；改为外壳始终渲染（模式切换器内部 v-if 控制）。
+- 悬浮面板：下移 22px、宽度 264→317（+20%）、画布 287×252；改为亮色主题（白/浅蓝渐变、深蓝文字、非叠加混合的深蓝点线），并与悬浮球左缘对齐避免压到左侧导航。
