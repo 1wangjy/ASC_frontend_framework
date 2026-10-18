@@ -368,8 +368,8 @@
     <!-- MongoDB Section -->
     <div v-show="currentMainTab === 'mongodb'" class="tab-content" :class="{ active: currentMainTab === 'mongodb' }">
       <div class="section">
-        <h2>MongoDB管理</h2>
-        <p style="margin-bottom:24px;color:var(--text-secondary)">使用Mongo Express进行MongoDB数据库管理</p>
+        <h2>MongoDB 状态</h2>
+        <p style="margin-bottom:24px;color:var(--text-secondary)">检查后端与 MongoDB（统一文件存储 `asc_files` + `file_meta`，以及旧附件通道）的连通性。</p>
         <div class="pl-eqfill" style="width:100%;height:600px;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border-color)">
           <div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:40px"
             :style="{ backgroundColor: mongoStatusOk === true ? 'rgba(16,185,129,.1)' : mongoStatusOk === false ? 'rgba(239,68,68,.1)' : 'transparent' }">
@@ -868,7 +868,30 @@ function addToNavigationHistory() { navigationHistory.value.push({ table: curren
 function navigateBack() { const prev = navigationHistory.value.pop(); if (prev) { editingRowId.value = null; currentManageTable.value = prev.table; loadManageData() } }
 function jumpToTab(type, targetId) { addToNavigationHistory(); currentManageTable.value = type; editingRowId.value = null; loadManageData(); setTimeout(() => { highlightRowId.value = targetId; setTimeout(() => { highlightRowId.value = null }, 2000) }, 300) }
 
-async function checkMongoDBStatus() { isCheckingMongo.value = true; mongoStatusText.value = '正在检查连接...'; try { const r = await testMongoDB(); if (r && r.success) { mongoStatusText.value = 'MongoDB连接成功！'; mongoStatusOk.value = true } else { mongoStatusText.value = 'MongoDB未连接'; mongoStatusOk.value = false } } catch { mongoStatusText.value = '无法连接到服务器'; mongoStatusOk.value = false } finally { isCheckingMongo.value = false } }
+async function checkMongoDBStatus() {
+  isCheckingMongo.value = true
+  mongoStatusText.value = '正在检查连接...'
+  try {
+    const r = await testMongoDB()
+    if (r && r.success) {
+      const d = r.data || {}
+      const parts = []
+      if (d.unified !== undefined) parts.push(`统一文件存储：${d.unified ? '可用' : '不可用'}`)
+      if (d.legacy !== undefined) parts.push(`旧附件通道：${d.legacy ? '可用' : '不可用'}`)
+      if (d.mongooseState !== undefined) parts.push(`mongoose state=${d.mongooseState}`)
+      mongoStatusText.value = `MongoDB连接成功！${parts.length ? `（${parts.join('；')}）` : ''}`
+      mongoStatusOk.value = true
+    } else {
+      mongoStatusText.value = r?.message || 'MongoDB未连接'
+      mongoStatusOk.value = false
+    }
+  } catch (error) {
+    mongoStatusText.value = error?.message || '无法连接到服务器'
+    mongoStatusOk.value = false
+  } finally {
+    isCheckingMongo.value = false
+  }
+}
 
 function getRowId(row, table) { return row[ID_FIELD_MAP[table]] }
 function handleDelete(row) { const id = getRowId(row, currentManageTable.value); if (!confirm('确定要删除这条记录吗？')) return; remove(currentManageTable.value, id).then(() => loadManageData()).catch(e => alert('删除失败：' + (e.message || '请重试'))) }

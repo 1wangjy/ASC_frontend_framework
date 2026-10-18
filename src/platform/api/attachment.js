@@ -23,8 +23,11 @@ export function extractAttachmentMetadata(litId, options = {}) {
 }
 
 export function testMongoDB() {
+  // 注意：**不要**用 unwrapApiSuccess —— 它会把响应解包成 data，
+  // 而「MongoDB测试」页签判断的是 r.success（历史 bug：解包后永远拿不到 success → 一直显示“未连接”）。
+  // 这里保留完整响应体 { success, message, data }；非 2xx 仍抛错（PDF 导入前置闸门依赖此语义）。
   return request.get('/api/attachment/test')
-    .then(unwrapApiSuccess)
+    .then((response) => response)
     .catch((error) => {
       throw new Error(
         error?.response?.data?.message

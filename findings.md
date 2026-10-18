@@ -630,3 +630,16 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
   （需要绝对地址时仍可用 `PLATFORM_API_BASE` 覆盖）。
 - 实测：`/api/files/stats` 经 3005 **200**；`/api/files/by-doi/10.1016/j.jeurceramsoc.2021.01.021/stream`
   直连 3001 与经 3005 均 **200 / 10,176,213 B**（连测 3 次稳定）；agent 引用的 `original_url` 16/16 为相对路径。
+
+## F47 — 「MongoDB测试」页签一直显示"未连接"：前端解包错位（2026-10-18）
+- 页面：`/platform/data?tab=manage` → 主标签 **MongoDB测试**（`DataManagerView.vue` `MAIN_TABS` key=`mongodb`）。
+- 根因：`api/attachment.js` 的 `testMongoDB()` 用 `unwrapApiSuccess(res)`，而该函数**返回 `res.data`**；
+  页签判断的却是 `r.success` → 解包后拿不到 `success` → 永远走 else 分支显示"MongoDB未连接"
+  （旧后端无 `data` 字段时更是 `undefined`）。与后端连通性无关。
+- 修复：
+  1. `testMongoDB()` 保留**完整响应体** `{success,message,data}`（非 2xx 仍抛错，PDF 导入前置闸门语义不变）；
+  2. 状态页用 `data` 展示明细：`统一文件存储：可用/不可用；旧附件通道：…；mongoose state=N`；
+  3. 页签文案去掉不存在的 "Mongo Express" 说法，改为说明实际检查的两个存储通道。
+- 实测：经 3005 取真实响应 `{success:true,data:{unified:true,legacy:true,mongooseState:1}}`，
+  复刻页签判定 → **状态=true**，文案 `MongoDB连接成功！（统一文件存储：可用；旧附件通道：可用；mongoose state=1）`；
+  相关前端测试 12/12 通过。

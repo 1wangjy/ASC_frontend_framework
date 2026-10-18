@@ -211,3 +211,6 @@
 - 复现并定位：`/api/attachment/test` 只认启动时建立的 legacy mongoose 连接（失败不重试、bucket 不惰性构造），
   且上传守卫无视已可用的统一存储 → 容器重建期启动后端会"一直未连接"，必须重启。
 - 修复并实测自愈：惰性 bucket + 指数退避重连 + `checkStorage()` 组合判定；故障态 503 → 恢复 Mongo 后 5s 内 200（未重启后端）。
+
+- 追加修复：`/platform/data?tab=manage` 的「MongoDB测试」页签——`testMongoDB()` 的解包错位（`unwrapApiSuccess` 返回 data
+  而页签判断 success）导致永远显示"未连接"；改为保留完整响应并展示 unified/legacy/mongooseState 明细。
