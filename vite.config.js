@@ -20,6 +20,10 @@ export default defineConfig({
     // 脚本化启动时设 VITE_NO_OPEN=1 即可无头运行（人类 `npm run dev` 仍保持自动打开）。
     open: process.env.VITE_NO_OPEN ? false : true,
     watch: {
+      // 仓库在 /mnt/e（9p/DrvFs）：inotify 不可靠，编辑后 HMR/模块缓存不失效 → 页面仍是旧代码。
+      // 开启轮询保证改动可靠生效（ignored 已排除 node_modules/.venv/backend_impl/AI4Sci，轮询面很小）。
+      usePolling: true,
+      interval: 400,
       ignored: [
         '**/_code/**', '**/node_modules/**', '**/dist/**', '**/.git/**',
         // Python 虚拟环境/日志库：几十万文件，WSL 下会把 inotify watch 配额打满（ENOSPC 导致 dev server 退出）

@@ -659,3 +659,10 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
   `/api/mongo/*`（`/status` 首次约 20s，避免拖累其它页签）。
 - SSR 冒烟（`vite.ssrLoadModule` + `@vue/server-renderer`，`active=false`）：渲染 5,602 B，五个区块全部存在、无运行时错误。
 - `vite build` 通过；面板 API 经 3005 代理 6/6 = 200。
+
+## F50 — HMR 在 9p 上失效导致"改了页面没变"（2026-10-18）
+- 现象：源码已替换为 `MongoAdminPanel`，但线上模块仍是旧版（含"检查连接"、无 `MongoAdminPanel`），硬刷新也无效。
+- 根因：仓库位于 `/mnt/e`（9p/DrvFs），**inotify 事件不可靠**，Vite 不感知变更 → transform 缓存不失效。
+- 修复：`vite.config.js` 的 `server.watch` 增 `usePolling: true, interval: 400`（`ignored` 已排除 node_modules/.venv/backend_impl/AI4Sci，
+  轮询面很小）+ 重启前端；实测线上模块已更新。
+- 教训：本仓库改前端后，若「刷新无效」，先 `services.sh restart frontend`；长期靠 `usePolling` 保证。
