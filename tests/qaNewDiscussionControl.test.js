@@ -15,11 +15,17 @@ test('legacy utility rail does not duplicate session or mode actions', async () 
   }
 })
 
-test('deep-research workflow shortcuts live in the QA topbar, not a duplicate rail', async () => {
+test('QA topbar holds only page info/status and graph scope (no action buttons)', async () => {
+  // 2026-10-18：页头按要求精简为「左侧页面信息/状态 + 右侧图谱选择」；
+  // 图谱项目/报告中心/新建会话 不再出现在 QA 页头（入口在侧边栏与 Agent 面板）。
   const view = await source('../src/views/AscQaView.vue')
-  assert.ok(view.includes("@click=\"router.push('/process')\""))
-  assert.match(view, /图谱项目/)
-  assert.match(view, /报告中心/)
+  const headerStart = view.indexOf('<header class="qa-topbar">')
+  const headerEnd = view.indexOf('</header>', headerStart)
+  const header = view.slice(headerStart, headerEnd)
+  assert.ok(headerStart >= 0 && headerEnd > headerStart, '未找到 QA 页头')
+  assert.ok(!/qa-topbar__action/.test(header), 'QA 页头不应再包含操作按钮')
+  assert.match(header, /qa-topbar__info/)
+  assert.match(header, /qa-project-context/)
   const fixture = await mountSfcWithMemoryRouter('/src/features/qa/RecentConversationsPanel.vue', '/', { mode: 'single' })
   try {
     assert.equal(findRenderedNode(fixture.root, node => ['button', 'a'].includes(node?.type) && /图谱项目|报告中心|新建讨论|退出多轮/.test(renderedText(node))), null)

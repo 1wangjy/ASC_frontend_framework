@@ -666,3 +666,20 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 - 修复：`vite.config.js` 的 `server.watch` 增 `usePolling: true, interval: 400`（`ignored` 已排除 node_modules/.venv/backend_impl/AI4Sci，
   轮询面很小）+ 重启前端；实测线上模块已更新。
 - 教训：本仓库改前端后，若「刷新无效」，先 `services.sh restart frontend`；长期靠 `usePolling` 保证。
+
+## F51 — QA 页头精简 + MongoDB 管理面板版式重排（2026-10-18）
+**QA 页头（智能会话 / 深度研究 共用 `AscQaView`）**
+- 移除中部 `.qa-topbar__actions` 全部元素：图谱项目、报告中心、新建会话按钮（`GlobalGraphTaskIndicator` 移入左侧状态区）。
+- 页头只剩：**左** `qa-topbar__info`（页标题 + 图谱演化任务状态）、**右** `qa-project-context`（当前图谱 + 选择/更换）。
+- 入口去向：图谱项目/报告中心在侧边栏；新建会话在 Agent 面板（`AgentPanel` 内含「新建会话」，测试 `agentNavigationUi` 仍覆盖）。
+- 删除 `onModePrimaryAction` 与 `.qa-topbar__action*` 死样式；`qaNewDiscussionControl.test.js` 的源码文本断言改为结构断言
+  （页头含 info/scope、不含 action 按钮）。实测：SSR 渲染页头文本＝「问题研究 图谱演化状态 … 当前图谱 …」，`qa-topbar__action` 0 处；19/19 测试通过。
+
+**MongoDB 管理面板版式**
+- 根元素改为 `<section class="section mongo-admin">`，接入 `platform.css` 的 **`pl-tabfill` 工作区契约**
+  （`> .tab-content.active > .section { flex:1 1 0 }`）：彻底消除双 padding，与其它主标签卡片同宽同圆角同阴影。
+- 内部改为 flex 布局：头部/概览/工具条固定，**表格区独立滚动**、分页条固定在面板底部；页面本身不再滚动。
+- 表格：`table-layout: fixed` + `<colgroup>` 固定列宽（文档 190/auto/168；文件 30/18/11/13/9/19%；索引 22/28/30/20%），
+  表头 `position: sticky` 吸顶，长文件名/DOI 可换行不挤压。
+- 概览卡片等高（`min-height:64`，内容垂直居中）、数值单行省略；侧栏 232px 固定宽 + 独立滚动；控件统一 34px 高，搜索框自适应。
+- 响应式：≤1024px 侧栏折叠到上方。

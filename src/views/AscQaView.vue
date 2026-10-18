@@ -8,18 +8,10 @@
   >
     <main class="qa-main">
       <header class="qa-topbar">
-        <div>
+        <!-- 左：页面信息 + 任务状态（不再放任何操作按钮） -->
+        <div class="qa-topbar__info">
           <strong v-if="qaState.phase === 'empty'">问题研究</strong>
           <strong v-else>研究答疑 / 热震稳定性</strong>
-        </div>
-        <div class="qa-topbar__actions">
-          <button type="button" class="qa-topbar__action" @click="router.push('/process')">图谱项目</button>
-          <button
-            v-if="qaState.mode === 'single'"
-            type="button"
-            class="qa-topbar__action qa-topbar__action--primary"
-            @click="router.push('/reports')"
-          >报告中心</button>
           <GlobalGraphTaskIndicator
             :items="graphTaskMonitor.state.items"
             :connection="graphTaskMonitor.state.connection"
@@ -27,17 +19,8 @@
             @refresh="graphTaskMonitor.refresh"
             @view-project="onTaskbarViewProject"
           />
-          <button
-            v-if="qaState.mode === 'multi'"
-            type="button"
-            class="qa-topbar__action qa-topbar__action--primary"
-            :disabled="multiNavigationLocked"
-            @click="onModePrimaryAction"
-          >
-            新建会话
-          </button>
         </div>
-        <!-- 图谱项目：唯一的"选择/更换图谱"入口（合并原门禁提示） -->
+        <!-- 右：图谱选择（唯一操作入口） -->
         <div
           class="qa-project-context"
           :class="{ 'qa-project-context--required': projectRequired, 'qa-project-context--error': !!projectError }"
@@ -759,13 +742,6 @@ function onAgentSessionChange(id) {
   void router.replace({ path: route.path, query })
 }
 
-function onModePrimaryAction() {
-  if (qaState.value.mode === 'multi') {
-    newMultiDiscussion()
-    return
-  }
-  void router.push('/reports')
-}
 
 function onTaskbarViewProject(projectId) {
   if (projectId) router.push({ name: 'Process', params: { projectId } })
@@ -966,10 +942,12 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.94);
 }
 
-.qa-topbar > div:first-child {
+.qa-topbar__info {
   display: flex;
   align-items: center;
   gap: var(--qa-space-3);
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .qa-topbar span {
@@ -1003,8 +981,7 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.qa-project-context button,
-.qa-topbar__action {
+.qa-project-context button {
   min-height: var(--qa-control-h);
   display: inline-flex;
   align-items: center;
@@ -1046,36 +1023,10 @@ onUnmounted(() => {
   border-color: var(--qa-danger, #b91c1c);
 }
 
-.qa-project-context button:hover,
-.qa-topbar__action:hover {
+.qa-project-context button:hover {
   border-color: var(--qa-accent);
   color: var(--qa-accent);
   background: var(--qa-accent-soft);
-}
-
-.qa-topbar__actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--qa-space-2);
-  min-height: var(--qa-control-h);
-}
-
-.qa-topbar__action--primary {
-  border-color: var(--qa-accent);
-  background: var(--qa-accent);
-  color: #fff;
-}
-
-.qa-topbar__action--primary:hover {
-  border-color: var(--qa-accent-hover);
-  background: var(--qa-accent-hover);
-  color: #fff;
-}
-
-.qa-topbar__action:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 /* --- one page shell for BOTH modes: same gutter, same max-width, same rhythm --- */
