@@ -643,3 +643,13 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 - 实测：经 3005 取真实响应 `{success:true,data:{unified:true,legacy:true,mongooseState:1}}`，
   复刻页签判定 → **状态=true**，文案 `MongoDB连接成功！（统一文件存储：可用；旧附件通道：可用；mongoose state=1）`；
   相关前端测试 12/12 通过。
+
+## F48 — 「MongoDB测试」页签替换为可视化 MongoDB 管理面板（2026-10-18）
+- 前端：`src/platform/components/MongoAdminPanel.vue`（概览/文档浏览/文件导航/索引管理/统计），
+  `src/platform/api/mongoAdmin.js`；`DataManagerView.vue` 中该主标签整体替换（文案改为「MongoDB 管理」），
+  并清理旧的状态检查状态/函数与 `testMongoDB` 导入。
+- 后端：`services/mongoAdminService.js` + `controllers/mongoAdminController.js` + `routes/mongoAdmin.js`，
+  挂载 `/api/mongo`（复用 `fileStoreService.getDb()` 的连接池）；`vite.config.js` 增 `/api/mongo` 代理。
+- 安全：禁 `$where/$function/$accumulator`；聚合禁 `$out/$merge`；limit≤200、聚合≤500；集合名白名单；不提供任意写/删。
+- 实测（经 3005）：status/collections/find/files/indexes/aggregate 全 200；`$where` 与 `$out` 均 400；`vite build` 通过。
+- 说明：`/status` 首次约 20s（buildInfo+serverStatus+dbStats+bucket 聚合），已加 10s 缓存并去掉逐集合索引扫描。

@@ -365,21 +365,9 @@
       </div>
     </div>
 
-    <!-- MongoDB Section -->
+    <!-- MongoDB 可视化管理面板（概览 / 文档浏览 / 文件导航 / 索引管理 / 统计） -->
     <div v-show="currentMainTab === 'mongodb'" class="tab-content" :class="{ active: currentMainTab === 'mongodb' }">
-      <div class="section">
-        <h2>MongoDB 状态</h2>
-        <p style="margin-bottom:24px;color:var(--text-secondary)">检查后端与 MongoDB（统一文件存储 `asc_files` + `file_meta`，以及旧附件通道）的连通性。</p>
-        <div class="pl-eqfill" style="width:100%;height:600px;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border-color)">
-          <div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:40px"
-            :style="{ backgroundColor: mongoStatusOk === true ? 'rgba(16,185,129,.1)' : mongoStatusOk === false ? 'rgba(239,68,68,.1)' : 'transparent' }">
-            <div style="font-size:72px;margin-bottom:24px">📦</div>
-            <h3 style="margin-bottom:16px;color:var(--text-primary)">MongoDB连接状态</h3>
-            <p style="margin-bottom:32px;color:var(--text-secondary);max-width:500px">{{ mongoStatusText }}</p>
-            <button class="btn" @click="checkMongoDBStatus()" :disabled="isCheckingMongo"><span v-if="isCheckingMongo" class="loading"></span>{{ isCheckingMongo ? '检查中...' : '检查连接' }}</button>
-          </div>
-        </div>
-      </div>
+      <MongoAdminPanel />
     </div>
 
     <!-- =================== MODALS =================== -->
@@ -543,6 +531,7 @@ import PropertyMeasurementsEditor from '../components/PropertyMeasurementsEditor
 import FormulaSelect from '../components/FormulaSelect.vue'
 import LiteratureAttachmentActions from '../components/LiteratureAttachmentActions.vue'
 import LiteratureDetailsModal from '../components/LiteratureDetailsModal.vue'
+import MongoAdminPanel from '../components/MongoAdminPanel.vue'
 import LiteratureListStatus from '../components/LiteratureListStatus.vue'
 import LiteraturePdfImportActions from '../components/LiteraturePdfImportActions.vue'
 import LiteratureTypeControl from '../components/LiteratureTypeControl.vue'
@@ -554,7 +543,7 @@ import { create, update, remove, getAllLiterature, toLiteraturePayload } from '.
 import MlDatasetView from '../components/MlDatasetView.vue'
 import MaterialBasePanel from './manage/MaterialBasePanel.vue'
 import BaseRuleDialog from '../components/BaseRuleDialog.vue'
-import { removeAttachment, uploadAttachment, testMongoDB } from '../api/attachment'
+import { removeAttachment, uploadAttachment } from '../api/attachment'
 import { prepareDocumentsForGraph } from '../services/graphDocumentBridge.js'
 import { importLiteraturePdf } from '../services/literaturePdfImport.js'
 import { deleteLiteratureWithAttachments } from '../services/literatureDeletion.js'
@@ -569,7 +558,7 @@ import {
 } from '../utils/literatureSelection.js'
 import { assignComponentId, MC_TYPE_OPTIONS, MR_TYPE_OPTIONS, LIT_TYPE_OPTIONS, ID_FIELD_MAP, validateComponentRows, normalizeLiteratureEntryType, literatureTypeLabel } from '../types/entities'
 
-const MAIN_TABS = [{ key: 'parse', label: '数据解析' }, { key: 'manage', label: '数据管理' }, { key: 'literature', label: '文献库管理' }, { key: 'mongodb', label: 'MongoDB测试' }]
+const MAIN_TABS = [{ key: 'parse', label: '数据解析' }, { key: 'manage', label: '数据管理' }, { key: 'literature', label: '文献库管理' }, { key: 'mongodb', label: 'MongoDB 管理' }]
 const PARSE_TABS = [{ key: 'recipe', label: '配方/测试解析' }, { key: 'working', label: '工况解析' }, { key: 'service', label: '服役解析' }, { key: 'reconstruct', label: '重建解析' }]
 // 六表标签顺序：配方表 → 原料表 → 测试表 → 物性表 → 工况 → 服役（ML 数据集排最后）
 const MANAGE_TABS = [{ key: 'mr', label: '配方表' }, { key: 'mc', label: '原料表' }, { key: 'mbase', label: '原料 base 名' }, { key: 'tp', label: '测试表' }, { key: 'mp', label: '物性表' }, { key: 'fe', label: '工况记录' }, { key: 'ru', label: '服役记录' }, { key: 'ml', label: 'ML 数据集' }]
@@ -602,9 +591,6 @@ const graphPreparationError = ref('')
 const debouncedManageFilter = ref('')
 let manageDebounceTimer = null
 const isComponentMounted = ref(true)
-const mongoStatusText = ref('正在检查连接...')
-const mongoStatusOk = ref(null)
-const isCheckingMongo = ref(false)
 const editingRowId = ref(null)
 const tableRef = ref(null)
 const navigationHistory = ref([])
@@ -862,36 +848,12 @@ function cancelGraphSelection() {
   router.replace({ name: 'PlatformData' })
 }
 
-function switchMainTab(tab) { if (isGraphSelectMode.value && tab !== 'literature') return; currentMainTab.value = tab; if (tab === 'manage') loadManageData(); else if (tab === 'literature') loadLitData(); else if (tab === 'mongodb') checkMongoDBStatus() }
+function switchMainTab(tab) { if (isGraphSelectMode.value && tab !== 'literature') return; currentMainTab.value = tab; if (tab === 'manage') loadManageData(); else if (tab === 'literature') loadLitData(); }
 function switchManageTable(table) { addToNavigationHistory(); editingRowId.value = null; currentManageTable.value = table; if (table !== 'ml' && table !== 'mbase') loadManageData() }
 function addToNavigationHistory() { navigationHistory.value.push({ table: currentManageTable.value, scrollY: window.scrollY }); if (navigationHistory.value.length > 10) navigationHistory.value.shift() }
 function navigateBack() { const prev = navigationHistory.value.pop(); if (prev) { editingRowId.value = null; currentManageTable.value = prev.table; loadManageData() } }
 function jumpToTab(type, targetId) { addToNavigationHistory(); currentManageTable.value = type; editingRowId.value = null; loadManageData(); setTimeout(() => { highlightRowId.value = targetId; setTimeout(() => { highlightRowId.value = null }, 2000) }, 300) }
 
-async function checkMongoDBStatus() {
-  isCheckingMongo.value = true
-  mongoStatusText.value = '正在检查连接...'
-  try {
-    const r = await testMongoDB()
-    if (r && r.success) {
-      const d = r.data || {}
-      const parts = []
-      if (d.unified !== undefined) parts.push(`统一文件存储：${d.unified ? '可用' : '不可用'}`)
-      if (d.legacy !== undefined) parts.push(`旧附件通道：${d.legacy ? '可用' : '不可用'}`)
-      if (d.mongooseState !== undefined) parts.push(`mongoose state=${d.mongooseState}`)
-      mongoStatusText.value = `MongoDB连接成功！${parts.length ? `（${parts.join('；')}）` : ''}`
-      mongoStatusOk.value = true
-    } else {
-      mongoStatusText.value = r?.message || 'MongoDB未连接'
-      mongoStatusOk.value = false
-    }
-  } catch (error) {
-    mongoStatusText.value = error?.message || '无法连接到服务器'
-    mongoStatusOk.value = false
-  } finally {
-    isCheckingMongo.value = false
-  }
-}
 
 function getRowId(row, table) { return row[ID_FIELD_MAP[table]] }
 function handleDelete(row) { const id = getRowId(row, currentManageTable.value); if (!confirm('确定要删除这条记录吗？')) return; remove(currentManageTable.value, id).then(() => loadManageData()).catch(e => alert('删除失败：' + (e.message || '请重试'))) }

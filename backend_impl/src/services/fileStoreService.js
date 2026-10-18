@@ -373,4 +373,6 @@ module.exports = {
   uploadStream, findByDoi, findById, findBySha256, findByLitId, addAlias,
   resolveByFilename, openStream, setVisibility, softDelete, linkLiterature,
   stats, isReady, ensureIndexes, close,
+  // 供 Mongo 管理面板复用同一连接池
+  getDb,
 };

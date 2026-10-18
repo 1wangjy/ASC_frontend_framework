@@ -214,3 +214,10 @@
 
 - 追加修复：`/platform/data?tab=manage` 的「MongoDB测试」页签——`testMongoDB()` 的解包错位（`unwrapApiSuccess` 返回 data
   而页签判断 success）导致永远显示"未连接"；改为保留完整响应并展示 unified/legacy/mongooseState 明细。
+
+## 会话 22 — 2026-10-18（MongoDB 可视化管理面板）
+- 将「MongoDB测试」页签整体替换为管理面板：概览（版本/运行时长/集合/文档/体积/bucket）、文档浏览（关键词+高级过滤+分页+JSON 展开）、
+  文件导航（file_meta 按可见性/类型/关键词筛选，打开原文）、索引管理（列表/创建/删除）、统计（预置聚合）。
+- 新增后端 `/api/mongo/*`（只读浏览 + 索引管理 + 聚合，安全白名单）；vite 增 `/api/mongo` 代理。
+- 验证：6 个接口经 3005 全 200；`$where`/`$out` 负例 400；`vite build` 通过。
+- 记录：`check/mongo-admin-panel_2026-10-18.md`。
