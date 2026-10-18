@@ -23,13 +23,14 @@ function requirePdfUpload(req, res, next) {
 // 上传附件
 router.post('/upload', upload.single('file'), requirePdfUpload, attachmentController.uploadAttachment);
 
-// 测试MongoDB连接状态
-router.get('/test', (req, res) => {
+// 测试MongoDB连接状态（统一存储优先；任一可用即视为连接成功，并返回明细）
+router.get('/test', async (req, res) => {
   try {
-    if (attachmentController.isAttachmentStorageReady()) {
-      res.json({ success: true, message: 'MongoDB连接成功' });
+    const status = await attachmentController.checkStorage();
+    if (status.ready) {
+      res.json({ success: true, message: 'MongoDB连接成功', data: status });
     } else {
-      res.status(503).json({ success: false, message: 'MongoDB未连接' });
+      res.status(503).json({ success: false, message: 'MongoDB未连接', data: status });
     }
   } catch (error) {
     console.error('Error testing MongoDB connection:', error);

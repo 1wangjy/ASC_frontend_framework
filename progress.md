@@ -206,3 +206,8 @@
 - 修复：`normalize_doi` 支持序号前缀文件名（历史引用 doi/original_url 由 None → 16/16 有效）；
   前端 `citations.js` 链接改为 `original_url` 优先。
 - 报告：`check/check_status_2026-10-18_agent.md`。
+
+## 会话 21 — 2026-10-18（MongoDB "未连接" 故障修复）
+- 复现并定位：`/api/attachment/test` 只认启动时建立的 legacy mongoose 连接（失败不重试、bucket 不惰性构造），
+  且上传守卫无视已可用的统一存储 → 容器重建期启动后端会"一直未连接"，必须重启。
+- 修复并实测自愈：惰性 bucket + 指数退避重连 + `checkStorage()` 组合判定；故障态 503 → 恢复 Mongo 后 5s 内 200（未重启后端）。

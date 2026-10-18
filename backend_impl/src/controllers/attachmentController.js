@@ -8,33 +8,61 @@ const pdfMetadataExtractorService = require('../services/pdfMetadataExtractorSer
 const literatureMetadataService = require('../services/literatureMetadataService');
 const { normalizeUploadFilename } = require('../utils/uploadFilename');
 
-// 连接MongoDB
+// 连接 MongoDB（**惰性 + 失败重试**）
+// 曾经的问题：启动瞬间 mongoose.connect 失败后不再重试，readyState 永远 0 →
+// 前端"/api/attachment/test"一直显示"未连接"，直到重启后端。容器重建/重启期间必然触发。
 const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/asc-platform';
 let gridFsStorage = null;
+let connecting = false;
 
-exports.isAttachmentStorageReady = () => Boolean(
-  gridFsStorage && mongoose.connection.readyState === 1
-);
+/** 惰性获取 legacy bucket（仅在连接就绪时构造，不依赖启动瞬间的 open 事件） */
+function getLegacyStorage() {
+  if (mongoose.connection.readyState !== 1) return null;
+  if (!gridFsStorage) {
+    try {
+      gridFsStorage = new GridFsBucketStorage(mongoose.connection.db, 'attachments');
+      console.log('MongoDB connected for attachment storage');
+    } catch (err) {
+      console.warn('Failed to initialize GridFS:', err.message);
+      return null;
+    }
+  }
+  return gridFsStorage;
+}
 
-/** 统一文件存储（GridFS asc_files + file_meta）是否可用 */
-exports.isUnifiedStorageReady = () => fileStoreService.isReady();
-
-// 尝试连接MongoDB，但不阻止应用启动
-mongoose.connect(mongoURI).catch(err => {
-  console.warn('MongoDB connection failed (attachment storage will be disabled):', err.message);
-});
+function connectWithRetry(delay = 2000) {
+  if (connecting || mongoose.connection.readyState === 1) return;
+  connecting = true;
+  mongoose.connect(mongoURI, { serverSelectionTimeoutMS: 5000 })
+    .catch((err) => {
+      const next = Math.min(delay * 2, 30000);
+      console.warn(`MongoDB connection failed (retry in ${Math.round(next / 1000)}s):`, err.message);
+      setTimeout(() => connectWithRetry(next), next);
+    })
+    .finally(() => { connecting = false; });
+}
 
 const conn = mongoose.connection;
+conn.on('connected', () => { gridFsStorage = null; getLegacyStorage(); });
+conn.on('disconnected', () => { gridFsStorage = null; setTimeout(() => connectWithRetry(2000), 2000); });
+connectWithRetry();
 
-// 初始化GridFS
-conn.once('open', () => {
-  try {
-    gridFsStorage = new GridFsBucketStorage(conn.db, 'attachments');
-    console.log('MongoDB connected for attachment storage');
-  } catch (err) {
-    console.warn('Failed to initialize GridFS:', err.message);
-  }
-});
+exports.isAttachmentStorageReady = () => Boolean(getLegacyStorage());
+
+/** 统一文件存储（GridFS asc_files + file_meta）是否可用（惰性连接，权威判定） */
+exports.isUnifiedStorageReady = () => fileStoreService.isReady();
+
+/** 组合就绪状态：任一存储可用即可提供附件能力（统一存储优先） */
+exports.checkStorage = async () => {
+  const unified = await fileStoreService.isReady().catch(() => false);
+  const legacy = Boolean(getLegacyStorage());
+  return {
+    ready: unified || legacy,
+    unified,
+    legacy,
+    mongooseState: mongoose.connection.readyState,
+  };
+};
 
 // 上传附件
 exports.uploadAttachment = async (req, res) => {
@@ -49,11 +77,11 @@ exports.uploadAttachment = async (req, res) => {
       return;
     }
     
-    if (!gridFsStorage) {
+    if (!(await fileStoreService.isReady().catch(() => false))) {
       res.status(503).json({ success: false, error: 'MongoDB未连接，附件存储功能暂时不可用' });
       return;
     }
-    
+
     // 获取文献信息，检查是否有DOI
     const lit = await newDbService.getLit(litId);
     let finalFilename = normalizeUploadFilename(file.originalname);
@@ -120,12 +148,13 @@ exports.getAttachment = async (req, res) => {
       return filesController.streamFile(res, resolved.file, req.headers.range);
     }
 
-    if (!gridFsStorage) {
+    const legacyStorage = getLegacyStorage();
+    if (!legacyStorage) {
       res.status(503).json({ success: false, error: 'MongoDB未连接，附件存储功能暂时不可用' });
       return;
     }
 
-    const file = await gridFsStorage.findByFilename(filename);
+    const file = await legacyStorage.findByFilename(filename);
     if (!file) {
       res.status(404).json({ success: false, error: '附件不存在' });
       return;
@@ -135,7 +164,7 @@ exports.getAttachment = async (req, res) => {
     const asciiFilename = filename.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
     res.set('Content-Disposition', `inline; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
 
-    const readStream = gridFsStorage.openDownloadStream(file._id);
+    const readStream = legacyStorage.openDownloadStream(file._id);
     readStream.once('error', (error) => {
       console.error('Error reading from GridFS:', error);
       if (!res.headersSent) res.status(500).json({ success: false, error: error.message });
@@ -162,22 +191,20 @@ exports.removeAttachment = async (req, res) => {
       return;
     }
     
-    if (!gridFsStorage) {
-      // 即使MongoDB未连接，也要更新文献记录，移除附件路径
-      await newDbService.updateLit(litId, {
-        attachment: null
-      });
-      res.json({ success: true, message: '附件记录已删除（MongoDB未连接，文件可能未实际删除）' });
-      return;
-    }
-    
     // 统一存储：软删该文献的全部分片（pdf/md…）
     const files = await fileStoreService.findByLitId(litId).catch(() => []);
+    const legacyStorage = getLegacyStorage();
+    if (!files.length && !legacyStorage) {
+      // 两种存储都不可用：至少清掉文献上的引用，避免界面继续指向不存在的文件
+      await newDbService.updateLit(litId, { attachment: null, file_id: null });
+      res.json({ success: true, message: '附件记录已删除（MongoDB 不可用，文件可能未实际删除）' });
+      return;
+    }
     for (const file of files) {
       await fileStoreService.softDelete(file.file_id).catch(() => {});
     }
     // 旧 bucket 兼容删除
-    await gridFsStorage.deleteByFilename(lit.attachment).catch(() => {});
+    if (legacyStorage) await legacyStorage.deleteByFilename(lit.attachment).catch(() => {});
 
     await newDbService.updateLit(litId, {
       attachment: null,
@@ -205,7 +232,7 @@ exports.extractMetadata = async (req, res) => {
       res.status(409).json({ success: false, error: '该文献尚未上传附件' });
       return;
     }
-    if (!gridFsStorage) {
+    if (!(await fileStoreService.isReady().catch(() => false))) {
       res.status(503).json({ success: false, error: 'MongoDB 未连接，无法读取附件' });
       return;
     }

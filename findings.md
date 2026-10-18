@@ -609,3 +609,15 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 - 文档漂移（待上游）：工具 **7→9**（新增 `search_history`/`read_evidence`）；测试数 94/65 → 131/92；
   `GET /api/agent/health` 仅独立入口提供，平台入口 404。
 - 评估报告：`check/check_status_2026-10-18_agent.md`（本地，`check/` 已被 gitignore）。
+
+## F45 — MongoDB 检测"一直未连接"：根因与修复（2026-10-18）
+- 根因：`attachmentController` 的就绪判定/守卫**只依赖启动瞬间建立的 legacy mongoose 连接**；
+  `mongoose.connect` 失败后不重试、`gridFsStorage` 只在 `once('open')` 赋值 →
+  在 Mongo 未就绪时启动后端（容器重建期必现）则 `readyState=0`、bucket=null，**只能重启后端恢复**；
+  且上传早退守卫 `if (!gridFsStorage) 503` 会无视已可用的统一存储（`asc_files`+`file_meta`）。
+- 修复：惰性 `getLegacyStorage()` + `connectWithRetry()`（2s→30s 退避、`disconnected` 重连）；
+  新增 `checkStorage()` → `{ready, unified, legacy, mongooseState}`（`ready = unified || legacy`），
+  `/api/attachment/test` 返回该组合状态；上传/元数据守卫改用 `fileStoreService.isReady()`。
+- 实测：故障态启动 → 503（`mongooseState:2`）；恢复 Mongo 后 **5s 内自愈 200**（未重启后端）；
+  20s 后 legacy 也恢复（`mongooseState:1`）；容器 stop/start 后 `files/stats` 仍 2437 / 6,149,674,180 B。
+- 记录：`check/check_status_2026-10-18_mongo-connection.md`。
