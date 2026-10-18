@@ -216,11 +216,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import {
   createMongoIndex, dropMongoIndex, findMongoDocs, getMongoCollections,
   getMongoIndexes, getMongoStatus, listMongoFiles, runMongoAggregate,
 } from '../api/mongoAdmin'
+
+const props = defineProps({
+  active: { type: Boolean, default: false },
+})
 
 const VIEW_TABS = [
   { key: 'docs', label: '文档浏览' },
@@ -475,7 +479,10 @@ async function copy(text) {
   }
 }
 
-onMounted(refreshAll)
+// 懒加载：只有该页签首次被激活时才做概览/首屏查询（/status 首次约 20s，不拖累其它页签）
+watch(() => props.active, (active) => {
+  if (active && !status.value) refreshAll()
+}, { immediate: true })
 </script>
 
 <style scoped>

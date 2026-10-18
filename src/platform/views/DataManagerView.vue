@@ -367,7 +367,7 @@
 
     <!-- MongoDB 可视化管理面板（概览 / 文档浏览 / 文件导航 / 索引管理 / 统计） -->
     <div v-show="currentMainTab === 'mongodb'" class="tab-content" :class="{ active: currentMainTab === 'mongodb' }">
-      <MongoAdminPanel />
+      <MongoAdminPanel :active="currentMainTab === 'mongodb'" />
     </div>
 
     <!-- =================== MODALS =================== -->

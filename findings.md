@@ -653,3 +653,9 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 - 安全：禁 `$where/$function/$accumulator`；聚合禁 `$out/$merge`；limit≤200、聚合≤500；集合名白名单；不提供任意写/删。
 - 实测（经 3005）：status/collections/find/files/indexes/aggregate 全 200；`$where` 与 `$out` 均 400；`vite build` 通过。
 - 说明：`/status` 首次约 20s（buildInfo+serverStatus+dbStats+bucket 聚合），已加 10s 缓存并去掉逐集合索引扫描。
+
+## F49 — 面板渲染验证与懒加载（2026-10-18）
+- `MongoAdminPanel` 采用 `props.active` + `watch(immediate)` 懒加载：只有切到「MongoDB 管理」页签才发起
+  `/api/mongo/*`（`/status` 首次约 20s，避免拖累其它页签）。
+- SSR 冒烟（`vite.ssrLoadModule` + `@vue/server-renderer`，`active=false`）：渲染 5,602 B，五个区块全部存在、无运行时错误。
+- `vite build` 通过；面板 API 经 3005 代理 6/6 = 200。
