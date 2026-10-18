@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 
 import { summarizeToolArgs, toolStatusLabel, useAgentChat } from '../src/platform/agent/useAgentChat.js'
+import { sessionMessagesToChat } from '../src/platform/agent/sessions.js'
 
 function startSseServer(handler) {
   const server = createServer(async (request, response) => {
@@ -23,9 +24,33 @@ function frame(payload) {
   return `data: ${JSON.stringify(payload)}\n\n`
 }
 
+test('service answer stays unchanged in SSE display and history, with original quote', async () => {
+  const original = '  知识服务原答案\n\n末行\n'
+  const citations = [{ evidence_id: 'ref1', text: '服务原始引文' }]
+  const answer_check = { status: 'knowledge_service_answer', semantic_support_verified: false }
+  const { baseUrl, close } = await startSseServer((_req, response) => {
+    response.write(frame({ type: 'final', text: original, citations, answer_check }))
+    response.write(frame({ type: 'done', steps: 1 }))
+    response.end()
+  })
+  try {
+    const chat = useAgentChat({ baseUrl })
+    await chat.send('材料问题')
+    const assistant = chat.messages.value[1]
+    assert.equal(assistant.content, original)
+    assert.deepEqual(assistant.citations, citations)
+    const restored = sessionMessagesToChat([assistant])[0]
+    assert.equal(restored.content, original)
+    assert.deepEqual(restored.citations, citations)
+    assert.equal(restored.answer_check.semantic_support_verified, false)
+  } finally { await close() }
+})
+
 test('a streamed turn accumulates text, tool chips, and steps', async () => {
   const { baseUrl, close } = await startSseServer((request, response) => {
     response.write(': ping\n\n')
+    response.write(frame({ type: 'turn_started', startedAt: 1000, timeoutMs: 300000 }))
+    response.write(frame({ type: 'model_status', status: 'completed', startedAt: 1000, ms: 10 }))
     response.write(frame({ type: 'message_delta', text: '正在' }))
     response.write(frame({ type: 'message_delta', text: '调用预测工具' }))
     response.write(frame({ type: 'tool_call', id: 't1', name: 'predict', args: { X_comp: [[61, 70]] } }))
@@ -34,7 +59,7 @@ test('a streamed turn accumulates text, tool chips, and steps', async () => {
       summary: 'bulk_density≈3.12', data: { bulk_density: 3.12 }
     }))
     response.write(frame({ type: 'final', text: '110℃ 下的体积密度约为 3.12 g/cm³。' }))
-    response.write(frame({ type: 'done', steps: 2 }))
+    response.write(frame({ type: 'done', steps: 2, timing: { schema: 'agent.timing.v1', totalMs: 20 } }))
     response.end()
   })
 
@@ -52,6 +77,9 @@ test('a streamed turn accumulates text, tool chips, and steps', async () => {
     )
 
     const assistant = chat.messages.value[1]
+    assert.equal(assistant.startedAt, 1000)
+    assert.equal(assistant.modelStatus.ms, 10)
+    assert.equal(assistant.timing.totalMs, 20)
     assert.equal(assistant.content, '110℃ 下的体积密度约为 3.12 g/cm³。')
     assert.equal(assistant.toolCalls.length, 1)
     assert.equal(assistant.toolCalls[0].name, 'predict')
@@ -83,6 +111,27 @@ test('a failed tool result is marked as an error without losing the reply', asyn
   } finally {
     await close()
   }
+})
+
+test('streamed budget rejections keep ok:false and are counted separately from ordinary errors', async () => {
+  const { baseUrl, close } = await startSseServer((_request, response) => {
+    response.write(frame({ type: 'tool_call', id: 'q', name: 'rag_search', args: {} }))
+    response.write(frame({ type: 'tool_result', id: 'q', name: 'rag_search', ok: false, data: { retrieval_budget_exhausted: true } }))
+    // Also exercise a resumed result with no preceding tool_call frame.
+    response.write(frame({ type: 'tool_result', id: 'q2', name: 'read_evidence', ok: false, data: { quota_exceeded: true } }))
+    response.write(frame({ type: 'final', text: '证据不足。' }))
+    response.write(frame({ type: 'done', steps: 1 }))
+    response.end()
+  })
+  try {
+    const chat = useAgentChat({ baseUrl })
+    await chat.send('test')
+    const tools = chat.messages.value[1].toolCalls
+    assert.equal(tools.length, 2)
+    assert.ok(tools.every(tool => tool.ok === false && tool.status === 'budget_denied'))
+    assert.equal(chat.error.value, '')
+    assert.equal(toolStatusLabel(tools[0]), '预算拒绝')
+  } finally { await close() }
 })
 
 test('an error frame and a transport failure both surface to the panel', async () => {

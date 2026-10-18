@@ -1,7 +1,7 @@
 <template>
   <div v-if="!compact || mode === 'multi'" class="composer-shell">
     <QaModeSwitcher
-      v-if="!compact"
+      v-if="!compact && showModeSwitcher"
       :mode="mode"
       :disabled="modeDisabled"
       @update:mode="$emit('update:mode', $event)"
@@ -168,6 +168,10 @@ const props = defineProps({
   compact: {
     type: Boolean,
     default: false
+  },
+  showModeSwitcher: {
+    type: Boolean,
+    default: true
   },
   disabled: {
     type: Boolean,

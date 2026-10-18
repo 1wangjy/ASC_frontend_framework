@@ -4,6 +4,7 @@ import {
   normalizeBackendAnswerText
 } from './qaAnswerDetailsModel.js'
 import { formatReferenceLocation } from './qaEvidenceModel.js'
+import { buildQualifiedQaProjects } from './qaProjectEligibilityModel.js'
 
 const REASONING_MODES = {
   Auto: 'auto',
@@ -314,7 +315,6 @@ export async function requestCodAnswer({ codGraphRAGQuery, getProject } = {}, co
 
   const payload = buildCodQueryPayload(context)
   const simulationId = String(context?.simulationId ?? '').trim()
-  if (!simulationId) throw invalidQaEligibility('问答请求必须包含 simulation_id 资格上下文')
   let projectResponse
   try {
     projectResponse = await getProject(payload.project_id)
@@ -325,7 +325,11 @@ export async function requestCodAnswer({ codGraphRAGQuery, getProject } = {}, co
     throw error
   }
   assertAuthoritativeProjectScope(payload, projectResponse)
-  assertAuthoritativeProjectSimulation(projectResponse, simulationId)
+  if (simulationId) {
+    assertAuthoritativeProjectSimulation(projectResponse, simulationId)
+  } else if (!buildQualifiedQaProjects([projectFromResponse(projectResponse)]).length) {
+    throw invalidQaEligibility('所选项目的图谱尚未构建完成，无法开始问答')
+  }
 
   let response
   try {

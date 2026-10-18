@@ -11,12 +11,19 @@
  * `data` 为 null —— 引用/证据卡片只在“本轮实时流”里出现。
  */
 
+import { resolveToolStatus } from './toolStatus.js'
+
 function text(value, fallback = '') {
   return typeof value === 'string' && value.trim() ? value.trim() : fallback
 }
 
 function role(value) {
   return value === 'assistant' ? 'assistant' : 'user'
+}
+
+function argsSummary(value) {
+  if (!value || typeof value !== 'object') return text(value)
+  try { return JSON.stringify(value).slice(0, 200) } catch { return '' }
 }
 
 /** 历史工具调用 → 面板工具条目。 */
@@ -27,11 +34,16 @@ export function sessionToolCallsToChat(toolCalls, messageIndex) {
       id: `history-${messageIndex}-${index}-${text(call?.name, 'tool')}`,
       name: text(call?.name, 'unknown'),
       args: {},
-      summary: text(call?.argsSummary),
-      status: ok === null ? 'ok' : (ok ? 'ok' : 'error'),
+      summary: argsSummary(call?.argsSummary),
+      status: ok === null ? 'ok' : resolveToolStatus(call),
       ok,
-      resultSummary: '',
-      data: null,
+      resultSummary: text(call?.resultSummary),
+      data: call?.code || call?.requestTiming ? {
+        ...(call?.code ? { code: call.code } : {}),
+        ...(call?.requestTiming ? { request_timing: call.requestTiming } : {})
+      } : null,
+      ...(Number.isFinite(call?.startedAt) ? { startedAt: call.startedAt } : {}),
+      ...(Number.isFinite(call?.finishedAt) ? { finishedAt: call.finishedAt } : {}),
       ms: typeof call?.ms === 'number' && Number.isFinite(call.ms) ? call.ms : null
     }
   })
@@ -42,12 +54,18 @@ export function sessionMessagesToChat(messages) {
   return (Array.isArray(messages) ? messages : []).map((message, index) => ({
     id: `history-${index}`,
     role: role(message?.role),
-    content: text(message?.content),
+    content: message?.answer_check?.status === 'knowledge_service_answer' && typeof message.content === 'string'
+      ? message.content : text(message?.content),
     reasoning: text(message?.reasoning),
+    model: message?.model || null,
+    timing: message?.timing || null,
+    answer_check: message?.answer_check || null,
+    citations: Array.isArray(message?.citations) ? message.citations : [],
+    evidence: Array.isArray(message?.evidence) ? message.evidence : [],
     toolCalls: sessionToolCallsToChat(message?.toolCalls, index),
     streaming: false,
-    stopped: false,
-    error: ''
+    stopped: message?.stopped === true,
+    error: typeof message?.error === 'string' ? message.error : text(message?.error?.message)
   }))
 }
 
@@ -78,6 +96,8 @@ export function mapSessionDetail(payload) {
     sessionId,
     title: text(payload?.title, '未命名会话'),
     messages: Array.isArray(payload?.messages) ? payload.messages : [],
+    researchState: payload?.researchState || null,
+    activeTurn: payload?.activeTurn || null,
     createdAt: text(payload?.createdAt || payload?.created_at),
     updatedAt: text(payload?.updatedAt || payload?.updated_at)
   }

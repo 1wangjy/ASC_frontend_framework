@@ -67,7 +67,7 @@ export async function mountSfcWithMemoryRouter(modulePath, initialPath, props = 
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
-        { path: '/', name: 'AscQa', component: EmptyRouteView },
+        { path: '/', alias: '/research', name: 'AscQa', component: EmptyRouteView },
         { path: '/documents', name: 'Documents', component: EmptyRouteView },
         {
           path: '/process/:projectId?',

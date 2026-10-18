@@ -19,6 +19,16 @@ import {
   suggestSessionTitle
 } from '../src/platform/agent/sessions.js'
 
+test('history recovery preserves tool timeout explanation and request timing', () => {
+  const [message] = sessionMessagesToChat([{ role: 'assistant', content: '请重新提问', toolCalls: [{
+    name: 'kg_search', ok: false, ms: 180000, code: 'knowledge_tool_timeout',
+    resultSummary: '知识检索单次超时', requestTiming: { phase: 'response_body', headers_ms: 1000 }
+  }] }]);
+  assert.equal(message.toolCalls[0].resultSummary, '知识检索单次超时');
+  assert.equal(message.toolCalls[0].data.code, 'knowledge_tool_timeout');
+  assert.equal(message.toolCalls[0].data.request_timing.phase, 'response_body');
+});
+
 test('session list mapping keeps titles, turn counts and timestamps', () => {
   const list = mapSessionList([
     { sessionId: 's-1', title: '热震稳定性检索', createdAt: '2026-09-16T08:00:00Z', updatedAt: '2026-09-16T09:00:00Z', turns: 2 },

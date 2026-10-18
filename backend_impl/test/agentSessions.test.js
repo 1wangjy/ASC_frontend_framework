@@ -66,6 +66,36 @@ function agentApp() {
   return app;
 }
 
+test('budget denial metadata survives SSE persistence without saving raw tool payloads', async t => {
+  withSessionDir(t, tmpDir(t));
+  t.mock.method(require('../src/agent/tools'), 'runTool', async () => ({ ok: false, summary: 'budget',
+    data: { retrieval_budget_exhausted: true, private_payload: 'must-not-persist' } }));
+  let step = 0;
+  const provider = { available: true, async streamChat() {
+    return ++step === 1 ? { tool_calls: [{ id: 'denied', function: { name: 'kg_list', arguments: '{}' } }] }
+      : { content: '证据不足。' };
+  } };
+  const app = express();
+  app.use(express.json());
+  app.use('/api/agent', createRouter({ provider }));
+  const server = await listen(t, app);
+  const base = `http://127.0.0.1:${server.address().port}/api/agent`;
+  const session = await (await fetch(base + '/sessions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json();
+  const stream = await fetch(base + '/stream', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sessionId: session.sessionId, messages: [{ role: 'user', content: 'test' }] }) });
+  await stream.text();
+  const saved = await (await fetch(base + '/sessions/' + session.sessionId)).json();
+  const tool = saved.messages.find(m => m.role === 'assistant').toolCalls[0];
+  assert.equal(tool.ok, false);
+  assert.equal(tool.budgetDenied, true);
+  const assistant = saved.messages.find(m => m.role === 'assistant');
+  assert.equal(assistant.timing.schema, 'agent.timing.v1');
+  assert.ok(assistant.timing.totalMs >= 0);
+  assert.ok(tool.startedAt > 0);
+  assert.ok(tool.finishedAt >= tool.startedAt);
+  assert.ok(!JSON.stringify(saved).includes('must-not-persist'));
+});
+
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
@@ -92,7 +122,11 @@ test('createSession writes one JSON file under AGENT_SESSION_DIR, atomically', (
     [],
     'the tmp file is renamed away, never left behind'
   );
-  assert.equal(fs.statSync(file).mode & 0o777, 0o600, 'session files are owner-only');
+  // Windows does not implement POSIX permission bits; ACL isolation must be
+  // configured separately by the operator, not inferred from stat().mode.
+  if (process.platform !== 'win32') {
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600, 'session files are owner-only');
+  }
 
   assert.equal(sessions.createSession().title, '新会话', 'untitled sessions get the default title');
   assert.equal(sessions.readSession('nope'), null);

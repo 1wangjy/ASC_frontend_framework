@@ -22,6 +22,8 @@ const MODULES = [
   require('./predict'),
   require('./recipeOptimize'),
   require('./webBrowse'),
+  require('./searchHistory'),
+  require('./readEvidence'),
 ];
 
 const REGISTRY = new Map(MODULES.map((tool) => [tool.name, tool]));
@@ -87,11 +89,29 @@ async function runTool(name, rawArgs, ctx = {}) {
     return finish({ ok: false, summary: error.message, data: null });
   }
 
+  // The page-selected scope is authoritative for a scoped research turn.
+  // Model-generated arguments may narrow a query, never switch its graph.
+  if (['kg_graph', 'kg_search', 'rag_search'].includes(name)) {
+    const mismatch = [['project_id', ctx.projectId], ['graph_id', ctx.graphId]]
+      .some(([key, expected]) => typeof expected === 'string' && expected.trim()
+        && typeof args[key] === 'string' && args[key].trim() && args[key].trim() !== expected.trim());
+    const unverifiedSimulation = (ctx.projectId || ctx.graphId) && args.simulation_id;
+    if (mismatch || unverifiedSimulation) {
+      return finish({ ok: false,
+        summary: '工具范围不一致：必须沿用本轮页面选定的项目和图谱；不能改用其他 ID 或未经确认的 simulation_id。',
+        data: { code: 'scope_mismatch', request_sent: false } });
+    }
+  }
+
   try {
     const outcome = await tool.execute(args, {
       signal: ctx.signal,
       projectId: ctx.projectId,
       graphId: ctx.graphId,
+      history: ctx.history,
+      hasSession: ctx.hasSession,
+      evidenceStore: ctx.evidenceStore,
+      answerMode: ctx.answerMode,
       // Per-request host narrowing for web_browse (narrow-only; see policy.js).
       webAllowlist: ctx.webAllowlist,
     });
@@ -101,7 +121,7 @@ async function runTool(name, rawArgs, ctx = {}) {
     return finish({
       ok: outcome.ok === true,
       summary: String(outcome.summary || (outcome.ok ? 'ok' : 'failed')).slice(0, 1200),
-      data: boundData(outcome.data),
+      data: publicationData(name, outcome, ctx),
     });
   } catch (error) {
     return finish({ ok: false, summary: `tool "${name}" threw: ${error.message}`, data: null });
@@ -109,6 +129,16 @@ async function runTool(name, rawArgs, ctx = {}) {
 }
 
 const MAX_DATA_CHARS = 24000;
+
+// The adapter separately bounds the original answer. Do not silently truncate
+// that publication with the smaller model-context budget.
+function publicationData(name, outcome, ctx) {
+  const publication = name === 'kg_search' && outcome.ok === true
+    && ctx.answerMode === 'knowledge_service' && outcome.data?.service_answer;
+  if (!publication) return boundData(outcome.data);
+  const { service_answer, ...projection } = outcome.data;
+  return { ...boundData(projection), service_answer };
+}
 
 /** Keep tool payloads bounded before they reach the SSE frame / LLM context. */
 function boundData(data) {

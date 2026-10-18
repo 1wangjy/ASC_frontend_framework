@@ -2,7 +2,7 @@
   <div
     class="qa-layout"
     :class="{
-      'qa-layout--recent': qaState.mode === 'multi' && !qaState.evidenceOpen,
+      'qa-layout--recent': qaState.mode === 'multi' && useLegacyDiscussion && !qaState.evidenceOpen,
       'qa-layout--evidence': qaState.evidenceOpen || qualityOpen
     }"
   >
@@ -34,7 +34,7 @@
             :disabled="multiNavigationLocked"
             @click="onModePrimaryAction"
           >
-            新建组会
+            新建会话
           </button>
         </div>
         <!-- 图谱项目：唯一的"选择/更换图谱"入口（合并原门禁提示） -->
@@ -61,39 +61,25 @@
         class="qa-multi-page"
         :class="multiHasHistory ? 'qa-multi-page--history' : 'qa-multi-page--empty'"
       >
-        <div class="qa-empty__intro qa-multi-page__intro">
-          <div class="asc-orbit" aria-hidden="true">
-            <span>ASC</span>
-          </div>
-          <h1>{{ multiHeroTitle }}</h1>
-          <p>{{ multiHeroSubtitle }}</p>
+        <div class="qa-empty__intro qa-research-intro qa-multi-page__intro">
           <QaModeSwitcher
             mode="multi"
             :disabled="multiNavigationLocked"
             @update:mode="updateMode"
           />
-          <button
-            type="button"
-            class="qa-agent-toggle"
-            :class="{ 'qa-agent-toggle--open': agentPanelOpen }"
-            aria-controls="qa-agent-panel"
-            :aria-expanded="agentPanelOpen"
-            @click="agentPanelOpen = !agentPanelOpen"
-          >
-            <span class="qa-agent-toggle__mark" aria-hidden="true">✦</span>
-            智能体 Agent（Beta）
-          </button>
         </div>
 
 
         <div
           class="qa-multi-page__workspace"
-          :class="multiHasHistory
+          :class="[multiHasHistory
             ? 'qa-multi-page__workspace--history'
-            : 'qa-multi-page__workspace--empty'"
+            : 'qa-multi-page__workspace--empty',
+            { 'qa-multi-page__workspace--agent': !useLegacyDiscussion }]"
         >
           <div class="qa-multi-page__discussion">
             <MultiDiscussionPanel
+              v-if="useLegacyDiscussion"
               ref="multiDiscussionPanel"
               :key="activeProject?.graphId"
               embedded
@@ -102,9 +88,21 @@
               @history-change="multiHasHistory = $event"
               @select-prompt="draft = $event"
             />
+            <AgentPanel
+              v-else
+              ref="multiDiscussionPanel"
+              :key="`agent-${activeProject?.projectId || ''}-${activeProject?.graphId || ''}`"
+              embedded
+              :project-id="activeProject?.projectId || ''"
+              :graph-id="activeProject?.graphId || ''"
+              :initial-session-id="typeof route.query.agentSession === 'string' ? route.query.agentSession : ''"
+              @session-change="onAgentSessionChange"
+              @history-change="multiHasHistory = $event"
+            />
           </div>
 
           <QuestionComposer
+            v-if="useLegacyDiscussion"
             v-model="draft"
             compact
             :disabled="multiSending || !activeProject"
@@ -116,31 +114,26 @@
           />
         </div>
 
-        <section
-          v-if="agentPanelOpen"
-          id="qa-agent-panel"
-          class="qa-multi-page__agent"
-          aria-label="智能体对话"
-        >
-          <AgentPanel
-            :project-id="activeProject?.projectId || ''"
-            @close="agentPanelOpen = false"
-          />
-        </section>
       </section>
 
       <section v-else-if="showQaHome" class="qa-empty">
-        <div class="qa-empty__intro">
+        <div class="qa-empty__intro qa-research-intro">
           <div class="asc-orbit" aria-hidden="true">
             <span>ASC</span>
           </div>
           <h1>今天想研究什么？</h1>
           <p>围绕耐火材料配方、工艺、组织结构、服役性能与失效机理提出问题</p>
+          <QaModeSwitcher
+            :mode="qaState.mode"
+            :disabled="qaState.phase === 'loading'"
+            @update:mode="updateMode"
+          />
         </div>
 
 
         <QuestionComposer
           v-model="draft"
+          :show-mode-switcher="false"
           :disabled="projectsLoading || !activeProject"
           :mode="qaState.mode"
           :mode-disabled="qaState.phase === 'loading'"
@@ -214,7 +207,7 @@
     </main>
 
     <RecentConversationsPanel
-      v-if="!qaState.evidenceOpen"
+      v-if="!qaState.evidenceOpen && (qaState.mode !== 'multi' || useLegacyDiscussion)"
       :mode="qaState.mode"
       :disabled="multiNavigationLocked"
     />
@@ -328,7 +321,7 @@ const qaState = ref(createQaState())
 const draft = ref('')
 const multiDiscussionPanel = ref(null)
 const multiHasHistory = ref(false)
-const agentPanelOpen = ref(false)
+const useLegacyDiscussion = ref(false)
 const multiModelOptions = ref([])
 const modelSelectionByMode = ref({
   single: qaState.value.settings.model,
@@ -372,14 +365,6 @@ const showQaHome = computed(() => qaState.value.phase === 'empty')
 const multiSending = computed(() => Boolean(multiDiscussionPanel.value?.sending))
 const multiNavigationLocked = computed(() => (
   shouldLockMultiDiscussionNavigation(qaState.value.mode, multiSending.value)
-))
-const multiHeroTitle = computed(() => (
-  multiHasHistory.value ? '与当前图谱持续讨论' : '从一个图谱问题开始'
-))
-const multiHeroSubtitle = computed(() => (
-  multiHasHistory.value
-    ? '延续已有讨论上下文，继续追问、验证与深入分析'
-    : '围绕当前图谱提出第一个问题，后续追问将自动继承上下文'
 ))
 const multiGraphOptions = computed(() => activeProject.value ? [{
   project_id: activeProject.value.projectId,
@@ -470,6 +455,7 @@ function selectQualifiedProject(projectId) {
     } else reset()
   }
   const query = { ...route.query, projectId: selected.projectId }
+  if (previousProjectId !== selected.projectId) delete query.agentSession
   delete query.reportId
   delete query.conversation
   consumedQaQueryTokens.projectId = JSON.stringify([selected.projectId])
@@ -492,6 +478,11 @@ async function sendQuestion(submission = draft.value) {
       ? submission
       : { question: String(submission || ''), image: null, multiModule: 'inline' }
     if (!payload.question?.trim() && !payload.image) return
+    if (!useLegacyDiscussion.value) {
+      const accepted = await multiDiscussionPanel.value?.submitExternal(payload)
+      if (accepted) draft.value = ''
+      return
+    }
     draft.value = ''
     const multiMode = await ensureMultiDiscussionModels()
     await multiDiscussionPanel.value?.submitExternal({
@@ -572,6 +563,7 @@ async function loadMultiDiscussionModels() {
  *  直接以 ?mode=multi 打开时 updateMode 会被"模式未变化"短路，必须在这里补上，
  *  否则下拉为空、且发送时会带着"深度研究"的模型标签当 model_mode。 */
 async function ensureMultiDiscussionModels() {
+  if (!useLegacyDiscussion.value) return 'default'
   if (needsModelModeOptions(multiModelOptions.value)) {
     await loadMultiDiscussionModels()
   }
@@ -728,7 +720,8 @@ function refreshGuide(categoryId) {
 function reset() {
   requestVersion += 1
   qualityOpen.value = false
-  qaState.value = resetConversation()
+  const { mode, settings } = qaState.value
+  qaState.value = { ...resetConversation(), mode, settings: { ...settings } }
   draft.value = ''
   questionGuides.value = createQuestionGuideState()
 }
@@ -755,6 +748,15 @@ function newMultiDiscussion() {
   else clearSavedMultiDiscussion(browserStorage, activeProject.value?.graphId)
   draft.value = ''
   questionGuides.value = createQuestionGuideState()
+}
+
+function onAgentSessionChange(id) {
+  if (qaState.value.mode !== 'multi' || useLegacyDiscussion.value) return
+  if ((route.query.agentSession || '') === id) return
+  const query = { ...route.query }
+  if (id) query.agentSession = id
+  else delete query.agentSession
+  void router.replace({ path: route.path, query })
 }
 
 function onModePrimaryAction() {
@@ -877,7 +879,10 @@ async function consumeActiveQaRouteQuery() {
 
   if (newChanged) {
     consumedQaQueryTokens.new = snapshot.new.token
-    if (snapshot.new.present) reset()
+    if (snapshot.new.present) {
+      if (qaState.value.mode === 'multi') newMultiDiscussion()
+      else reset()
+    }
   }
 
   if (conversationChanged) {
@@ -911,11 +916,15 @@ watch(
   () => { void consumeActiveQaRouteQuery() }
 )
 
-onMounted(() => {
+onMounted(async () => {
+  // Resolve the initial monitor request before the route-selection refresh.
+  // Starting it afterwards superseded that refresh; slower real responses
+  // could leave the controller with an empty catalogue after page reload.
+  await graphTaskMonitor.start()
   void consumeActiveQaRouteQuery()
   if (qaState.value.mode === 'multi') void ensureMultiDiscussionModels()
-  graphTaskMonitor.start()
 })
+watch(useLegacyDiscussion, (legacy) => { if (legacy) void ensureMultiDiscussionModels() })
 onUnmounted(() => {
   requestVersion += 1
   qaProjectContext.stop()
@@ -1082,6 +1091,8 @@ onUnmounted(() => {
 }
 
 .qa-multi-page {
+  --qa-page-max: 1400px;
+  --qa-page-max-narrow: 1400px;
   width: min(var(--qa-page-max), calc(100% - var(--qa-gutter) * 2));
   min-height: calc(100vh - var(--qa-topbar-h));
   display: flex;
@@ -1146,18 +1157,18 @@ onUnmounted(() => {
   flex: 0 0 auto;
 }
 
-.qa-multi-page__intro .asc-orbit {
+.qa-research-intro .asc-orbit {
   width: 48px;
   height: 48px;
   margin-bottom: var(--qa-space-2);
   box-shadow: inset 0 0 0 7px #eff8fd;
 }
 
-.qa-multi-page__intro h1 {
+.qa-research-intro h1 {
   font-size: clamp(29px, 3.2vw, 39px);
 }
 
-.qa-multi-page__intro p {
+.qa-empty__intro.qa-research-intro p {
   margin: var(--qa-space-2) auto var(--qa-space-3);
   max-width: 680px;
   color: #445e75;
@@ -1186,6 +1197,15 @@ onUnmounted(() => {
 
 .qa-multi-page__workspace--empty {
   gap: var(--qa-space-4);
+  overflow: visible;
+}
+
+/* Agent includes its own composer and scrollable log. The legacy fixed-height
+   workspace otherwise clips that composer after the first saved message.
+   Extra specificity also overrides the narrow-screen history height rule. */
+.qa-multi-page__workspace.qa-multi-page__workspace--agent {
+  height: auto;
+  min-height: 0;
   overflow: visible;
 }
 
@@ -1474,7 +1494,7 @@ onUnmounted(() => {
     padding-top: var(--qa-space-8);
   }
 
-  .qa-multi-page__intro h1 {
+  .qa-research-intro h1 {
     font-size: clamp(25px, 8vw, 32px);
   }
 

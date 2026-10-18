@@ -6,6 +6,11 @@
   "scripts": {
     "dev": "npx nodemon src/index.js",
     "start": "node src/index.js",
+    "agent:start": "node scripts/start-agent.js",
+    "agent:check": "node scripts/agent-smoke.js --check-only",
+    "agent:smoke": "node scripts/agent-smoke.js",
+    "agent:model-smoke": "node scripts/agent-model-smoke.js",
+    "agent:model-preflight": "node scripts/agent-model-preflight.js",
     "start-mongo": "node scripts/start-mongo.js",
     "stop-mongo": "node scripts/stop-mongo.js",
     "build": "echo 'Build completed'",

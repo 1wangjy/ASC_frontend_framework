@@ -64,15 +64,22 @@ class OpenAICompatibleProvider {
    * @param {{apiUrl?:string, apiKey?:string, model?:string, timeoutMs?:number, fetchImpl?:Function}} options
    */
   constructor(options = {}) {
-    this.chatUrl = normalizeChatCompletionsUrl(options.apiUrl || process.env.LLM_API_URL);
-    this.apiKey = options.apiKey !== undefined ? options.apiKey : process.env.LLM_API_KEY;
-    this.model = options.model || process.env.AGENT_LLM_MODEL || 'deepseek-v4-flash';
+    const apiUrl = options.apiUrl !== undefined ? options.apiUrl
+      : process.env.AGENT_LLM_API_URL || process.env.LLM_API_URL || process.env.LLM_BASE_URL;
+    this.chatUrl = typeof apiUrl === 'string' && apiUrl.trim() ? normalizeChatCompletionsUrl(apiUrl) : '';
+    this.apiKey = options.apiKey !== undefined ? options.apiKey
+      : process.env.AGENT_LLM_API_KEY !== undefined ? process.env.AGENT_LLM_API_KEY : process.env.LLM_API_KEY;
+    this.authMode = options.authMode || process.env.AGENT_LLM_AUTH_MODE || 'bearer';
+    if (!['bearer', 'none'].includes(this.authMode)) throw new Error('AGENT_LLM_AUTH_MODE must be bearer or none');
+    this.model = options.model || process.env.AGENT_LLM_MODEL || process.env.LLM_MODEL_NAME || 'deepseek-v4-flash';
     this.timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
     this.fetchImpl = options.fetchImpl || fetch;
+    const maxTokens = Number(options.maxTokens || process.env.AGENT_LLM_MAX_TOKENS || 2048);
+    this.maxTokens = Number.isFinite(maxTokens) ? Math.min(8192, Math.max(1, Math.floor(maxTokens))) : 2048;
   }
 
   get available() {
-    return Boolean(this.chatUrl && this.apiKey);
+    return Boolean(this.chatUrl && (this.authMode === 'none' || this.apiKey));
   }
 
   buildBody({ messages, tools, stream, temperature }) {
@@ -81,6 +88,7 @@ class OpenAICompatibleProvider {
       messages,
       temperature: temperature === undefined ? 0.2 : temperature,
       stream: !!stream,
+      max_tokens: this.maxTokens,
     };
     if (Array.isArray(tools) && tools.length > 0) {
       body.tools = tools;
@@ -100,7 +108,7 @@ class OpenAICompatibleProvider {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        authorization: `Bearer ${this.apiKey}`,
+        ...(this.authMode === 'bearer' ? { authorization: `Bearer ${this.apiKey}` } : {}),
       },
       body: JSON.stringify(body),
       signal: combined,
@@ -151,6 +159,7 @@ class OpenAICompatibleProvider {
     const toolCalls = new Map();
     let buffer = '';
     let sawFinish = false;
+    let finishReason = null;
     let usage = null;
 
     const consumeLine = (line) => {
@@ -170,7 +179,7 @@ class OpenAICompatibleProvider {
       if (chunkUsage) usage = chunkUsage;
       const choice = json.choices && json.choices[0];
       if (!choice) return;
-      if (choice.finish_reason) sawFinish = true;
+      if (choice.finish_reason) { sawFinish = true; finishReason = choice.finish_reason; }
       const delta = choice.delta || {};
       const reasoningText = reasoningOf(delta);
       if (reasoningText) {
@@ -218,7 +227,7 @@ class OpenAICompatibleProvider {
       content: text,
       reasoning: reasoning.join(''),
       tool_calls: calls,
-      finish_reason: calls.length ? 'tool_calls' : 'stop',
+      finish_reason: finishReason || (calls.length ? 'tool_calls' : 'stop'),
       usage,
     };
   }

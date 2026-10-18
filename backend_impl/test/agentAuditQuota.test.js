@@ -182,9 +182,9 @@ test('loop stops executing tools once the per-turn tool budget is spent', async 
   assert.match(results[2].summary, /已达上限（2 次）/);
 
   const final = frames.find((frame) => frame.type === 'final');
-  assert.match(final.text, /已达上限（2 次）/);
+  assert.match(final.text, /done/);
   assert.equal(frames.at(-1).type, 'done');
-  assert.equal(provider.prompts.length, 1, 'no further LLM turn is requested after the quota is hit');
+  assert.equal(provider.prompts.length, 2, 'one tool-free completion is reserved after the quota is hit');
 
   const lines = readLines(path.join(dir, audit.auditFileName()));
   assert.equal(lines.length, 3);
@@ -224,11 +224,11 @@ test('loop bounds the number of steps and never runs more than maxSteps', async 
   const frames = await run(provider, { maxSteps: 2 }, collector());
 
   assert.equal(provider.prompts.length, 2);
-  assert.equal(frames.filter((frame) => frame.type === 'tool_call').length, 2);
+  assert.equal(frames.filter((frame) => frame.type === 'tool_call').length, 1);
   const done = frames.at(-1);
   assert.equal(done.type, 'done');
   assert.equal(done.steps, 2);
-  assert.match(frames.find((frame) => frame.type === 'final').text, /最大工具调用步数（2）/);
+  assert.equal(frames.find((frame) => frame.type === 'final').answer_check.status, 'incomplete');
 });
 
 test('quota options cannot exceed the AGENT_RECIPE_OPT_MAX_CALLS hard cap', () => {

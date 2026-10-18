@@ -27,6 +27,7 @@
  */
 
 const kgList = require('./kgList');
+const { randomUUID } = require('node:crypto');
 
 const TIMEOUT_MS = Number(process.env.AGENT_KG_TIMEOUT_MS || 180000);
 
@@ -139,25 +140,44 @@ function buildPayload({ query, topK, retrievalOnly }, scope) {
 }
 
 /** Perform the POST and normalise the service envelope. */
-async function codQuery({ payload, signal }) {
+async function codQuery({ payload, signal, timeoutMs = TIMEOUT_MS }) {
   const url = codQueryUrl();
-  const timeout = AbortSignal.timeout(TIMEOUT_MS);
+  const started = performance.now();
+  const requestId = randomUUID();
+  const timing = { request_id: requestId, started_at: new Date().toISOString(),
+    timeout_ms: timeoutMs, phase: 'response_headers', headers_ms: null, body_ms: null };
+  const timeout = AbortSignal.timeout(timeoutMs);
   const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
 
   let response;
+  let text;
   try {
     response = await fetch(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-request-id': requestId },
       body: JSON.stringify(payload),
       signal: combined,
     });
+    timing.headers_ms = Math.round(performance.now() - started);
+    timing.status = response.status;
+    timing.upstream_request_id = response.headers?.get('x-request-id')?.slice(0, 128) || null;
+    timing.phase = 'response_body';
+    text = await response.text();
+    timing.body_ms = Math.round(performance.now() - started) - timing.headers_ms;
+    timing.phase = 'completed';
   } catch (error) {
-    const reason = error && error.name === 'TimeoutError' ? `timed out after ${TIMEOUT_MS}ms` : error.message;
-    return { ok: false, summary: `knowledge-graph service unreachable at ${url} (${reason})`, data: { url } };
+    timing.total_ms = Math.round(performance.now() - started);
+    if (timing.headers_ms !== null) timing.body_elapsed_ms = timing.total_ms - timing.headers_ms;
+    const interrupted = signal?.aborted;
+    const code = interrupted ? 'knowledge_request_cancelled'
+      : timeout.aborted || error?.name === 'TimeoutError' ? 'knowledge_tool_timeout' : 'knowledge_transport_error';
+    const summary = code === 'knowledge_tool_timeout'
+      ? `知识检索单次超时（${timeoutMs} ms，${timing.phase === 'response_body' ? '读取响应正文' : '等待响应头'}）；本轮不再自动重试知识服务，请稍后重新提问。`
+      : interrupted ? '知识请求已被本轮停止或超时取消；远端计算是否取消未知。'
+        : '知识服务连接或响应读取失败，请检查服务日志。';
+    return { ok: false, summary, data: { url, code, request_timing: timing } };
   }
-
-  const text = await response.text();
+  timing.total_ms = Math.round(performance.now() - started);
   let envelope = null;
   try {
     envelope = JSON.parse(text);
@@ -165,7 +185,7 @@ async function codQuery({ payload, signal }) {
     return {
       ok: false,
       summary: `knowledge-graph service returned non-JSON (HTTP ${response.status})`,
-      data: { url, status: response.status, body: text.slice(0, 500) },
+      data: { url, status: response.status, body: text.slice(0, 500), request_timing: timing },
     };
   }
 
@@ -174,10 +194,11 @@ async function codQuery({ payload, signal }) {
     return {
       ok: false,
       summary: `knowledge-graph query failed: ${String(errorText).slice(0, 300)}`,
-      data: { url, status: response.status },
+      data: { url, status: response.status, request_timing: timing },
     };
   }
-  return { ok: true, data: envelope.data || {}, url };
+  timing.qa_run_id = envelope.data?.qa_run_id || null;
+  return { ok: true, data: envelope.data || {}, url, request_timing: timing };
 }
 
 function top(items, n) {
@@ -261,6 +282,51 @@ async function runQuery({ params, ctx, retrievalOnly }) {
   }
 
   const projected = projectResult(outcome.data, { topK, includeAnswer: !retrievalOnly });
+  projected.data.request_timing = outcome.request_timing;
+  // Separate publication payload from the compact model projection. Never
+  // truncate the service's answer or alter its reference bindings silently.
+  if (!retrievalOnly && ctx && ctx.answerMode === 'knowledge_service') {
+    const text = outcome.data.final_answer;
+    const references = Array.isArray(outcome.data.references) ? outcome.data.references : [];
+    const bindings = Array.isArray(outcome.data.citation_bindings) ? outcome.data.citation_bindings : [];
+    if (typeof text === 'string' && text.trim()) {
+      const publication = { text, references, citation_bindings: bindings,
+        qa_run_id: outcome.data.qa_run_id, scope: resolved.scope };
+      if (text.length > 64000 || JSON.stringify(publication).length > 256000) {
+        return { ok: false, summary: '知识服务回答超过传输上限，未截断或改写答案。',
+          data: { code: 'service_answer_too_large', scope: resolved.scope } };
+      }
+      projected.data.service_answer = publication;
+    }
+  }
+  if (ctx && ctx.evidenceStore) {
+    const records = ctx.evidenceStore.register(top(outcome.data.references, topK), resolved.scope,
+      { url: outcome.url, qa_run_id: outcome.data.qa_run_id });
+    projected.data.evidence = records.slice(0, 5).map((item) => ({
+      evidence_id: item.evidence_id, title: item.title && item.title.slice(0, 150), source_id: item.source_id,
+      quote: item.text.slice(0, 150), locator: item.locator,
+      citation_eligible: item.citation_eligible, exclusion_reason: item.exclusion_reason,
+      support_status: item.support_status, limitations: item.limitations,
+    }));
+    projected.data.evidence_contract = {
+      status: 'api_reported', semantic_support_verified: false,
+      omitted_references: Math.max(0, top(outcome.data.references, topK).length - records.length),
+      registered_count: records.length, preview_count: Math.min(5, records.length),
+      note: 'final_answer 是服务生成文字，不是原文证据；原文仅取 references 的 API 返回片段。',
+    };
+    // Preserve source snippets in the task ledger; keep the model's directory
+    // compact enough that evidence IDs survive both transport/context limits.
+    projected.data.paths = projected.data.paths.slice(0, 3).map((item) => ({ ...item,
+      path: item.path.slice(0, 300), reason: item.reason.slice(0, 150) }));
+    projected.data.subgraphs = projected.data.subgraphs.slice(0, 3).map((item) => ({ ...item,
+      seeds: item.seeds.map((name) => String(name || '').slice(0, 100)) }));
+    projected.data.references = projected.data.references.slice(0, 3).map((item) => ({ ...item,
+      title: String(item.title || '').slice(0, 150), quote: item.quote.slice(0, 200) }));
+    if (projected.data.final_answer) projected.data.final_answer = projected.data.final_answer.slice(0, 1500);
+    if (projected.data.citation_bindings) projected.data.citation_bindings = projected.data.citation_bindings.slice(0, 3)
+      .map((item) => ({ reference_id: item.reference_id, target_type: item.target_type,
+        answer_excerpt: String(item.answer_excerpt || '').slice(0, 200) }));
+  }
   projected.data.scope = resolved.scope;
   if (resolved.discovery) projected.data.scope_resolution = resolved.discovery;
   return { ok: true, projected, counts: projected.counts };

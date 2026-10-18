@@ -121,6 +121,7 @@ export async function streamAgent({
   context,
   options,
   sessionId,
+  modelId,
   resumeFromEventId,
   signal,
   onEvent,
@@ -128,7 +129,7 @@ export async function streamAgent({
 } = {}) {
   const url = buildApiUrl(`${AGENT_API_PATH}/stream`, baseUrl)
   // undefined 会被 JSON.stringify 丢弃：未传 sessionId/续传点时请求体与旧版一致。
-  const body = { messages, context, options, sessionId, resumeFromEventId }
+  const body = { messages, context, options, sessionId, modelId, resumeFromEventId }
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -190,13 +191,14 @@ export async function getAgentTools({ baseUrl = '' } = {}) {
 }
 
 /** 统一的 JSON 请求：失败时抛出带中文说明的错误（调用方负责降级展示）。 */
-async function requestJson(path, { method = 'GET', body, baseUrl = '', failureLabel = '请求失败' } = {}) {
+async function requestJson(path, { method = 'GET', body, baseUrl = '', failureLabel = '请求失败', signal } = {}) {
   const response = await fetch(buildApiUrl(`${AGENT_API_PATH}${path}`, baseUrl), {
     method,
     headers: body === undefined
       ? { Accept: 'application/json' }
       : { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body)
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal
   })
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
@@ -207,6 +209,12 @@ async function requestJson(path, { method = 'GET', body, baseUrl = '', failureLa
   }
   if (response.status === 204) return null
   return response.json().catch(() => null)
+}
+
+export async function getAgentModels({ baseUrl = '' } = {}) {
+  const payload = await requestJson('/models', { baseUrl, failureLabel: '模型名单读取失败' })
+  if (!Array.isArray(payload?.models) || !payload.models.length) throw new Error('模型名单格式无效')
+  return payload
 }
 
 /**
@@ -250,6 +258,13 @@ export async function getAgentSession(sessionId, { baseUrl = '' } = {}) {
   return requestJson(`/sessions/${encodeURIComponent(id)}`, {
     baseUrl,
     failureLabel: '会话详情读取失败'
+  })
+}
+
+export async function stopAgentSession(sessionId, { baseUrl = '' } = {}) {
+  if (!sessionId) throw new Error('停止失败：缺少 sessionId')
+  return requestJson(`/sessions/${encodeURIComponent(sessionId)}/stop`, {
+    method: 'POST', body: {}, baseUrl, failureLabel: '停止后端任务失败', signal: AbortSignal.timeout(8000)
   })
 }
 

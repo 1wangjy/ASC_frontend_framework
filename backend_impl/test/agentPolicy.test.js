@@ -61,7 +61,7 @@ test('argument schema violations are rejected before execution', async () => {
 // Private-data invariant (regression guard)
 // ---------------------------------------------------------------------------
 
-const EXPECTED_TOOLS = ['kg_list', 'kg_graph', 'kg_search', 'rag_search', 'predict', 'recipe_optimize', 'web_browse'];
+const EXPECTED_TOOLS = ['kg_list', 'kg_graph', 'kg_search', 'rag_search', 'predict', 'recipe_optimize', 'web_browse', 'search_history', 'read_evidence'];
 const DANGEROUS_NAME = /(^|_)(file|filesystem|fs|shell|exec|spawn|cmd|command|sql|sqlite|db|database|env|dotenv|http|fetch|curl|wget|path|dir)(_|$)/;
 const FORBIDDEN_REFERENCE = [
   /(^|[^\w])private[\\/]/i,          // ./private, private/data
