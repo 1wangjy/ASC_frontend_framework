@@ -799,7 +799,8 @@ defineExpose({ messages, streaming, sending, steps, sessionId, submitExternal, s
 .agent-model-bar label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .agent-model-bar p, .agent-model-guide { font-size: 12px; overflow-wrap: anywhere; }
 .agent-model-guide { padding: 12px 16px; background: var(--asc-surface-soft); }
-.agent-panel--embedded { width: 100%; border-radius: var(--qa-radius-card, 12px); }
+.agent-panel--embedded { width: 100%; height: 100%; min-height: 0; border-radius: var(--qa-radius-card, 12px); }
+.agent-panel--embedded .agent-panel__log { min-height: 0; max-height: none; }
 .agent-check { font-size: 12px; color: var(--qa-text, #334155); padding: 8px; background: var(--qa-surface-soft, #f1f5f9); }
 .agent-panel {
   /* 面板内的次要文本：由设计令牌派生，保证 11.5px 下仍满足 AA 对比度 */

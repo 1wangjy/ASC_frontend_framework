@@ -1089,6 +1089,8 @@ onUnmounted(() => {
 
 /* --- 三列舞台：左空白（悬浮球居中）/ 居中主窗口 / 右侧依附会话目录 --- */
 .qa-stage {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, var(--qa-stage-width, var(--qa-page-max))) minmax(0, 1fr);
   column-gap: var(--qa-space-5);
@@ -1100,7 +1102,7 @@ onUnmounted(() => {
 .qa-stage--narrow { --qa-stage-width: var(--qa-page-max-narrow); }
 
 .qa-stage__left { grid-column: 1; justify-self: safe center; align-self: start; min-width: 0; }
-.qa-stage__main { grid-column: 2; min-width: 0; }
+.qa-stage__main { grid-column: 2; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 
 /* 会话目录：依附主窗口右缘（右侧空白列），与主窗口同高、顶部对齐，且不挤压主窗口宽度 */
 .qa-stage__toc { grid-column: 3; justify-self: start; align-self: stretch; min-width: 0; }
@@ -1235,7 +1237,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: var(--qa-section-gap);
   margin: 0 auto;
-  padding: var(--qa-page-pad-top) var(--qa-gutter) var(--qa-page-pad-bottom);
+  padding: var(--qa-page-pad-top) var(--qa-gutter) 12px;
   box-sizing: border-box;
 }
 
@@ -1250,7 +1252,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: var(--qa-section-gap);
   margin: 0 auto;
-  padding: var(--qa-page-pad-top) var(--qa-gutter) var(--qa-page-pad-bottom);
+  padding: var(--qa-page-pad-top) var(--qa-gutter) 12px;
   box-sizing: border-box;
 }
 
@@ -1311,15 +1313,16 @@ onUnmounted(() => {
 }
 
 .qa-multi-page__workspace {
+  flex: 1 1 auto;
   width: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
 .qa-multi-page__workspace--history {
-  height: clamp(460px, calc(100vh - 310px), 640px);
-  min-height: 460px;
-  flex: 0 0 auto;
+  min-height: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   border: 1px solid var(--qa-border-strong);
   border-radius: var(--qa-radius-container);
@@ -1336,13 +1339,17 @@ onUnmounted(() => {
    workspace otherwise clips that composer after the first saved message.
    Extra specificity also overrides the narrow-screen history height rule. */
 .qa-multi-page__workspace.qa-multi-page__workspace--agent {
+  flex: 1 1 auto;
   height: auto;
   min-height: 0;
   overflow: visible;
 }
 
 .qa-multi-page__discussion {
+  flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .qa-multi-page__workspace--history .qa-multi-page__discussion {

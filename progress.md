@@ -249,3 +249,9 @@
 - **删除 ASC 行**：`QaIntroHero` 只保留「今天想研究什么？」+ 副标题；移除 `.asc-orbit` 样式。
 - **悬浮球**：移入 stage 左列（`justify-self: safe center`），水平居中于左侧空白；顶部与主窗口对齐（两模式均为 y=292.5）。面板居中于球心（面板/标题/球心 x=313 实测一致）；标题行居中。
 - 实测（1600×1000）：两模式 header 1392、主窗口 980@y=292.5、目录同高（789/333）同顶；悬浮球 x=282、面板 x=313 中心。历史态主窗口 1304（视口限制），目录列仅 26px（1600 宽度下无剩余空间，属几何约束；≥1920 时为空白列宽）。
+
+### 会话 25 追加（主窗口高度 / 底部页边距）
+- 目标：与「性能预测」页底部页边距（`.model1-page` padding-bottom = `--pl-gutter-y` = 12px）一致。
+- 两页内容改为 flex 填满：`.qa-stage { flex:1; min-height:0 }`，`.qa-stage__main` 为 flex 列；`.qa-multi-page` / `.qa-single-page` 底部 padding = 12px。
+- 去掉固定高度 clamp：`.qa-multi-page__workspace--history` 的 `clamp(460px, …, 640px)` 删除；嵌入态 AgentPanel `height:100%`，日志 `min-height:0; max-height:none`，由 flex 分配剩余高度。
+- 实测（1600×1000）：主窗口 292.5→988（高 695.5），目录同高同底；页面 58→1000，footer 1000→1050（与性能预测相同的 12px 页底内边距）；面板内部无溢出（log 滚动区 286，composer 贴底）。
