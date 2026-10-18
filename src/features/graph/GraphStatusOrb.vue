@@ -334,10 +334,11 @@ onBeforeUnmount(dispose)
 
 .graph-orb__panel {
   position: absolute;
-  top: calc(100% + 22px);
-  /* 从左缘展开（与悬浮球左缘对齐），避免增宽后压到左侧导航栏；标题行在面板内居中 */
-  left: 0;
-  z-index: 41;
+  /* 与悬浮球中心水平对齐（317 / 2 = 158.5），标题行随之与球心对齐；间距为球底 + 44px */
+  top: calc(100% + 44px);
+  left: 50%;
+  margin-left: -158.5px;
+  z-index: 46;
   width: 317px;
   padding: 12px 14px 14px;
   border: 1px solid rgba(96, 158, 204, 0.4);
