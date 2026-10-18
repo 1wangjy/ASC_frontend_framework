@@ -43,7 +43,7 @@
             :disabled="multiNavigationLocked"
             @update:mode="updateMode"
           />
-          <QaIntroHero v-if="!multiHasHistory" />
+          <QaIntroHero :open="heroOpen" @toggle="toggleHero" />
         </div>
 
 
@@ -120,7 +120,7 @@
             :disabled="qaState.phase === 'loading'"
             @update:mode="updateMode"
           />
-          <QaIntroHero />
+          <QaIntroHero :open="heroOpen" @toggle="toggleHero" />
         </div>
 
         <div class="qa-stage qa-stage--narrow">
@@ -377,6 +377,21 @@ const composerModelOptions = computed(() => (
   qaState.value.mode === 'multi' ? multiModelOptions.value : singleModelOptions
 ))
 const showQaHome = computed(() => qaState.value.phase === 'empty')
+
+// 首页标题区（今天想研究什么）展开/收起：首页默认展开；发送提问或打开历史会话后自动收起。
+const heroOpen = ref(true)
+function toggleHero() {
+  heroOpen.value = !heroOpen.value
+}
+watch(() => multiHasHistory.value, (hasHistory) => {
+  if (qaState.value.mode === 'multi') heroOpen.value = !hasHistory
+})
+watch(showQaHome, (home) => {
+  if (qaState.value.mode === 'single') heroOpen.value = home
+})
+watch(() => qaState.value.mode, (mode) => {
+  heroOpen.value = mode === 'single' ? showQaHome.value : !multiHasHistory.value
+})
 const multiSending = computed(() => Boolean(multiDiscussionPanel.value?.sending))
 const multiNavigationLocked = computed(() => (
   shouldLockMultiDiscussionNavigation(qaState.value.mode, multiSending.value)
