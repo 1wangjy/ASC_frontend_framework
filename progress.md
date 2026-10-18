@@ -265,3 +265,14 @@
 - 面板恢复与悬浮球**中心水平对齐**（`left:50%; margin-left:-158.5px`），标题「节点与关联实时概览」随之与球心对齐（实测球心/面板中心/标题中心均为 x=313）。
 - 与球的垂直间距由 22px 增至 **44px**（2 倍）。
 - `z-index:46` 保证面板浮于左侧导航之上（导航 z-index 40/45）。
+
+## 会话 26 — 2026-10-19（智能会话 bug 修复）
+- 复现：`/research?mode=multi` 示例发送正常；推断跳转链为「页内切换器改 mode 但 URL 仍为 mode=single → 下一次 router.replace 保留旧 query → watcher 切回 single」。
+- 修复 1：`updateMode` 同步 `?mode=`（仅当与当前 query 不同，避免与路由 watcher 递归）。
+- 修复 2：`GET /api/agent/sessions/:id` 返回 `workspace`；`mapSessionDetail` 透出；`openSession` 优先用 workspace 判定范围，未记录范围不再阻断（下一轮 appendTurn 自动补 workspace）。
+
+### 会话 26 追加（布局稳定性）
+- 智能会话继续历史会话时主窗口宽度变化：根因是 stage 宽度按状态取 980/1400；改为**恒定 980**（`--qa-stage-width` 默认窄页宽，移除 multi 的 narrow 切换）。
+- 深度研究发送后布局大幅变动/目录顶部错位：根因是 answered 态不再渲染 intro；改为 intro（切换器 + 标题区）**始终渲染**。
+- 实测：multi 空态/历史态 panel 均 414/980、TOC 1414/162、y=292.5；single 首页/问答态 intro 82..272.5、stage 292.5..988、宽度 980，完全一致。
+- 测试：`qaModeSwitch` 中断言旧缺陷（紧凑单轮隐藏输入框）的用例已改为断言输入框存在，9/9 通过。

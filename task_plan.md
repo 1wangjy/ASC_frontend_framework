@@ -289,3 +289,22 @@ Phase 2：产出 `ml → 平台` 词表映射模块（含非词表工况清单�
 - Phase D：header 指示器移除；three.js 点云悬浮球 + 管理链接（跳转实测）。
 - Phase E：mode + turns 接口；深度研究目录复用与恢复实测。
 - Phase F：footer 大小写已改。
+
+---
+
+# 任务计划（追加）：智能会话两处 bug（2026-10-19）
+
+**问题**
+1. 在「智能会话」点示例发送后跳回「深度研究」。
+2. 示例发送/打开历史会话出现「该历史会话不属于当前图谱…未记录范围的旧会话也不能直接续问」。
+
+**根因**
+1. 页内模式切换器未同步 URL；`onAgentSessionChange` 的 `router.replace` 保留旧 `mode=single`，路由 watcher 再次 `updateMode('single')`。
+2. `openSession` 用 `activeTurn.scope || researchState.scope` 判定，已完成会话两者皆无 → 必然 mismatch；应使用持久化 `workspace`，且无范围记录时不阻断。
+
+## Phases
+### Phase 1：模式与 URL 同步 + 范围守卫修正 — Status: in_progress
+### Phase 2：浏览器复现/回归验证 — Status: pending
+### 执行结果
+- Phase 1：完成（updateMode 同步 URL；detail/映射/守卫改用 workspace）。
+- Phase 2：完成（浏览器：single→multi 切换 URL 同步、示例发送保持 multi；无 workspace 旧会话正常打开；跨图谱会话仍拦截）。

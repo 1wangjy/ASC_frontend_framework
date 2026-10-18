@@ -723,3 +723,8 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
 - 目录不再占用主窗口宽度：`grid-column:3; justify-self:start; align-self:stretch;` 子项 `width:248px; max-width:100%; height:100%; position:static`。
 - 1600 视口下：空态左右空白各 162px（目录 162）；历史态主窗口吃满 1304，右空白 26px。若需更宽的目录，只能提高视口或降低主窗口 max-width（与「主窗口宽度不变」冲突）。
 - 悬浮球居左空白：`justify-self: safe center`（空白不足时回退到 start，避免越过侧栏）。
+
+## 2026-10-19 智能会话 bug 根因
+- **模式跳转**：页内切换器只改本地 `qaState.mode`，不改 `?mode=`。之后 `onAgentSessionChange` 的 `router.replace({...route.query, agentSession})` 保留旧 `mode=single`；路由 watcher（`route.query.mode` → `updateMode`）把页面切回深度研究。修复：`updateMode` 同步 query（相等时不写，避免与 watcher 递归）。
+- **范围误判**：`AgentPanel.openSession` 用 `activeTurn.scope || researchState.scope` 判定；已完成的普通会话两者都没有 → 必然 mismatch。后端 detail 也不返回 `workspace`。修复：detail 返回 `workspace`、`mapSessionDetail` 透出、守卫优先 workspace；无范围记录（旧会话）放行，下一轮 appendTurn 自动补写。
+- 负向验证：workspace 为其它图谱的会话仍会被拦截（提示已改为「请先切换到对应项目后再打开」）。

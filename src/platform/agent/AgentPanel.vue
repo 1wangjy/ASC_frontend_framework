@@ -610,11 +610,13 @@ async function openSession(id) {
     const detail = mapSessionDetail(await getAgentSession(id))
     if (!componentActive) return
     if (!detail) throw new Error('会话详情缺少 sessionId')
-    const scope = detail.activeTurn?.scope || detail.researchState?.scope
-    // 只要调用方给了范围（嵌入页或独立使用），就按范围守卫；未给范围则不做限制。
-    const scopeMismatch = (props.projectId && scope?.projectId !== props.projectId)
-      || (props.graphId && scope?.graphId !== props.graphId)
-    if (scopeMismatch) throw new Error('该历史会话不属于当前图谱，请先选择对应项目；未记录范围的旧会话也不能直接续问。')
+    // 范围优先取会话持久化的 workspace（每轮 appendTurn 都会写入）；
+    // 旧会话可能没有记录范围：此时允许打开，下一轮提问会自动补写 workspace。
+    const scope = detail.workspace || detail.activeTurn?.scope || detail.researchState?.scope || null
+    const scopeMismatch = Boolean(scope)
+      && ((scope.projectId && props.projectId && scope.projectId !== props.projectId)
+        || (scope.graphId && props.graphId && scope.graphId !== props.graphId))
+    if (scopeMismatch) throw new Error('该历史会话不属于当前图谱，请先切换到对应项目后再打开。')
     loadSession(detail)
     sessionsOpen.value = false
     if (detail.activeTurn) void restoreActiveTurn(detail)

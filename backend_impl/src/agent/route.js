@@ -536,6 +536,7 @@ function createRouter(config = {}) {
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       mode: record.mode,
+      workspace: record.workspace,
       ...(activeTurns.has(id) ? { activeTurn: (({ question, fromEventId, scope }) =>
         ({ question, fromEventId, scope }))(activeTurns.get(id)) } : {}),
       ...(record.researchState ? { researchState: record.researchState } : {}),

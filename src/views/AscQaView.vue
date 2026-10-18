@@ -47,7 +47,7 @@
         </div>
 
 
-        <div class="qa-stage" :class="{ 'qa-stage--narrow': !multiHasHistory }">
+        <div class="qa-stage">
           <div class="qa-stage__left">
             <GraphStatusOrb :project-id="activeProject?.projectId || ''" />
           </div>
@@ -114,7 +114,7 @@
       </section>
 
       <section v-else class="qa-single-page">
-        <div v-if="showQaHome" class="qa-empty__intro qa-research-intro">
+        <div class="qa-empty__intro qa-research-intro">
           <QaModeSwitcher
             :mode="qaState.mode"
             :disabled="qaState.phase === 'loading'"
@@ -600,6 +600,11 @@ async function ensureMultiDiscussionModels() {
 }
 
 async function updateMode(mode) {
+  // URL 与页面模式保持同步：若只切换本地状态，后续任何 router.replace（例如写入
+  // agentSession）都会保留旧的 ?mode=...，路由 watcher 又会把页面切回去。
+  if ((mode === 'multi' || mode === 'single') && route.query.mode !== mode) {
+    void router.replace({ path: route.path, query: { ...route.query, mode } })
+  }
   if (mode === qaState.value.mode) {
     if (mode === 'multi') await ensureMultiDiscussionModels()
     return
@@ -1092,7 +1097,7 @@ onUnmounted(() => {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, var(--qa-stage-width, var(--qa-page-max))) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--qa-stage-width, var(--qa-page-max-narrow))) minmax(0, 1fr);
   column-gap: var(--qa-space-5);
   align-items: stretch;
   width: 100%;

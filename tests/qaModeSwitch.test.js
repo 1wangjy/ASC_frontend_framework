@@ -95,7 +95,7 @@ test('shows a live send entry for multi-turn', async () => {
   assert.doesNotMatch(html, /title="多轮问答接口尚未接入"/)
 })
 
-test('hides the entire compact follow-up composer after a single-turn question', async () => {
+test('keeps the compact follow-up composer for single-turn mode', async () => {
   const state = qa.createQaState()
   const html = await renderSfc('/src/features/qa/QuestionComposer.vue', {
     modelValue: '',
@@ -104,8 +104,11 @@ test('hides the entire compact follow-up composer after a single-turn question',
     compact: true
   })
 
+  // 单轮追问仍需输入框；紧凑模式只隐藏模式切换器，不隐藏整个 composer
   assert.doesNotMatch(html, /深度研究|智能会话/)
-  assert.doesNotMatch(html, /继续追问|模型|推理|查询/)
+  assert.match(html, /继续追问/)
+  assert.match(html, /模型/)
+  assert.match(html, /推理/)
 })
 
 test('keeps the compact follow-up composer for multi-turn mode without mode choices', async () => {

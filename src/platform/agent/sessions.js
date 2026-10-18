@@ -100,6 +100,9 @@ export function mapSessionDetail(payload) {
     sessionId,
     title: text(payload?.title, '未命名会话'),
     messages: Array.isArray(payload?.messages) ? payload.messages : [],
+    workspace: payload?.workspace && typeof payload.workspace === 'object'
+      ? { projectId: text(payload.workspace.projectId) || '', graphId: text(payload.workspace.graphId) || '' }
+      : null,
     researchState: payload?.researchState || null,
     activeTurn: payload?.activeTurn || null,
     createdAt: text(payload?.createdAt || payload?.created_at),
