@@ -594,3 +594,18 @@ water_absorption,apparent_porosity,volume,size_length/width/height,bulk_density_
   `backend_impl/data`（日志/DB 变动）。`fs.inotify.max_user_watches=524288` 仍被打满 → dev server 进程崩溃退出。
 - 修复：`vite.config.js` 的 `server.watch.ignored` 增 `**/.venv/**`、`**/backend_impl/**`、`**/AI4Sci-NEXUS-ASC-Development-Domain/**`
   （前端只关心 `src/` 与根级配置，后端/产物目录无需热更新）。修复后 3005 稳定 200。
+
+## F44 — Agent 功能对齐评估（2026-10-18，pull 后）
+**驱动方式**：真实起服务 + 建会话 + SSE 流式（3 轮：禁工具 / `kg_list` / `kg_search`）。
+- 事件契约：后端 11 类帧 ⇄ 前端 `useAgentChat` 全覆盖 ✓；`/api/agent` 代理位于兜底 `/api` 之前 ✓（经 3005 均 200）。
+- 图谱轮：`kg_search` ok（8 子图 / 12 验证路径 / 16 引用）；终稿 1,490 字含 `<c>R15</c>`；
+  `done.timing={totalMs:67182, modelMs:8349, knowledgeToolMs:58830}`；metrics/审计(0600) 正常。
+- 测试：后端 agent **131/131**；前端 agent **94 项 92 通过 2 跳过 0 失败**；`tests/agentWorkspaceUi.test.js`（pull 新增）**挂起超时**。
+- **两处发现并修复**：
+  1. **历史项目引用 doi=None**：`source_filename=119_10.1016_j.jeurceramsoc.2021.01.021.md` 带序号前缀，
+     `normalize_doi` 的 `_DOI_FILENAME_RE` 锚定 `^10\.` 失败 → 修：先剥离 `^\d{1,6}_`。修复后 16/16 引用带 doi 与 original_url，
+     实测 `original_url` → HTTP **200 / 4,169,301 B**（chunk → DOI → Mongo 原文贯通）。
+  2. **前端引用忽略 original_url**：`referenceHref` 原来只用 `url/doi.org` → 改为 **`original_url` 优先**（平台内直接开原文，doi.org 兜底）。
+- 文档漂移（待上游）：工具 **7→9**（新增 `search_history`/`read_evidence`）；测试数 94/65 → 131/92；
+  `GET /api/agent/health` 仅独立入口提供，平台入口 404。
+- 评估报告：`check/check_status_2026-10-18_agent.md`（本地，`check/` 已被 gitignore）。

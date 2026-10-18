@@ -199,3 +199,10 @@
 - README 新增「统一文件管理（MongoDB GridFS）」；findings 增 F39（OOM/9p 环境）与 F41（核验结果）。
 - 服务状态修复（会话 19 末）：`modelapi(8100)` 与 `frontend(3005)` 未启动 → 已拉起；前端反复退出系 Vite 监听 `.venv`/5001 `uploads`
   导致 inotify `ENOSPC`，已在 `vite.config.js` 忽略相关目录（F43），四服务 3001/3005/5001/8100 均 200。
+
+## 会话 20 — 2026-10-18（pull 后 agent 对齐评估）
+- 真实驱动 agent：禁工具轮（253 字，声明非检索证据）、`kg_list` 工具轮、`kg_search` 图谱轮（16 引用、knowledgeToolMs 58.8s）。
+- 测试：后端 agent 131/131；前端 agent 94（92 通过/2 跳过/0 失败）；新增 `agentWorkspaceUi.test.js` 挂起（待上游）。
+- 修复：`normalize_doi` 支持序号前缀文件名（历史引用 doi/original_url 由 None → 16/16 有效）；
+  前端 `citations.js` 链接改为 `original_url` 优先。
+- 报告：`check/check_status_2026-10-18_agent.md`。

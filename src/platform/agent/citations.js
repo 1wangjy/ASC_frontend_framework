@@ -66,7 +66,11 @@ export function safeHttpUrl(value) {
 }
 
 function referenceHref(item) {
-  return safeHttpUrl(item.url || item.href || item.link || item.source_url) || doiToUrl(item.doi)
+  // 优先平台统一文件管理（MongoDB 原文）返回的 original_url；
+  // 它是受控的同源/内网流地址，比外链 doi.org 更可靠（很多文献在 doi.org 无公开 PDF）。
+  return safeHttpUrl(item.original_url)
+    || safeHttpUrl(item.url || item.href || item.link || item.source_url)
+    || doiToUrl(item.doi)
 }
 
 /** 单条引用 → 面板需要的紧凑结构。无标题且无引文的条目直接丢弃。 */
