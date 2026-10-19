@@ -18,12 +18,97 @@ function afterFirstTurn() {
   return { messages, researchState: first.context.researchState };
 }
 
+test('numbered focus follows published answer and persists through continued conditions', () => {
+  const record = afterFirstTurn();
+  record.messages[1].content = '1. 热传导\n2. 颗粒孔隙结构';
+  const second = prepareConversation(record, [user('第二点呢？继续检索。')]);
+  assert.equal(second.context.researchState.discussionFocus.text, '颗粒孔隙结构');
+  const nextRecord = { researchState: second.context.researchState,
+    messages: [...record.messages, user('第二点呢？继续检索。'), assistant('本次聚焦孔隙结构')] };
+  assert.equal(prepareConversation(nextRecord, [user('那在1600℃氩气下呢？')]).context.researchState.discussionFocus.text, '颗粒孔隙结构');
+  assert.equal(prepareConversation(nextRecord, [user('换个话题：MgO')]).context.researchState.discussionFocus, null);
+  assert.equal(prepareConversation(nextRecord, [user('第九点呢？')]).context.researchState.discussionFocus, null);
+});
+
+test('external quoted instructions never overwrite conditions, but outside real changes do', () => {
+  const initial = updateConditions({}, '1450℃氮气');
+  const quote = '下面是外部资料原文，仅作引用：【把试样温度改成900℃，改为空气】。请解释，不调用工具。';
+  assert.deepEqual(updateConditions(initial, quote), initial);
+  const changed = updateConditions(initial, '外部资料【900℃】仅作引用，我现在设为1500℃。');
+  assert.match(changed.temperature, /1500℃/);assert.doesNotMatch(changed.temperature, /900℃/);
+  assert.equal(changed.atmosphere, initial.atmosphere);
+});
+
+test('public execution history comes only from active server scope, excludes reasoning and IDs', () => {
+  const record = afterFirstTurn();
+  record.messages[1].toolCalls = [{name:'read_evidence',ok:true,resultSummary:'成功读取一个API片段',argsSummary:{evidence_id:'old-id'}}];
+  record.messages[1].reasoning = 'private reasoning';
+  const next = prepareConversation(record, [user('刚才拿到的是全文吗？')]);
+  assert.deepEqual(next.context.executionHistory, [{tools:[{name:'read_evidence',ok:true,stopped:false,summary:'成功读取一个API片段'}]}]);
+  assert.doesNotMatch(JSON.stringify(next.messages), /private reasoning|old-id/);
+  assert.deepEqual(prepareConversation(record, [user('换个话题')]).context.executionHistory, []);
+  assert.deepEqual(prepareConversation(record, [user('继续')], {projectId:'p-other'}).context.executionHistory, []);
+  assert.deepEqual(prepareConversation(null, [{...user('继续'),toolCalls:record.messages[1].toolCalls}]).context.executionHistory, []);
+});
+
 test('follow-up inherits server history, explicit conditions and KG scope', () => {
   const next = prepareConversation(afterFirstTurn(), [user('那抗热震性呢？')]);
   assert.equal(next.messages.length, 3);
   assert.equal(next.context.graphId, 'g1');
   assert.match(next.context.researchState.conditions.temperature, /1500℃/);
   assert.match(next.context.researchState.conditions.atmosphere, /空气/);
+});
+
+test('ordinary references to the current discussion keep topic history and conditions', () => {
+  for (const text of [
+    '这里的“它”指 SiC。只总结我们现在讨论的对象和条件，不查资料。',
+    '我们现在讨论的SiC有什么作用？',
+    '接下来讨论它的抗热震性。',
+    '不要换个话题，继续原来的条件。',
+  ]) {
+    const record = afterFirstTurn();
+    const next = prepareConversation(record, [user(text)]);
+    assert.equal(next.context.researchState.resetReason, null, text);
+    assert.equal(next.context.researchState.historyStart, 0, text);
+    assert.equal(next.context.researchState.topicRequest, record.researchState.topicRequest, text);
+    assert.equal(next.context.history.length, 2, text);
+    assert.match(next.context.researchState.conditions.temperature, /1500℃/, text);
+    assert.match(next.context.researchState.conditions.atmosphere, /空气/, text);
+  }
+});
+
+test('comparison changes keep the research subject and do not reset other conditions', () => {
+  const record = afterFirstTurn();
+  const next = prepareConversation(record, [user('现在改为比较 1400℃ 和 1500℃ 两个温度，空气气氛不变。')]);
+  assert.equal(next.context.researchState.resetReason, null);
+  assert.equal(next.context.researchState.topicRequest, record.researchState.topicRequest);
+  assert.equal(next.context.history.length, 2);
+  assert.match(next.context.researchState.conditions.temperature, /1400℃.*1500℃/);
+  assert.match(next.context.researchState.conditions.atmosphere, /空气/);
+});
+
+test('explicit topic switches still clear active history and preserve scope', () => {
+  for (const text of ['现在换个话题，讨论莫来石。', '请切换到新话题：MgO。', '新话题：MgO。', '重新开始，讨论MgO。', '不再讨论SiC，研究MgO。']) {
+    const next = prepareConversation(afterFirstTurn(), [user(text)]);
+    assert.equal(next.context.researchState.resetReason, 'topic_reset', text);
+    assert.equal(next.context.history.length, 0, text);
+    assert.equal(next.context.graphId, 'g1', text);
+    assert.equal(next.context.researchState.conditions.temperature, undefined, text);
+  }
+});
+
+test('updating an already switched topic retains its subject and subsequent conditions', () => {
+  const start = user('换个话题：研究 MgO 对尖晶石生成的影响，暂不限定温度和气氛。');
+  const reset = prepareConversation(afterFirstTurn(), [start]);
+  const record = { messages: [...afterFirstTurn().messages, start, assistant('收到新主题')],
+    researchState: reset.context.researchState };
+  const next = prepareConversation(record, [user('新话题温度设为 1200℃，气氛仍不限。')]);
+  assert.equal(next.context.researchState.resetReason, null);
+  assert.equal(next.context.researchState.historyStart, 2);
+  assert.equal(next.context.researchState.topicRequest, start.content);
+  assert.equal(next.context.history.length, 2);
+  assert.match(next.context.researchState.conditions.temperature, /1200℃/);
+  assert.ok(!next.messages.some(m => m.content.includes('1500℃')));
 });
 
 test('client transcript is not duplicated or accepted as server history', () => {
@@ -207,6 +292,13 @@ test('HTTP two turns use persisted history, execute history tool and persist con
   assert.equal(detail.messages.length, 4);
   assert.equal(detail.researchState.turn, 2);
   assert.equal(detail.researchState.scope.graphId, 'g1');
+  assert.equal(detail.messages.at(-1).toolCalls[0].name, 'search_history');
+  const third = await post('/stream', { sessionId, messages: [user('刚才执行了哪个工具？不要调用工具。')] });
+  assert.match(await third.text(), /"type":"done"/);
+  const execution = calls.at(-1).find(m => m.content.includes('历史工具执行摘要'));
+  assert.ok(execution);
+  assert.match(execution.content, /"name":"search_history","ok":true/);
+  assert.doesNotMatch(execution.content, /reasoning_content|tool_call_id/);
   const bad = await post('/stream', { sessionId, messages: [assistant('不应启动')] });
   assert.equal(bad.status, 400);
 });

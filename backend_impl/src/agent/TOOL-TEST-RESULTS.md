@@ -56,6 +56,22 @@
 
 ## 复现与下一步
 
+### 2026-10-16 三工具真实补测
+
+本次直接通过真实注册工具发起调用，无模拟返回，不调用主 Agent 模型。未修改环境配置、未安装依赖、未启动或重启已有服务。原 10-09 批次通过数和耗时保持不变。
+
+| 工具 | 本次结果 | 单次工具调用耗时 | 说明 |
+| --- | --- | --- | --- |
+| web_browse | 通过 | 0.664 秒 | 读取白名单内 GitHub 公开仓库 API，HTTP 200，返回目标仓库标识，内容标记为不可信外部数据 |
+| predict | 调用失败，验收受阻 | 0.080 秒（失败返回） | 默认 127.0.0.1:8100 无监听，未得到预测值 |
+| recipe_optimize | 调用失败，验收受阻 | 1.124 秒（失败返回） | 向现有 Node 服务提交 random 算法、budget=3 的优化请求，服务启动 python3 失败，未得到优化结果 |
+
+结果文件：`data/agent/integration/extra-tool-acceptance-2026-10-16T08-41-03-205Z/report.json`。脚本：`scripts/agent-extra-tools-acceptance.cjs`。
+
+补充检查发现 `PYTHON_CMD` 未配置，默认 `python3` 指向 WindowsApps 的不可用别名。预测服务默认要求的 `python/model_predict/MODEL/outputs/models/minmax/bulk_density.joblib` 和 `FEATURE/outputs/metadata_minmax.json` 不存在，默认模型服务虚拟环境也不存在。此检查仅说明当前默认路径的部署条件不齐，不推断其他位置一定没有模型。
+
+截至本次补测，已有 7 个工具的成功实测记录（包含以前批次的 4 个知识 API 工具、2 个本地工具，以及本次网页读取），不能写作本次 7/9 全量验收通过。预测和优化需补齐运行环境与模型资产后重新验收。失败返回耗时不能当作成功计算耗时，单次成功样本不能当作平均性能。
+
 在 `backend_impl` 中运行：
 
 ```powershell
