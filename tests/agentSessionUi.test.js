@@ -465,7 +465,7 @@ test('新建会话 creates a server session and clears the log', async () => {
     await click(root, '新建会话')
     await waitFor(() => assert.ok(!renderedText(root).includes('第一次回答')), 'the log was not cleared')
     assert.ok(!renderedText(root).includes('第一次回答'), 'a new session starts from an empty log')
-    assert.match(renderedText(root), /从一次真实的工具调用开始/)
+    assert.match(renderedText(root), /试试以下的问题/)
     // 第一轮惰性建了会话，点“新建会话”又建了一条
     assert.equal(calls.filter(call => call.url.endsWith('/api/agent/sessions') && call.method === 'POST').length, 2)
   } finally {

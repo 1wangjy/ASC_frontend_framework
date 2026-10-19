@@ -75,7 +75,7 @@ function buildReport(dir) {
       '未覆盖的kg_list请求由夹具明确拒绝，不能当成实际服务故障。'] };
   if (summary.core_case_passes + summary.core_case_partial !== 18) throw new Error('Unreviewed case');
   const lines = [
-    'ASC 多轮问答18组完整测试结果', '测试日期：2026-10-15（北京时间）',
+    'ASC 多轮问答18组完整测试结果', `测试日期：${new Date(raw.started_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' })}（北京时间）`,
     `模型：${summary.model}；每组1次，真实模型与固定知识工具夹具。`,
     `全部${summary.cases_executed}组、${summary.turns_executed}轮已执行，没有跳过用例。`,
     `${summary.model_response_turns}轮取得模型最终回答，另${summary.expected_fault_turns}轮为预设故障注入，错误处理检查通过${summary.expected_fault_passes}轮。意外基础设施错误${summary.unexpected_infrastructure_errors}次。`,
@@ -95,11 +95,11 @@ function buildReport(dir) {
     `提供方streamChat方法调用${summary.provider_method_calls}次，上游报告总tokens为${summary.provider_reported_tokens}，未折算费用。`,
     '方法调用次数不是独立用户轮次，底层流式兼容回退可能额外发出HTTP请求。',
     `实际工具请求：${Object.entries(toolCounts).map(([n, count]) => n + ' ' + count + '次').join('，')}。`,
-    '两次kg_list请求不属于本次要求的工具链，当前夹具明确返回未实现，未访问外部服务，亦未将其算作成功。',
+    `${fixtureUnsupported.length}次请求由当前夹具明确返回未实现，未访问外部服务，亦未将其算作成功。`,
     '', '材料与边界', ...summary.limits,
     '原始逐轮回答、事件、模型tool_calls、输入快照、用例预期和代码SHA256：raw-results.json。',
     '机器可读汇总与确定性检查：results.json。人工逐组判定：review-cases.json。',
-    '本次未修改业务代码、未重启服务、未更新PPT或推送Git。'
+    '本报告仅记录该批原始运行；代码、PPT和Git提交情况见对应版本的同步验收记录。'
   ];
   fs.writeFileSync(path.join(dir, 'results.json'), JSON.stringify(summary, null, 2) + '\n');
   fs.writeFileSync(path.join(dir, '18组完整测试结果.txt'), lines.join('\n') + '\n');

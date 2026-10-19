@@ -1,9 +1,35 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { wantsJSONOnly, jsonOnlyText, nameLimit, surfaceIssue } = require('../src/agent/outputFormat');
+const { wantsJSONOnly, jsonOnlyText, nameLimit, surfaceIssue, historyReadIssue } = require('../src/agent/outputFormat');
 const { runAgent } = require('../src/agent/loop');
 const registry = require('../src/agent/tools');
+
+test('historical read reconciliation requires a successful server event and an explicit recall request', () => {
+  const history = [{ tools: [{ name: 'read_evidence', ok: true }] }];
+  const request = '刚才拿到的是片段还是全文？只说明范围，不调用工具。';
+  assert.match(historyReadIssue('没有成功执行一次对真实片段的read_evidence。', request, history), /ok=true/);
+  assert.match(historyReadIssue('没有返回成文答案/可用片段。', request, history), /片段/);
+  assert.equal(historyReadIssue('读取成功但片段真实性和支持度未核验，不是全文。', request, history), null);
+  assert.equal(historyReadIssue('没有拿到片段。', request, []), null);
+  assert.equal(historyReadIssue('没有拿到片段。', request, [{ tools: [{ name: 'read_evidence', ok: false }] }]), null);
+  assert.equal(historyReadIssue('没有拿到片段。', '说明这个材料的作用', history), null);
+});
+
+test('loop repairs a historical execution contradiction once without calling tools', async () => {
+  const events = []; let requests = 0;
+  const history = [{ tools: [{ name: 'read_evidence', ok: true }] }];
+  await runAgent({ messages: [{ role: 'user', content: '刚才拿到的是片段还是全文？不调用工具。' }],
+    context: { executionHistory: history },
+    provider: { available: true, streamChat: async params => {
+      requests++;
+      if (requests === 2) assert.equal(params.tools.length, 0);
+      return { content: requests === 1 ? '没有拿到片段。' : '当时成功读取了API片段，并非全文，内容尚未核验。', finish_reason: 'stop' };
+    } }, emit: e => events.push(e) });
+  assert.equal(requests, 2);
+  assert.equal(events.some(e => e.type === 'tool_call'), false);
+  assert.match(events.find(e => e.type === 'final').text, /成功读取/);
+});
 
 test('only latest explicit JSON request opts in', () => {
   for (const text of ['只输出JSON，字段为代号', '请仅返回 JSON', '只用JSON', '只输出严格JSON', '用JSON列出代号、SiC含量、温度、气氛和保温时间，不调用工具。', '仍输出相同三个 JSON 字段，不调用工具。']) {

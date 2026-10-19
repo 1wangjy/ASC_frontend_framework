@@ -18,7 +18,7 @@ const toolRegistry = require('./tools');
 const { createProvider } = require('./provider');
 const { EvidenceStore, checkAnswer } = require('./evidence');
 const { serviceAnswer } = require('./serviceAnswer');
-const { wantsJSONOnly, jsonOnlyText, nameLimit, surfaceIssue } = require('./outputFormat');
+const { wantsJSONOnly, jsonOnlyText, nameLimit, surfaceIssue, historyReadIssue } = require('./outputFormat');
 
 const DEFAULT_MAX_STEPS = Number(process.env.AGENT_MAX_STEPS || 6);
 const MAX_STEPS_CAP = 10;
@@ -343,7 +343,8 @@ async function runAgent({ messages, context = {}, options = {}, emit, signal, pr
         }
         const finalText = assistant.content || lastText;
         if (finalText.length > MAX_MESSAGE_CHARS) throw new Error('LLM draft exceeds the output character budget');
-        const issue = surfaceIssue(finalText, currentRequest);
+        const issue = surfaceIssue(finalText, currentRequest)
+          || historyReadIssue(finalText, currentRequest, context.executionHistory);
         if (issue && !evidenceStore.retrievalAttempted) {
           if (surfaceRepairs === 0 && steps < maxSteps && !turnSignal.aborted) {
             surfaceRepairs++;

@@ -27,7 +27,7 @@ test('smart conversation defaults to Agent on the main workspace, legacy and dee
   assert.match(source, /<MultiDiscussionPanel\s+v-if="useLegacyDiscussion"/)
   assert.match(source, /<QuestionComposer\s+v-if="useLegacyDiscussion"/)
   assert.match(source, /if \(!useLegacyDiscussion\.value\)[\s\S]*?submitExternal\(payload\)/)
-  assert.match(source, /<section v-else-if="showQaHome"/)
+  assert.match(source, /<div v-if="showQaHome" class="qa-empty"/)
 })
 
 test('composer uses real Agent wire contract and restores citations and full quote after history reload', async (t) => {

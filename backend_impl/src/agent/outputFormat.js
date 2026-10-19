@@ -41,4 +41,14 @@ function surfaceIssue(text, request) {
   return null;
 }
 
-module.exports = { wantsJSONOnly, jsonOnlyText, nameLimit, surfaceIssue };
+// Only reconcile execution facts from the server's current-topic history.
+// Fixture content can be unverified while the read operation still succeeded.
+function historyReadIssue(text, request, history = []) {
+  if (!/(?:刚才|之前|上[一轮次])/.test(request) || !/(?:片段|全文|论文|读取|拿到)/.test(request)) return null;
+  if (!history.some(entry => entry.tools?.some(tool => tool.name === 'read_evidence' && tool.ok === true))) return null;
+  const denial = /(?:没有|未|并未|未能)[^。\n]{0,24}(?:拿到|取到|读取|执行)[^。\n]{0,25}(?:片段|read_evidence)|(?:没有|未给出)[^。\n]{0,12}(?:可用|合法)[^。\n]{0,5}(?:片段|evidence_id)/i;
+  if (!denial.test(String(text))) return null;
+  return '请核对服务端历史工具执行摘要：其中read_evidence的ok=true，表示当时确实成功读取了API返回的片段，测试夹具片段也属于成功读取事件。请准确说明“读到的是API片段、并非整篇论文，内容真实性和支持度尚未核验”；不能因为夹具内容不是真实文献，或历史最终答案没有显示ID，就否认已记录的读取成功。旧ID仍不得作为本轮证据，当前轮没有新检索也不等于历史没有读取。';
+}
+
+module.exports = { wantsJSONOnly, jsonOnlyText, nameLimit, surfaceIssue, historyReadIssue };

@@ -66,6 +66,46 @@ function agentApp() {
   return app;
 }
 
+test('authenticated sessions preserve workspace and isolate reads, writes, streams and deletion', async t => {
+  withSessionDir(t, tmpDir(t));
+  withEnv(t, 'JWT_SECRET', 'isolated-test-secret-20261019');
+  const jwt = require('jsonwebtoken');
+  const headers = id => ({ 'content-type': 'application/json',
+    authorization: `Bearer ${jwt.sign({ id, role: 'user' }, process.env.JWT_SECRET)}` });
+  const server = await listen(t, agentApp());
+  const base = `http://127.0.0.1:${server.address().port}/api/agent`;
+  const workspace = { projectId: 'test-project', graphId: 'test-graph' };
+  const created = await fetch(base + '/sessions', { method: 'POST', headers: headers('owner-a'),
+    body: JSON.stringify({ title: 'private', mode: 'single', workspace }) });
+  const session = await created.json();
+  assert.equal(created.status, 200);
+  assert.deepEqual(session.workspace, workspace);
+  assert.equal(session.mode, 'single');
+  const target = base + '/sessions/' + session.sessionId;
+  assert.equal((await fetch(target, { headers: headers('owner-a') })).status, 200);
+  for (const outsider of [headers('owner-b'), {}]) {
+    assert.deepEqual(await (await fetch(base + '/sessions', { headers: outsider })).json(), []);
+    for (const [url, method, body] of [
+      [target, 'GET'], [target, 'DELETE'], [target + '/stop', 'POST', {}],
+      [target + '/turns', 'POST', { user: { content: 'foreign edit' } }],
+      [base + '/stream', 'POST', { sessionId: session.sessionId, messages: [{ role: 'user', content: 'foreign query' }] }],
+    ]) {
+      const response = await fetch(url, { method, headers: { 'content-type': 'application/json', ...outsider },
+        ...(body ? { body: JSON.stringify(body) } : {}) });
+      assert.equal(response.status, 404, `${method} ${url}`);
+    }
+  }
+  const appended = await fetch(target + '/turns', { method: 'POST', headers: headers('owner-a'),
+    body: JSON.stringify({ user: { content: '1500℃空气' }, assistant: { role: 'assistant', content: '已记录' } }) });
+  assert.equal(appended.status, 200);
+  const restored = await (await fetch(target, { headers: headers('owner-a') })).json();
+  assert.equal(restored.messages.length, 2);
+  assert.deepEqual(restored.workspace, workspace);
+  assert.equal(restored.mode, 'single');
+  assert.equal((await (await fetch(base + '/sessions?mode=agent', { headers: headers('owner-a') })).json()).length, 0);
+  assert.equal((await (await fetch(base + '/sessions?mode=single', { headers: headers('owner-a') })).json()).length, 1);
+});
+
 test('budget denial metadata survives SSE persistence without saving raw tool payloads', async t => {
   withSessionDir(t, tmpDir(t));
   t.mock.method(require('../src/agent/tools'), 'runTool', async () => ({ ok: false, summary: 'budget',
@@ -116,6 +156,9 @@ test('createSession writes one JSON file under AGENT_SESSION_DIR, atomically', (
     createdAt: record.createdAt,
     updatedAt: record.createdAt,
     messages: [],
+    userId: null,
+    mode: 'agent',
+    workspace: null,
   });
   assert.deepEqual(
     fs.readdirSync(dir).filter((name) => name.endsWith('.tmp')),
@@ -186,7 +229,7 @@ test('listSessions returns newest-first summaries and honours the limit', async 
 
   const list = sessions.listSessions();
   assert.deepEqual(list.map((entry) => entry.sessionId), [first.sessionId, second.sessionId]);
-  assert.deepEqual(Object.keys(list[0]).sort(), ['createdAt', 'sessionId', 'title', 'turns', 'updatedAt']);
+  assert.deepEqual(Object.keys(list[0]).sort(), ['createdAt', 'mode', 'sessionId', 'title', 'turns', 'updatedAt', 'workspace']);
   assert.equal(list[0].turns, 1);
   assert.equal(list[1].turns, 0);
   assert.equal(sessions.listSessions({ limit: 1 }).length, 1);
@@ -295,7 +338,7 @@ test('the session routes create, list, read and delete a session', async (t) => 
   });
   assert.equal(created.status, 200);
   const session = await created.json();
-  assert.deepEqual(Object.keys(session).sort(), ['createdAt', 'sessionId', 'title']);
+  assert.deepEqual(Object.keys(session).sort(), ['createdAt', 'mode', 'sessionId', 'title', 'workspace']);
 
   sessions.appendTurn(session.sessionId, {
     user: { role: 'user', content: '莫来石含量？' },
@@ -305,7 +348,7 @@ test('the session routes create, list, read and delete a session', async (t) => 
   const list = await (await fetch(`${base}/sessions?limit=20`)).json();
   assert.equal(Array.isArray(list), true);
   assert.equal(list.length, 1);
-  assert.deepEqual(Object.keys(list[0]).sort(), ['createdAt', 'sessionId', 'title', 'turns', 'updatedAt']);
+  assert.deepEqual(Object.keys(list[0]).sort(), ['createdAt', 'mode', 'sessionId', 'title', 'turns', 'updatedAt', 'workspace']);
   assert.equal(list[0].turns, 1);
 
   const detail = await (await fetch(`${base}/sessions/${session.sessionId}`)).json();
