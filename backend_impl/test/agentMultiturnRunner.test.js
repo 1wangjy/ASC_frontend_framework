@@ -4,8 +4,20 @@ const assert = require('node:assert/strict');
 const { createFixtureExecutor, windowPrecondition } = require('../scripts/multiturn-fixtures.cjs');
 const { checkToolRule } = require('../scripts/agent-multiturn-run.cjs');
 const { EvidenceStore } = require('../src/agent/evidence');
+const { checkLongQuery } = require('../scripts/agent-multiturn-report.cjs');
 const context = () => ({ projectId: 'fixture-project', graphId: 'fixture-graph', hasSession: true,
   history: [], evidenceStore: new EvidenceStore({ projectId: 'fixture-project', graphId: 'fixture-graph' }) });
+
+test('long-history report checks actual query inheritance, not a correct-looking final answer', () => {
+  const call = query => ({ name: 'kg_search', args: { query } });
+  const query = 'SiC 13 wt%，1500℃空气，保温2小时';
+  assert.equal(checkLongQuery([call(query)]).passed, true);
+  assert.equal(checkLongQuery([call('SiC 13 wt% 1500℃空气')]).passed, false);
+  assert.equal(checkLongQuery([call(query + ' ASC铝硅碳')]).passed, false);
+  assert.equal(checkLongQuery([call(query + '，1450℃氮气')]).passed, false);
+  assert.equal(checkLongQuery([call(query), call('SiC')]).passed, false);
+  assert.equal(checkLongQuery([]).passed, false);
+});
 test('same evidence is re-registered per turn and read uses actual generated IDs', async () => {
   const current = { case_id: 'MT08', turn: 1, fixture_profile: 'evidence_catalog', fixture_events: [] };
   const run = createFixtureExecutor(() => current);

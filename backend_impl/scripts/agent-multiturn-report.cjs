@@ -3,6 +3,21 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
+// Dataset-specific parameter observation, not a production answer-quality gate.
+// Check the actual request sent to retrieval, rather than the final JSON alone.
+function checkLongQuery(calls = []) {
+  const queries = calls.filter(c => ['kg_search', 'rag_search'].includes(c.name))
+    .map(c => String(c.args?.query || '').normalize('NFKC'));
+  const items = queries.map(query => ({ query,
+    sic_and_content: /SiC/i.test(query) && /13\s*wt\s*%/i.test(query),
+    temperature_and_atmosphere: /1500\s*(?:°\s*C|℃|摄氏度)/i.test(query) && /空气/.test(query),
+    hold_time: /(?:2|两|二)\s*(?:小时|小時|h(?:ours?)?\b)/i.test(query),
+    no_invented_system: !/ASC|铝硅碳|Al[₂2]O[₃3]\s*[-–—/]\s*SiC/i.test(query),
+    no_superseded_conditions: !/1450|氮气|\bN[₂2]\b/i.test(query) }));
+  return { passed: items.length > 0 && items.every(item => Object.entries(item)
+    .filter(([key]) => key !== 'query').every(([, value]) => value)), queries: items };
+}
+
 function buildReport(dir) {
   const rawPath = path.join(dir, 'raw-results.json');
   const rawBytes = fs.readFileSync(rawPath);
@@ -32,6 +47,7 @@ function buildReport(dir) {
     isolated_canary_in_assistant_output: raw.turns.filter(t => t.assistant.includes(canary)).length,
     long_window_precondition: long.window_precondition.passed,
     long_actual_model_input_has_early_fields: /LONG-X73|13\s*wt\s*%|保温\s*2\s*小时/i.test(longInput),
+    long_retrieval_parameters: checkLongQuery(raw.turns.find(t => t.case_id === 'MT18' && t.turn === 23)?.actual_tools),
     read_ids_same_turn: raw.turns.flatMap(t => {
       const known = new Set();
       const findings = [];
@@ -45,6 +61,8 @@ function buildReport(dir) {
       return findings;
     })
   };
+  if (review.cases.find(c => c.id === 'MT18')?.status === 'pass' && !checks.long_retrieval_parameters.passed)
+    throw new Error('MT18 review conflicts with actual retrieval parameters');
   const strictJson = raw.turns.filter(t => ['MT07.3', 'MT07.4', 'MT18.24'].includes(`${t.case_id}.${t.turn}`))
     .map(t => { let parsed = true; try { JSON.parse(t.assistant); } catch { parsed = false; }
       return { case_id: t.case_id, turn: t.turn, strict_json_parse: parsed }; });
@@ -111,4 +129,4 @@ if (require.main === module) {
   if (!dir) throw new Error('Usage: node agent-multiturn-report.cjs <completed-run-directory>');
   buildReport(path.resolve(dir));
 }
-module.exports = { buildReport };
+module.exports = { buildReport, checkLongQuery };
