@@ -226,8 +226,8 @@
             <span>{{ message.streaming ? '执行中 · 实时更新' : message.error ? '执行异常 · 查看详情' : '展开查看回答与执行过程' }}</span>
             <span v-if="message.toolCalls?.length">{{ message.toolCalls.length }} 次工具调用</span>
           </summary>
-          <div class="agent-message__meta">
-            <strong>{{ message.role === 'user' ? '用户' : '智能体' }}</strong>
+          <div v-if="message.role === 'assistant'" class="agent-message__meta">
+            <strong>智能体</strong>
             <span v-if="message.model">实际模型：{{ message.model.name }}</span>
             <span v-if="message.stopped">已停止</span>
           </div>
