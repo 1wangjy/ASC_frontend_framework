@@ -39,7 +39,9 @@ test('conversation workspace and composer have enlarged defaults without removin
   const page = root.nodes.find(node => node.selector === '.qa-multi-page')
   const values = Object.fromEntries(page.nodes.filter(node => node.type === 'decl').map(node => [node.prop, node.value]))
   assert.equal(values.width, '100%')
-  assert.equal(values.height, 'calc(100vh - var(--qa-topbar-h))')
+  assert.equal(values.height, 'auto')
+  assert.equal(values['min-height'], 'calc(100dvh - var(--qa-topbar-h))')
+  assert.equal(values.overflow, 'visible')
   assert.match(values.padding, /var\(--qa-gutter\)/)
   assert.equal(values['box-sizing'], 'border-box')
   assert.match(source, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, var\(--qa-stage-width, var\(--qa-page-max-narrow\)\)\) minmax\(0, 1fr\)/)
@@ -51,6 +53,8 @@ test('conversation workspace and composer have enlarged defaults without removin
   assert.equal(declarations('.agent-panel__input')['font-size'], '16px')
   assert.equal(declarations('.agent-panel__input').resize, 'vertical')
   assert.equal(declarations('.agent-panel__log')['min-height'], 'clamp(320px, 38vh, 480px)')
+  assert.equal(declarations('.agent-panel--embedded .agent-panel__log')['min-height'], '240px')
+  assert.equal(declarations('.agent-panel--embedded .agent-panel__composer').flex, '0 0 auto')
 })
 
 test('Agent workspace cannot clip its composer; legacy history keeps its bounded layout', async () => {
@@ -68,8 +72,9 @@ test('Agent workspace cannot clip its composer; legacy history keeps its bounded
   }
   const agent = declarations('.qa-multi-page__workspace.qa-multi-page__workspace--agent')
   assert.ok(agent, 'Agent needs a specific layout override, including at narrow widths')
-  assert.equal(agent.height, 'auto')
-  assert.equal(agent['min-height'], '0')
+  assert.equal(agent.height, 'max(640px, calc(100dvh - 220px))')
+  assert.equal(agent.flex, '0 0 auto')
+  assert.equal(agent['min-height'], '640px')
   assert.equal(agent.overflow, 'visible')
   assert.equal(declarations('.qa-multi-page__workspace--history').overflow, 'hidden')
   const panel = await readFile(new URL('../src/platform/agent/AgentPanel.vue', import.meta.url), 'utf8')

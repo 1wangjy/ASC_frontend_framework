@@ -1,4 +1,4 @@
-import request from './request'
+import request from './request.js'
 
 /** @param {{ username: string, password: string }} data —— username 可传用户名或邮箱 */
 export function login(data) {

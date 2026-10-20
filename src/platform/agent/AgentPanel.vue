@@ -38,15 +38,28 @@
       </div>
     </header>
     <div class="agent-model-bar">
-      <label>本轮模型
-        <select :value="selectedModelId" aria-label="Agent模型" :disabled="sending" @change="selectModel($event.target.value)">
+      <label>主模型
+        <select :value="selectedModelId" aria-label="主模型" :disabled="sending" @change="handleMainModelChange($event)">
+          <optgroup label="主模型选择">
           <option v-for="model in modelOptions" :key="model.id" :value="model.id" :disabled="!model.configured">
             {{ model.label }} · {{ model.model }}{{ model.configured ? '' : '（不可用/待配置）' }}
           </option>
+          </optgroup>
+          <optgroup label="模型配置">
+            <option value="__cloud_config">自定义云模型 API 配置…</option>
+            <option value="__local_config">本地模型配置…</option>
+            <option value="__refresh">刷新模型列表</option>
+          </optgroup>
         </select>
       </label>
-      <button type="button" class="agent-panel__ghost" :disabled="sending" @click="loadModels">刷新模型</button>
-      <button type="button" class="agent-panel__ghost" @click="modelConfigOpen = !modelConfigOpen">本地模型配置</button>
+      <label>辅助模型
+        <select value="" aria-label="辅助模型" :disabled="sending" @change="handleAuxiliaryModelChange($event)">
+          <option value="">无（默认）</option>
+          <option disabled>JEV 决策模型（待配置）</option>
+          <option disabled>LLaVA 决策模型（待配置）</option>
+          <option value="__auxiliary_config">辅助模型配置说明…</option>
+        </select>
+      </label>
       <p v-if="modelsError" role="status">{{ modelsError }}；仅可使用服务端默认模型，发送时由后端再次校验。</p>
     </div>
     <p v-if="tools.length" class="agent-toolcaps" aria-label="支持的工具能力">
@@ -54,10 +67,15 @@
       <code v-for="tool in tools" :key="tool.name" :title="tool.description || tool.name">/{{ tool.name }}</code>
     </p>
     <details v-if="modelConfigOpen" open class="agent-model-guide">
-      <summary>服务端模型配置与部署说明</summary>
-      <p>由服务端管理员配置 backend_impl/config/agent-models.json，并在 backend_impl/.env 中设置 AGENT_MODELS_FILE 的绝对路径。页面不接收密钥或任意模型服务地址。</p>
+      <summary>{{ modelConfigTitle }}</summary>
+      <button type="button" class="agent-panel__ghost" @click="modelConfigOpen = false">收起配置说明</button>
+      <p v-if="modelConfigType === 'auxiliary'">辅助模型默认留空，用于后续接入 JEV、LLaVA 等 AI 决策模型。目前尚未接入辅助模型调用，待服务地址、接口协议与决策输入输出确认后配置；不会替代主模型或自动发起额外调用。</p>
+      <p v-else-if="modelConfigType === 'cloud'">自定义云模型由管理员登记 kind=cloud、model、apiUrl 和 keyEnv。默认云模型沿用后端已有 DeepSeek 配置；密钥不在页面输入或展示。</p>
+      <template v-if="modelConfigType !== 'auxiliary'">
+      <p>由服务端管理员维护 AGENT_MODELS_FILE 指向的模型配置文件，在 backend_impl/.env 中设置该文件的绝对路径。页面不接收密钥或任意模型服务地址。</p>
       <p>本地模型需先部署支持流式 chat/completions 和工具调用的服务，再登记 id、label、kind=local、model、apiUrl、authMode 和 enabled。需要鉴权时只填写 keyEnv 环境变量名，密钥留在本地 .env；无鉴权服务明确使用 authMode=none。</p>
       <p>地址与模型 ID 需与部署同学确认，部署本身尚未完成。“配置可用”不代表工具调用、流式和回答效果已经验证。修改配置后刷新模型名单；修改环境变量后重启后端。</p>
+      </template>
     </details>
 
     <section v-if="authOpen" id="agent-tool-auth" class="agent-auth" aria-label="工具权限">
@@ -458,6 +476,8 @@ const selectedModelId = ref('default')
 const modelOptions = ref([{ id: 'default', label: '服务端默认', model: '由后端确认', configured: true }])
 const modelsError = ref('')
 const modelConfigOpen = ref(false)
+const modelConfigType = ref('local')
+const modelConfigTitle = computed(() => ({ cloud: '自定义云模型 API 配置', local: '本地模型配置与部署说明', auxiliary: '辅助模型配置说明' })[modelConfigType.value])
 const lastAssistant = computed(() => messages.value.findLast(message => message.role === 'assistant'))
 const clockNow = ref(Date.now())
 let clockTimer = null
@@ -472,6 +492,26 @@ const runStatus = computed(() => describeRun({ message: lastAssistant.value,
 
 function selectModel(id) {
   if (!sending.value && modelOptions.value.some((item) => item.id === id && item.configured)) selectedModelId.value = id
+}
+
+function handleMainModelChange(event) {
+  if (sending.value) { event.target.value = selectedModelId.value; return }
+  const id = event.target.value
+  if (id === '__refresh') loadModels()
+  else if (id === '__cloud_config' || id === '__local_config') {
+    modelConfigType.value = id === '__cloud_config' ? 'cloud' : 'local'
+    modelConfigOpen.value = true
+  } else selectModel(id)
+  // Configuration entries are actions, never provider IDs sent to the backend.
+  event.target.value = selectedModelId.value
+}
+
+function handleAuxiliaryModelChange(event) {
+  if (!sending.value && event.target.value === '__auxiliary_config') {
+    modelConfigType.value = 'auxiliary'
+    modelConfigOpen.value = true
+  }
+  event.target.value = ''
 }
 
 async function loadModels() {
@@ -802,7 +842,8 @@ defineExpose({ messages, streaming, sending, steps, sessionId, submitExternal, s
 .agent-model-bar p, .agent-model-guide { font-size: 12px; overflow-wrap: anywhere; }
 .agent-model-guide { padding: 12px 16px; background: var(--asc-surface-soft); }
 .agent-panel--embedded { width: 100%; height: 100%; min-height: 0; border-radius: var(--qa-radius-card, 12px); }
-.agent-panel--embedded .agent-panel__log { min-height: 0; max-height: none; }
+.agent-panel--embedded .agent-panel__log { min-height: 240px; max-height: none; box-sizing: border-box; }
+.agent-panel--embedded .agent-panel__composer { flex: 0 0 auto; }
 .agent-check { font-size: 12px; color: var(--qa-text, #334155); padding: 8px; background: var(--qa-surface-soft, #f1f5f9); }
 .agent-panel {
   /* 面板内的次要文本：由设计令牌派生，保证 11.5px 下仍满足 AA 对比度 */

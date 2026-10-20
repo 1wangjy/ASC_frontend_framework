@@ -1265,10 +1265,11 @@ onUnmounted(() => {
 }
 
 .qa-multi-page {
-  /* 固定为一屏高度：内容超出时只在主窗口内部滚动，页面本身不增高 */
+  /* Let stacked status/history rows grow the page instead of shrinking chat. */
   width: 100%;
-  height: calc(100vh - var(--qa-topbar-h));
-  overflow: hidden;
+  height: auto;
+  min-height: calc(100dvh - var(--qa-topbar-h));
+  overflow: visible;
   display: flex;
   flex-direction: column;
   gap: var(--qa-section-gap);
@@ -1360,9 +1361,9 @@ onUnmounted(() => {
    workspace otherwise clips that composer after the first saved message.
    Extra specificity also overrides the narrow-screen history height rule. */
 .qa-multi-page__workspace.qa-multi-page__workspace--agent {
-  flex: 1 1 auto;
-  height: auto;
-  min-height: 0;
+  flex: 0 0 auto;
+  height: max(640px, calc(100dvh - 220px));
+  min-height: 640px;
   overflow: visible;
 }
 

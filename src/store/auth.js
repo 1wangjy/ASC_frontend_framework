@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, onScopeDispose } from 'vue'
 import { me as apiMe, logout as apiLogout } from '../platform/api/auth.js'
 import { TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from '../config/authStorage.js'
 
@@ -25,19 +25,23 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   /** 从 localStorage 恢复（main.js 在安装 router 之前调用） */
-  function restoreLogin() {
+  function restoreLogin({ repairStorage = true } = {}) {
     try {
       const rawToken = localStorage.getItem(TOKEN_STORAGE_KEY) || ''
       const rawUser = localStorage.getItem(USER_STORAGE_KEY)
       if (!rawToken || !rawUser) {
         // 只存了一半（旧版本遗留）→ 清干净，按未登录处理
-        if (rawToken || rawUser) clearStorage()
+        if (repairStorage && (rawToken || rawUser)) clearStorage()
+        currentUser.value = null
+        token.value = ''
         return
       }
       currentUser.value = JSON.parse(rawUser)
       token.value = rawToken
     } catch {
-      clearStorage()
+      if (repairStorage) clearStorage()
+      currentUser.value = null
+      token.value = ''
     }
   }
 
@@ -93,6 +97,19 @@ export const useAuthStore = defineStore('auth', () => {
 
   function openLoginModal() { showLoginModal.value = true }
   function closeLoginModal() { showLoginModal.value = false }
+
+  // Other open tabs must drop the previous account's cached pages as well.
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    const syncAuthStorage = event => {
+      if (event.key !== null && event.key !== TOKEN_STORAGE_KEY && event.key !== USER_STORAGE_KEY) return
+      // Storage keys are written separately: never delete a transient half-pair
+      // in another tab, or the tabs can erase a login currently being saved.
+      restoreLogin({ repairStorage: false })
+      if (!isLoggedIn.value) showLoginModal.value = false
+    }
+    window.addEventListener('storage', syncAuthStorage)
+    onScopeDispose(() => window.removeEventListener('storage', syncAuthStorage))
+  }
 
   return {
     currentUser, token, showLoginModal,

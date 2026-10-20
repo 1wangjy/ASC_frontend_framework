@@ -35,7 +35,15 @@ test('Agent model selection reaches the wire, unavailable models cannot be selec
   try {
     for (let i = 0; i < 100 && !renderedText(fixture.root).includes('ft-fixture'); i++) await new Promise((r) => setTimeout(r, 10))
     await nextTick()
-    const select = findRenderedNode(fixture.root, (n) => n.type === 'select' && n.props['aria-label'] === 'Agent模型')
+    const select = findRenderedNode(fixture.root, (n) => n.type === 'select' && n.props['aria-label'] === '主模型')
+    const auxiliary = findRenderedNode(fixture.root, (n) => n.type === 'select' && n.props['aria-label'] === '辅助模型')
+    assert.ok(auxiliary)
+    assert.equal(auxiliary.props.value, '')
+    assert.doesNotMatch(renderedText(fixture.root), /本轮模型/)
+    for (const name of ['JEV', 'LLaVA']) {
+      const pending = findRenderedNode(auxiliary, (n) => n.type === 'option' && renderedText(n).includes(name))
+      assert.ok(Object.hasOwn(pending.props, 'disabled') && pending.props.disabled !== false)
+    }
     const input = findRenderedNode(fixture.root, (n) => n.type === 'textarea')
     const send = async () => {
       await invoke(input, 'onUpdate:modelValue', '测试模型切换')
@@ -52,9 +60,20 @@ test('Agent model selection reaches the wire, unavailable models cannot be selec
     await send()
     assert.equal(bodies[1].modelId, 'default')
     assert.match(renderedText(fixture.root), /实际模型：flash-fixture/)
-    const config = findRenderedNode(fixture.root, (n) => n.type === 'button' && renderedText(n).trim() === '本地模型配置')
-    await invoke(config, 'onClick', { preventDefault() {}, stopPropagation() {} })
+    const configEvent = { target: { value: '__local_config' } }
+    await invoke(select, 'onChange', configEvent)
+    assert.equal(configEvent.target.value, 'default')
     assert.match(renderedText(fixture.root), /部署本身尚未完成/)
     assert.match(renderedText(fixture.root), /keyEnv/)
+    await invoke(select, 'onChange', { target: { value: '__cloud_config' } })
+    assert.match(renderedText(fixture.root), /自定义云模型由管理员登记/)
+    const auxiliaryEvent = { target: { value: '__auxiliary_config' } }
+    await invoke(auxiliary, 'onChange', auxiliaryEvent)
+    assert.equal(auxiliaryEvent.target.value, '')
+    assert.match(renderedText(fixture.root), /目前尚未接入辅助模型调用/)
+    assert.equal(bodies.length, 2, 'opening configuration must not invoke the model')
+    await send()
+    assert.equal(bodies[2].modelId, 'default', 'configuration actions never replace the main provider')
+    assert.ok(!Object.hasOwn(bodies[2], 'auxiliaryModelId'), 'unconfigured auxiliary model stays unused')
   } finally { await fixture.close() }
 })
