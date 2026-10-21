@@ -63,6 +63,8 @@
 
 在 `backend_impl/` 执行 `node scripts/start-agent.js`，健康检查为 `GET /api/agent/health`，仅返回配置状态、模型名和输出预算。`.env.example` 已列出新增配置，密钥只填本地配置。
 
+云模型直连超时而本机代理可用时，可在本地 `.env` 设置 `NODE_USE_ENV_PROXY=1`、`HTTPS_PROXY=http://127.0.0.1:7897`、`HTTP_PROXY=http://127.0.0.1:7897` 和 `NO_PROXY=localhost,127.0.0.1,::1`（代理地址按实际安装配置）。需 Node.js 24.14.0+；启动时加载配置后启用代理，仍使用原启动命令。`NO_PROXY` 保证本地 Node、知识服务和预测服务直连；远端内网服务需自行追加主机。修改后重启 Node 后端，并确保本机代理运行。不要把个人代理配置或密钥写进提交的配置示例。
+
 `scripts/agent-smoke.js` 调用实际 `/api/agent/stream`，创建一个会话并连续提问两次。必须明确配置 `AGENT_SMOKE_PROJECT_ID` 或 `AGENT_SMOKE_GRAPH_ID`，并核对图谱目录；不自动选首个项目。`--check-only` 只做配置/目录检查，不发模型请求。结果保存到 `data/agent/integration/`；带合法引用的完成标为 `draft_chain_completed_support_unverified`，不当作科学支持度已验证。
 
 当前机器已找到 `D:/shixi/中关村学院/AI4Sci-NEXUS-ASC-Development-Domain-backup/.env` 的既有模型配置、知识服务虚拟环境与运行项目副本。本轮通过 API 确认范围 `proj_65ac6094e268 / nexus_2bdcb8bbccb04ea5`；新 Agent 仍通过 API 使用知识，不读取该服务图谱文件。该本机服务不代表已经对接李铭豪的新部署或微调模型。
