@@ -96,7 +96,7 @@
           />
         </div>
 
-          <!-- 右侧会话目录：顶部"+ 新建对话"，其下按 workspace 折叠分组的历史会话 -->
+          <!-- 共享会话目录：搜索、图谱分组与窄屏抽屉。 -->
           <QaSessionToc
             v-if="showSessionToc"
             class="qa-stage__toc"
@@ -1095,7 +1095,7 @@ onUnmounted(() => {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, var(--qa-stage-width, var(--qa-page-max-narrow))) minmax(0, 1fr);
+  grid-template-columns: 80px minmax(0, 1fr) 264px;
   column-gap: var(--qa-space-5);
   align-items: stretch;
   width: 100%;
@@ -1107,20 +1107,18 @@ onUnmounted(() => {
 .qa-stage__left { grid-column: 1; justify-self: safe center; align-self: start; min-width: 0; }
 .qa-stage__main { grid-column: 2; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 
-/* 会话目录：依附主窗口右缘（右侧空白列），与主窗口同高、顶部对齐，且不挤压主窗口宽度 */
-.qa-stage__toc { grid-column: 3; justify-self: start; align-self: stretch; min-width: 0; }
-.qa-stage__toc > .qa-session-toc { width: 248px; max-width: 100%; height: 100%; position: static; max-height: none; }
+/* Reserve history width; only the conversation column flexes. */
+.qa-stage__toc { grid-column: 3; justify-self: start; min-width: 0; }
 
-@media (max-width: 1280px) {
+@container qa-content (max-width: 1200px) {
   .qa-stage { grid-template-columns: minmax(0, 1fr); }
   .qa-stage__left { grid-column: 1; justify-self: start; padding-left: var(--qa-gutter); }
   .qa-stage__main,
   .qa-stage__toc { grid-column: 1; }
-  .qa-stage__toc { width: 100%; }
-  .qa-stage__toc > .qa-session-toc { height: auto; max-height: 320px; }
 }
 
 .qa-main {
+  container: qa-content / inline-size;
   min-width: 0;
   min-height: 100vh;
 }
